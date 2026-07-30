@@ -76,10 +76,12 @@ const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 // leaderboard can never desync. Round it for display.
 const displayIndex = (p: Profile): number => Math.round(cognitiveIndex(p));
 
-/** Total rounds across all three games — drives brain-age calibration. */
+/** Total rounds across all games — drives brain-age calibration. */
 const totalRounds = (p: Profile) =>
-  (p.schulte_sessions ?? 0) + (p.sudoku_sessions ?? 0) + (p.stroop_sessions ?? 0);
-
+  (p.schulte_sessions ?? 0) +
+  (p.sudoku_sessions ?? 0) +
+  (p.stroop_sessions ?? 0) +
+  (p.reaction_sessions ?? 0);
 // Each domain is the stored proficiency rating (0–RATING_MAX) mapped to 0–100
 // for the radar. No session division: the rating is already a moving average.
 function buildCognitiveDataRaw(p: Profile) {
@@ -801,9 +803,9 @@ const [selectedGame, setSelectedGame] = useState<
 
         try {
           const saved = await saveScores({
-            ...updates,
-          } as Parameters<typeof saveScores>[0]);
-
+  ...updates,
+  reaction_sessions: (profile.reaction_sessions ?? 0) + 1,
+} as Parameters<typeof saveScores>[0]);
           await finishRound(saved);
 
           const average =

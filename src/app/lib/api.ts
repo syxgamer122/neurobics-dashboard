@@ -46,6 +46,7 @@ export type Profile = {
   schulte_sessions: number;           // total Schulte rounds completed
   sudoku_sessions: number;            // total Sudoku rounds completed
   stroop_sessions: number;            // total Stroop rounds completed
+  reaction_sessions: number;
   last_active_date: string | null;    // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
   // supplied it, and the UI asks for it rather than inventing a number.
@@ -221,7 +222,8 @@ export type ScoreColumn =
   | "focus_score"
   | "schulte_sessions"
   | "sudoku_sessions"
-  | "stroop_sessions";
+  | "stroop_sessions"
+  | "reaction_sessions";
 
 export async function saveTrainingResult(
   scoreType: ScoreColumn,
@@ -370,6 +372,7 @@ export async function resetActiveUserScores(): Promise<Profile> {
       schulte_sessions: 0,
       sudoku_sessions: 0,
       stroop_sessions: 0,
+      reaction_sessions: 0,
       last_active_date: null,
     })
     .eq("id", userId)
@@ -430,6 +433,7 @@ export async function adminResetScores(targetId: string): Promise<Profile> {
       schulte_sessions: 0,
       sudoku_sessions: 0,
       stroop_sessions: 0,
+      reaction_sessions: 0,
       last_active_date: null,
     })
     .eq("id", targetId)
@@ -529,7 +533,14 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
 
   const indices = ((data ?? []) as Profile[])
     .map(hydrateProfile)
-    .filter((p) => (p.schulte_sessions ?? 0) + (p.sudoku_sessions ?? 0) + (p.stroop_sessions ?? 0) >= 5)
+   .filter(
+  (p) =>
+    (p.schulte_sessions ?? 0) +
+      (p.sudoku_sessions ?? 0) +
+      (p.stroop_sessions ?? 0) +
+      (p.reaction_sessions ?? 0) >=
+    5,
+)
     .map(cognitiveIndex);
 
   if (indices.length < MIN_POPULATION) return { ...DEFAULT_POPULATION, n: indices.length };
