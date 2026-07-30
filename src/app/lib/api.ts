@@ -30,7 +30,7 @@ export function getSupabase(): SupabaseClient {
 // email requires the service-role key, which must never reach the browser.
 // Everything else reads/writes the genuine public.profiles table directly via
 // the authenticated client (RLS scopes writes to the user's own row).
-const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-1e03ae23`;
+const BASE = `https://${projectId}.supabase.co/functions/v1/server`;
 
 export type Profile = {
   id: string;
