@@ -56,10 +56,14 @@ export const EMA_ALPHA = 0.4;
  * of the gap, a weak round leaves it untouched. Decay (below) is what brings it
  * back down — not bad rounds, so one off day never wipes out months of work.
  */
+/** Khoảng cách còn lại đủ nhỏ thì nhảy thẳng, tránh tiệm cận mãi ở 999. */
+export const PULL_UP_SNAP = 3;
+
 export function pullUpRating(prev: number | null | undefined, round: number): number {
   const o = sanitizeRating(prev);
   if (round <= o) return o;
-  return clampRating(o + EMA_ALPHA * (round - o));
+  if (round - o <= PULL_UP_SNAP) return clampRating(round);
+  return clampRating(Math.max(o + 1, o + EMA_ALPHA * (round - o)));
 }
 
 // ─── Inactivity decay ──────────────────────────────────────────────────
@@ -217,13 +221,22 @@ function speedAxis(rts: number[], targetPerItemMs: number, diffFactor: number, f
  * drifting off), and error rate. Because CV is scale-free, playing faster does
  * NOT raise Focus; only playing *evenly and cleanly* does.
  */
+/** CV dưới mốc này được coi là nhịp hoàn hảo — con người không thể đạt cv = 0. */
+export const FOCUS_CV_FLOOR = 0.25;
+/** CV từ mốc này trở lên chịu phạt tối đa. */
+export const FOCUS_CV_CEILING = 1.2;
+
 function focusAxis(rts: number[], accuracy: number, diffFactor: number): number {
   const cv = coefficientOfVariation(rts);
-  const rhythm = 1 - clamp01(cv / 1.2) * 0.6; // full CV spread costs at most 60%
+  // Chuẩn hóa lại: cv ≤ 0.25 → rhythm = 1.0 (đạt trần được).
+  // Trước đây yêu cầu cv = 0, tức là bất khả thi, nên Focus vĩnh viễn kẹt ~0.83.
+  const rhythmPenalty = clamp01(
+    (cv - FOCUS_CV_FLOOR) / (FOCUS_CV_CEILING - FOCUS_CV_FLOOR),
+  );
+  const rhythm = 1 - rhythmPenalty * 0.6;
   const attention = 1 - lapseRate(rts);
   return clampRating(RATING_MAX * diffFactor * rhythm * attention * accuracy);
 }
-
 // ─── Schulte → Spatial, Focus, Speed ───────────────────────────────────────
 // Schulte is a visual-search task. It says nothing about deduction or recall,
 // so Logic and Memory stay null here.
