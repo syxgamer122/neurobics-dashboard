@@ -2207,9 +2207,15 @@ function GameTile({ accent, icon, tag, title, desc, playLabel, onPlay }: { accen
 
 function RoundResultOverlay({ result, onClose }: { result: RoundResult; onClose: () => void }) {
   const { t } = useLang();
-  const isSchulte = result.game === "schulte";
-  const isStroop  = result.game === "stroop";
-  const accent = isSchulte ? "#A855F7" : isStroop ? "#EAB308" : "#00D4FF";
+  const GAME_META: Record<RoundResult["game"], { title: string; accent: string }> = {
+  schulte:  { title: "SCHULTE TABLE",  accent: "#A855F7" },
+  sudoku:   { title: "SUDOKU",         accent: "#00D4FF" },
+  stroop:   { title: "STROOP TEST",    accent: "#EAB308" },
+  reaction: { title: "REACTION TIME",  accent: "#10B981" },
+  memory:   { title: "MEMORY MATRIX",  accent: "#F43F5E" },
+};
+const meta = GAME_META[result.game] ?? GAME_META.sudoku;
+const accent = meta.accent;
   const fmtTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
@@ -2232,7 +2238,7 @@ function RoundResultOverlay({ result, onClose }: { result: RoundResult; onClose:
         <div className="flex items-start justify-between">
           <div>
             <div className="text-[10px] tracking-[0.25em] mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: accent }}>
-              {isSchulte ? "SCHULTE TABLE" : isStroop ? "STROOP TEST" : "SUDOKU"} · {t.round_complete}
+              {meta.title} · {t.round_complete}
             </div>
             <div className="text-xl font-bold text-white">{result.label}</div>
           </div>
@@ -2276,10 +2282,44 @@ function RoundResultOverlay({ result, onClose }: { result: RoundResult; onClose:
           ))}
         </div>
 
-        {/* Note */}
-        <div className="text-[10px] text-slate-600 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-          {t.score_note}
-        </div>
+        {/* XP earned */}
+{result.xpAwarded != null && result.xpAwarded > 0 && (
+  <div
+    className="flex items-center gap-3 px-4 py-3 rounded-xl"
+    style={{
+      background: result.leveledUp ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.10)",
+      border: `1px solid ${result.leveledUp ? "rgba(245,158,11,0.35)" : "rgba(16,185,129,0.25)"}`,
+    }}
+  >
+    <Zap size={14} style={{ color: result.leveledUp ? "#F59E0B" : "#10B981" }} />
+    <span className="text-[11px] text-slate-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+      {result.leveledUp ? t.level_up : t.xp_earned}
+    </span>
+    <span
+      className="ml-auto text-lg font-bold tabular-nums"
+      style={{ fontFamily: "'JetBrains Mono', monospace", color: result.leveledUp ? "#F59E0B" : "#10B981" }}
+    >
+      +{result.xpAwarded} XP
+    </span>
+    {result.xpLevel != null && (
+      <span
+        className="text-[10px] px-2 py-1 rounded-md"
+        style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          background: "rgba(255,255,255,0.06)",
+          color: "#94A3B8",
+        }}
+      >
+        Lv.{result.xpLevel}
+      </span>
+    )}
+  </div>
+)}
+
+{/* Note */}
+<div className="text-[10px] text-slate-600 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+  {t.score_note}
+</div>
 
         <button
           onClick={onClose}
