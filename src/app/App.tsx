@@ -253,7 +253,11 @@ export default function App() {
     </LangProvider>
   );
 }
-
+export type MemoryTelemetry = {
+  timeMs: number;
+  maxLevel: number;
+  wrongClicks: number;
+};
 function AppInner() {
   const { lang, toggle, t } = useLang();
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
@@ -262,7 +266,7 @@ function AppInner() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [pulse, setPulse] = useState(false);
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
-  const [selectedGame, setSelectedGame] = useState<"schulte" | "sudoku" | "stroop" | null>(null);
+  const [selectedGame, setSelectedGame] = useState<"schulte" | "sudoku" | "stroop" | "memory" | null>(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   // Real distribution of Cognitive Index across users — the baseline the brain
   // age is ranked against. Seeded until enough calibrated players exist.
@@ -685,6 +689,15 @@ function AppInner() {
               playLabel={t.play_now}
               onPlay={() => setSelectedGame("stroop")}
             />
+            <GameTile
+              accent="#F43F5E"
+              icon={<Brain size={22} />}
+              tag="MEMORY TRAINING"
+              title="Memory Matrix"
+              desc="Ghi nhớ vị trí các ô sáng trên lưới. Độ khó tăng dần theo từng cấp độ."
+              playLabel="PLAY NOW"
+              onPlay={() => setSelectedGame("memory")}
+            />
           </div>
         )}
 
@@ -762,6 +775,30 @@ function AppInner() {
                   });
                 } catch (err) {
                   console.error("Stroop onComplete: saving scores failed:", err);
+                  toast.error(t.save_failed);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {selectedGame === "memory" && (
+          <div className="max-w-sm">
+            <MemoryMatrixGame
+              onComplete={async (tel) => {
+                const axes = { speed: null, focus: tel.maxLevel * 2, spatial: tel.maxLevel * 3, logic: null, memory: tel.maxLevel * 5 };
+                const { updates, rows } = applyAxes(profile, axes as any);
+                try {
+                  const saved = await saveScores({
+                    ...updates,
+                  } as any);
+                  await finishRound(saved);
+                  setRoundResult({
+                    game: "memory" as any, timeMs: tel.timeMs, label: `Level ${tel.maxLevel}`,
+                    headline: roundHeadline(axes as any), rows,
+                  });
+                } catch (err) {
+                  console.error("Memory onComplete failed:", err);
                   toast.error(t.save_failed);
                 }
               }}
@@ -2167,6 +2204,243 @@ function StatMini({ label, value, unit, color }: { label: string; value: string;
       <div className="text-[10px] text-slate-600 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{label.toUpperCase()}</div>
       <div className="text-xl font-bold text-white" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
       <div className="text-[10px] mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace", color }}>{unit}</div>
+    </div>
+  );
+}
+// ─── Memory Matrix Game ──────────────────────────────────────────────────────
+
+function MemoryMatrixGame({ onComplete }: { onComplete: (tel: MemoryTelemetry) => Promise<void> }) {
+  const { t } = useLang();
+  const MAX_HEARTS = 3;
+  
+  const [level, setLevel] = useState(1);
+  const [hearts, setHearts] = useState(MAX_HEARTS);
+  const [status, setStatus] = useState<"idle" | "memorize" | "recall" | "success" | "fail" | "done">("idle");
+  const [targets, setTargets] = useState<number[]>([]);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [elapsed, setElapsed] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [wrongClicks, setWrongClicks] = useState(0);
+  
+  const startRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const gridSize = Math.min(6, Math.max(3, Math.floor(2 + level / 3)));
+  const targetCount = Math.min(15, 2 + Math.floor(level / 1.5));
+  const totalCells = gridSize * gridSize;
+
+  const generateLevel = useCallback(() => {
+    const newTargets = shuffleArray(Array.from({ length: totalCells }, (_, i) => i)).slice(0, targetCount);
+    setTargets(newTargets);
+    setSelected([]);
+    setStatus("memorize");
+    
+    if (level === 1 && !startRef.current) {
+      startRef.current = Date.now();
+      intervalRef.current = setInterval(() => setElapsed(Date.now() - (startRef.current ?? Date.now())), 100);
+    }
+
+    setTimeout(() => {
+      setStatus(prev => prev === "memorize" ? "recall" : prev);
+    }, 1500 + targetCount * 100);
+  }, [level, targetCount, totalCells]);
+
+  const reset = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setLevel(1);
+    setHearts(MAX_HEARTS);
+    setStatus("idle");
+    setElapsed(0);
+    setWrongClicks(0);
+    startRef.current = null;
+  };
+
+  const handleCellClick = (idx: number) => {
+    if (status !== "recall" || selected.includes(idx)) return;
+
+    const newSelected = [...selected, idx];
+    setSelected(newSelected);
+
+    if (!targets.includes(idx)) {
+      setWrongClicks(prev => prev + 1);
+      const newHearts = hearts - 1;
+      setHearts(newHearts);
+      setStatus("fail");
+      
+      if (newHearts <= 0) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setTimeout(() => {
+          setStatus("done");
+          setSaving(true);
+          onComplete({
+            timeMs: Date.now() - (startRef.current ?? Date.now()),
+            maxLevel: level,
+            wrongClicks: wrongClicks + 1,
+          }).finally(() => setSaving(false));
+        }, 1000);
+      } else {
+        setTimeout(() => {
+          generateLevel();
+        }, 1000);
+      }
+      return;
+    }
+
+    if (newSelected.length === targets.length) {
+      setStatus("success");
+      setTimeout(() => {
+        setLevel(l => l + 1);
+      }, 600);
+    }
+  };
+
+  useEffect(() => {
+    if (level > 1) {
+      generateLevel();
+    }
+  }, [level, generateLevel]);
+
+  const fmtTime = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return m > 0 ? `${m}:${String(s % 60).padStart(2, "0")}` : `0:${String(s).padStart(2, "0")}`;
+  };
+
+  return (
+    <div
+      className="rounded-2xl p-5 flex flex-col"
+      style={{ background: "rgba(13,20,45,0.62)", border: "1px solid rgba(244,63,94,0.2)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "0 4px 44px rgba(0,0,0,0.45)" }}
+    >
+      <div className="flex items-start justify-between mb-1">
+        <div>
+          <div className="text-[10px] tracking-[0.2em] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#F43F5E" }}>MEMORY TRAINING</div>
+          <div className="text-base font-bold text-white">Memory Matrix</div>
+        </div>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(244,63,94,0.18)", color: "#F43F5E", border: "1px solid rgba(244,63,94,0.28)" }}>
+          <Brain size={16} />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 mt-3">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.25)" }}>
+          <Star size={11} style={{ color: "#F43F5E" }} />
+          <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#F43F5E" }}>+{level} MEMORY</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {Array.from({ length: MAX_HEARTS }).map((_, i) => (
+            <span key={i} style={{ fontSize: 14, opacity: i < hearts ? 1 : 0.2, transition: "opacity 0.25s", filter: i < hearts ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))" : "none" }}>❤️</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="text-[9px] text-slate-600 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIME</span>
+          <div className="text-3xl font-bold tabular-nums" style={{ fontFamily: "'JetBrains Mono', monospace", color: status === "done" ? "#10B981" : "#F43F5E", textShadow: status === "done" ? "0 0 24px rgba(16,185,129,0.5)" : "0 0 18px rgba(244,63,94,0.4)" }}>
+            {fmtTime(elapsed)}
+          </div>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-[9px] text-slate-600 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>LEVEL</span>
+          <span className="text-4xl font-bold tabular-nums" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#F43F5E", textShadow: "0 0 20px rgba(244,63,94,0.55)" }}>
+            {level}
+          </span>
+        </div>
+      </div>
+
+      {status === "idle" ? (
+        <div className="mt-6 flex flex-col items-center justify-center py-10" style={{ minHeight: 280 }}>
+          <div className="text-sm text-slate-400 text-center mb-6 leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Ghi nhớ vị trí các ô phát sáng.<br />Khi chúng tắt, hãy chọn lại chính xác.
+          </div>
+          <button
+            onClick={generateLevel}
+            className="px-8 py-3 rounded-xl text-sm font-bold tracking-widest transition-all duration-200 hover:scale-105"
+            style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(244,63,94,0.15)", color: "#F43F5E", border: "1px solid rgba(244,63,94,0.4)", boxShadow: "0 0 20px rgba(244,63,94,0.2)" }}
+          >
+            START MATRIX
+          </button>
+        </div>
+      ) : status === "done" ? (
+        <div className="mt-6 flex flex-col items-center justify-center py-10" style={{ minHeight: 280 }}>
+          <CheckCircle size={48} className="text-emerald-400 mb-4" />
+          <div className="text-lg font-bold text-white mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GAME OVER</div>
+          <div className="text-sm text-slate-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Max Level: <span className="text-[#F43F5E]">{level}</span></div>
+        </div>
+      ) : (
+        <div className="mt-6 mx-auto relative" style={{ width: "100%", maxWidth: 320 }}>
+          <div 
+            style={{ 
+              display: "grid", 
+              gridTemplateColumns: `repeat(${gridSize}, 1fr)`, 
+              gap: 8,
+              aspectRatio: "1",
+              pointerEvents: status === "recall" ? "auto" : "none"
+            }}
+          >
+            {Array.from({ length: totalCells }).map((_, idx) => {
+              const isTarget = targets.includes(idx);
+              const isSelected = selected.includes(idx);
+              const isWrong = isSelected && !isTarget;
+              
+              let bg = "rgba(255,255,255,0.03)";
+              let border = "1px solid rgba(255,255,255,0.06)";
+              let shadow = "none";
+              let transform = "scale(1)";
+
+              if ((status === "memorize" || status === "fail") && isTarget) {
+                bg = "rgba(244,63,94,0.8)";
+                border = "1px solid rgba(244,63,94,1)";
+                shadow = "0 0 15px rgba(244,63,94,0.6)";
+              } else if (status === "recall" || status === "success") {
+                if (isWrong) {
+                  bg = "rgba(239,68,68,0.4)";
+                  border = "1px solid rgba(239,68,68,0.8)";
+                } else if (isSelected) {
+                  bg = "rgba(16,185,129,0.5)";
+                  border = "1px solid rgba(16,185,129,0.8)";
+                  shadow = "0 0 10px rgba(16,185,129,0.4)";
+                  transform = "scale(0.92)";
+                } else {
+                  bg = "rgba(255,255,255,0.05)";
+                }
+              }
+
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleCellClick(idx)}
+                  className="rounded-lg transition-all duration-200"
+                  style={{
+                    background: bg,
+                    border: border,
+                    boxShadow: shadow,
+                    transform: transform,
+                    cursor: status === "recall" && !isSelected ? "pointer" : "default"
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {saving && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          <Loader2 size={11} className="animate-spin" /> {t.saving}
+        </div>
+      )}
+
+      {status !== "idle" && (
+        <button
+          disabled={saving}
+          onClick={reset}
+          className="mt-6 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-125"
+          style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(244,63,94,0.1)", color: "#F43F5E", border: "1px solid rgba(244,63,94,0.25)" }}
+        >
+          <RefreshCw size={12} /> ABORT & RESTART
+        </button>
+      )}
     </div>
   );
 }
