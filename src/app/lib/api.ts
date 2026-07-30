@@ -407,20 +407,82 @@ export async function adminFetchUser(targetId: string): Promise<Profile> {
 
 /** Add `delta` to all score columns of any user. */
 export async function adminAddPoints(targetId: string, delta: number): Promise<Profile> {
-  const target = await adminFetchUser(targetId);
+  return adminApplyGrant(targetId, {
+    axes: { logic: delta, memory: delta, speed: delta, focus: delta, spatial: delta },
+    mode: "add",
+  });
+}
+
+/** Tên hiển thị của trục -> tên cột thật trong bảng profiles. */
+export const AXIS_COLUMNS = {
+  logic:   "algebraic_logic_score",
+  memory:  "memory_score",
+  speed:   "speed_score",
+  focus:   "focus_score",
+  spatial: "cfop_spatial_record",
+} as const;
+
+export type AxisKey = keyof typeof AXIS_COLUMNS;
+
+export type AdminGrant = {
+  /** Chỉ những trục được liệt kê mới bị đụng tới. */
+  axes?: Partial<Record<AxisKey, number>>;
+  /** Điều chỉnh total_xp. Level tự suy ra nên không bao giờ lệch. */
+  xp?: number;
+  /** "add" cộng thêm vào giá trị hiện tại, "set" gán đè. */
+  mode?: "add" | "set";
+};
+
+/**
+ * Đọc hồ sơ ở dạng THÔ, không áp dụng trừ hao theo ngày nghỉ.
+ * Bắt buộc dùng cho đường ghi, nếu không phần hao hụt sẽ bị ghi đè vĩnh viễn.
+ */
+async function adminFetchRaw(targetId: string): Promise<Profile> {
   const { data, error } = await getSupabase()
     .from("profiles")
-    .update({
-      algebraic_logic_score: addClamped(target.algebraic_logic_score, delta),
-      memory_score:  addClamped(target.memory_score,  delta),
-      speed_score:   addClamped(target.speed_score,   delta),
-      focus_score:   addClamped(target.focus_score,   delta),
-      cfop_spatial_record: addClamped(target.cfop_spatial_record, delta),
-    })
+    .select(PROFILE_COLS)
+    .eq("id", targetId)
+    .single();
+  if (error) throw new Error(describeError(error, "adminFetchRaw"));
+  return sanitizeProfile(data as Profile);
+}
+
+/**
+ * Cấp điểm cho từng trục riêng lẻ và/hoặc chỉnh XP.
+ * Mọi trục đều bị kẹp trong [0, RATING_MAX] và làm tròn về số nguyên,
+ * nên không thể phá vỡ thang điểm hay công thức chỉ số nhận thức.
+ */
+export async function adminApplyGrant(targetId: string, grant: AdminGrant): Promise<Profile> {
+  const mode = grant.mode ?? "add";
+  const target = await adminFetchRaw(targetId);
+  const patch: Record<string, number> = {};
+
+  for (const key of Object.keys(grant.axes ?? {}) as AxisKey[]) {
+    const amount = grant.axes?.[key];
+    if (amount == null || !Number.isFinite(amount)) continue;
+
+    const column = AXIS_COLUMNS[key];
+    const current = Number((target as unknown as Record<string, number | null>)[column] ?? 0);
+    const next = mode === "set" ? amount : current + amount;
+
+    patch[column] = Math.max(0, Math.min(RATING_MAX, Math.round(next)));
+  }
+
+  if (grant.xp != null && Number.isFinite(grant.xp)) {
+    const currentXp = Number(target.total_xp ?? 0);
+    const nextXp = mode === "set" ? grant.xp : currentXp + grant.xp;
+    patch.total_xp = Math.max(0, Math.round(nextXp));
+  }
+
+  if (Object.keys(patch).length === 0) return target;
+
+  const { data, error } = await getSupabase()
+    .from("profiles")
+    .update(patch)
     .eq("id", targetId)
     .select(PROFILE_COLS)
     .single();
-  if (error) throw new Error(describeError(error, "adminAddPoints"));
+  if (error) throw new Error(describeError(error, "adminApplyGrant"));
   return sanitizeProfile(data as Profile);
 }
 
@@ -439,7 +501,8 @@ export async function adminResetScores(targetId: string): Promise<Profile> {
       sudoku_sessions: 0,
       stroop_sessions: 0,
       reaction_sessions: 0,
-       total_xp: 0,
+      memory_sessions: 0,
+      total_xp: 0,
       last_active_date: null,
     })
     .eq("id", targetId)

@@ -24,11 +24,14 @@ import {
 } from "lucide-react";
 import {
   fetchLeaderboard,
-  adminAddPoints,
+  adminApplyGrant,
   adminResetScores,
   adminDeleteUser,
+  AXIS_COLUMNS,
+  type AxisKey,
   type Profile,
 } from "../lib/api";
+import { levelFromXp } from "../lib/xp";
 import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 
 const ADMIN_USERNAME = "nguyenhuumanh";
@@ -121,6 +124,13 @@ export function AdminPanel({
   };
 
   const mask = (s: string) => "•".repeat(Math.min(s.length, 44));
+const EMPTY_GRANT: Record<AxisKey, string> = {
+  logic: "", memory: "", speed: "", focus: "", spatial: "",
+};
+
+const [grantAxes, setGrantAxes] = useState<Record<AxisKey, string>>(EMPTY_GRANT);
+const [grantXp, setGrantXp] = useState("");
+const [grantMode, setGrantMode] = useState<"add" | "set">("add");
 
   const runAction = async (key: string, fn: () => Promise<void>) => {
     if (!isAdmin || busy) return;
@@ -139,17 +149,57 @@ export function AdminPanel({
 
   const target = selectedUser;
 
-  const handleAddPoints = (delta: number) => {
-    if (!target) return;
-    const isSelf = target.id === profile.id;
-    runAction(`add:${delta}:${target.id}`, async () => {
-      const updated = await adminAddPoints(target.id, delta);
-      pushLog(`UPDATE profiles SET scores += ${delta} WHERE username='${target.username}' — OK`);
-      if (isSelf) onProfileChange(updated);
-      setSelectedUser(updated);
-      fetchProfiles();
-    });
-  };
+  const parseField = (raw: string): number | undefined => {
+  const trimmed = raw.trim();
+  if (trimmed === "") return undefined;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/** Điền cùng một số vào cả 5 ô trục. */
+const fillAllAxes = (amount: number) => {
+  setGrantAxes({
+    logic: String(amount), memory: String(amount), speed: String(amount),
+    focus: String(amount), spatial: String(amount),
+  });
+};
+
+const handleApplyGrant = () => {
+  if (!target) return;
+
+  const axes: Partial<Record<AxisKey, number>> = {};
+  for (const key of Object.keys(grantAxes) as AxisKey[]) {
+    const value = parseField(grantAxes[key]);
+    if (value !== undefined) axes[key] = value;
+  }
+
+  const xp = parseField(grantXp);
+  const touched = Object.keys(axes).length;
+  if (touched === 0 && xp === undefined) {
+    pushLog("SKIP :: không có trường nào được nhập");
+    return;
+  }
+
+  const isSelf = target.id === profile.id;
+  runAction(`grant:${target.id}`, async () => {
+    const updated = await adminApplyGrant(target.id, { axes, xp, mode: grantMode });
+
+    const verb = grantMode === "set" ? "SET" : "+=";
+    const parts = (Object.keys(axes) as AxisKey[]).map(
+      (k) => `${AXIS_COLUMNS[k]} ${verb} ${axes[k]}`,
+    );
+    if (xp !== undefined) parts.push(`total_xp ${verb} ${xp}`);
+
+    pushLog(`UPDATE profiles SET ${parts.join(", ")} WHERE username='${target.username}' — OK`);
+    pushLog(`  ↳ total_xp=${updated.total_xp ?? 0} · level=${levelFromXp(updated.total_xp ?? 0)}`);
+
+    if (isSelf) onProfileChange(updated);
+    setSelectedUser(updated);
+    setGrantAxes(EMPTY_GRANT);
+    setGrantXp("");
+    fetchProfiles();
+  });
+};
 
   const handleReset = () => {
     if (!target) return;
@@ -315,21 +365,113 @@ export function AdminPanel({
                 <span className="text-xs font-bold tracking-wider" style={{ color: green }}>ADD POINTS</span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
-                Cộng điểm vào tất cả các cột logic, memory, speed, focus.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {[10, 50, 100, 500].map((amt) => (
-                  <ActionBtn
-                    key={amt}
-                    accent={green}
-                    label={`+${amt}`}
-                    icon={<Zap size={11} />}
-                    loading={busy === `add:${amt}:${selectedUser?.id}`}
-                    disabled={!!busy || !selectedUser}
-                    onClick={() => handleAddPoints(amt)}
-                  />
-                ))}
-              </div>
+  Nhập số vào từng trục. Bỏ trống nghĩa là không đụng tới. Số âm để trừ.
+  Mọi trục đều bị kẹp trong 0–1000.
+</p>
+
+{/* Chế độ */}
+<div className="grid grid-cols-2 gap-1 mb-3">
+  {(["add", "set"] as const).map((m) => (
+    <button
+      key={m}
+      onClick={() => setGrantMode(m)}
+      disabled={!!busy || !selectedUser}
+      className="py-1.5 rounded-lg text-[10px] font-bold tracking-wider"
+      style={
+        grantMode === m
+          ? { background: `${green}22`, color: green, border: `1px solid ${green}55` }
+          : { background: "rgba(0,0,0,0.3)", color: "#64748B", border: "1px solid rgba(255,255,255,0.06)" }
+      }
+    >
+      {m === "add" ? "CỘNG THÊM" : "GÁN ĐÈ"}
+    </button>
+  ))}
+</div>
+
+{/* Điền nhanh cả 5 trục */}
+<div className="grid grid-cols-5 gap-1 mb-3">
+  {[10, 50, 100, 500, 1000].map((amt) => (
+    <button
+      key={amt}
+      onClick={() => fillAllAxes(amt)}
+      disabled={!!busy || !selectedUser}
+      className="py-1 rounded-md text-[9px] font-bold"
+      style={{ background: "rgba(0,0,0,0.3)", color: green, border: `1px solid ${green}22` }}
+    >
+      {amt}
+    </button>
+  ))}
+</div>
+
+{/* Ô nhập từng trục */}
+<div className="space-y-1.5 mb-3">
+  {([
+    ["logic",   "LOGIC",   selectedUser?.algebraic_logic_score],
+    ["memory",  "MEMORY",  selectedUser?.memory_score],
+    ["speed",   "SPEED",   selectedUser?.speed_score],
+    ["focus",   "FOCUS",   selectedUser?.focus_score],
+    ["spatial", "SPATIAL", selectedUser?.cfop_spatial_record],
+  ] as [AxisKey, string, number | null | undefined][]).map(([key, label, current]) => (
+    <div key={key} className="flex items-center gap-2">
+      <span className="text-[9px] text-slate-500 w-14 shrink-0">{label}</span>
+      <span className="text-[10px] text-slate-400 w-10 shrink-0 text-right">{current ?? 0}</span>
+      <input
+        type="number"
+        value={grantAxes[key]}
+        onChange={(e) => setGrantAxes((g) => ({ ...g, [key]: e.target.value }))}
+        disabled={!!busy || !selectedUser}
+        placeholder="—"
+        className="flex-1 min-w-0 px-2 py-1 rounded-md text-[11px] text-white outline-none"
+        style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)", fontFamily: "'JetBrains Mono', monospace" }}
+      />
+    </div>
+  ))}
+
+  <div className="flex items-center gap-2 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+    <span className="text-[9px] w-14 shrink-0" style={{ color: amber }}>XP</span>
+    <span className="text-[10px] text-slate-400 w-10 shrink-0 text-right">
+      {selectedUser?.total_xp ?? 0}
+    </span>
+    <input
+      type="number"
+      value={grantXp}
+      onChange={(e) => setGrantXp(e.target.value)}
+      disabled={!!busy || !selectedUser}
+      placeholder="—"
+      className="flex-1 min-w-0 px-2 py-1 rounded-md text-[11px] text-white outline-none"
+      style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${amber}33`, fontFamily: "'JetBrains Mono', monospace" }}
+    />
+  </div>
+
+  {selectedUser && (
+    <div className="text-[9px] text-slate-500 pl-16">
+      Level hiện tại {levelFromXp(selectedUser.total_xp ?? 0)}
+      {parseField(grantXp) !== undefined && (
+        <span style={{ color: amber }}>
+          {" → "}
+          {levelFromXp(
+            Math.max(
+              0,
+              grantMode === "set"
+                ? (parseField(grantXp) ?? 0)
+                : (selectedUser.total_xp ?? 0) + (parseField(grantXp) ?? 0),
+            ),
+          )}
+        </span>
+      )}
+    </div>
+  )}
+</div>
+
+<ActionBtn
+  accent={green}
+  label={grantMode === "set" ? "GÁN GIÁ TRỊ" : "CỘNG ĐIỂM"}
+  icon={<Zap size={11} />}
+  loading={busy === `grant:${selectedUser?.id}`}
+  disabled={!!busy || !selectedUser}
+  onClick={handleApplyGrant}
+  full
+/>
             </div>
 
             {/* Reset Scores */}
