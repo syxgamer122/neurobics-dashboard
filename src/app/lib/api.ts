@@ -72,8 +72,8 @@ export async function handleSignUp(username: string, password: string, captchaTo
     body: JSON.stringify({ username, password, captchaToken }),
   });
   const body = await res.json();
-  if (!res.ok) {
-    console.error("Sign up failed during account creation:", body.error);
+if (!res.ok) {
+  console.error("Sign up failed during account creation:", body.error);
     throw new Error(body.error ?? "Sign up failed.");
   }
 
@@ -511,13 +511,17 @@ export async function awardXp(
     body: JSON.stringify({ game, roundScore }),
   });
 
-  const body = await res.json();
-  if (!res.ok) {
-    console.error("Award XP failed:", body.error);
+  try {
+    const body = await res.json();
+    if (!res.ok) {
+      console.error("Award XP failed:", body.error);
+      return null;
+    }
+    return body as XpAwardResult;
+  } catch {
+    console.error("Award XP failed: invalid response");
     return null;
   }
-
-  return body as XpAwardResult;
 }
 
 /** Global Cognitive Index = average of the 5 cognitive axes (0–1000). */

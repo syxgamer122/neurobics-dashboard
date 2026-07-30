@@ -59,12 +59,12 @@ async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
   return result.success === true;
 }
 
-app.get("/health", (c) => c.json({ status: "ok" }));
+app.get("/server/health", (c) => c.json({ status: "ok" }));
 
 // ─── Sign up (username + password via email-spoofing) ────────────────────────
 // Creating a confirmed auth user needs the service role, so this stays on the
 // server. The on_auth_user_created trigger auto-inserts the public.profiles row.
-app.post("/signup", async (c) => {
+app.post("/server/signup", async (c) => {
   try {
     const ip = clientIp(c);
     const ipHash = await sha256(`neurobics-signup:${ip}`);
@@ -143,7 +143,7 @@ app.post("/signup", async (c) => {
   }
 });
 // --- Award XP (called after each game round) ---
-app.post("/award-xp", async (c) => {
+app.post("/server/award-xp", async (c) => {
   try {
     const authHeader = c.req.header("Authorization");
     if (!authHeader) {
