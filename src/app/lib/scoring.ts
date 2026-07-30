@@ -301,6 +301,47 @@ export function scoreStroop(tm: StroopTelemetry): AxisRatings {
     focus: focusAxis(rts, accuracy, STROOP_DIFF_FACTOR),
   };
 }
+// ─── Memory Matrix → Memory, Spatial ─────────────────────────────────────
+// Người chơi ghi nhớ một tập ô sáng rồi tái tạo lại: đây là tác vụ working
+// memory có thành phần không gian. Không có bước suy luận (Logic = null), và
+// đồng hồ bị chi phối bởi thời gian hiển thị cố định của pha memorize/recall
+// chứ không phải nhịp chơi — nên Speed và Focus để null thay vì bịa ra từ một
+// tín hiệu thời gian đã bị nhiễu.
+
+/** Level được coi là đạt trình độ thành thục — tới đây thì số hạng level bão hòa. */
+export const MEMORY_TARGET_LEVEL = 12;
+export const MEMORY_DIFF_FACTOR = 0.9;
+/** Spatial chỉ là tín hiệu phụ của game này nên trần thấp hơn Memory. */
+export const MEMORY_SPATIAL_FACTOR = 0.7;
+
+export type MemoryTelemetry = {
+  timeMs: number;
+  maxLevel: number;
+  wrongClicks: number;
+};
+
+export function scoreMemory(tm: MemoryTelemetry): AxisRatings {
+  const level = Math.max(0, tm.maxLevel);
+  if (level <= 0) return { ...NO_AXES };
+
+  // Đi được bao xa trên đường cong độ khó, bão hòa tại mốc thành thục.
+  const progression = clamp01(level / MEMORY_TARGET_LEVEL);
+
+  // Xấp xỉ số ô phải tái tạo trong cả lượt chơi. Game tăng số ô mục tiêu theo
+  // 2 + floor(level / 1.5), nên ~3 ô mỗi level là ước lượng hợp lý.
+  const cellsShown = Math.max(1, Math.round(level * 3));
+  const accuracy = cellsShown / (cellsShown + Math.max(0, tm.wrongClicks));
+
+  return {
+    ...NO_AXES,
+    // MEMORY — khả năng lưu giữ, cố tình không dùng thời gian, giống trục
+    // memory của Sudoku.
+    memory: clampRating(RATING_MAX * MEMORY_DIFF_FACTOR * progression * accuracy),
+    // SPATIAL — nhớ các ô đó Ở ĐÂU. Cùng tín hiệu nhưng trần thấp hơn, vì lưới
+    // được hiện ra sẵn chứ người chơi không phải tìm kiếm.
+    spatial: clampRating(RATING_MAX * MEMORY_SPATIAL_FACTOR * progression * accuracy),
+  };
+}
 
 /** Headline number shown on the round overlay: the best axis earned this round. */
 export function roundHeadline(axes: AxisRatings): number {

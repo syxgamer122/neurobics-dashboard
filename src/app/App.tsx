@@ -44,6 +44,7 @@ import {
   scoreSchulte,
   scoreSudoku,
   scoreStroop,
+  scoreMemory,
   calcBrainAge,
   roundHeadline,
   SUDOKU_DIFF_FACTOR,
@@ -54,6 +55,7 @@ import {
   type SchulteTelemetry,
   type SudokuTelemetry,
   type StroopTelemetry,
+  type MemoryTelemetry,
 } from "./lib/scoring";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -107,7 +109,7 @@ export type RoundAxisRow = {
 };
 
 export type RoundResult = {
-  game: "schulte" | "sudoku" | "stroop";
+game: "schulte" | "sudoku" | "stroop" | "memory";
   timeMs: number;
   /** Only the axes this game actually measures. */
   rows: RoundAxisRow[];
@@ -253,11 +255,7 @@ export default function App() {
     </LangProvider>
   );
 }
-export type MemoryTelemetry = {
-  timeMs: number;
-  maxLevel: number;
-  wrongClicks: number;
-};
+
 function AppInner() {
   const { lang, toggle, t } = useLang();
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
@@ -786,17 +784,17 @@ function AppInner() {
           <div className="max-w-sm">
             <MemoryMatrixGame
               onComplete={async (tel) => {
-                const axes = { speed: null, focus: tel.maxLevel * 2, spatial: tel.maxLevel * 3, logic: null, memory: tel.maxLevel * 5 };
-                const { updates, rows } = applyAxes(profile, axes as any);
-                try {
-                  const saved = await saveScores({
-                    ...updates,
-                  } as any);
-                  await finishRound(saved);
-                  setRoundResult({
-                    game: "memory" as any, timeMs: tel.timeMs, label: `Level ${tel.maxLevel}`,
-                    headline: roundHeadline(axes as any), rows,
-                  });
+                const axes = scoreMemory(tel);
+const { updates, rows } = applyAxes(profile, axes);
+try {
+  const saved = await saveScores({
+    ...updates,
+  } as Parameters<typeof saveScores>[0]);
+  await finishRound(saved);
+  setRoundResult({
+    game: "memory", timeMs: tel.timeMs, label: `Level ${tel.maxLevel}`,
+    headline: roundHeadline(axes), rows,
+  });
                 } catch (err) {
                   console.error("Memory onComplete failed:", err);
                   toast.error(t.save_failed);
