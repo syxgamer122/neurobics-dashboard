@@ -37,7 +37,10 @@ round_axis_detail: (round: number, gain: number) =>
   best_streak: "Chuỗi Tốt Nhất",
   this_month: "Tháng Này",
   xp_today: "XP Hôm Nay",
-  days: "ngày",
+level_label: "CẤP ĐỘ",
+xp_earned: "XP THU ĐƯỢC",
+level_up: "LÊN CẤP!",
+days: "ngày",
   sessions: "phiên",
   pts: "điểm",
 
@@ -170,7 +173,10 @@ round_axis_detail: (round, gain) =>
   best_streak: "Best Streak",
   this_month: "This Month",
   xp_today: "XP Today",
-  days: "days",
+level_label: "LEVEL",
+xp_earned: "XP EARNED",
+level_up: "LEVEL UP!",
+days: "days",
   sessions: "sessions",
   pts: "pts",
 

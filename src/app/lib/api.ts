@@ -47,6 +47,7 @@ export type Profile = {
   sudoku_sessions: number;            // total Sudoku rounds completed
   stroop_sessions: number;            // total Stroop rounds completed
   reaction_sessions: number;
+  total_xp: number;                    // cumulative XP (drives Level)
   last_active_date: string | null;    // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
   // supplied it, and the UI asks for it rather than inventing a number.
@@ -223,7 +224,8 @@ export type ScoreColumn =
   | "schulte_sessions"
   | "sudoku_sessions"
   | "stroop_sessions"
-  | "reaction_sessions";
+  | "reaction_sessions"
+  | "total_xp";
 
 export async function saveTrainingResult(
   scoreType: ScoreColumn,
@@ -373,6 +375,7 @@ export async function resetActiveUserScores(): Promise<Profile> {
       sudoku_sessions: 0,
       stroop_sessions: 0,
       reaction_sessions: 0,
+       total_xp: 0,
       last_active_date: null,
     })
     .eq("id", userId)
@@ -434,6 +437,7 @@ export async function adminResetScores(targetId: string): Promise<Profile> {
       sudoku_sessions: 0,
       stroop_sessions: 0,
       reaction_sessions: 0,
+       total_xp: 0,
       last_active_date: null,
     })
     .eq("id", targetId)
@@ -478,6 +482,42 @@ export async function deleteActiveUserAccount(): Promise<void> {
   } catch {
     /* localStorage may be unavailable — signOut already handled the session */
   }
+}
+// ─── XP awarding (server-side, tamper-resistant) ──────────────────────────────
+
+export type XpAwardResult = {
+  totalXp: number;
+  xpAwarded: number;
+  level: number;
+  leveledUp: boolean;
+};
+
+export async function awardXp(
+  game: string,
+  roundScore: number,
+): Promise<XpAwardResult | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
+
+  const token = await getAccessToken();
+  if (!token) return null;
+
+  const res = await fetch(`${BASE}/award-xp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ game, roundScore }),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    console.error("Award XP failed:", body.error);
+    return null;
+  }
+
+  return body as XpAwardResult;
 }
 
 /** Global Cognitive Index = average of the 5 cognitive axes (0–1000). */

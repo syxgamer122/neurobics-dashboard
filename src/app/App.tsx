@@ -33,6 +33,7 @@ import {
   saveScores,
   saveBirthYear,
   recordDailyActivity,
+  awardXp,
   fetchPopulationStats,
   cognitiveIndex,
   type Profile,
@@ -59,6 +60,13 @@ import {
   type MemoryTelemetry,
   type ReactionTelemetry,
 } from "./lib/scoring";
+import {
+  getLevelProgress,
+  getLevelTitle,
+  getLevelColor,
+  calculateRoundXp,
+  levelFromXp,
+} from "./lib/xp";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -120,6 +128,9 @@ game: "schulte" | "sudoku" | "stroop" | "memory" | "reaction";
   /** Best axis earned this round, for the headline badge. */
   headline: number;
   label: string; // e.g. "5×5 Classic" or "Expert"
+  xpAwarded?: number;
+  xpLevel?: number;
+  leveledUp?: boolean;
 };
 
 // Axis display metadata plus the profile column each axis persists to.
@@ -728,10 +739,12 @@ const [selectedGame, setSelectedGame] = useState<
                     schulte_sessions: (profile.schulte_sessions ?? 0) + 1,
                   } as Parameters<typeof saveScores>[0]);
                   await finishRound(saved);
-                  setRoundResult({
-                    game: "schulte", timeMs: tel.timeMs, label: tel.modeLabel,
-                    headline: roundHeadline(axes), rows,
-                  });
+const xpRes = await awardXp("schulte", roundHeadline(axes));
+setRoundResult({
+  game: "schulte", timeMs: tel.timeMs, label: tel.modeLabel,
+  headline: roundHeadline(axes), rows,
+  xpAwarded: xpRes?.xpAwarded, xpLevel: xpRes?.level, leveledUp: xpRes?.leveledUp,
+});
                 } catch (err) {
                   console.error("Schulte onComplete: saving scores failed:", err);
                   toast.error(t.save_failed);
@@ -756,10 +769,12 @@ const [selectedGame, setSelectedGame] = useState<
                     sudoku_sessions: (profile.sudoku_sessions ?? 0) + 1,
                   } as Parameters<typeof saveScores>[0]);
                   await finishRound(saved);
-                  setRoundResult({
-                    game: "sudoku", timeMs: tel.timeMs, label: tel.difficulty,
-                    headline: roundHeadline(axes), rows,
-                  });
+const xpRes = await awardXp("sudoku", roundHeadline(axes));
+setRoundResult({
+  game: "sudoku", timeMs: tel.timeMs, label: tel.difficulty,
+  headline: roundHeadline(axes), rows,
+  xpAwarded: xpRes?.xpAwarded, xpLevel: xpRes?.level, leveledUp: xpRes?.leveledUp,
+});
                 } catch (err) {
                   console.error("Sudoku onComplete: saving scores failed:", err);
                   toast.error(t.save_failed);
@@ -782,10 +797,12 @@ const [selectedGame, setSelectedGame] = useState<
                     stroop_sessions: (profile.stroop_sessions ?? 0) + 1,
                   } as Parameters<typeof saveScores>[0]);
                   await finishRound(saved);
-                  setRoundResult({
-                    game: "stroop", timeMs: tel.timeMs, label: "Stroop Test",
-                    headline: roundHeadline(axes), rows,
-                  });
+const xpRes = await awardXp("stroop", roundHeadline(axes));
+setRoundResult({
+  game: "stroop", timeMs: tel.timeMs, label: "Stroop Test",
+  headline: roundHeadline(axes), rows,
+  xpAwarded: xpRes?.xpAwarded, xpLevel: xpRes?.level, leveledUp: xpRes?.leveledUp,
+});
                 } catch (err) {
                   console.error("Stroop onComplete: saving scores failed:", err);
                   toast.error(t.save_failed);
@@ -807,22 +824,12 @@ const [selectedGame, setSelectedGame] = useState<
   reaction_sessions: (profile.reaction_sessions ?? 0) + 1,
 } as Parameters<typeof saveScores>[0]);
           await finishRound(saved);
-
-          const average =
-            tel.rts.length > 0
-              ? Math.round(
-                  tel.rts.reduce((sum, rt) => sum + rt, 0) /
-                    tel.rts.length,
-                )
-              : 0;
-
-          setRoundResult({
-            game: "reaction",
-            timeMs: tel.timeMs,
-            label: `${average} ms average`,
-            headline: roundHeadline(axes),
-            rows,
-          });
+const xpRes = await awardXp("reaction", roundHeadline(axes));
+setRoundResult({
+  game: "reaction", timeMs: tel.timeMs, label: "Reaction Time",
+  headline: roundHeadline(axes), rows,
+  xpAwarded: xpRes?.xpAwarded, xpLevel: xpRes?.level, leveledUp: xpRes?.leveledUp,
+});
         } catch (err) {
           console.error("Reaction Time save failed:", err);
           toast.error(t.save_failed);
@@ -842,10 +849,12 @@ try {
     ...updates,
   } as Parameters<typeof saveScores>[0]);
   await finishRound(saved);
-  setRoundResult({
-    game: "memory", timeMs: tel.timeMs, label: `Level ${tel.maxLevel}`,
-    headline: roundHeadline(axes), rows,
-  });
+const xpRes = await awardXp("memory", roundHeadline(axes));
+setRoundResult({
+  game: "memory", timeMs: tel.timeMs, label: `Level ${tel.maxLevel}`,
+  headline: roundHeadline(axes), rows,
+  xpAwarded: xpRes?.xpAwarded, xpLevel: xpRes?.level, leveledUp: xpRes?.leveledUp,
+});
                 } catch (err) {
                   console.error("Memory onComplete failed:", err);
                   toast.error(t.save_failed);
@@ -857,7 +866,52 @@ try {
         </>)}
 
         {activePage === "dashboard" && (<>
-        {/* ROW 3: Streak */}
+{/* ROW 2.5: Level / XP */}
+<div className="grid grid-cols-1 gap-5">
+  <GlassCard accent={getLevelColor(levelFromXp(profile.total_xp ?? 0))} className="p-6">
+    <div className="flex items-center gap-5">
+      <div
+        className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center shrink-0"
+        style={{
+          background: `linear-gradient(135deg, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}88)`,
+          boxShadow: `0 0 40px ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}44`,
+        }}
+      >
+        <span className="text-3xl font-bold text-white leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {levelFromXp(profile.total_xp ?? 0)}
+        </span>
+        <span className="text-[8px] tracking-widest text-white/70 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>LV</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <Label color={getLevelColor(levelFromXp(profile.total_xp ?? 0))}>{getLevelTitle(levelFromXp(profile.total_xp ?? 0))}</Label>
+        <div className="flex items-baseline gap-2 mt-1 mb-2">
+          <span className="text-2xl font-bold text-white" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            {(getLevelProgress(profile.total_xp ?? 0).xpIntoLevel)}
+          </span>
+          <span className="text-sm text-slate-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            / {(getLevelProgress(profile.total_xp ?? 0).xpNeeded)} XP
+          </span>
+          <span className="ml-auto text-xs text-slate-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Total: {(profile.total_xp ?? 0).toLocaleString()}
+          </span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${Math.min(100, getLevelProgress(profile.total_xp ?? 0).progress * 100)}%`,
+              background: `linear-gradient(90deg, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}aa)`,
+              boxShadow: `0 0 10px ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}66`,
+              transition: "width 0.6s ease",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  </GlassCard>
+</div>
+
+{/* ROW 3: Streak */}
         <div className="grid grid-cols-1 gap-5">
           <GlassCard accent="#F59E0B" className="p-6">
             <Label color="#F59E0B">{t.synapse_streak}</Label>

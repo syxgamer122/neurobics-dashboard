@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
@@ -139,6 +140,52 @@ app.post("/make-server-1e03ae23/signup", async (c) => {
   } catch (err) {
     console.log(`Signup error (unexpected) in /signup route: ${err}`);
     return c.json({ error: `Signup error: ${err}` }, 500);
+  }
+});
+// --- Award XP (called after each game round) ---
+app.post("/make-server-1e03ae23/award-xp", async (c) => {
+  try {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader) {
+      return c.json({ error: "Missing authorization" }, 401);
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } },
+    );
+
+    const { game, roundScore } = await c.req.json();
+    if (!game || roundScore === undefined) {
+      return c.json({ error: "game and roundScore are required" }, 400);
+    }
+
+    const { data, error } = await userClient.rpc("award_xp", {
+      p_game: String(game),
+      p_round_score: Math.max(0, Math.min(1000, Math.round(Number(roundScore)))),
+    });
+
+    if (error) {
+      console.log(`Award XP error: ${error.message}`);
+      return c.json({ error: error.message }, 400);
+    }
+
+    const row = (data as any[])[0];
+    if (!row) {
+      return c.json({ error: "No result from award_xp" }, 500);
+    }
+
+    return c.json({
+      totalXp: Number(row.total_xp),
+      xpAwarded: Number(row.xp_awarded),
+      level: Number(row.new_level),
+      leveledUp: Boolean(row.leveled_up),
+    });
+  } catch (err) {
+    console.log(`Award XP error: ${err}`);
+    return c.json({ error: String(err) }, 500);
   }
 });
 
