@@ -35,7 +35,9 @@ import {
   recordDailyActivity,
   awardXp,
   fetchPopulationStats,
-  cognitiveIndex,
+   cognitiveIndex,
+  fetchActivityStats,
+  type ActivityStats,
   type Profile,
 } from "./lib/api";
 import {
@@ -83,6 +85,21 @@ const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 // single source of truth — see cognitiveIndex() — so the dashboard and the
 // leaderboard can never desync. Round it for display.
 const displayIndex = (p: Profile): number => Math.round(cognitiveIndex(p));
+const APP_VN_TZ = "Asia/Ho_Chi_Minh";
+
+/** Số mili giây còn lại tới nửa đêm giờ Việt Nam. */
+const msUntilVnMidnight = () => {
+  const vnNow = new Date(new Date().toLocaleString("en-US", { timeZone: APP_VN_TZ }));
+  const next = new Date(vnNow);
+  next.setHours(24, 0, 0, 0);
+  return Math.max(0, next.getTime() - vnNow.getTime());
+};
+
+const toHms = (ms: number) => ({
+  h: Math.floor(ms / 3600000),
+  m: Math.floor(ms / 60000) % 60,
+  s: Math.floor(ms / 1000) % 60,
+});
 
 /** Total rounds across all games — drives brain-age calibration. */
 const totalRounds = (p: Profile) =>
@@ -199,6 +216,53 @@ const SUDOKU_LEVELS: { id: Difficulty; clues: number; points: number; accent: st
   { id: "Master", clues: 26, points: 5, accent: "#F97316" },
   { id: "Extreme", clues: 23, points: 6, accent: "#F43F5E" },
 ];
+/** Đếm số nghiệm của lưới, dừng sớm khi chạm `limit`. */
+function countSolutions(grid: (number | null)[][], limit = 2): number {
+  const g = grid.map((r) => r.map((v) => v ?? 0));
+  let count = 0;
+
+  const ok = (r: number, c: number, n: number) => {
+    for (let i = 0; i < 9; i++) {
+      if (g[r][i] === n || g[i][c] === n) return false;
+    }
+    const br = r - (r % 3);
+    const bc = c - (c % 3);
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        if (g[br + i][bc + j] === n) return false;
+      }
+    }
+    return true;
+  };
+
+  const solve = () => {
+    let r = -1;
+    let c = -1;
+    outer: for (let i = 0; i < 9; i++) {
+      for (let j = 0; j < 9; j++) {
+        if (g[i][j] === 0) {
+          r = i;
+          c = j;
+          break outer;
+        }
+      }
+    }
+    if (r === -1) {
+      count++;
+      return;
+    }
+    for (let n = 1; n <= 9; n++) {
+      if (!ok(r, c, n)) continue;
+      g[r][c] = n;
+      solve();
+      g[r][c] = 0;
+      if (count >= limit) return;
+    }
+  };
+
+  solve();
+  return count;
+}
 
 function generateSudoku(clues = 34): { puzzle: (number | null)[][]; solution: number[][] } {
   // Base valid sudoku pattern
@@ -248,16 +312,25 @@ function generateSudoku(clues = 34): { puzzle: (number | null)[][]; solution: nu
 
   const solution = shuffledGrid.map((r) => [...r]);
 
-  // Remove cells to create the puzzle, leaving `clues` numbers on the board.
-  const puzzle: (number | null)[][] = solution.map((r) => [...r] as (number | null)[]);
-  const positions = shuffleArray(Array.from({ length: 81 }, (_, i) => i));
-  const toRemove = Math.max(0, 81 - clues);
-  for (let i = 0; i < toRemove; i++) {
-    const r = Math.floor(positions[i] / 9);
-    const c = positions[i] % 9;
-    puzzle[r][c] = null;
-  }
+  // Chỉ khoét ô khi đề vẫn giữ đúng một nghiệm duy nhất.
+const puzzle: (number | null)[][] = solution.map((r) => [...r] as (number | null)[]);
+let remaining = 81;
 
+for (const pos of shuffleArray(Array.from({ length: 81 }, (_, i) => i))) {
+  if (remaining <= clues) break;
+
+  const r = Math.floor(pos / 9);
+  const c = pos % 9;
+  const backup = puzzle[r][c];
+  if (backup == null) continue;
+
+  puzzle[r][c] = null;
+  if (countSolutions(puzzle) === 1) {
+    remaining--;
+  } else {
+    puzzle[r][c] = backup;
+  }
+}
   return { puzzle, solution };
 }
 
@@ -369,25 +442,27 @@ const [selectedGame, setSelectedGame] = useState<
     setAdminPanelOpen(false);
   };
 
-  const [timer, setTimer] = useState({ h: 14, m: 23, s: 7 });
+const [timer, setTimer] = useState(() => toHms(msUntilVnMidnight()));
+const [activity, setActivity] = useState<ActivityStats>({
+  xpToday: 0,
+  sessionsThisMonth: 0,
+});
 
+useEffect(() => {
+  if (!profile) return;
+  fetchActivityStats()
+    .then(setActivity)
+    .catch((err) => console.error("Activity stats failed:", err));
+}, [profile]);
   useEffect(() => {
     const i = setInterval(() => setPulse((p) => !p), 1800);
     return () => clearInterval(i);
   }, []);
 
   useEffect(() => {
-    const i = setInterval(() => {
-      setTimer((t) => {
-        if (t.s > 0) return { ...t, s: t.s - 1 };
-        if (t.m > 0) return { ...t, m: t.m - 1, s: 59 };
-        if (t.h > 0) return { h: t.h - 1, m: 59, s: 59 };
-        return t;
-      });
-    }, 1000);
-    return () => clearInterval(i);
-  }, []);
-
+  const i = setInterval(() => setTimer(toHms(msUntilVnMidnight())), 1000);
+  return () => clearInterval(i);
+}, []);
   const pad = (n: number) => String(n).padStart(2, "0");
 
   if (!authChecked) {
@@ -533,7 +608,7 @@ const [selectedGame, setSelectedGame] = useState<
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp size={13} className="text-emerald-400" />
                 <span className="text-sm text-emerald-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{t.balanced_avg}</span>
-                <span className="ml-auto text-xs text-slate-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Top —</span>
+                
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                 <div className="h-full rounded-full" style={{ width: `${(displayIndex(profile) / RATING_MAX) * 100}%`, background: "linear-gradient(90deg, #00D4FF, #A855F7)", boxShadow: "0 0 14px rgba(0,212,255,0.6)", transition: "width 0.6s ease" }} />
@@ -951,9 +1026,9 @@ setRoundResult({
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-5 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-              <StatMini label={t.best_streak} value={String(profile.synapse_streak)} unit={t.days} color="#F59E0B" />
-              <StatMini label={t.this_month} value="0" unit={t.sessions} color="#A855F7" />
-              <StatMini label={t.xp_today} value="0" unit={t.pts} color="#00D4FF" />
+              <StatMini label={t.synapse_streak} value={String(profile.synapse_streak)} unit={t.days} color="#F59E0B" />
+<StatMini label={t.this_month} value={String(activity.sessionsThisMonth)} unit={t.sessions} color="#A855F7" />
+<StatMini label={t.xp_today} value={String(activity.xpToday)} unit={t.pts} color="#00D4FF" />
             </div>
           </GlassCard>
         </div>

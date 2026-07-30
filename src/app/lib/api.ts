@@ -598,3 +598,43 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
   // A degenerate spread (everyone identical) would make every z-score infinite.
   return { mean, sd: sd > 1 ? sd : DEFAULT_POPULATION.sd, n: indices.length };
 }
+// ─── Activity stats ───────────────────────────────────────────────────────────
+
+export type ActivityStats = {
+  xpToday: number;
+  sessionsThisMonth: number;
+};
+
+/** Quy đổi giờ tường Việt Nam sang mốc UTC để so với `created_at`. */
+const vnWallToUtcIso = (d: Date) =>
+  new Date(d.getTime() - 7 * 60 * 60 * 1000).toISOString();
+
+export async function fetchActivityStats(): Promise<ActivityStats> {
+  const userId = await currentUserId();
+  if (!userId) return { xpToday: 0, sessionsThisMonth: 0 };
+
+  const vnNow = new Date(new Date().toLocaleString("en-US", { timeZone: VN_TZ }));
+
+  const dayStart = new Date(vnNow);
+  dayStart.setHours(0, 0, 0, 0);
+
+  const monthStart = new Date(vnNow.getFullYear(), vnNow.getMonth(), 1);
+
+  const { data, error } = await getSupabase()
+    .from("xp_events")
+    .select("xp_awarded, created_at")
+    .eq("user_id", userId)
+    .gte("created_at", vnWallToUtcIso(monthStart));
+
+  if (error) throw new Error(`Fetch activity stats failed: ${error.message}`);
+
+  const dayStartIso = vnWallToUtcIso(dayStart);
+  const rows = data ?? [];
+
+  let xpToday = 0;
+  for (const row of rows) {
+    if (row.created_at >= dayStartIso) xpToday += row.xp_awarded ?? 0;
+  }
+
+  return { xpToday, sessionsThisMonth: rows.length };
+}
