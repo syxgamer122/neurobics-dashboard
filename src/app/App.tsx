@@ -89,7 +89,8 @@ const totalRounds = (p: Profile) =>
   (p.schulte_sessions ?? 0) +
   (p.sudoku_sessions ?? 0) +
   (p.stroop_sessions ?? 0) +
-  (p.reaction_sessions ?? 0);
+  (p.reaction_sessions ?? 0) +
+  (p.memory_sessions ?? 0);
 // Each domain is the stored proficiency rating (0–RATING_MAX) mapped to 0–100
 // for the radar. No session division: the rating is already a moving average.
 function buildCognitiveDataRaw(p: Profile) {
@@ -846,8 +847,9 @@ setRoundResult({
 const { updates, rows } = applyAxes(profile, axes);
 try {
   const saved = await saveScores({
-    ...updates,
-  } as Parameters<typeof saveScores>[0]);
+  ...updates,
+  memory_sessions: (profile.memory_sessions ?? 0) + 1,
+} as Parameters<typeof saveScores>[0]);
   await finishRound(saved);
 const xpRes = await awardXp("memory", roundHeadline(axes));
 setRoundResult({
@@ -1321,7 +1323,7 @@ function SchulteTableGame({ onComplete }: { onComplete: (tel: SchulteTelemetry) 
         >
           <Star size={11} style={{ color: "#A855F7" }} />
           <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#A855F7" }}>
-            +{size === 3 ? 1 : size === 4 ? 2 : size === 5 ? 3 : 4} LOGIC
+           {size === 3 ? "BASIC" : size === 4 ? "NORMAL" : size === 5 ? "ADVANCED" : "MASTER"} · FOCUS
           </span>
         </div>
         <div className="flex items-center gap-1">

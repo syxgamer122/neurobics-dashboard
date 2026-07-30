@@ -43,10 +43,11 @@ export type Profile = {
   memory_score: number;               // memory proficiency rating
   speed_score: number;                // speed proficiency rating
   focus_score: number;                // focus proficiency rating
-  schulte_sessions: number;           // total Schulte rounds completed
-  sudoku_sessions: number;            // total Sudoku rounds completed
-  stroop_sessions: number;            // total Stroop rounds completed
-  reaction_sessions: number;
+  schulte_sessions: number;
+sudoku_sessions: number;
+stroop_sessions: number;
+reaction_sessions: number;
+memory_sessions: number;
   total_xp: number;                    // cumulative XP (drives Level)
   last_active_date: string | null;    // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
@@ -224,8 +225,9 @@ export type ScoreColumn =
   | "schulte_sessions"
   | "sudoku_sessions"
   | "stroop_sessions"
-  | "reaction_sessions"
-  | "total_xp";
+| "reaction_sessions"
+| "memory_sessions"
+| "total_xp";
 
 export async function saveTrainingResult(
   scoreType: ScoreColumn,
