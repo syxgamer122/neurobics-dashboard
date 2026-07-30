@@ -24,6 +24,39 @@ const adminClient = createClient(
 );
 
 const PROFILE_COLS = "*";
+const SIGNUP_LIMIT = 5;
+const SIGNUP_WINDOW_SECONDS = 15 * 60;
+
+async function sha256(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function clientIp(c: any): string {
+  const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+  return c.req.header("cf-connecting-ip") ?? c.req.header("x-real-ip") ?? forwarded ?? "unknown";
+}
+
+async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
+  const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+  if (!secret) throw new Error("TURNSTILE_SECRET_KEY is not configured.");
+
+  const body = new URLSearchParams({ secret, response: token });
+  if (ip !== "unknown") body.set("remoteip", ip);
+
+  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    body,
+  });
+  if (!response.ok) throw new Error(`Turnstile Siteverify returned HTTP ${response.status}.`);
+
+  const result = await response.json() as { success?: boolean; "error-codes"?: string[] };
+  if (!result.success) console.log(`Turnstile rejected signup: ${(result["error-codes"] ?? []).join(", ")}`);
+  return result.success === true;
+}
 
 app.get("/make-server-1e03ae23/health", (c) => c.json({ status: "ok" }));
 
@@ -32,9 +65,29 @@ app.get("/make-server-1e03ae23/health", (c) => c.json({ status: "ok" }));
 // server. The on_auth_user_created trigger auto-inserts the public.profiles row.
 app.post("/make-server-1e03ae23/signup", async (c) => {
   try {
-    const { username, password } = await c.req.json();
-    if (!username || !password) {
-      return c.json({ error: "Signup error: username and password are required." }, 400);
+    const ip = clientIp(c);
+    const ipHash = await sha256(`neurobics-signup:${ip}`);
+    const { data: allowed, error: rateError } = await adminClient.rpc("check_signup_rate_limit", {
+      p_key: ipHash,
+      p_limit: SIGNUP_LIMIT,
+      p_window_seconds: SIGNUP_WINDOW_SECONDS,
+    });
+
+    if (rateError) {
+      console.log(`Signup rate-limit error: ${rateError.message}`);
+      return c.json({ error: "Signup is temporarily unavailable. Please try again later." }, 503);
+    }
+    if (allowed !== true) {
+      return c.json({ error: "Too many signup attempts. Please wait 15 minutes and try again." }, 429);
+    }
+
+    const { username, password, captchaToken } = await c.req.json();
+    if (!username || !password || !captchaToken) {
+      return c.json({ error: "Signup error: username, password and human verification are required." }, 400);
+    }
+
+    if (!(await verifyTurnstile(String(captchaToken), ip))) {
+      return c.json({ error: "Human verification failed or expired. Please try again." }, 400);
     }
 
     const normalized = String(username).trim().toLowerCase();

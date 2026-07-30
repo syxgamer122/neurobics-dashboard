@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Brain, Lock, User, ArrowRight, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { handleSignUp, handleLogin, fetchProfile, type Profile } from "../lib/api";
 import { useLang } from "../lib/i18n";
+import { TurnstileWidget } from "./turnstile-widget";
 
 export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) => void }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -11,6 +12,8 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
   const [usernameError, setUsernameError] = useState(false);
   const [success, setSuccess] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const { t } = useLang();
 
   const handleUsernameChange = (v: string) => {
@@ -29,10 +32,15 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
       return;
     }
 
+    if (mode === "signup" && !captchaToken) {
+      setError("Please complete the human verification.");
+      return;
+    }
+
     setBusy(true);
     try {
       if (mode === "signup") {
-        const profile = await handleSignUp(username.trim(), password);
+        const profile = await handleSignUp(username.trim(), password, captchaToken);
         setSuccess(true);
         setTimeout(() => onAuthed(profile), 1200);
       } else {
@@ -56,6 +64,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
         setUsernameError(true);
       }
       setError(msg);
+      if (mode === "signup") {
+        setCaptchaToken("");
+        setCaptchaResetKey((key) => key + 1);
+      }
     } finally {
       setBusy(false);
     }
@@ -66,6 +78,8 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
     setError(null);
     setUsernameError(false);
     setSuccess(false);
+    setCaptchaToken("");
+    setCaptchaResetKey((key) => key + 1);
   };
 
   return (
@@ -196,6 +210,13 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             />
           </div>
 
+          {mode === "signup" && (
+            <TurnstileWidget
+              onToken={setCaptchaToken}
+              resetKey={captchaResetKey}
+            />
+          )}
+
           {/* General error (non-username) */}
           {error && !usernameError && (
             <div
@@ -208,7 +229,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
 
           <button
             type="submit"
-            disabled={busy || success}
+            disabled={busy || success || (mode === "signup" && !captchaToken)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
               fontFamily: "'JetBrains Mono', monospace",

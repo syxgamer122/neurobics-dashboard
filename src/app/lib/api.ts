@@ -59,7 +59,7 @@ const toEmail = (username: string) => `${username.trim().toLowerCase()}@neurobic
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function handleSignUp(username: string, password: string): Promise<Profile> {
+export async function handleSignUp(username: string, password: string, captchaToken: string): Promise<Profile> {
   // Server creates the confirmed auth user; the on_auth_user_created trigger
   // auto-inserts the matching public.profiles row.
   const res = await fetch(`${BASE}/signup`, {
@@ -68,7 +68,7 @@ export async function handleSignUp(username: string, password: string): Promise<
       "Content-Type": "application/json",
       Authorization: `Bearer ${publicAnonKey}`,
     },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, captchaToken }),
   });
   const body = await res.json();
   if (!res.ok) {
