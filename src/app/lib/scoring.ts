@@ -301,6 +301,49 @@ export function scoreStroop(tm: StroopTelemetry): AxisRatings {
     focus: focusAxis(rts, accuracy, STROOP_DIFF_FACTOR),
   };
 }
+// ─── Reaction Time → Speed, Focus ─────────────────────────────────────────
+// Reaction Time đo tốc độ phản ứng trực tiếp. Focus được tính từ độ ổn định
+// giữa các lượt và bị giảm nếu người chơi bấm sớm.
+
+export const REACTION_TARGET_MS = 350;
+export const REACTION_DIFF_FACTOR = 1.0;
+export const REACTION_FOCUS_FACTOR = 0.9;
+
+export type ReactionTelemetry = {
+  timeMs: number;
+  rts: number[];
+  falseStarts: number;
+};
+
+export function scoreReaction(tm: ReactionTelemetry): AxisRatings {
+  const validTrials = tm.rts.length;
+
+  if (validTrials === 0) {
+    return { ...NO_AXES };
+  }
+
+  const accuracy =
+    validTrials / (validTrials + Math.max(0, tm.falseStarts));
+
+  return {
+    ...NO_AXES,
+
+    // Tốc độ dựa trên trung vị của các lượt, để một lượt quá chậm không
+    // làm hỏng toàn bộ kết quả.
+    speed: speedAxis(
+      tm.rts,
+      REACTION_TARGET_MS,
+      REACTION_DIFF_FACTOR,
+    ),
+
+    // Focus dựa trên độ ổn định giữa các lượt và số lần bấm sớm.
+    focus: focusAxis(
+      tm.rts,
+      accuracy,
+      REACTION_FOCUS_FACTOR,
+    ),
+  };
+}
 // ─── Memory Matrix → Memory, Spatial ─────────────────────────────────────
 // Người chơi ghi nhớ một tập ô sáng rồi tái tạo lại: đây là tác vụ working
 // memory có thành phần không gian. Không có bước suy luận (Logic = null), và

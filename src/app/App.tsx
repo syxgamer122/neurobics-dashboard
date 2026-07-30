@@ -45,6 +45,7 @@ import {
   scoreSudoku,
   scoreStroop,
   scoreMemory,
+  scoreReaction,
   calcBrainAge,
   roundHeadline,
   SUDOKU_DIFF_FACTOR,
@@ -56,6 +57,7 @@ import {
   type SudokuTelemetry,
   type StroopTelemetry,
   type MemoryTelemetry,
+  type ReactionTelemetry,
 } from "./lib/scoring";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -109,7 +111,7 @@ export type RoundAxisRow = {
 };
 
 export type RoundResult = {
-game: "schulte" | "sudoku" | "stroop" | "memory";
+game: "schulte" | "sudoku" | "stroop" | "memory" | "reaction";
   timeMs: number;
   /** Only the axes this game actually measures. */
   rows: RoundAxisRow[];
@@ -264,7 +266,9 @@ function AppInner() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [pulse, setPulse] = useState(false);
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
-  const [selectedGame, setSelectedGame] = useState<"schulte" | "sudoku" | "stroop" | "memory" | null>(null);
+const [selectedGame, setSelectedGame] = useState<
+  "schulte" | "sudoku" | "stroop" | "memory" | "reaction" | null
+>(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   // Real distribution of Cognitive Index across users — the baseline the brain
   // age is ranked against. Seeded until enough calibrated players exist.
@@ -688,6 +692,15 @@ function AppInner() {
               onPlay={() => setSelectedGame("stroop")}
             />
             <GameTile
+  accent="#10B981"
+  icon={<Activity size={22} />}
+  tag="SPEED TRAINING"
+  title="Reaction Time"
+  desc="Chờ tín hiệu chuyển xanh rồi phản ứng nhanh nhất có thể. Bấm sớm sẽ bị phạt."
+  playLabel="PLAY NOW"
+  onPlay={() => setSelectedGame("reaction")}
+/>
+            <GameTile
               accent="#F43F5E"
               icon={<Brain size={22} />}
               tag="MEMORY TRAINING"
@@ -779,7 +792,43 @@ function AppInner() {
             />
           </div>
         )}
+{selectedGame === "reaction" && (
+  <div className="max-w-sm">
+    <ReactionTimeGame
+      onComplete={async (tel) => {
+        const axes = scoreReaction(tel);
+        const { updates, rows } = applyAxes(profile, axes);
 
+        try {
+          const saved = await saveScores({
+            ...updates,
+          } as Parameters<typeof saveScores>[0]);
+
+          await finishRound(saved);
+
+          const average =
+            tel.rts.length > 0
+              ? Math.round(
+                  tel.rts.reduce((sum, rt) => sum + rt, 0) /
+                    tel.rts.length,
+                )
+              : 0;
+
+          setRoundResult({
+            game: "reaction",
+            timeMs: tel.timeMs,
+            label: `${average} ms average`,
+            headline: roundHeadline(axes),
+            rows,
+          });
+        } catch (err) {
+          console.error("Reaction Time save failed:", err);
+          toast.error(t.save_failed);
+        }
+      }}
+    />
+  </div>
+)}
         {selectedGame === "memory" && (
           <div className="max-w-sm">
             <MemoryMatrixGame
@@ -2437,6 +2486,322 @@ function MemoryMatrixGame({ onComplete }: { onComplete: (tel: MemoryTelemetry) =
           style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(244,63,94,0.1)", color: "#F43F5E", border: "1px solid rgba(244,63,94,0.25)" }}
         >
           <RefreshCw size={12} /> ABORT & RESTART
+        </button>
+      )}
+    </div>
+  );
+}
+// ─── Reaction Time Game ─────────────────────────────────────────────────────
+
+function ReactionTimeGame({
+  onComplete,
+}: {
+  onComplete: (tel: ReactionTelemetry) => Promise<void>;
+}) {
+  const TOTAL_TRIALS = 5;
+
+  type ReactionPhase =
+    | "idle"
+    | "waiting"
+    | "ready"
+    | "result"
+    | "done";
+
+  const [phase, setPhase] = useState<ReactionPhase>("idle");
+  const [rts, setRts] = useState<number[]>([]);
+  const [falseStarts, setFalseStarts] = useState(0);
+  const [currentRt, setCurrentRt] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const readyAtRef = useRef(0);
+  const falseStartsRef = useRef(0);
+  const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = useCallback(() => {
+    if (waitTimerRef.current) {
+      clearTimeout(waitTimerRef.current);
+      waitTimerRef.current = null;
+    }
+
+    if (nextTimerRef.current) {
+      clearTimeout(nextTimerRef.current);
+      nextTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return clearTimers;
+  }, [clearTimers]);
+
+  const scheduleTrial = useCallback(() => {
+    clearTimers();
+    setPhase("waiting");
+    setCurrentRt(null);
+    setMessage("Chờ tín hiệu chuyển xanh...");
+
+    const delay = 1500 + Math.random() * 2500;
+
+    waitTimerRef.current = setTimeout(() => {
+      readyAtRef.current = performance.now();
+      setPhase("ready");
+      setMessage("BẤM NGAY!");
+    }, delay);
+  }, [clearTimers]);
+
+  const startGame = () => {
+    clearTimers();
+    setRts([]);
+    setFalseStarts(0);
+    falseStartsRef.current = 0;
+    setCurrentRt(null);
+    scheduleTrial();
+  };
+
+  const finishGame = async (completedRts: number[]) => {
+    clearTimers();
+    setPhase("done");
+    setSaving(true);
+
+    try {
+      await onComplete({
+        timeMs: completedRts.reduce((sum, rt) => sum + rt, 0),
+        rts: completedRts,
+        falseStarts: falseStartsRef.current,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePadClick = () => {
+    if (phase === "waiting") {
+      if (waitTimerRef.current) {
+        clearTimeout(waitTimerRef.current);
+        waitTimerRef.current = null;
+      }
+
+      const newFalseStarts = falseStartsRef.current + 1;
+      falseStartsRef.current = newFalseStarts;
+      setFalseStarts(newFalseStarts);
+      setPhase("result");
+      setMessage("BẤM QUÁ SỚM!");
+
+      nextTimerRef.current = setTimeout(scheduleTrial, 900);
+      return;
+    }
+
+    if (phase !== "ready") return;
+
+    const reactionMs = Math.max(
+      1,
+      Math.round(performance.now() - readyAtRef.current),
+    );
+
+    const completedRts = [...rts, reactionMs];
+
+    setRts(completedRts);
+    setCurrentRt(reactionMs);
+    setPhase("result");
+    setMessage(`${reactionMs} ms`);
+
+    if (completedRts.length >= TOTAL_TRIALS) {
+      nextTimerRef.current = setTimeout(() => {
+        finishGame(completedRts);
+      }, 800);
+    } else {
+      nextTimerRef.current = setTimeout(scheduleTrial, 1000);
+    }
+  };
+
+  const resetGame = () => {
+    clearTimers();
+    setPhase("idle");
+    setRts([]);
+    setFalseStarts(0);
+    falseStartsRef.current = 0;
+    setCurrentRt(null);
+    setMessage("");
+  };
+
+  const average =
+    rts.length > 0
+      ? Math.round(rts.reduce((sum, rt) => sum + rt, 0) / rts.length)
+      : 0;
+
+  const padBackground =
+    phase === "ready"
+      ? "rgba(16,185,129,0.85)"
+      : phase === "result" && currentRt === null
+        ? "rgba(244,63,94,0.35)"
+        : "rgba(13,20,45,0.8)";
+
+  const padBorder =
+    phase === "ready"
+      ? "1px solid rgba(16,185,129,1)"
+      : phase === "result" && currentRt === null
+        ? "1px solid rgba(244,63,94,0.8)"
+        : "1px solid rgba(16,185,129,0.25)";
+
+  return (
+    <div
+      className="rounded-2xl p-5 flex flex-col"
+      style={{
+        background: "rgba(13,20,45,0.62)",
+        border: "1px solid rgba(16,185,129,0.2)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
+      }}
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <div
+            className="text-[10px] tracking-[0.2em] mb-1.5"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: "#10B981",
+            }}
+          >
+            SPEED TRAINING
+          </div>
+
+          <div className="text-base font-bold text-white">
+            Reaction Time
+          </div>
+        </div>
+
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{
+            background: "rgba(16,185,129,0.18)",
+            color: "#10B981",
+            border: "1px solid rgba(16,185,129,0.28)",
+          }}
+        >
+          <Activity size={17} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mt-5">
+        <div className="text-center">
+          <div className="text-[9px] text-slate-500">TRIAL</div>
+          <div className="text-lg font-bold text-white">
+            {Math.min(rts.length + 1, TOTAL_TRIALS)}/{TOTAL_TRIALS}
+          </div>
+        </div>
+
+        <div className="text-center">
+          <div className="text-[9px] text-slate-500">AVERAGE</div>
+          <div className="text-lg font-bold text-[#10B981]">
+            {average || "--"} ms
+          </div>
+        </div>
+
+        <div className="text-center">
+          <div className="text-[9px] text-slate-500">TOO SOON</div>
+          <div className="text-lg font-bold text-[#F43F5E]">
+            {falseStarts}
+          </div>
+        </div>
+      </div>
+
+      {phase === "idle" ? (
+        <div
+          className="mt-6 flex flex-col items-center justify-center"
+          style={{ minHeight: 280 }}
+        >
+          <Clock size={46} className="text-[#10B981] mb-5" />
+
+          <p className="text-sm text-slate-400 text-center leading-relaxed">
+            Chờ màn hình chuyển sang màu xanh,
+            <br />
+            sau đó bấm nhanh nhất có thể.
+          </p>
+
+          <button
+            onClick={startGame}
+            className="mt-6 px-8 py-3 rounded-xl text-sm font-bold tracking-widest hover:scale-105 transition-all"
+            style={{
+              background: "rgba(16,185,129,0.15)",
+              color: "#10B981",
+              border: "1px solid rgba(16,185,129,0.4)",
+            }}
+          >
+            START TEST
+          </button>
+        </div>
+      ) : phase === "done" ? (
+        <div
+          className="mt-6 flex flex-col items-center justify-center"
+          style={{ minHeight: 280 }}
+        >
+          <CheckCircle size={48} className="text-emerald-400 mb-4" />
+
+          <div className="text-lg font-bold text-white">
+            TEST COMPLETE
+          </div>
+
+          <div className="mt-2 text-4xl font-bold text-[#10B981]">
+            {average} ms
+          </div>
+
+          <div className="mt-1 text-xs text-slate-500">
+            Average reaction time
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={handlePadClick}
+          className={`mt-6 rounded-2xl flex flex-col items-center justify-center transition-all ${
+            phase === "ready" ? "animate-pulse" : ""
+          }`}
+          style={{
+            minHeight: 280,
+            background: padBackground,
+            border: padBorder,
+            boxShadow:
+              phase === "ready"
+                ? "0 0 40px rgba(16,185,129,0.45)"
+                : "none",
+          }}
+        >
+          <div
+            className="text-2xl font-bold text-white"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {message}
+          </div>
+
+          {phase === "waiting" && (
+            <div className="mt-3 text-xs text-slate-500">
+              Không bấm trước khi màn hình chuyển xanh
+            </div>
+          )}
+        </button>
+      )}
+
+      {saving && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
+          <Loader2 size={12} className="animate-spin" />
+          Đang lưu kết quả...
+        </div>
+      )}
+
+      {phase !== "idle" && (
+        <button
+          disabled={saving}
+          onClick={resetGame}
+          className="mt-5 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2"
+          style={{
+            background: "rgba(16,185,129,0.1)",
+            color: "#10B981",
+            border: "1px solid rgba(16,185,129,0.25)",
+          }}
+        >
+          <RefreshCw size={12} />
+          RESTART TEST
         </button>
       )}
     </div>
