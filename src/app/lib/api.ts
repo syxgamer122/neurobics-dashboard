@@ -21,7 +21,10 @@ type GlobalWithClient = typeof globalThis & { [CLIENT_KEY]?: SupabaseClient };
 export function getSupabase(): SupabaseClient {
   const g = globalThis as GlobalWithClient;
   if (!g[CLIENT_KEY]) {
-    g[CLIENT_KEY] = createClient(`https://${projectId}.supabase.co`, publicAnonKey);
+    g[CLIENT_KEY] = createClient(
+      `https://${projectId}.supabase.co`,
+      publicAnonKey,
+    );
   }
   return g[CLIENT_KEY]!;
 }
@@ -39,17 +42,17 @@ export type Profile = {
   // The 5 cognitive axes are proficiency ratings in [0, 1000] (upward-only
   // moving averages), NOT cumulative point totals.
   cfop_spatial_record: number | null; // spatial proficiency rating
-  algebraic_logic_score: number;      // logic proficiency rating
-  memory_score: number;               // memory proficiency rating
-  speed_score: number;                // speed proficiency rating
-  focus_score: number;                // focus proficiency rating
+  algebraic_logic_score: number; // logic proficiency rating
+  memory_score: number; // memory proficiency rating
+  speed_score: number; // speed proficiency rating
+  focus_score: number; // focus proficiency rating
   schulte_sessions: number;
-sudoku_sessions: number;
-stroop_sessions: number;
-reaction_sessions: number;
-memory_sessions: number;
-  total_xp: number;                    // cumulative XP (drives Level)
-  last_active_date: string | null;    // YYYY-MM-DD (VN calendar day)
+  sudoku_sessions: number;
+  stroop_sessions: number;
+  reaction_sessions: number;
+  memory_sessions: number;
+  total_xp: number; // cumulative XP (drives Level)
+  last_active_date: string | null; // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
   // supplied it, and the UI asks for it rather than inventing a number.
   birth_year: number | null;
@@ -57,11 +60,16 @@ memory_sessions: number;
 };
 
 // Username -> spoofed email so users never provide a real email address.
-const toEmail = (username: string) => `${username.trim().toLowerCase()}@neurobics.local`;
+const toEmail = (username: string) =>
+  `${username.trim().toLowerCase()}@neurobics.local`;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function handleSignUp(username: string, password: string, captchaToken: string): Promise<Profile> {
+export async function handleSignUp(
+  username: string,
+  password: string,
+  captchaToken: string,
+): Promise<Profile> {
   // Server creates the confirmed auth user; the on_auth_user_created trigger
   // auto-inserts the matching public.profiles row.
   const res = await fetch(`${BASE}/signup`, {
@@ -73,8 +81,8 @@ export async function handleSignUp(username: string, password: string, captchaTo
     body: JSON.stringify({ username, password, captchaToken }),
   });
   const body = await res.json();
-if (!res.ok) {
-  console.error("Sign up failed during account creation:", body.error);
+  if (!res.ok) {
+    console.error("Sign up failed during account creation:", body.error);
     throw new Error(body.error ?? "Sign up failed.");
   }
 
@@ -83,14 +91,23 @@ if (!res.ok) {
   return body.profile as Profile;
 }
 
-export async function handleLogin(username: string, password: string): Promise<string> {
+export async function handleLogin(
+  username: string,
+  password: string,
+): Promise<string> {
   const supabase = getSupabase();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: toEmail(username),
     password,
   });
   if (error || !data.session) {
-    console.error("Login failed during signInWithPassword:", error?.message, "(email:", toEmail(username), ")");
+    console.error(
+      "Login failed during signInWithPassword:",
+      error?.message,
+      "(email:",
+      toEmail(username),
+      ")",
+    );
     // Supabase returns the same generic message whether the account doesn't
     // exist or the password is wrong — make it actionable.
     if (error?.message?.toLowerCase().includes("invalid login credentials")) {
@@ -122,7 +139,12 @@ async function currentUserId(): Promise<string | null> {
 
 // Turn a PostgrestError (plain object, not an Error) into a readable message.
 function describeError(err: unknown, context: string): string {
-  const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
+  const e = err as {
+    message?: string;
+    details?: string;
+    hint?: string;
+    code?: string;
+  } | null;
   if (e && typeof e === "object") {
     const parts = [e.message, e.details, e.hint].filter(Boolean);
     const msg = parts.length ? parts.join(" · ") : JSON.stringify(e);
@@ -144,10 +166,10 @@ function sanitizeProfile(p: Profile): Profile {
   return {
     ...p,
     algebraic_logic_score: sanitizeRating(p.algebraic_logic_score),
-    focus_score:           sanitizeRating(p.focus_score),
-    speed_score:           sanitizeRating(p.speed_score),
-    memory_score:          sanitizeRating(p.memory_score),
-    cfop_spatial_record:   sanitizeRating(p.cfop_spatial_record),
+    focus_score: sanitizeRating(p.focus_score),
+    speed_score: sanitizeRating(p.speed_score),
+    memory_score: sanitizeRating(p.memory_score),
+    cfop_spatial_record: sanitizeRating(p.cfop_spatial_record),
   };
 }
 
@@ -165,10 +187,10 @@ function hydrateProfile(p: Profile): Profile {
   return {
     ...clean,
     algebraic_logic_score: decayRating(clean.algebraic_logic_score, idle),
-    focus_score:           decayRating(clean.focus_score, idle),
-    speed_score:           decayRating(clean.speed_score, idle),
-    memory_score:          decayRating(clean.memory_score, idle),
-    cfop_spatial_record:   decayRating(clean.cfop_spatial_record ?? 0, idle),
+    focus_score: decayRating(clean.focus_score, idle),
+    speed_score: decayRating(clean.speed_score, idle),
+    memory_score: decayRating(clean.memory_score, idle),
+    cfop_spatial_record: decayRating(clean.cfop_spatial_record ?? 0, idle),
   };
 }
 
@@ -225,16 +247,17 @@ export type ScoreColumn =
   | "schulte_sessions"
   | "sudoku_sessions"
   | "stroop_sessions"
-| "reaction_sessions"
-| "memory_sessions"
-| "total_xp";
+  | "reaction_sessions"
+  | "memory_sessions"
+  | "total_xp";
 
 export async function saveTrainingResult(
   scoreType: ScoreColumn,
   value: number,
 ): Promise<Profile> {
   const userId = await currentUserId();
-  if (!userId) throw new Error("Save training result failed: not authenticated.");
+  if (!userId)
+    throw new Error("Save training result failed: not authenticated.");
 
   const { data, error } = await getSupabase()
     .from("profiles")
@@ -244,7 +267,10 @@ export async function saveTrainingResult(
     .single();
 
   if (error) {
-    const msg = describeError(error, `Save training result failed for ${scoreType}`);
+    const msg = describeError(
+      error,
+      `Save training result failed for ${scoreType}`,
+    );
     console.error(msg);
     throw new Error(msg);
   }
@@ -255,7 +281,9 @@ export async function saveTrainingResult(
  * Updates several score columns for the current user in a single request.
  * RLS scopes the write to the user's own row.
  */
-export async function saveScores(updates: Partial<Record<ScoreColumn, number>>): Promise<Profile> {
+export async function saveScores(
+  updates: Partial<Record<ScoreColumn, number>>,
+): Promise<Profile> {
   const userId = await currentUserId();
   if (!userId) throw new Error("Save scores failed: not authenticated.");
 
@@ -267,7 +295,10 @@ export async function saveScores(updates: Partial<Record<ScoreColumn, number>>):
     .single();
 
   if (error) {
-    const msg = describeError(error, `Save scores failed for [${Object.keys(updates).join(", ")}]`);
+    const msg = describeError(
+      error,
+      `Save scores failed for [${Object.keys(updates).join(", ")}]`,
+    );
     console.error(msg);
     throw new Error(msg);
   }
@@ -300,10 +331,12 @@ function dayDiff(fromYmd: string, toYmd: string): number {
  */
 export async function recordDailyActivity(): Promise<Profile> {
   const userId = await currentUserId();
-  if (!userId) throw new Error("Record daily activity failed: not authenticated.");
+  if (!userId)
+    throw new Error("Record daily activity failed: not authenticated.");
 
   const current = await fetchProfile();
-  if (!current) throw new Error("Record daily activity failed: profile not found.");
+  if (!current)
+    throw new Error("Record daily activity failed: profile not found.");
 
   const today = vnDateString(new Date());
   let streak: number;
@@ -377,7 +410,8 @@ export async function resetActiveUserScores(): Promise<Profile> {
       sudoku_sessions: 0,
       stroop_sessions: 0,
       reaction_sessions: 0,
-       total_xp: 0,
+      memory_sessions: 0,
+      total_xp: 0,
       last_active_date: null,
     })
     .eq("id", userId)
@@ -405,38 +439,20 @@ export async function adminFetchUser(targetId: string): Promise<Profile> {
   return hydrateProfile(data as Profile);
 }
 
-/** Add `delta` to all score columns of any user. */
-export async function adminAddPoints(targetId: string, delta: number): Promise<Profile> {
-  return adminApplyGrant(targetId, {
-    axes: { logic: delta, memory: delta, speed: delta, focus: delta, spatial: delta },
-    mode: "add",
-  });
-}
-
-/** Tên hiển thị của trục -> tên cột thật trong bảng profiles. */
 export const AXIS_COLUMNS = {
-  logic:   "algebraic_logic_score",
-  memory:  "memory_score",
-  speed:   "speed_score",
-  focus:   "focus_score",
+  logic: "algebraic_logic_score",
+  memory: "memory_score",
+  speed: "speed_score",
+  focus: "focus_score",
   spatial: "cfop_spatial_record",
 } as const;
-
 export type AxisKey = keyof typeof AXIS_COLUMNS;
-
 export type AdminGrant = {
-  /** Chỉ những trục được liệt kê mới bị đụng tới. */
   axes?: Partial<Record<AxisKey, number>>;
-  /** Điều chỉnh total_xp. Level tự suy ra nên không bao giờ lệch. */
   xp?: number;
-  /** "add" cộng thêm vào giá trị hiện tại, "set" gán đè. */
   mode?: "add" | "set";
 };
 
-/**
- * Đọc hồ sơ ở dạng THÔ, không áp dụng trừ hao theo ngày nghỉ.
- * Bắt buộc dùng cho đường ghi, nếu không phần hao hụt sẽ bị ghi đè vĩnh viễn.
- */
 async function adminFetchRaw(targetId: string): Promise<Profile> {
   const { data, error } = await getSupabase()
     .from("profiles")
@@ -447,69 +463,39 @@ async function adminFetchRaw(targetId: string): Promise<Profile> {
   return sanitizeProfile(data as Profile);
 }
 
-/**
- * Cấp điểm cho từng trục riêng lẻ và/hoặc chỉnh XP.
- * Mọi trục đều bị kẹp trong [0, RATING_MAX] và làm tròn về số nguyên,
- * nên không thể phá vỡ thang điểm hay công thức chỉ số nhận thức.
- */
-export async function adminApplyGrant(targetId: string, grant: AdminGrant): Promise<Profile> {
-  const mode = grant.mode ?? "add";
-  const target = await adminFetchRaw(targetId);
-  const patch: Record<string, number> = {};
+export async function adminApplyGrant(
+  targetId: string,
+  grant: AdminGrant,
+): Promise<Profile> {
+  const result = await serverPost<{ profile: Profile }>("admin-grant", {
+    targetId,
+    ...grant,
+  });
+  return sanitizeProfile(result.profile);
+}
 
-  for (const key of Object.keys(grant.axes ?? {}) as AxisKey[]) {
-    const amount = grant.axes?.[key];
-    if (amount == null || !Number.isFinite(amount)) continue;
-
-    const column = AXIS_COLUMNS[key];
-    const current = Number((target as unknown as Record<string, number | null>)[column] ?? 0);
-    const next = mode === "set" ? amount : current + amount;
-
-    patch[column] = Math.max(0, Math.min(RATING_MAX, Math.round(next)));
-  }
-
-  if (grant.xp != null && Number.isFinite(grant.xp)) {
-    const currentXp = Number(target.total_xp ?? 0);
-    const nextXp = mode === "set" ? grant.xp : currentXp + grant.xp;
-    patch.total_xp = Math.max(0, Math.round(nextXp));
-  }
-
-  if (Object.keys(patch).length === 0) return target;
-
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update(patch)
-    .eq("id", targetId)
-    .select(PROFILE_COLS)
-    .single();
-  if (error) throw new Error(describeError(error, "adminApplyGrant"));
-  return sanitizeProfile(data as Profile);
+/** Backward-compatible helper: add the same amount to every cognitive axis. */
+export function adminAddPoints(
+  targetId: string,
+  delta: number,
+): Promise<Profile> {
+  return adminApplyGrant(targetId, {
+    axes: {
+      logic: delta,
+      memory: delta,
+      speed: delta,
+      focus: delta,
+      spatial: delta,
+    },
+  });
 }
 
 /** Reset all scores + streak of any user to 0 (all 5 axes forcefully zeroed). */
 export async function adminResetScores(targetId: string): Promise<Profile> {
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update({
-      algebraic_logic_score: 0,
-      memory_score: 0,
-      speed_score: 0,
-      focus_score: 0,
-      cfop_spatial_record: 0,
-      synapse_streak: 0,
-      schulte_sessions: 0,
-      sudoku_sessions: 0,
-      stroop_sessions: 0,
-      reaction_sessions: 0,
-      memory_sessions: 0,
-      total_xp: 0,
-      last_active_date: null,
-    })
-    .eq("id", targetId)
-    .select(PROFILE_COLS)
-    .single();
-  if (error) throw new Error(describeError(error, "adminResetScores"));
-  return data as Profile;
+  const result = await serverPost<{ profile: Profile }>("admin-reset", {
+    targetId,
+  });
+  return sanitizeProfile(result.profile);
 }
 
 /** Delete any user's profile row (does NOT remove auth user). */
@@ -531,7 +517,10 @@ export async function deleteActiveUserAccount(): Promise<void> {
   const userId = await currentUserId();
   if (!userId) throw new Error("Delete account failed: not authenticated.");
 
-  const { error } = await getSupabase().from("profiles").delete().eq("id", userId);
+  const { error } = await getSupabase()
+    .from("profiles")
+    .delete()
+    .eq("id", userId);
   if (error) {
     const msg = describeError(error, "Delete account failed");
     console.error(msg);
@@ -589,6 +578,67 @@ export async function awardXp(
   }
 }
 
+export type RoundGame = "schulte" | "sudoku" | "stroop" | "reaction" | "memory";
+export type RoundTicket = {
+  roundId: string;
+  game: RoundGame;
+  startedAt: string;
+  expiresAt: string;
+};
+export type SubmittedRound = {
+  profile: Profile;
+  axes: {
+    speed: number | null;
+    focus: number | null;
+    spatial: number | null;
+    logic: number | null;
+    memory: number | null;
+  };
+  headline: number;
+  label: string;
+  timeMs: number;
+  xpAwarded: number;
+  totalXp: number;
+  level: number;
+  leveledUp: boolean;
+};
+
+async function serverPost<T>(path: string, payload: unknown): Promise<T> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not authenticated.");
+  const res = await fetch(`${BASE}/${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const body = await res
+    .json()
+    .catch(() => ({ error: "Invalid server response" }));
+  if (!res.ok) throw new Error(body.error ?? `${path} failed (${res.status})`);
+  return body as T;
+}
+
+/** Obtain a short-lived, one-use round ticket before play. */
+export const startRound = (game: RoundGame): Promise<RoundTicket> =>
+  serverPost<RoundTicket>("start-round", { game });
+
+/** One finish request: server scores telemetry and atomically saves everything. */
+export async function submitRound(
+  roundId: string,
+  game: RoundGame,
+  telemetry: unknown,
+): Promise<SubmittedRound> {
+  const result = await serverPost<SubmittedRound>("submit-round", {
+    roundId,
+    game,
+    telemetry,
+  });
+  return { ...result, profile: sanitizeProfile(result.profile) };
+}
+
 /** Global Cognitive Index = average of the 5 cognitive axes (0–1000). */
 export function cognitiveIndex(p: Profile): number {
   const sum =
@@ -642,20 +692,22 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
 
   const indices = ((data ?? []) as Profile[])
     .map(hydrateProfile)
-   .filter(
-  (p) =>
-    (p.schulte_sessions ?? 0) +
-      (p.sudoku_sessions ?? 0) +
-      (p.stroop_sessions ?? 0) +
-      (p.reaction_sessions ?? 0) >=
-    5,
-)
+    .filter(
+      (p) =>
+        (p.schulte_sessions ?? 0) +
+          (p.sudoku_sessions ?? 0) +
+          (p.stroop_sessions ?? 0) +
+          (p.reaction_sessions ?? 0) >=
+        5,
+    )
     .map(cognitiveIndex);
 
-  if (indices.length < MIN_POPULATION) return { ...DEFAULT_POPULATION, n: indices.length };
+  if (indices.length < MIN_POPULATION)
+    return { ...DEFAULT_POPULATION, n: indices.length };
 
   const mean = indices.reduce((s, x) => s + x, 0) / indices.length;
-  const variance = indices.reduce((s, x) => s + (x - mean) ** 2, 0) / (indices.length - 1);
+  const variance =
+    indices.reduce((s, x) => s + (x - mean) ** 2, 0) / (indices.length - 1);
   const sd = Math.sqrt(variance);
 
   // A degenerate spread (everyone identical) would make every z-score infinite.
@@ -676,7 +728,9 @@ export async function fetchActivityStats(): Promise<ActivityStats> {
   const userId = await currentUserId();
   if (!userId) return { xpToday: 0, sessionsThisMonth: 0 };
 
-  const vnNow = new Date(new Date().toLocaleString("en-US", { timeZone: VN_TZ }));
+  const vnNow = new Date(
+    new Date().toLocaleString("en-US", { timeZone: VN_TZ }),
+  );
 
   const dayStart = new Date(vnNow);
   dayStart.setHours(0, 0, 0, 0);
