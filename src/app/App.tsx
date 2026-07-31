@@ -77,23 +77,6 @@ const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 // single source of truth — see cognitiveIndex() — so the dashboard and the
 // leaderboard can never desync. Round it for display.
 const displayIndex = (p: Profile): number => Math.round(cognitiveIndex(p));
-const APP_VN_TZ = "Asia/Ho_Chi_Minh";
-
-/** Số mili giây còn lại tới nửa đêm giờ Việt Nam. */
-const msUntilVnMidnight = () => {
-  const vnNow = new Date(
-    new Date().toLocaleString("en-US", { timeZone: APP_VN_TZ }),
-  );
-  const next = new Date(vnNow);
-  next.setHours(24, 0, 0, 0);
-  return Math.max(0, next.getTime() - vnNow.getTime());
-};
-
-const toHms = (ms: number) => ({
-  h: Math.floor(ms / 3600000),
-  m: Math.floor(ms / 60000) % 60,
-  s: Math.floor(ms / 1000) % 60,
-});
 
 /** Total rounds across all games — drives brain-age calibration. */
 const totalRounds = (p: Profile) =>
@@ -172,7 +155,6 @@ function applyAxes(
   axes: AxisRatings,
   serverProfile?: Profile | null,
 ) {
-  const updates: Record<string, number> = {};
   const rows: RoundAxisRow[] = [];
 
   (Object.keys(AXIS_META) as AxisKey[]).forEach((key) => {
@@ -189,11 +171,10 @@ function applyAxes(
           serverProfile[meta.column as keyof Profile] as number | null,
         )
       : pullUpRating(prev, round);
-    updates[meta.column] = next;
     rows.push({ label: meta.label, color: meta.color, round, prev, next });
   });
 
-  return { updates, rows };
+  return { rows };
 }
 
 // ─── Schulte Table helpers ─────────────────────────────────────────────────────
@@ -494,7 +475,6 @@ function AppInner() {
     setAdminPanelOpen(false);
   };
 
-  const [, setTimer] = useState(() => toHms(msUntilVnMidnight()));
   const [activity, setActivity] = useState<ActivityStats>({
     xpToday: 0,
     sessionsThisMonth: 0,
@@ -509,11 +489,6 @@ function AppInner() {
   }, [profile?.id, profile?.total_xp]);
   useEffect(() => {
     const i = setInterval(() => setPulse((p) => !p), 1800);
-    return () => clearInterval(i);
-  }, []);
-
-  useEffect(() => {
-    const i = setInterval(() => setTimer(toHms(msUntilVnMidnight())), 1000);
     return () => clearInterval(i);
   }, []);
 
@@ -1089,19 +1064,19 @@ function AppInner() {
                 <GameTile
                   accent="#10B981"
                   icon={<Activity size={22} />}
-                  tag="SPEED TRAINING"
+                  tag={t.rx_tag}
                   title="Reaction Time"
-                  desc="Chờ tín hiệu chuyển xanh rồi phản ứng nhanh nhất có thể. Bấm sớm sẽ bị phạt."
-                  playLabel="PLAY NOW"
+                  desc={t.rx_desc}
+                  playLabel={t.play_now}
                   onPlay={() => setSelectedGame("reaction")}
                 />
                 <GameTile
                   accent="#F43F5E"
                   icon={<Brain size={22} />}
-                  tag="MEMORY TRAINING"
+                  tag={t.mem_tag}
                   title="Memory Matrix"
-                  desc="Ghi nhớ vị trí các ô sáng trên lưới. Độ khó tăng dần theo từng cấp độ."
-                  playLabel="PLAY NOW"
+                  desc={t.mem_desc}
+                  playLabel={t.play_now}
                   onPlay={() => setSelectedGame("memory")}
                 />
               </div>
@@ -1361,7 +1336,10 @@ function AppInner() {
                           key={i}
                           className="w-6 h-2 rounded-full"
                           style={
-                            i < profile.synapse_streak % 7
+                            i <
+                            (profile.synapse_streak > 0
+                              ? ((profile.synapse_streak - 1) % 7) + 1
+                              : 0)
                               ? {
                                 background:
                                   "linear-gradient(90deg, #F59E0B, #EF4444)",
@@ -1730,10 +1708,30 @@ function SchulteTableGame({
   // someone who stalls once and then rushes.
   const hitRtsRef = useRef<number[]>([]);
   const lastHitRef = useRef<number | null>(null);
+  // Mọi hẹn giờ của ván đều được theo dõi, để ván cũ không bắn callback sau khi
+  // người chơi đã rời màn hình hoặc đã bắt đầu ván mới.
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTimers = useCallback(() => {
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+  }, []);
+
+  const later = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current = timeoutsRef.current.filter((x) => x !== id);
+      fn();
+    }, ms);
+    timeoutsRef.current.push(id);
+  }, []);
 
   const reset = useCallback(
     (ns: SSize = size, nm: SMode = mode) => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      clearTimers();
+      // Kỷ lục chỉ có nghĩa trong cùng một cấu hình: best của 3×3 không được
+      // phép đè lên best của 6×6.
+      if (ns !== size || nm !== mode) setBestTime(null);
       setGrid(buildSchulteGrid(ns, nm));
       setSequence(buildSchulteSeq(ns, nm));
       setSeqIdx(0);
@@ -1748,12 +1746,14 @@ function SchulteTableGame({
       hitRtsRef.current = [];
       lastHitRef.current = null;
     },
-    [size, mode],
+    [size, mode, clearTimers],
   );
 
   useEffect(
     () => () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
     },
     [],
   );
@@ -1807,12 +1807,12 @@ function SchulteTableGame({
       const target = sequence[seqIdx];
       const ok = cell.value === target.value && cell.color === target.color;
       setFlashCell({ idx, ok });
-      setTimeout(() => setFlashCell(null), ok ? 260 : 380);
+      later(() => setFlashCell(null), ok ? 260 : 380);
       if (!ok) {
         wrongClicksRef.current += 1;
         const newHearts = hearts - 1;
         setHearts(newHearts);
-        if (newHearts <= 0) setTimeout(() => reset(), 420);
+        if (newHearts <= 0) later(() => reset(), 420);
         return;
       }
 
@@ -1828,7 +1828,7 @@ function SchulteTableGame({
       setFoundSet(nf);
       setSeqIdx(seqIdx + 1);
     },
-    [status, foundSet, sequence, seqIdx, hearts, reset],
+    [status, foundSet, sequence, seqIdx, hearts, reset, later],
   );
 
   const fmtTime = (ms: number) => {
@@ -2328,6 +2328,7 @@ function SudokuGame({
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
   const [mistakes, setMistakes] = useState(0);
+  const [generating, setGenerating] = useState(false);
   const MAX_MISTAKES = 3;
   const startRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -2353,9 +2354,16 @@ function SudokuGame({
   const startBoard = useCallback((diff: Difficulty) => {
     if (timerRef.current) clearInterval(timerRef.current);
     const lvl = SUDOKU_LEVELS.find((l) => l.id === diff)!;
-    const nd = generateSudoku(lvl.clues);
-    setPuzzleData(nd);
-    setUserGrid(nd.puzzle.map((r) => [...r]));
+    // Sinh đề chạy đồng bộ và rất nặng ở Master/Extreme. Bật cờ "đang tạo đề"
+    // rồi nhường một nhịp cho trình duyệt vẽ xong, nếu không giao diện sẽ đứng
+    // hình vài giây mà không báo gì cho người chơi.
+    setGenerating(true);
+    setTimeout(() => {
+      const nd = generateSudoku(lvl.clues);
+      setPuzzleData(nd);
+      setUserGrid(nd.puzzle.map((r) => [...r]));
+      setGenerating(false);
+    }, 30);
     setSelected(null);
     setStatus("idle");
     setElapsed(0);
@@ -2456,7 +2464,11 @@ function SudokuGame({
         setTimeout(() => {
           setUserGrid((prev) =>
             prev.map((row, ri) =>
-              row.map((v, ci) => (ri === r && ci === c ? null : v)),
+              row.map((v, ci) =>
+                // Chỉ xoá khi ô vẫn đang sai. Nếu người chơi kịp điền đúng
+                // trong 600ms thì giữ lại, đừng xoá mất công của họ.
+                ri === r && ci === c && v !== solution[r][c] ? null : v,
+              ),
             ),
           );
           if (next >= MAX_MISTAKES) reset();
@@ -2638,7 +2650,7 @@ function SudokuGame({
             <button
               key={l.id}
               onClick={() => changeDifficulty(l.id)}
-              disabled={saving}
+              disabled={saving || generating}
               className="rounded-lg py-1.5 text-[10px] font-bold tracking-wide transition-all duration-150 disabled:opacity-50"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -2658,6 +2670,18 @@ function SudokuGame({
         })}
       </div>
 
+      {generating && (
+        <div
+          className="mt-3 flex items-center justify-center gap-2 text-[11px]"
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            color: "#00D4FF",
+          }}
+        >
+          <Loader2 size={11} className="animate-spin" /> {t.sudoku_generating}
+        </div>
+      )}
+
       {/* ── Grid: 3×3 outer (boxes) → 3×3 inner (cells) ── */}
       {/* Bright glowing gutter between the 9 boxes; subtle hairlines within each box. */}
       <div
@@ -2667,6 +2691,9 @@ function SudokuGame({
           gridTemplateColumns: "repeat(3, 1fr)",
           gap: 5,
           padding: 5,
+          opacity: generating ? 0.35 : 1,
+          pointerEvents: generating ? "none" : "auto",
+          transition: "opacity 0.15s",
           background: "rgba(0,212,255,0.55)",
           borderRadius: 12,
           border: "1px solid rgba(0,212,255,0.6)",
@@ -2794,7 +2821,7 @@ function SudokuGame({
       {/* ── New game ── */}
       <button
         onClick={reset}
-        disabled={saving}
+        disabled={saving || generating}
         className="mt-2.5 mx-auto w-full max-w-[420px] rounded-xl flex items-center justify-center gap-2 py-2.5 transition-all duration-100 hover:brightness-125 disabled:opacity-40"
         style={{
           fontFamily: "'JetBrains Mono', monospace",
@@ -2964,7 +2991,11 @@ function StroopGame({
         setHearts(nh);
         setTimeout(() => {
           setFlash(null);
-          if (nh > 0) setStimulus(makeStimulus(prevInkRef.current)); // sai thì ra câu mới, tránh lặp lại màu mực vừa rồi
+          // Phải lấy màu mực của câu VỪA hiện, không phải câu đúng gần nhất:
+          // prevInkRef chỉ cập nhật khi trả lời đúng, nên nếu dùng nó thì sau
+          // một câu sai màu mực cũ vẫn có thể lặp lại ngay lập tức.
+          prevInkRef.current = stimulus.inkId;
+          if (nh > 0) setStimulus(makeStimulus(stimulus.inkId));
         }, 420);
         return;
       }
@@ -3119,7 +3150,7 @@ function StroopGame({
               textShadow: "0 0 20px rgba(234,179,8,0.55)",
             }}
           >
-            {TOTAL - trialsLeft + (status === "done" ? 0 : 0)}/{TOTAL}
+            {TOTAL - trialsLeft}/{TOTAL}
           </span>
         </div>
       </div>
@@ -3827,7 +3858,7 @@ function MemoryMatrixGame({
               color: "#F43F5E",
             }}
           >
-            MEMORY TRAINING
+            {t.mem_tag}
           </div>
           <div className="text-base font-bold text-white">Memory Matrix</div>
         </div>
@@ -3933,9 +3964,9 @@ function MemoryMatrixGame({
             className="text-sm text-slate-400 text-center mb-6 leading-relaxed"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            Ghi nhớ vị trí các ô phát sáng.
+            {t.mem_intro_1}
             <br />
-            Khi chúng tắt, hãy chọn lại chính xác.
+            {t.mem_intro_2}
           </div>
           <button
             onClick={generateLevel}
@@ -3967,7 +3998,10 @@ function MemoryMatrixGame({
             className="text-sm text-slate-400"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            Max Level: <span className="text-[#F43F5E]">{level}</span>
+            Max Level:{" "}
+            <span className="text-[#F43F5E]">
+              {Math.max(1, maxClearedRef.current)}
+            </span>
           </div>
         </div>
       ) : (
@@ -4068,6 +4102,7 @@ function ReactionTimeGame({
 }: {
   onComplete: (tel: ReactionTelemetry) => Promise<void>;
 }) {
+  const { t } = useLang();
   const TOTAL_TRIALS = 5;
 
   type ReactionPhase = "idle" | "waiting" | "ready" | "result" | "done";
@@ -4104,16 +4139,16 @@ function ReactionTimeGame({
     clearTimers();
     setPhase("waiting");
     setCurrentRt(null);
-    setMessage("Chờ tín hiệu chuyển xanh...");
+    setMessage(t.rx_wait);
 
     const delay = 1500 + Math.random() * 2500;
 
     waitTimerRef.current = setTimeout(() => {
       readyAtRef.current = performance.now();
       setPhase("ready");
-      setMessage("BẤM NGAY!");
+      setMessage(t.rx_now);
     }, delay);
-  }, [clearTimers]);
+  }, [clearTimers, t]);
 
   const startGame = () => {
     clearTimers();
@@ -4151,7 +4186,7 @@ function ReactionTimeGame({
       falseStartsRef.current = newFalseStarts;
       setFalseStarts(newFalseStarts);
       setPhase("result");
-      setMessage("BẤM QUÁ SỚM!");
+      setMessage(t.rx_too_soon_msg);
 
       nextTimerRef.current = setTimeout(scheduleTrial, 900);
       return;
@@ -4229,7 +4264,7 @@ function ReactionTimeGame({
               color: "#10B981",
             }}
           >
-            SPEED TRAINING
+            {t.rx_tag}
           </div>
 
           <div className="text-base font-bold text-white">Reaction Time</div>
@@ -4268,6 +4303,10 @@ function ReactionTimeGame({
         </div>
       </div>
 
+      <div className="mt-2 text-[10px] text-slate-500 text-center">
+        {t.rx_false_start_note}
+      </div>
+
       {phase === "idle" ? (
         <div
           className="mt-6 flex flex-col items-center justify-center"
@@ -4276,9 +4315,9 @@ function ReactionTimeGame({
           <Clock size={46} className="text-[#10B981] mb-5" />
 
           <p className="text-sm text-slate-400 text-center leading-relaxed">
-            Chờ màn hình chuyển sang màu xanh,
+            {t.rx_intro_1}
             <br />
-            sau đó bấm nhanh nhất có thể.
+            {t.rx_intro_2}
           </p>
 
           <button
@@ -4332,7 +4371,7 @@ function ReactionTimeGame({
 
           {phase === "waiting" && (
             <div className="mt-3 text-xs text-slate-500">
-              Không bấm trước khi màn hình chuyển xanh
+              {t.rx_dont_press}
             </div>
           )}
         </button>
@@ -4341,7 +4380,7 @@ function ReactionTimeGame({
       {saving && (
         <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
           <Loader2 size={12} className="animate-spin" />
-          Đang lưu kết quả...
+          {t.rx_saving}
         </div>
       )}
 

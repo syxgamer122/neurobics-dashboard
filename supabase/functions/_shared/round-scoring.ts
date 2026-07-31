@@ -46,6 +46,16 @@ const numberArray = (
     Math.max(1, finite(x, `${name}[${i}]`, 0, 3_600_000)),
   );
 };
+/**
+ * Bỏ mốc khởi động ra khỏi thống kê nhịp độ.
+ * Ở Schulte, Sudoku và Stroop, đồng hồ chỉ bắt đầu chạy từ cú click đầu tiên,
+ * nên phần tử đầu của mảng RT luôn xấp xỉ 0ms. Con số giả này kéo CV phình lên
+ * và ép Focus xuống oan. Mảng vẫn giữ nguyên độ dài lúc kiểm tra hợp lệ; chỉ
+ * riêng khi tính median và CV mới loại nó ra.
+ */
+const withoutStartArtifact = (rts: number[], thresholdMs = 80): number[] =>
+  rts.length > 1 && rts[0] <= thresholdMs ? rts.slice(1) : rts;
+
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
   const m = s.length >> 1;
@@ -124,12 +134,13 @@ function scoreSchulte(t: any): ScoredRound {
   const diff = SCHULTE_DIFF[cells];
   const per = SCHULTE_TARGET[cells] / cells;
   const accuracy = cells / (cells + wrong);
-  const late = rts.slice(Math.floor((rts.length * 2) / 3));
+  const statRts = withoutStartArtifact(rts);
+  const late = statRts.slice(Math.floor((statRts.length * 2) / 3));
   const spatial = clamp(MAX * diff * ratio(per * 1.6, median(late)) * accuracy);
   const axes = {
     ...NO_AXES,
-    speed: speed(rts, per, diff, timeMs / cells),
-    focus: focus(rts, accuracy, diff),
+    speed: speed(statRts, per, diff, timeMs / cells),
+    focus: focus(statRts, accuracy, diff),
     spatial,
   };
   return {
@@ -156,7 +167,7 @@ function scoreSudoku(t: any): ScoredRound {
     1 - clamp01((reEntries + repeat * 1.5) / Math.max(4, placements * 0.25));
   const axes = {
     ...NO_AXES,
-    speed: speed(rts, per, diff, timeMs / placements),
+    speed: speed(withoutStartArtifact(rts), per, diff, timeMs / placements),
     logic,
     memory: clamp(MAX * diff * retention),
   };
@@ -167,12 +178,15 @@ function scoreStroop(t: any): ScoredRound {
   const wrong = int(t?.wrongClicks, "wrongClicks", 0, 3);
   const rts = numberArray(t?.rts, "rts", 0, total);
   const timeMs = finite(t?.timeMs, "timeMs", 1_000, 600_000);
+  // completion vẫn đếm đủ số câu trả lời đúng; chỉ thống kê nhịp độ mới bỏ mốc
+  // khởi động, nếu không người chơi bị trừ oan 5% hoàn thành mỗi ván.
   const completion = rts.length / total;
   const accuracy = (rts.length / Math.max(1, rts.length + wrong)) * completion;
+  const statRts = withoutStartArtifact(rts);
   const axes = {
     ...NO_AXES,
-    speed: speed(rts, 1800, 0.82, timeMs / Math.max(1, rts.length)),
-    focus: focus(rts, accuracy, 0.82),
+    speed: speed(statRts, 1800, 0.82, timeMs / Math.max(1, rts.length)),
+    focus: focus(statRts, accuracy, 0.82),
   };
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
 }

@@ -74,6 +74,29 @@ days: "ngày",
   saving: "Đang lưu điểm…",
   new_game: "VÁN MỚI",
 
+  // Memory Matrix
+  mem_tag: "LUYỆN TRÍ NHỚ",
+  mem_desc:
+    "Ghi nhớ vị trí các ô sáng trên lưới. Độ khó tăng dần theo từng cấp độ.",
+  mem_intro_1: "Ghi nhớ vị trí các ô phát sáng.",
+  mem_intro_2: "Khi chúng tắt, hãy chọn lại chính xác.",
+
+  // Reaction Time
+  rx_tag: "LUYỆN TỐC ĐỘ",
+  rx_desc:
+    "Chờ tín hiệu chuyển xanh rồi phản ứng nhanh nhất có thể. Bấm sớm sẽ bị phạt.",
+  rx_wait: "Chờ tín hiệu chuyển xanh...",
+  rx_now: "BẤM NGAY!",
+  rx_too_soon_msg: "BẤM QUÁ SỚM!",
+  rx_intro_1: "Chờ màn hình chuyển sang màu xanh,",
+  rx_intro_2: "sau đó bấm nhanh nhất có thể.",
+  rx_dont_press: "Không bấm trước khi màn hình chuyển xanh",
+  rx_saving: "Đang lưu kết quả...",
+  rx_false_start_note: "Mỗi lần bấm sớm đều trừ điểm Tập trung của ván này.",
+
+  // Sudoku
+  sudoku_generating: "Đang tạo đề…",
+
   // Sudoku game
   new_puzzle: "CÂU ĐỐ MỚI",
   solved: "Đã giải!",
@@ -207,6 +230,29 @@ days: "days",
   idle_dual: "Click 1 (purple) to start · alternate colors",
   saving: "Saving scores…",
   new_game: "NEW GAME",
+
+  // Memory Matrix
+  mem_tag: "MEMORY TRAINING",
+  mem_desc:
+    "Memorise which tiles light up on the grid. Each level adds more of them.",
+  mem_intro_1: "Memorise the tiles that light up.",
+  mem_intro_2: "Once they fade, select them again exactly.",
+
+  // Reaction Time
+  rx_tag: "SPEED TRAINING",
+  rx_desc:
+    "Wait for the signal to turn green, then react as fast as you can. Early clicks are penalised.",
+  rx_wait: "Wait for the green signal...",
+  rx_now: "CLICK NOW!",
+  rx_too_soon_msg: "TOO SOON!",
+  rx_intro_1: "Wait for the screen to turn green,",
+  rx_intro_2: "then click as fast as you can.",
+  rx_dont_press: "Do not click before the screen turns green",
+  rx_saving: "Saving result...",
+  rx_false_start_note: "Every early click lowers the Focus score for this round.",
+
+  // Sudoku
+  sudoku_generating: "Generating puzzle…",
 
   new_puzzle: "NEW PUZZLE",
   solved: "Solved!",
