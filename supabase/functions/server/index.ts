@@ -280,13 +280,33 @@ app.post("/server/submit-round", async (c) => {
   throw new Error(error.message);
 }
 
-    return c.json({
-      ...data,
-      axes: scored.axes,
-      headline: scored.headline,
-      label: scored.label,
-      timeMs: scored.timeMs,
-    });
+    // Ghi ván vào lịch sử luyện tập. Điểm đã lưu thành công rồi, nên lỗi ở đây
+// chỉ log lại chứ không được làm hỏng phản hồi trả về cho người chơi.
+const { error: historyError } = await adminClient
+  .from("training_sessions")
+  .insert({
+    user_id: user.id,
+    game: String(game),
+    label: scored.label,
+    round_score: scored.headline,
+    xp_awarded: Number((data as { xpAwarded?: number })?.xpAwarded ?? 0),
+    time_ms: Math.round(scored.timeMs),
+    speed_score: scored.axes.speed,
+    focus_score: scored.axes.focus,
+    spatial_score: scored.axes.spatial,
+    logic_score: scored.axes.logic,
+    memory_score: scored.axes.memory,
+  });
+if (historyError)
+  console.log(`Training history insert failed: ${historyError.message}`);
+
+return c.json({
+  ...data,
+  axes: scored.axes,
+  headline: scored.headline,
+  label: scored.label,
+  timeMs: scored.timeMs,
+});
   } catch (err) {
     console.log(`Submit round error: ${err}`);
     const message =

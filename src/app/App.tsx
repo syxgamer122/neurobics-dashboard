@@ -26,6 +26,7 @@ import {
 import { AdminPanel } from "./components/admin-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
+import { HistoryPanel } from "./components/history-panel";
 import {
   getAccessToken,
   fetchProfile,
@@ -1414,6 +1415,8 @@ function AppInner() {
             </div>
           </>
         )}
+
+        {activePage === "history" && <HistoryPanel />}
 
         {activePage === "profile" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

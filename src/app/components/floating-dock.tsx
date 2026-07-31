@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { LayoutDashboard, Gamepad2, UserCog, Terminal } from "lucide-react";
+import { LayoutDashboard, Gamepad2, History, UserCog, Terminal } from "lucide-react";
 import { useLang } from "../lib/i18n";
 
-export type DockPage = "dashboard" | "play" | "profile" | "god";
-
+export type DockPage = "dashboard" | "play" | "history" | "profile" | "god";
 interface DockItem {
   id: DockPage;
   icon: typeof LayoutDashboard;
@@ -13,6 +12,7 @@ interface DockItem {
 const ITEMS: DockItem[] = [
   { id: "dashboard", icon: LayoutDashboard, accent: "0,212,255" },
   { id: "play", icon: Gamepad2, accent: "168,85,247" },
+  { id: "history", icon: History, accent: "16,185,129" },
   { id: "profile", icon: UserCog, accent: "245,158,11" },
   { id: "god", icon: Terminal, accent: "0,255,156" },
 ];
@@ -30,6 +30,7 @@ export function FloatingDock({
   const labels: Record<DockPage, string> = {
     dashboard: t.dock_dashboard,
     play: t.dock_arena,
+    history: "LỊCH SỬ",
     profile: t.dock_profile,
     god: t.dock_admin,
   };
@@ -89,8 +90,8 @@ export function FloatingDock({
                   background: isActive
                     ? `rgba(${item.accent},0.16)`
                     : isHovered
-                    ? "rgba(255,255,255,0.05)"
-                    : "transparent",
+                      ? "rgba(255,255,255,0.05)"
+                      : "transparent",
                   border: isActive
                     ? `1px solid rgba(${item.accent},0.4)`
                     : "1px solid transparent",
