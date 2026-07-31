@@ -168,7 +168,7 @@ const PROFILE_COLS = "*";
 // tầng kiểu để suy ra kiểu của `data`. Dùng [...].join() sẽ cho kiểu `string`
 // chung chung, khiến TypeScript trả về GenericStringError\[\] và báo lỗi ép kiểu.
 const LEADERBOARD_COLS =
-  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions";
+  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, created_at";
 
 // The rating scale and its guards live in ./scoring, the single source of truth
 // for everything score-related. Re-exported so existing importers keep working.

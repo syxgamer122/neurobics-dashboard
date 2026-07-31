@@ -138,15 +138,11 @@ export type RoundResult = {
 
 // Axis display metadata plus the profile column each axis persists to.
 const AXIS_META = {
-  speed: { label: "Speed", color: "#10B981", column: "speed_score" },
-  focus: { label: "Focus", color: "#A855F7", column: "focus_score" },
-  spatial: {
-    label: "Spatial",
-    color: "#F59E0B",
-    column: "cfop_spatial_record",
-  },
-  logic: { label: "Logic", color: "#00D4FF", column: "algebraic_logic_score" },
-  memory: { label: "Memory", color: "#F43F5E", column: "memory_score" },
+  speed: { color: "#10B981", column: "speed_score" },
+  focus: { color: "#A855F7", column: "focus_score" },
+  spatial: { color: "#F59E0B", column: "cfop_spatial_record" },
+  logic: { color: "#00D4FF", column: "algebraic_logic_score" },
+  memory: { color: "#F43F5E", column: "memory_score" },
 } as const;
 
 type AxisKey = keyof typeof AXIS_META;
@@ -160,7 +156,8 @@ type AxisKey = keyof typeof AXIS_META;
 function applyAxes(
   profile: Profile,
   axes: AxisRatings,
-  serverProfile?: Profile | null,
+  serverProfile: Profile | null | undefined,
+  labels: Record<AxisKey, string>,
 ) {
   const rows: RoundAxisRow[] = [];
 
@@ -178,7 +175,13 @@ function applyAxes(
           serverProfile[meta.column as keyof Profile] as number | null,
         )
       : pullUpRating(prev, round);
-    rows.push({ label: meta.label, color: meta.color, round, prev, next });
+    rows.push({
+      label: labels[key],
+      color: meta.color,
+      round,
+      prev,
+      next,
+    });
   });
 
   return { rows };
@@ -363,7 +366,9 @@ function AppInner() {
   const [profile, setProfile] = useState<Profile | null>(null);
   // Snapshot for overlay prev-values — avoids stale closure after setProfile.
   const profileRef = useRef<Profile | null>(null);
-  profileRef.current = profile;
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
   const [selectedGame, setSelectedGame] = useState<
     "schulte" | "sudoku" | "stroop" | "memory" | "reaction" | null
@@ -443,10 +448,17 @@ function AppInner() {
   const roundTicketsRef = useRef<Partial<Record<RoundGame, RoundTicket>>>({});
 
   const prepareRound = useCallback(
-    async (game: RoundGame): Promise<RoundTicket> => {
-      const existing = roundTicketsRef.current[game];
-      if (existing && Date.parse(existing.expiresAt) > Date.now())
-        return existing;
+    async (
+      game: RoundGame,
+      opts?: { force?: boolean },
+    ): Promise<RoundTicket> => {
+      // Reuse a still-valid ticket unless the caller forces a fresh mint
+      // (idle→playing) so server startedAt matches real play time.
+      if (!opts?.force) {
+        const existing = roundTicketsRef.current[game];
+        if (existing && Date.parse(existing.expiresAt) > Date.now())
+          return existing;
+      }
       const ticket = await startRound(game);
       roundTicketsRef.current[game] = ticket;
       return ticket;
@@ -454,8 +466,8 @@ function AppInner() {
     [],
   );
 
-  // Pre-create a one-use ticket when a game is opened. This request happens
-  // before play; finishing the game always uses exactly one submit request.
+  // Warm a ticket when a game panel opens (fast first submit). Play-start
+  // still force-refreshes so anti-cheat elapsed time stays tight.
   useEffect(() => {
     if (!selectedGame) return;
     prepareRound(selectedGame).catch((err) =>
@@ -463,34 +475,57 @@ function AppInner() {
     );
   }, [selectedGame, prepareRound]);
 
+  const beginPlay = useCallback(
+    (game: RoundGame) => {
+      void prepareRound(game, { force: true }).catch((err) =>
+        console.error("Play-start ticket refresh failed:", err),
+      );
+    },
+    [prepareRound],
+  );
+
   const completeRound = useCallback(
     async (game: RoundGame, telemetry: unknown) => {
-      // CRITICAL: do NOT call prepareRound here. Minting a fresh ticket at
-      // submit time would reset startedAt and break server elapsed-time checks.
+      // CRITICAL: do NOT mint inside the submit path before the request.
+      // A fresh ticket here would reset startedAt and break elapsed checks.
       const ticket = roundTicketsRef.current[game];
       if (!ticket) {
+        // Best-effort re-mint so the next attempt is not stuck forever.
+        void prepareRound(game, { force: true }).catch(() => {});
         throw new Error("Round ticket missing. Start the game again.");
       }
       if (Date.parse(ticket.expiresAt) <= Date.now()) {
         delete roundTicketsRef.current[game];
+        void prepareRound(game, { force: true }).catch(() => {});
         throw new Error("Round ticket expired. Start the game again.");
       }
       try {
         const result = await submitRound(ticket.roundId, game, telemetry);
         setProfile(result.profile);
-        // Prepare the next attempt without delaying the current result overlay.
-        void prepareRound(game).catch((err) =>
-          console.error("Prepare next round failed:", err),
-        );
         return result;
       } finally {
-        // Always drop the ticket: if the server already consumed it but the
-        // response failed (timeout/network), reusing the dead roundId would
-        // fail forever until expiry.
+        // Always drop the consumed/attempted ticket. If the server already
+        // burned it but the response failed, reusing the dead roundId would
+        // fail forever. Then immediately mint a replacement so the next
+        // attempt never hits "ticket missing".
         delete roundTicketsRef.current[game];
+        void prepareRound(game, { force: true }).catch((err) =>
+          console.error("Prepare next round failed:", err),
+        );
       }
     },
     [prepareRound],
+  );
+
+  const axisLabels = useCallback(
+    (): Record<AxisKey, string> => ({
+      memory: t.axis_memory,
+      focus: t.axis_focus,
+      logic: t.axis_logic,
+      spatial: t.axis_spatial,
+      speed: t.axis_speed,
+    }),
+    [t.axis_memory, t.axis_focus, t.axis_logic, t.axis_spatial, t.axis_speed],
   );
 
   const makeGameHandler = useCallback(
@@ -503,6 +538,7 @@ function AppInner() {
           baseline ?? result.profile,
           result.axes,
           result.profile,
+          axisLabels(),
         );
         setRoundResult({
           game,
@@ -522,7 +558,7 @@ function AppInner() {
         );
       }
     },
-    [completeRound, t.save_failed],
+    [completeRound, t.save_failed, axisLabels],
   );
 
   const onLogout = async () => {
@@ -1161,29 +1197,44 @@ function AppInner() {
 
             {selectedGame === "schulte" && (
               <div className="max-w-lg">
-                <SchulteTableGame onComplete={makeGameHandler("schulte")} />
+                <SchulteTableGame
+                  onComplete={makeGameHandler("schulte")}
+                  onPlayStart={() => beginPlay("schulte")}
+                />
               </div>
             )}
 
             {selectedGame === "sudoku" && (
               <div className="max-w-md">
-                <SudokuGame onComplete={makeGameHandler("sudoku")} />
+                <SudokuGame
+                  onComplete={makeGameHandler("sudoku")}
+                  onPlayStart={() => beginPlay("sudoku")}
+                />
               </div>
             )}
 
             {selectedGame === "stroop" && (
               <div className="max-w-sm">
-                <StroopGame onComplete={makeGameHandler("stroop")} />
+                <StroopGame
+                  onComplete={makeGameHandler("stroop")}
+                  onPlayStart={() => beginPlay("stroop")}
+                />
               </div>
             )}
             {selectedGame === "reaction" && (
               <div className="max-w-sm">
-                <ReactionTimeGame onComplete={makeGameHandler("reaction")} />
+                <ReactionTimeGame
+                  onComplete={makeGameHandler("reaction")}
+                  onPlayStart={() => beginPlay("reaction")}
+                />
               </div>
             )}
             {selectedGame === "memory" && (
               <div className="max-w-sm">
-                <MemoryMatrixGame onComplete={makeGameHandler("memory")} />
+                <MemoryMatrixGame
+                  onComplete={makeGameHandler("memory")}
+                  onPlayStart={() => beginPlay("memory")}
+                />
               </div>
             )}
           </>
@@ -1638,8 +1689,10 @@ function buildSchulteSeq(
 
 function SchulteTableGame({
   onComplete,
+  onPlayStart,
 }: {
   onComplete: (tel: SchulteTelemetry) => Promise<void>;
+  onPlayStart?: () => void;
 }) {
   const { t } = useLang();
   const [size, setSize] = useState<SSize>(5);
@@ -1689,7 +1742,10 @@ function SchulteTableGame({
 
   const reset = useCallback(
     (ns: SSize = size, nm: SMode = mode) => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       clearTimers();
       // Kỷ lục chỉ có nghĩa trong cùng một cấu hình: best của 3×3 không được
       // phép đè lên best của 6×6.
@@ -1713,7 +1769,10 @@ function SchulteTableGame({
 
   useEffect(
     () => () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
     },
@@ -1730,7 +1789,10 @@ function SchulteTableGame({
     if (sequence.length === 0 || seqIdx < sequence.length) return;
 
     completedRef.current = true;
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     const ms = Date.now() - (startRef.current ?? Date.now());
     setElapsed(ms);
     setStatus("done");
@@ -1756,8 +1818,14 @@ function SchulteTableGame({
 
   const handleClick = useCallback(
     async (cell: SCell, idx: number) => {
-      if (status === "done" || foundSet.has(idx) || flashCell !== null) return;
-      if (status === "idle") {
+      // Only lock input during a WRONG flash. A correct flash used to block the
+      // next cell for 260ms × N hits and inflated Speed/Focus unfairly.
+      if (status === "done" || foundSet.has(idx) || flashCell?.ok === false)
+        return;
+
+      const wasIdle = status === "idle";
+      if (wasIdle) {
+        onPlayStart?.();
         startRef.current = Date.now();
         lastHitRef.current = startRef.current;
         setStatus("playing");
@@ -1771,10 +1839,14 @@ function SchulteTableGame({
       setFlashCell({ idx, ok });
       later(() => setFlashCell(null), ok ? 260 : 380);
       if (!ok) {
-        wrongClicksRef.current += 1;
-        const newHearts = hearts - 1;
-        setHearts(newHearts);
-        if (newHearts <= 0) later(() => reset(), 420);
+        // First idle misclick only starts the clock — no heart penalty. Once
+        // the run is live, wrong clicks cost a life as usual.
+        if (!wasIdle) {
+          wrongClicksRef.current += 1;
+          const newHearts = hearts - 1;
+          setHearts(newHearts);
+          if (newHearts <= 0) later(() => reset(), 420);
+        }
         return;
       }
 
@@ -1790,7 +1862,17 @@ function SchulteTableGame({
       setFoundSet(nf);
       setSeqIdx(seqIdx + 1);
     },
-    [status, foundSet, sequence, seqIdx, hearts, reset, later, flashCell],
+    [
+      status,
+      foundSet,
+      sequence,
+      seqIdx,
+      hearts,
+      reset,
+      later,
+      flashCell,
+      onPlayStart,
+    ],
   );
 
   const fmtTime = (ms: number) => {
@@ -2273,8 +2355,10 @@ function SchulteTableGame({
 
 function SudokuGame({
   onComplete,
+  onPlayStart,
 }: {
   onComplete: (tel: SudokuTelemetry) => Promise<void>;
+  onPlayStart?: () => void;
 }) {
   const workerRef = useRef<Worker | null>(null);
   const workerReqRef = useRef(0);
@@ -2486,6 +2570,7 @@ function SudokuGame({
 
   const ensureStarted = useCallback(() => {
     if (status === "idle") {
+      onPlayStart?.();
       startRef.current = Date.now();
       lastMoveRef.current = startRef.current;
       setStatus("playing");
@@ -2494,13 +2579,15 @@ function SudokuGame({
         500,
       );
     }
-  }, [status]);
+  }, [status, onPlayStart]);
 
   const inputNumber = useCallback(
     async (n: number) => {
       if (!selected || status === "done") return;
       const [r, c] = selected;
       if (puzzle[r][c] !== null) return;
+      // Ignore re-tapping the same digit already in the cell (no RT/placement bump).
+      if (userGrid[r][c] === n) return;
       ensureStarted();
 
       const cellKey = `${r},${c}`;
@@ -2533,7 +2620,8 @@ function SudokuGame({
         return;
       }
 
-      // Re-entry: this cell was already correctly filled and is being rewritten.
+      // Re-entry: this cell was already correctly filled and is being rewritten
+      // with a *different* correct digit path — count it (same-digit already returned).
       if (userGrid[r][c] === solution[r][c]) reEntriesRef.current += 1;
       placementsRef.current += 1;
 
@@ -2551,7 +2639,9 @@ function SudokuGame({
       solution,
       mistakes,
       ensureStarted,
-      reset,, later],
+      reset,
+      later,
+    ],
   );
 
   // Keyboard support
@@ -2935,8 +3025,10 @@ function makeStimulus(prevInkId?: StroopColorId): Stimulus {
 
 function StroopGame({
   onComplete,
+  onPlayStart,
 }: {
   onComplete: (tel: StroopTelemetry) => Promise<void>;
+  onPlayStart?: () => void;
 }) {
   const { t } = useLang();
   const TOTAL = 20;
@@ -2981,7 +3073,10 @@ function StroopGame({
 
   useEffect(
     () => () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
     },
@@ -2989,7 +3084,10 @@ function StroopGame({
   );
 
   const reset = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     clearTimers();
     wrongRef.current = 0;
     rtsRef.current = [];
@@ -3014,7 +3112,10 @@ function StroopGame({
     if (trialsLeft > 0 && hearts > 0) return;
 
     completedRef.current = true;
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     const ms = Date.now() - (startRef.current ?? Date.now());
     setElapsed(ms);
     setStatus("done");
@@ -3041,6 +3142,7 @@ function StroopGame({
       if (status === "done" || flash !== null) return;
 
       if (status === "idle") {
+        onPlayStart?.();
         startRef.current = Date.now();
         lastTrialRef.current = startRef.current;
         setStatus("playing");
@@ -3086,7 +3188,7 @@ function StroopGame({
         if (newLeft > 0) setStimulus(makeStimulus(stimulus.inkId));
       }, 240);
     },
-    [status, flash, stimulus, hearts, trialsLeft, later],
+    [status, flash, stimulus, hearts, trialsLeft, later, onPlayStart],
   );
 
   const fmtTime = (ms: number) => {
@@ -3773,8 +3875,10 @@ function StatMini({
 
 function MemoryMatrixGame({
   onComplete,
+  onPlayStart,
 }: {
   onComplete: (tel: MemoryTelemetry) => Promise<void>;
+  onPlayStart?: () => void;
 }) {
   const { t } = useLang();
   const MAX_HEARTS = 3;
@@ -3794,6 +3898,10 @@ function MemoryMatrixGame({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const maxClearedRef = useRef(0);
+  // Wall-clock UI still uses startRef; scoring telemetry uses recall-only ms
+  // so memorize flash delays do not inflate timeMs.
+  const recallMsRef = useRef(0);
+  const recallStartRef = useRef<number | null>(null);
 
   /** Huỷ mọi hẹn giờ đang treo để ván cũ không can thiệp vào ván mới. */
   const clearTimers = useCallback(() => {
@@ -3816,6 +3924,11 @@ function MemoryMatrixGame({
 
   const generateLevel = useCallback(() => {
     clearTimers();
+    // Close any open recall window before flipping back to memorize.
+    if (recallStartRef.current != null) {
+      recallMsRef.current += Date.now() - recallStartRef.current;
+      recallStartRef.current = null;
+    }
     const newTargets = shuffleArray(
       Array.from({ length: totalCells }, (_, i) => i),
     ).slice(0, targetCount);
@@ -3824,24 +3937,32 @@ function MemoryMatrixGame({
     setStatus("memorize");
 
     if (level === 1 && !startRef.current) {
+      onPlayStart?.();
       startRef.current = Date.now();
+      recallMsRef.current = 0;
+      recallStartRef.current = null;
       intervalRef.current = setInterval(
         () => setElapsed(Date.now() - (startRef.current ?? Date.now())),
         100,
       );
     }
 
-    later(
-      () => setStatus((prev) => (prev === "memorize" ? "recall" : prev)),
-      1500 + targetCount * 100,
-    );
-  }, [level, targetCount, totalCells, clearTimers, later]);
+    later(() => {
+      setStatus((prev) => {
+        if (prev !== "memorize") return prev;
+        recallStartRef.current = Date.now();
+        return "recall";
+      });
+    }, 1500 + targetCount * 100);
+  }, [level, targetCount, totalCells, clearTimers, later, onPlayStart]);
 
   const reset = () => {
     clearTimers();
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
     maxClearedRef.current = 0;
+    recallMsRef.current = 0;
+    recallStartRef.current = null;
     setLevel(1);
     setHearts(MAX_HEARTS);
     setStatus("idle");
@@ -3860,6 +3981,11 @@ function MemoryMatrixGame({
       setWrongClicks((prev) => prev + 1);
       const newHearts = hearts - 1;
       setHearts(newHearts);
+      // Close recall window before fail pause.
+      if (recallStartRef.current != null) {
+        recallMsRef.current += Date.now() - recallStartRef.current;
+        recallStartRef.current = null;
+      }
       setStatus("fail");
 
       if (newHearts <= 0) {
@@ -3869,7 +3995,7 @@ function MemoryMatrixGame({
           setStatus("done");
           setSaving(true);
           void onComplete({
-            timeMs: Date.now() - (startRef.current ?? Date.now()),
+            timeMs: recallMsRef.current,
             // Cấp đã vượt qua, không phải cấp đang thua. Sever yêu cầu tối thiểu 1.
             maxLevel: Math.max(1, maxClearedRef.current),
             wrongClicks: wrongClicks + 1,
@@ -3886,6 +4012,10 @@ function MemoryMatrixGame({
     }
 
     if (newSelected.length === targets.length) {
+      if (recallStartRef.current != null) {
+        recallMsRef.current += Date.now() - recallStartRef.current;
+        recallStartRef.current = null;
+      }
       setStatus("success");
       maxClearedRef.current = Math.max(maxClearedRef.current, level);
       later(() => setLevel((l) => l + 1), 600);
@@ -4176,8 +4306,10 @@ function MemoryMatrixGame({
 
 function ReactionTimeGame({
   onComplete,
+  onPlayStart,
 }: {
   onComplete: (tel: ReactionTelemetry) => Promise<void>;
+  onPlayStart?: () => void;
 }) {
   const { t } = useLang();
   const TOTAL_TRIALS = 5;
@@ -4228,6 +4360,7 @@ function ReactionTimeGame({
   }, [clearTimers, t]);
 
   const startGame = () => {
+    onPlayStart?.();
     clearTimers();
     setRts([]);
     setFalseStarts(0);
