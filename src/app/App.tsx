@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { AdminPanel } from "./components/admin-panel";
 import { HistoryPanel } from "./components/history-panel";
+import { SettingsPanel } from "./components/settings-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
 import {
@@ -636,12 +637,22 @@ function AppInner() {
             }}
           >
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold uppercase"
+              className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase"
               style={{
-                background: "linear-gradient(135deg, #A855F7, #7C3AED)",
+                background: profile.avatar_url
+                  ? "#0B1228"
+                  : "linear-gradient(135deg, #A855F7, #7C3AED)",
               }}
             >
-              {profile.username.slice(0, 2)}
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                profile.username.slice(0, 2)
+              )}
             </div>
             <div>
               <div className="text-xs font-semibold text-white">
@@ -1389,33 +1400,49 @@ function AppInner() {
 
         {activePage === "history" && <HistoryPanel />}
         {activePage === "profile" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <GlassCard
-              accent="#F59E0B"
-              className="p-6 flex flex-col items-center text-center"
-            >
-              <div
-                className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-bold uppercase"
-                style={{
-                  background: "linear-gradient(135deg, #A855F7, #7C3AED)",
-                  boxShadow: "0 0 40px rgba(168,85,247,0.45)",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                {profile.username.slice(0, 2)}
-              </div>
-              <div className="text-xl font-bold text-white mt-4">
-                {profile.username}
-              </div>
-              <div
-                className="text-[11px] text-slate-500 mt-1"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                {isAdmin ? t.omega_label : t.operator_label}
-              </div>
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <GlassCard accent="#00D4FF" className="p-5">
+                <StatMini
+                  label={t.cognitive_index}
+                  value={String(displayIndex(profile))}
+                  unit={t.pts}
+                  color="#00D4FF"
+                />
+              </GlassCard>
+              <GlassCard accent="#F59E0B" className="p-5">
+                <StatMini
+                  label={t.synapse_streak}
+                  value={String(profile.synapse_streak)}
+                  unit={t.days}
+                  color="#F59E0B"
+                />
+              </GlassCard>
+              <GlassCard accent="#A855F7" className="p-5">
+                <StatMini
+                  label={t.clearance}
+                  value={isAdmin ? "Ω-1" : "STD"}
+                  unit={isAdmin ? "admin" : "user"}
+                  color="#A855F7"
+                />
+              </GlassCard>
+            </div>
+
+            <SettingsPanel
+              profile={profile}
+              isAdmin={isAdmin}
+              onProfileChange={setProfile}
+              onDeleted={() => {
+                setProfile(null);
+                setAdminPanelOpen(false);
+                setActivePage("dashboard");
+              }}
+            />
+
+            <div className="flex justify-end">
               <button
                 onClick={onLogout}
-                className="mt-6 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
+                className="py-2.5 px-5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   background: "rgba(244,63,94,0.1)",
@@ -1425,30 +1452,7 @@ function AppInner() {
               >
                 <LogOut size={13} /> {t.sign_out}
               </button>
-            </GlassCard>
-            <GlassCard accent="#00D4FF" className="lg:col-span-2 p-6">
-              <Label color="#00D4FF">{t.operator_stats}</Label>
-              <div className="grid grid-cols-3 gap-4 mt-5">
-                <StatMini
-                  label={t.cognitive_index}
-                  value={String(displayIndex(profile))}
-                  unit={t.pts}
-                  color="#00D4FF"
-                />
-                <StatMini
-                  label={t.synapse_streak}
-                  value={String(profile.synapse_streak)}
-                  unit={t.days}
-                  color="#F59E0B"
-                />
-                <StatMini
-                  label={t.clearance}
-                  value={isAdmin ? "Ω-1" : "STD"}
-                  unit={isAdmin ? "admin" : "user"}
-                  color="#A855F7"
-                />
-              </div>
-            </GlassCard>
+            </div>
           </div>
         )}
       </main>

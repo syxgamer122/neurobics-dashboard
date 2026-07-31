@@ -56,6 +56,8 @@ export type Profile = {
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
   // supplied it, and the UI asks for it rather than inventing a number.
   birth_year: number | null;
+  // Public avatar URL in the `avatars` storage bucket (nullable until uploaded).
+  avatar_url: string | null;
   created_at: string;
 };
 
@@ -164,7 +166,7 @@ const PROFILE_COLS = "*";
 // tầng kiểu để suy ra kiểu của `data`. Dùng [...].join() sẽ cho kiểu `string`
 // chung chung, khiến TypeScript trả về GenericStringError\[\] và báo lỗi ép kiểu.
 const LEADERBOARD_COLS =
-  "id, username, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions";
+  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions";
 
 // The rating scale and its guards live in ./scoring, the single source of truth
 // for everything score-related. Re-exported so existing importers keep working.
@@ -190,7 +192,11 @@ function sanitizeProfile(p: Profile): Profile {
  * persists the decay naturally without an extra round-trip.
  */
 function hydrateProfile(p: Profile): Profile {
-  const clean = sanitizeProfile(p);
+  const clean = sanitizeProfile({
+    ...p,
+    avatar_url: p.avatar_url ?? null,
+    birth_year: p.birth_year ?? null,
+  });
   const idle = daysSince(clean.last_active_date);
   if (idle === 0) return clean;
   return {
@@ -526,34 +532,148 @@ export async function adminDeleteUser(targetId: string): Promise<void> {
 }
 
 /**
- * Deletes the active user's profile row and clears the local session. RLS must
- * permit users to delete their own row (auth.uid() = id). The underlying auth
- * user is not removed (that requires the service role); clearing the session
- * makes the account inaccessible from this client.
+ * Deletes the active account end-to-end via the Edge Function (service role):
+ * profile row, avatars in storage, and the auth.users record. Then clears the
+ * local session so the browser cannot reuse a dead JWT.
  */
 export async function deleteActiveUserAccount(): Promise<void> {
-  const userId = await currentUserId();
-  if (!userId) throw new Error("Delete account failed: not authenticated.");
+  await serverPost<{ ok: true }>("delete-account", {});
 
-  const { error } = await getSupabase()
-    .from("profiles")
-    .delete()
-    .eq("id", userId);
-  if (error) {
-    const msg = describeError(error, "Delete account failed");
-    console.error(msg);
-    throw new Error(msg);
-  }
-
-  await getSupabase().auth.signOut();
   try {
-    // Belt-and-suspenders: drop any lingering supabase auth token.
+    await getSupabase().auth.signOut();
+  } catch {
+    /* session may already be invalid after server-side auth.admin.deleteUser */
+  }
+  try {
     Object.keys(globalThis.localStorage ?? {})
       .filter((k) => k.startsWith("sb-"))
       .forEach((k) => globalThis.localStorage.removeItem(k));
   } catch {
     /* localStorage may be unavailable — signOut already handled the session */
   }
+}
+
+// ─── Profile settings (Phase 4) ───────────────────────────────────────────────
+
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+/**
+ * Re-authenticate with the current password, then set a new one.
+ * Username is mapped to the spoofed email the same way signup/login do.
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  if (!currentPassword || !newPassword) {
+    throw new Error("Both current and new passwords are required.");
+  }
+  if (newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters.");
+  }
+  if (currentPassword === newPassword) {
+    throw new Error("New password must be different from the current one.");
+  }
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await getSupabase().auth.getUser();
+  if (userErr || !user?.email) {
+    throw new Error("Change password failed: not authenticated.");
+  }
+
+  const { error: reauthErr } = await getSupabase().auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (reauthErr) {
+    throw new Error("Current password is incorrect.");
+  }
+
+  const { error } = await getSupabase().auth.updateUser({
+    password: newPassword,
+  });
+  if (error) {
+    throw new Error(error.message || "Change password failed.");
+  }
+}
+
+/** Upload a new avatar image and persist its public URL on the profile. */
+export async function uploadAvatar(file: File): Promise<Profile> {
+  const userId = await currentUserId();
+  if (!userId) throw new Error("Upload avatar failed: not authenticated.");
+
+  if (!AVATAR_MIME.has(file.type)) {
+    throw new Error("Avatar must be JPEG, PNG, WebP, or GIF.");
+  }
+  if (file.size > AVATAR_MAX_BYTES) {
+    throw new Error("Avatar must be 2 MB or smaller.");
+  }
+
+  const ext =
+    file.type === "image/png"
+      ? "png"
+      : file.type === "image/webp"
+        ? "webp"
+        : file.type === "image/gif"
+          ? "gif"
+          : "jpg";
+  // Fixed path so each upload overwrites the previous file for this user.
+  const path = `${userId}/avatar.${ext}`;
+
+  const { error: upErr } = await getSupabase().storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+  if (upErr) {
+    throw new Error(describeError(upErr, "Upload avatar failed"));
+  }
+
+  const { data: pub } = getSupabase().storage.from("avatars").getPublicUrl(path);
+  // Bust CDN/browser cache after overwrite.
+  const avatarUrl = `${pub.publicUrl}?t=${Date.now()}`;
+
+  const { data, error } = await getSupabase()
+    .from("profiles")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", userId)
+    .select(PROFILE_COLS)
+    .single();
+  if (error) {
+    throw new Error(describeError(error, "Save avatar URL failed"));
+  }
+  return hydrateProfile(data as Profile);
+}
+
+/** Remove avatar file(s) for the current user and clear avatar_url. */
+export async function removeAvatar(): Promise<Profile> {
+  const userId = await currentUserId();
+  if (!userId) throw new Error("Remove avatar failed: not authenticated.");
+
+  const { data: listed } = await getSupabase().storage
+    .from("avatars")
+    .list(userId);
+  if (listed && listed.length > 0) {
+    const paths = listed.map((f) => `${userId}/${f.name}`);
+    await getSupabase().storage.from("avatars").remove(paths);
+  }
+
+  const { data, error } = await getSupabase()
+    .from("profiles")
+    .update({ avatar_url: null })
+    .eq("id", userId)
+    .select(PROFILE_COLS)
+    .single();
+  if (error) {
+    throw new Error(describeError(error, "Clear avatar URL failed"));
+  }
+  return hydrateProfile(data as Profile);
 }
 // ─── XP awarding (server-side, tamper-resistant) ──────────────────────────────
 

@@ -280,33 +280,13 @@ app.post("/server/submit-round", async (c) => {
   throw new Error(error.message);
 }
 
-    // Ghi ván vào lịch sử luyện tập. Điểm đã lưu thành công rồi, nên lỗi ở đây
-// chỉ log lại chứ không được làm hỏng phản hồi trả về cho người chơi.
-const { error: historyError } = await adminClient
-  .from("training_sessions")
-  .insert({
-    user_id: user.id,
-    game: String(game),
-    label: scored.label,
-    round_score: scored.headline,
-    xp_awarded: Number((data as { xpAwarded?: number })?.xpAwarded ?? 0),
-    time_ms: Math.round(scored.timeMs),
-    speed_score: scored.axes.speed,
-    focus_score: scored.axes.focus,
-    spatial_score: scored.axes.spatial,
-    logic_score: scored.axes.logic,
-    memory_score: scored.axes.memory,
-  });
-if (historyError)
-  console.log(`Training history insert failed: ${historyError.message}`);
-
-return c.json({
-  ...data,
-  axes: scored.axes,
-  headline: scored.headline,
-  label: scored.label,
-  timeMs: scored.timeMs,
-});
+    return c.json({
+      ...data,
+      axes: scored.axes,
+      headline: scored.headline,
+      label: scored.label,
+      timeMs: scored.timeMs,
+    });
   } catch (err) {
     console.log(`Submit round error: ${err}`);
     const message =
@@ -424,6 +404,48 @@ app.post("/server/admin-reset", async (c) => {
       { error: err instanceof Error ? err.message : String(err) },
       403,
     );
+  }
+});
+
+// ─── Delete own account (auth user + profile + avatars) ─────────────────────
+// Requires service role: auth.admin.deleteUser cannot run from the browser.
+app.post("/server/delete-account", async (c) => {
+  try {
+    const user = await authenticatedUser(c);
+    const userId = user.id;
+
+    // 1) Remove avatar objects under avatars/<userId>/
+    try {
+      const { data: listed } = await adminClient.storage
+        .from("avatars")
+        .list(userId);
+      if (listed && listed.length > 0) {
+        await adminClient.storage
+          .from("avatars")
+          .remove(listed.map((f) => `${userId}/${f.name}`));
+      }
+    } catch (storageErr) {
+      console.log(`Delete-account storage cleanup: ${storageErr}`);
+    }
+
+    // 2) Profile row (cascades to related tables if FKs are set; otherwise orphan rows stay)
+    const { error: profileErr } = await adminClient
+      .from("profiles")
+      .delete()
+      .eq("id", userId);
+    if (profileErr) throw profileErr;
+
+    // 3) Auth user — permanent, cannot log in again
+    const { error: authErr } = await adminClient.auth.admin.deleteUser(userId);
+    if (authErr) throw authErr;
+
+    return c.json({ ok: true });
+  } catch (err) {
+    console.log(`Delete account error: ${err}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    const status =
+      msg.includes("authorization") || msg.includes("session") ? 401 : 400;
+    return c.json({ error: msg }, status);
   }
 });
 
