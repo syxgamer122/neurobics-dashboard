@@ -26,15 +26,11 @@ import {
 import { AdminPanel } from "./components/admin-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
-import { HistoryPanel } from "./components/history-panel";
 import {
   getAccessToken,
   fetchProfile,
   handleLogout,
-  saveScores,
   saveBirthYear,
-  recordDailyActivity,
-  awardXp,
   fetchPopulationStats,
   cognitiveIndex,
   fetchActivityStats,
@@ -49,15 +45,7 @@ import {
   RATING_MAX,
   sanitizeRating,
   pullUpRating,
-  scoreSchulte,
-  scoreSudoku,
-  scoreStroop,
-  scoreMemory,
-  scoreReaction,
   calcBrainAge,
-  roundHeadline,
-  SUDOKU_DIFF_FACTOR,
-  CALIBRATION_ROUNDS,
   DEFAULT_POPULATION,
   type AxisRatings,
   type PopulationStats,
@@ -71,7 +59,6 @@ import {
   getLevelProgress,
   getLevelTitle,
   getLevelColor,
-  calculateRoundXp,
   levelFromXp,
 } from "./lib/xp";
 import { LogOut, Loader2 } from "lucide-react";
@@ -180,7 +167,11 @@ type AxisKey = keyof typeof AXIS_META;
  * are skipped entirely — Sudoku never writes Focus, Stroop never writes Logic.
  * This is what keeps the five axes genuinely independent.
  */
-function applyAxes(profile: Profile, axes: AxisRatings) {
+function applyAxes(
+  profile: Profile,
+  axes: AxisRatings,
+  serverProfile?: Profile | null,
+) {
   const updates: Record<string, number> = {};
   const rows: RoundAxisRow[] = [];
 
@@ -191,7 +182,13 @@ function applyAxes(profile: Profile, axes: AxisRatings) {
     const prev = sanitizeRating(
       profile[meta.column as keyof Profile] as number | null,
     );
-    const next = pullUpRating(prev, round);
+    // Server đã tính và ghi giá trị chính thức vào DB rồi, nên lấy thẳng từ đó
+    // thay vì chạy lại công thức ở client. Chỉ tự tính khi không có hồ sơ server.
+    const next = serverProfile
+      ? sanitizeRating(
+          serverProfile[meta.column as keyof Profile] as number | null,
+        )
+      : pullUpRating(prev, round);
     updates[meta.column] = next;
     rows.push({ label: meta.label, color: meta.color, round, prev, next });
   });
@@ -208,10 +205,6 @@ function shuffleArray<T>(arr: T[]): T[] {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
-}
-
-function newSchulteGrid(size: number): number[] {
-  return shuffleArray(Array.from({ length: size * size }, (_, i) => i + 1));
 }
 
 // ─── Sudoku helpers ────────────────────────────────────────────────────────────
@@ -501,7 +494,7 @@ function AppInner() {
     setAdminPanelOpen(false);
   };
 
-  const [timer, setTimer] = useState(() => toHms(msUntilVnMidnight()));
+  const [, setTimer] = useState(() => toHms(msUntilVnMidnight()));
   const [activity, setActivity] = useState<ActivityStats>({
     xpToday: 0,
     sessionsThisMonth: 0,
@@ -523,7 +516,6 @@ function AppInner() {
     const i = setInterval(() => setTimer(toHms(msUntilVnMidnight())), 1000);
     return () => clearInterval(i);
   }, []);
-  const pad = (n: number) => String(n).padStart(2, "0");
 
   if (!authChecked) {
     return (
@@ -1121,7 +1113,7 @@ function AppInner() {
                   onComplete={async (tel) => {
                     try {
                       const result = await completeRound("schulte", tel);
-                      const { rows } = applyAxes(profile, result.axes);
+                      const { rows } = applyAxes(profile, result.axes, result.profile);
                       setRoundResult({
                         game: "schulte",
                         timeMs: result.timeMs,
@@ -1147,7 +1139,7 @@ function AppInner() {
                   onComplete={async (tel) => {
                     try {
                       const result = await completeRound("sudoku", tel);
-                      const { rows } = applyAxes(profile, result.axes);
+                      const { rows } = applyAxes(profile, result.axes, result.profile);
                       setRoundResult({
                         game: "sudoku",
                         timeMs: result.timeMs,
@@ -1173,7 +1165,7 @@ function AppInner() {
                   onComplete={async (tel) => {
                     try {
                       const result = await completeRound("stroop", tel);
-                      const { rows } = applyAxes(profile, result.axes);
+                      const { rows } = applyAxes(profile, result.axes, result.profile);
                       setRoundResult({
                         game: "stroop",
                         timeMs: result.timeMs,
@@ -1198,7 +1190,7 @@ function AppInner() {
                   onComplete={async (tel) => {
                     try {
                       const result = await completeRound("reaction", tel);
-                      const { rows } = applyAxes(profile, result.axes);
+                      const { rows } = applyAxes(profile, result.axes, result.profile);
                       setRoundResult({
                         game: "reaction",
                         timeMs: result.timeMs,
@@ -1223,7 +1215,7 @@ function AppInner() {
                   onComplete={async (tel) => {
                     try {
                       const result = await completeRound("memory", tel);
-                      const { rows } = applyAxes(profile, result.axes);
+                      const { rows } = applyAxes(profile, result.axes, result.profile);
                       setRoundResult({
                         game: "memory",
                         timeMs: result.timeMs,
@@ -1415,8 +1407,6 @@ function AppInner() {
             </div>
           </>
         )}
-
-        {activePage === "history" && <HistoryPanel />}
 
         {activePage === "profile" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -2865,7 +2855,7 @@ function StroopGame({
 }: {
   onComplete: (tel: StroopTelemetry) => Promise<void>;
 }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const TOTAL = 20;
   const MAX_HEARTS = 3;
 
@@ -2974,7 +2964,7 @@ function StroopGame({
         setHearts(nh);
         setTimeout(() => {
           setFlash(null);
-          if (nh > 0) setStimulus(makeStimulus(prevInkRef.current)); // retry same on wrong
+          if (nh > 0) setStimulus(makeStimulus(prevInkRef.current)); // sai thì ra câu mới, tránh lặp lại màu mực vừa rồi
         }, 420);
         return;
       }
@@ -3698,12 +3688,30 @@ function MemoryMatrixGame({
 
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const maxClearedRef = useRef(0);
+
+  /** Huỷ mọi hẹn giờ đang treo để ván cũ không can thiệp vào ván mới. */
+  const clearTimers = useCallback(() => {
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+  }, []);
+
+  /** setTimeout có theo dõi, tự gỡ khỏi danh sách sau khi chạy xong. */
+  const later = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current = timeoutsRef.current.filter((t) => t !== id);
+      fn();
+    }, ms);
+    timeoutsRef.current.push(id);
+  }, []);
 
   const gridSize = Math.min(6, Math.max(3, Math.floor(2 + level / 3)));
   const targetCount = Math.min(15, 2 + Math.floor(level / 1.5));
   const totalCells = gridSize * gridSize;
 
   const generateLevel = useCallback(() => {
+    clearTimers();
     const newTargets = shuffleArray(
       Array.from({ length: totalCells }, (_, i) => i),
     ).slice(0, targetCount);
@@ -3719,16 +3727,17 @@ function MemoryMatrixGame({
       );
     }
 
-    setTimeout(
-      () => {
-        setStatus((prev) => (prev === "memorize" ? "recall" : prev));
-      },
+    later(
+      () => setStatus((prev) => (prev === "memorize" ? "recall" : prev)),
       1500 + targetCount * 100,
     );
-  }, [level, targetCount, totalCells]);
+  }, [level, targetCount, totalCells, clearTimers, later]);
 
   const reset = () => {
+    clearTimers();
     if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    maxClearedRef.current = 0;
     setLevel(1);
     setHearts(MAX_HEARTS);
     setStatus("idle");
@@ -3751,28 +3760,27 @@ function MemoryMatrixGame({
 
       if (newHearts <= 0) {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        setTimeout(() => {
+        intervalRef.current = null;
+        later(() => {
           setStatus("done");
           setSaving(true);
           onComplete({
             timeMs: Date.now() - (startRef.current ?? Date.now()),
-            maxLevel: level,
+            // Cấp đã vượt qua, không phải cấp đang thua. Sever yêu cầu tối thiểu 1.
+            maxLevel: Math.max(1, maxClearedRef.current),
             wrongClicks: wrongClicks + 1,
           }).finally(() => setSaving(false));
         }, 1000);
       } else {
-        setTimeout(() => {
-          generateLevel();
-        }, 1000);
+        later(() => generateLevel(), 1000);
       }
       return;
     }
 
     if (newSelected.length === targets.length) {
       setStatus("success");
-      setTimeout(() => {
-        setLevel((l) => l + 1);
-      }, 600);
+      maxClearedRef.current = Math.max(maxClearedRef.current, level);
+      later(() => setLevel((l) => l + 1), 600);
     }
   };
 
@@ -3781,6 +3789,15 @@ function MemoryMatrixGame({
       generateLevel();
     }
   }, [level, generateLevel]);
+
+  // Dọn sạch khi rời trang: nếu không, đồng hồ đếm và các hẹn giờ vẫn chạy tiếp.
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    };
+  }, []);
 
   const fmtTime = (ms: number) => {
     const s = Math.floor(ms / 1000);

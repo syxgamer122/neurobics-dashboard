@@ -157,6 +157,15 @@ function describeError(err: unknown, context: string): string {
 // migration adds memory_score, speed_score, focus_score, last_active_date.
 const PROFILE_COLS = "*";
 
+// Danh sách rút gọn dùng cho bảng xếp hạng và thống kê quần thể. Hai truy vấn đó
+// đọc hồ sơ của MỌI người chơi, nên tuyệt đối không dùng "*" — làm thế là gửi
+// birth_year và mọi cột riêng tư của toàn bộ người dùng về máy từng người.
+// Phải viết thắng thành một chuỗi hằng: supabase-js đọc nội dung chuỗi này ở
+// tầng kiểu để suy ra kiểu của `data`. Dùng [...].join() sẽ cho kiểu `string`
+// chung chung, khiến TypeScript trả về GenericStringError\[\] và báo lỗi ép kiểu.
+const LEADERBOARD_COLS =
+  "id, username, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions";
+
 // The rating scale and its guards live in ./scoring, the single source of truth
 // for everything score-related. Re-exported so existing importers keep working.
 export { RATING_MAX, sanitizeRating };
@@ -251,6 +260,11 @@ export type ScoreColumn =
   | "memory_sessions"
   | "total_xp";
 
+/**
+ * @deprecated Từ Giai đoạn 1, mọi cột điểm đã bị `revoke update` khỏi vai trò
+ * `authenticated`, nên hàm này luôn thất bại với lỗi 42501. Điểm chỉ được ghi
+ * qua Edge Function `submit-round`. Giữ lại t��m để không vỡ import cũ.
+ */
 export async function saveTrainingResult(
   scoreType: ScoreColumn,
   value: number,
@@ -274,12 +288,12 @@ export async function saveTrainingResult(
     console.error(msg);
     throw new Error(msg);
   }
-  return data as Profile;
+  return sanitizeProfile(data as Profile);
 }
 
 /**
- * Updates several score columns for the current user in a single request.
- * RLS scopes the write to the user's own row.
+ * @deprecated Xem `saveTrainingResult`. Các cột điểm đã bị thu quyền ghi ở phía
+ * database, hàm này không còn đường chạy thành công.
  */
 export async function saveScores(
   updates: Partial<Record<ScoreColumn, number>>,
@@ -328,6 +342,10 @@ function dayDiff(fromYmd: string, toYmd: string): number {
  *  - exactly 1 VN calendar day later         → streak + 1
  *  - more than 1 day later (or first ever)   → streak reset to 1
  * Writes both synapse_streak and last_active_date back to the row.
+ */
+/**
+ * @deprecated Chuỗi ngày (streak) giờ do `submit_round_transaction` phía server
+ * tự cập nhật. Không nơi nào trong ứng dụng gọi hàm này nữa.
  */
 export async function recordDailyActivity(): Promise<Profile> {
   const userId = await currentUserId();
@@ -423,7 +441,7 @@ export async function resetActiveUserScores(): Promise<Profile> {
     console.error(msg);
     throw new Error(msg);
   }
-  return data as Profile;
+  return sanitizeProfile(data as Profile);
 }
 
 // ─── Admin: operate on ANY user (requires admin RLS policy) ──────────────────
@@ -655,7 +673,7 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
   // pull a generous candidate set and sort by the Global Cognitive Index in JS.
   const { data, error } = await getSupabase()
     .from("profiles")
-    .select(PROFILE_COLS)
+    .select(LEADERBOARD_COLS)
     .limit(200);
 
   if (error) {
@@ -681,7 +699,7 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
 export async function fetchPopulationStats(): Promise<PopulationStats> {
   const { data, error } = await getSupabase()
     .from("profiles")
-    .select(PROFILE_COLS)
+    .select(LEADERBOARD_COLS)
     .limit(1000);
 
   if (error) {
@@ -721,37 +739,50 @@ export type ActivityStats = {
   sessionsThisMonth: number;
 };
 
-/** Quy đổi giờ tường Việt Nam sang mốc UTC để so với `created_at`. */
-const vnWallToUtcIso = (d: Date) =>
-  new Date(d.getTime() - 7 * 60 * 60 * 1000).toISOString();
+/**
+ * Mốc 00:00 giờ Việt Nam của ngày hôm nay, tính thẳng từ UTC.
+ *
+ * Cách cũ (`new Date(now.toLocaleString("en-US", { timeZone: VN_TZ }))` rồi trừ
+ * 7 tiếng) chỉ đúng khi trình duyệt chạy ở UTC. Với máy đang ở UTC+7 — tức gần
+ * như toàn bộ người dùng — chuỗi giờ tường phân tích lại ra đúng thời điểm hiện
+ * tại, trừ thêm 7 tiếng nữa là cửa sổ lùi về 17:00 hôm trước, khiến "XP hôm nay"
+ * cộng nhầm cả XP của tối qua.
+ */
+function vnDayStartUtc(now: Date = new Date()): Date {
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: VN_TZ }).format(now);
+  return new Date(`${ymd}T00:00:00+07:00`);
+}
+
+/** Mốc 00:00 giờ Việt Nam của ngày đầu tháng hiện tại. */
+function vnMonthStartUtc(now: Date = new Date()): Date {
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: VN_TZ }).format(now);
+  return new Date(`${ymd.slice(0, 7)}-01T00:00:00+07:00`);
+}
 
 export async function fetchActivityStats(): Promise<ActivityStats> {
   const userId = await currentUserId();
   if (!userId) return { xpToday: 0, sessionsThisMonth: 0 };
 
-  const vnNow = new Date(
-    new Date().toLocaleString("en-US", { timeZone: VN_TZ }),
-  );
-
-  const dayStart = new Date(vnNow);
-  dayStart.setHours(0, 0, 0, 0);
-
-  const monthStart = new Date(vnNow.getFullYear(), vnNow.getMonth(), 1);
+  const now = new Date();
+  const dayStart = vnDayStartUtc(now);
+  const monthStart = vnMonthStartUtc(now);
 
   const { data, error } = await getSupabase()
     .from("xp_events")
     .select("xp_awarded, created_at")
     .eq("user_id", userId)
-    .gte("created_at", vnWallToUtcIso(monthStart));
+    .gte("created_at", monthStart.toISOString());
 
   if (error) throw new Error(`Fetch activity stats failed: ${error.message}`);
 
-  const dayStartIso = vnWallToUtcIso(dayStart);
+  // So bằng mốc thời gian chứ không so chuỗi: Postgres trả "+00:00" còn
+  // toISOString() trả "Z", hai chuỗi này không so sánh được với nhau.
+  const dayStartMs = dayStart.getTime();
   const rows = data ?? [];
 
   let xpToday = 0;
   for (const row of rows) {
-    if (row.created_at >= dayStartIso) xpToday += row.xp_awarded ?? 0;
+    if (Date.parse(row.created_at) >= dayStartMs) xpToday += row.xp_awarded ?? 0;
   }
 
   return { xpToday, sessionsThisMonth: rows.length };
