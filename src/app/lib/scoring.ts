@@ -306,11 +306,13 @@ export function scoreSudoku(tm: SudokuTelemetry): AxisRatings {
 
 export function scoreStroop(tm: StroopTelemetry): AxisRatings {
   const { timeMs, totalStimuli, wrongClicks, rts } = tm;
-  const accuracy = totalStimuli / (totalStimuli + Math.max(0, wrongClicks));
+  const completion = rts.length / Math.max(1, totalStimuli);
+  const accuracy =
+    (rts.length / Math.max(1, rts.length + Math.max(0, wrongClicks))) * completion;
 
   return {
     ...NO_AXES,
-    speed: speedAxis(rts, STROOP_TARGET_PER_TRIAL, STROOP_DIFF_FACTOR, timeMs / Math.max(totalStimuli, 1)),
+    speed: speedAxis(rts, STROOP_TARGET_PER_TRIAL, STROOP_DIFF_FACTOR, timeMs / Math.max(rts.length, 1)),
     focus: focusAxis(rts, accuracy, STROOP_DIFF_FACTOR),
   };
 }
@@ -433,8 +435,8 @@ function erf(x: number): number {
   const y =
     1 -
     ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
-      t *
-      Math.exp(-ax * ax);
+    t *
+    Math.exp(-ax * ax);
   return sign * y;
 }
 
@@ -449,17 +451,17 @@ export type BrainAgeResult =
   | { status: "needs_age" }
   | { status: "calibrating"; roundsPlayed: number; roundsNeeded: number }
   | {
-      status: "ready";
-      age: number;
-      realAge: number;
-      /** Years younger than real age. Negative = older. */
-      delta: number;
-      percentile: number;
-      /** 0–1 fill for the dial. */
-      ringPct: number;
-      /** True while ranked against the seed distribution rather than real peers. */
-      provisional: boolean;
-    };
+    status: "ready";
+    age: number;
+    realAge: number;
+    /** Years younger than real age. Negative = older. */
+    delta: number;
+    percentile: number;
+    /** 0–1 fill for the dial. */
+    ringPct: number;
+    /** True while ranked against the seed distribution rather than real peers. */
+    provisional: boolean;
+  };
 
 export type BrainAgeInput = {
   cognitiveIndex: number;
