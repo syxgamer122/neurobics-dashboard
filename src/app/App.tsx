@@ -24,6 +24,7 @@ import {
   Focus,
 } from "lucide-react";
 import { AdminPanel } from "./components/admin-panel";
+import { HistoryPanel } from "./components/history-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
 import {
@@ -1386,6 +1387,7 @@ function AppInner() {
           </>
         )}
 
+        {activePage === "history" && <HistoryPanel />}
         {activePage === "profile" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <GlassCard

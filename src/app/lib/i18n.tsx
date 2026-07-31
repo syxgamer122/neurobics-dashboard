@@ -141,6 +141,7 @@ days: "ngày",
   auth_tagline: "Rèn luyện trí não · Theo dõi tiến bộ · Vươn lên đỉnh cao",
 
   // Dock tooltips
+  dock_history: "Lịch Sử",
   dock_dashboard: "Bảng Điều Khiển",
   dock_arena: "Đấu Trường",
   dock_profile: "Hồ Sơ",
@@ -292,6 +293,7 @@ days: "days",
   no_account: "Don't have an account?",
   auth_tagline: "Train your brain · Track your progress · Rise to the top",
 
+  dock_history: "History",
   dock_dashboard: "Neural Dashboard",
   dock_arena: "Neurobics Arena",
   dock_profile: "Master Control",

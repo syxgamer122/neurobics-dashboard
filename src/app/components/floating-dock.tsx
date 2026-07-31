@@ -3,6 +3,7 @@ import { LayoutDashboard, Gamepad2, History, UserCog, Terminal } from "lucide-re
 import { useLang } from "../lib/i18n";
 
 export type DockPage = "dashboard" | "play" | "history" | "profile" | "god";
+
 interface DockItem {
   id: DockPage;
   icon: typeof LayoutDashboard;
@@ -30,7 +31,7 @@ export function FloatingDock({
   const labels: Record<DockPage, string> = {
     dashboard: t.dock_dashboard,
     play: t.dock_arena,
-    history: "LỊCH SỬ",
+    history: t.dock_history ?? "Lịch sử",
     profile: t.dock_profile,
     god: t.dock_admin,
   };
@@ -90,8 +91,8 @@ export function FloatingDock({
                   background: isActive
                     ? `rgba(${item.accent},0.16)`
                     : isHovered
-                      ? "rgba(255,255,255,0.05)"
-                      : "transparent",
+                    ? "rgba(255,255,255,0.05)"
+                    : "transparent",
                   border: isActive
                     ? `1px solid rgba(${item.accent},0.4)`
                     : "1px solid transparent",
