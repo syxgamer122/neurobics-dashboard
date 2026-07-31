@@ -41,10 +41,10 @@ const numberArray = (
   if (!Array.isArray(v) || v.length < minLength || v.length > maxLength)
     throw new Error(`Invalid ${name} length`);
   // Lần nhập đầu tiên có thể bằng 0ms nếu xảy ra trong cùng một clock tick.
-// Chuẩn hóa thành 1ms thay vì từ chối toàn bộ kết quả ván.
-return v.map((x, i) =>
-  Math.max(1, finite(x, `${name}[${i}]`, 0, 3_600_000)),
-);
+  // Chuẩn hóa thành 1ms thay vì từ chối toàn bộ kết quả ván.
+  return v.map((x, i) =>
+    Math.max(1, finite(x, `${name}[${i}]`, 0, 3_600_000)),
+  );
 };
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -118,7 +118,7 @@ const SUDOKU_TARGET: Record<string, number> = {
 function scoreSchulte(t: any): ScoredRound {
   const cells = int(t?.cells, "cells", 9, 36);
   if (![9, 16, 25, 36].includes(cells)) throw new Error("Invalid Schulte size");
-  const timeMs = finite(t?.timeMs, "timeMs", 500, 3_600_000);
+  const timeMs = finite(t?.timeMs, "timeMs", 100, 3_600_000);
   const rts = numberArray(t?.hitRts, "hitRts", cells, cells);
   const wrong = int(t?.wrongClicks, "wrongClicks", 0, 500);
   const diff = SCHULTE_DIFF[cells];
@@ -143,8 +143,8 @@ function scoreSudoku(t: any): ScoredRound {
   const difficulty = String(t?.difficulty ?? "");
   if (!(difficulty in SUDOKU_DIFF))
     throw new Error("Invalid Sudoku difficulty");
-  const timeMs = finite(t?.timeMs, "timeMs", 2_000, 7_200_000);
-  const placements = int(t?.placements, "placements", 1, 81);
+  const timeMs = finite(t?.timeMs, "timeMs", 500, 7_200_000);
+  const placements = int(t?.placements, "placements", 1, 200);
   const rts = numberArray(t?.moveRts, "moveRts", placements, placements + 3);
   const mistakes = int(t?.mistakes, "mistakes", 0, 3);
   const reEntries = int(t?.reEntries, "reEntries", 0, 100);
@@ -165,13 +165,13 @@ function scoreSudoku(t: any): ScoredRound {
 function scoreStroop(t: any): ScoredRound {
   const total = int(t?.totalStimuli, "totalStimuli", 20, 20);
   const wrong = int(t?.wrongClicks, "wrongClicks", 0, 3);
-  const correct = total - wrong;
-  const rts = numberArray(t?.rts, "rts", Math.max(1, correct), total);
+  const rts = numberArray(t?.rts, "rts", 0, total);
   const timeMs = finite(t?.timeMs, "timeMs", 1_000, 600_000);
-  const accuracy = total / (total + wrong);
+  const completion = rts.length / total;
+  const accuracy = (rts.length / Math.max(1, rts.length + wrong)) * completion;
   const axes = {
     ...NO_AXES,
-    speed: speed(rts, 1800, 0.82, timeMs / total),
+    speed: speed(rts, 1800, 0.82, timeMs / Math.max(1, rts.length)),
     focus: focus(rts, accuracy, 0.82),
   };
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
@@ -189,7 +189,7 @@ function scoreReaction(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: "Reaction Time", timeMs };
 }
 function scoreMemory(t: any): ScoredRound {
-  const timeMs = finite(t?.timeMs, "timeMs", 2_000, 7_200_000);
+  const timeMs = finite(t?.timeMs, "timeMs", 800, 7_200_000);
   const level = int(t?.maxLevel, "maxLevel", 1, 100);
   const wrong = int(t?.wrongClicks, "wrongClicks", 1, 100);
   const progression = clamp01(level / 12),
