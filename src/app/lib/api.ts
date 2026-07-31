@@ -393,22 +393,14 @@ export async function recordDailyActivity(): Promise<Profile> {
 
 // ─── Admin controls (active user) ───────────────────────────────────────────────
 
-// Add `delta` to a rating but never exceed RATING_MAX, otherwise the next fetch's
-// sanitizeRating guard would treat the >1000 value as invalid and reset it to 0.
-const addClamped = (current: number | null | undefined, delta: number) =>
-  Math.min(RATING_MAX, (current ?? 0) + delta);
-
-/** Adds `delta` points to every cognitive score column of the active user. */
-export async function addPointsToActiveUser(delta: number): Promise<Profile> {
-  const p = await fetchProfile();
-  if (!p) throw new Error("Add points failed: active profile not found.");
-  return saveScores({
-    algebraic_logic_score: addClamped(p.algebraic_logic_score, delta),
-    memory_score: addClamped(p.memory_score, delta),
-    speed_score: addClamped(p.speed_score, delta),
-    focus_score: addClamped(p.focus_score, delta),
-    cfop_spatial_record: addClamped(p.cfop_spatial_record, delta),
-  });
+/**
+ * @deprecated Client cannot write score columns (revoke update). Use admin-grant
+ * Edge Function instead. Kept only so old imports fail loudly rather than 42501.
+ */
+export async function addPointsToActiveUser(_delta: number): Promise<Profile> {
+  throw new Error(
+    "addPointsToActiveUser is disabled: scores are server-only. Use admin-grant.",
+  );
 }
 
 /**
@@ -628,6 +620,19 @@ export async function uploadAvatar(file: File): Promise<Profile> {
   // Fixed path so each upload overwrites the previous file for this user.
   const path = `${userId}/avatar.${ext}`;
 
+  // Drop leftover files from previous uploads with a different extension
+  // (avatar.jpg left behind after switching to avatar.png, etc.).
+  const { data: listed } = await getSupabase().storage.from("avatars").list(userId);
+  if (listed && listed.length > 0) {
+    const stale = listed
+      .map((f) => f.name)
+      .filter((name) => name !== `avatar.${ext}`)
+      .map((name) => `${userId}/${name}`);
+    if (stale.length > 0) {
+      await getSupabase().storage.from("avatars").remove(stale);
+    }
+  }
+
   const { error: upErr } = await getSupabase().storage
     .from("avatars")
     .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
@@ -684,36 +689,16 @@ export type XpAwardResult = {
   leveledUp: boolean;
 };
 
+/**
+ * @deprecated Endpoint returns 410. XP is awarded inside submit-round.
+ * Kept as a no-op so accidental callers do not hit the network.
+ */
 export async function awardXp(
-  game: string,
-  roundScore: number,
+  _game: string,
+  _roundScore: number,
 ): Promise<XpAwardResult | null> {
-  const userId = await currentUserId();
-  if (!userId) return null;
-
-  const token = await getAccessToken();
-  if (!token) return null;
-
-  const res = await fetch(`${BASE}/award-xp`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ game, roundScore }),
-  });
-
-  try {
-    const body = await res.json();
-    if (!res.ok) {
-      console.error("Award XP failed:", body.error);
-      return null;
-    }
-    return body as XpAwardResult;
-  } catch {
-    console.error("Award XP failed: invalid response");
-    return null;
-  }
+  console.warn("awardXp is deprecated; XP comes from submit-round.");
+  return null;
 }
 
 export type RoundGame = "schulte" | "sudoku" | "stroop" | "reaction" | "memory";
@@ -789,19 +774,25 @@ export function cognitiveIndex(p: Profile): number {
 }
 
 export async function fetchLeaderboard(): Promise<Profile[]> {
-  // The ranking key (average of 5 axes) is computed, not a stored column, so we
-  // pull a generous candidate set and sort by the Global Cognitive Index in JS.
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .select(LEADERBOARD_COLS)
-    .limit(200);
+  // Prefer the Postgres RPC (ordered by generated cognitive_index). Fall back
+  // to a client-side sort only if the migration has not been applied yet.
+  const { data, error } = await getSupabase().rpc("get_leaderboard", {
+    p_limit: 25,
+  });
 
-  if (error) {
-    const msg = describeError(error, "Fetch leaderboard failed");
-    console.error(msg);
-    throw new Error(msg);
+  if (!error) {
+    return ((data ?? []) as Profile[]).map(hydrateProfile);
   }
-  return ((data ?? []) as Profile[])
+
+  console.warn(
+    "get_leaderboard RPC unavailable, falling back to client sort:",
+    error.message,
+  );
+  const fb = await getSupabase().from("profiles").select(LEADERBOARD_COLS).limit(200);
+  if (fb.error) {
+    throw new Error(describeError(fb.error, "Fetch leaderboard failed"));
+  }
+  return ((fb.data ?? []) as Profile[])
     .map(hydrateProfile)
     .sort((a, b) => cognitiveIndex(b) - cognitiveIndex(a))
     .slice(0, 25);
@@ -817,18 +808,36 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
  * like a genius.
  */
 export async function fetchPopulationStats(): Promise<PopulationStats> {
-  const { data, error } = await getSupabase()
+  // Prefer the Postgres RPC (avg + stddev_samp over calibrated players).
+  const { data, error } = await getSupabase().rpc("get_population_stats", {
+    p_min_rounds: 5,
+  });
+
+  if (!error) {
+    const row = Array.isArray(data) ? data[0] : data;
+    const n = Number(row?.n ?? 0);
+    if (n < MIN_POPULATION) return { ...DEFAULT_POPULATION, n };
+    const mean = Number(row?.mean ?? DEFAULT_POPULATION.mean);
+    const sd = Number(row?.sd ?? 0);
+    return { mean, sd: sd > 1 ? sd : DEFAULT_POPULATION.sd, n };
+  }
+
+  console.warn(
+    "get_population_stats RPC unavailable, falling back to client stats:",
+    error.message,
+  );
+
+  const fb = await getSupabase()
     .from("profiles")
     .select(LEADERBOARD_COLS)
     .limit(1000);
 
-  if (error) {
-    // Non-fatal: fall back to the seed distribution so the dashboard still renders.
-    console.error(describeError(error, "Fetch population stats failed"));
+  if (fb.error) {
+    console.error(describeError(fb.error, "Fetch population stats failed"));
     return DEFAULT_POPULATION;
   }
 
-  const indices = ((data ?? []) as Profile[])
+  const indices = ((fb.data ?? []) as Profile[])
     .map(hydrateProfile)
     .filter(
       (p) =>
@@ -849,7 +858,6 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
     indices.reduce((s, x) => s + (x - mean) ** 2, 0) / (indices.length - 1);
   const sd = Math.sqrt(variance);
 
-  // A degenerate spread (everyone identical) would make every z-score infinite.
   return { mean, sd: sd > 1 ? sd : DEFAULT_POPULATION.sd, n: indices.length };
 }
 // ─── Activity stats ───────────────────────────────────────────────────────────

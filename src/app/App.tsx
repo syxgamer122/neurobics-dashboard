@@ -61,7 +61,6 @@ import {
   getLevelProgress,
   getLevelTitle,
   getLevelColor,
-  levelFromXp,
 } from "./lib/xp";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -89,7 +88,7 @@ const totalRounds = (p: Profile) =>
   (p.memory_sessions ?? 0);
 // Each domain is the stored proficiency rating (0–RATING_MAX) mapped to 0–100
 // for the radar. No session division: the rating is already a moving average.
-function buildCognitiveDataRaw(p: Profile) {
+function buildCognitiveData(p: Profile) {
   const toPct = (r: number | null | undefined) =>
     clamp100(((r ?? 0) / RATING_MAX) * 100);
   return [
@@ -99,10 +98,6 @@ function buildCognitiveDataRaw(p: Profile) {
     { subject: "Spatial", value: toPct(p.cfop_spatial_record) },
     { subject: "Speed", value: toPct(p.speed_score) },
   ];
-}
-
-function buildCognitiveData(p: Profile) {
-  return buildCognitiveDataRaw(p);
 }
 
 // ─── Round result ─────────────────────────────────────────────────────────────
@@ -356,7 +351,6 @@ function AppInner() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [pulse, setPulse] = useState(false);
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
   const [selectedGame, setSelectedGame] = useState<
     "schulte" | "sudoku" | "stroop" | "memory" | "reaction" | null
@@ -459,16 +453,48 @@ function AppInner() {
   const completeRound = useCallback(
     async (game: RoundGame, telemetry: unknown) => {
       const ticket = await prepareRound(game);
-      const result = await submitRound(ticket.roundId, game, telemetry);
-      delete roundTicketsRef.current[game];
-      setProfile(result.profile);
-      // Prepare the next attempt without delaying the current result overlay.
-      void prepareRound(game).catch((err) =>
-        console.error("Prepare next round failed:", err),
-      );
-      return result;
+      try {
+        const result = await submitRound(ticket.roundId, game, telemetry);
+        setProfile(result.profile);
+        // Prepare the next attempt without delaying the current result overlay.
+        void prepareRound(game).catch((err) =>
+          console.error("Prepare next round failed:", err),
+        );
+        return result;
+      } finally {
+        // Always drop the ticket: if the server already consumed it but the
+        // response failed (timeout/network), reusing the dead roundId would
+        // fail forever until expiry.
+        delete roundTicketsRef.current[game];
+      }
     },
     [prepareRound],
+  );
+
+  const makeGameHandler = useCallback(
+    (game: RoundGame) => async (tel: unknown) => {
+      try {
+        const result = await completeRound(game, tel);
+        // completeRound already wrote the fresh row into state; use that as the
+        // baseline so we never pass Profile | null into applyAxes.
+        const baseline = profile ?? result.profile;
+        const { rows } = applyAxes(baseline, result.axes, result.profile);
+        setRoundResult({
+          game,
+          timeMs: result.timeMs,
+          label: result.label,
+          headline: result.headline,
+          rows,
+          xpAwarded: result.xpAwarded,
+          xpLevel: result.level,
+          leveledUp: result.leveledUp,
+        });
+      } catch (err) {
+        console.error(`${game} submit failed:`, err);
+        toast.error(t.save_failed);
+      }
+    },
+    [completeRound, profile, t.save_failed],
   );
 
   const onLogout = async () => {
@@ -489,10 +515,6 @@ function AppInner() {
       .then(setActivity)
       .catch((err) => console.error("Activity stats failed:", err));
   }, [profile?.id, profile?.total_xp]);
-  useEffect(() => {
-    const i = setInterval(() => setPulse((p) => !p), 1800);
-    return () => clearInterval(i);
-  }, []);
 
   if (!authChecked) {
     return (
@@ -516,6 +538,8 @@ function AppInner() {
   const isAdmin = profile.username.trim().toLowerCase() === "nguyenhuumanh";
 
   const cognitiveData = buildCognitiveData(profile);
+  const levelProgress = getLevelProgress(profile.total_xp ?? 0);
+  const levelColor = getLevelColor(levelProgress.level);
   const brainAge = calcBrainAge(
     {
       cognitiveIndex: cognitiveIndex(profile),
@@ -543,6 +567,13 @@ function AppInner() {
       className="min-h-screen text-slate-100 overflow-x-hidden"
       style={{ fontFamily: "'Exo 2', sans-serif", background: "#050A18" }}
     >
+      <style>{`
+        @keyframes streakGlow {
+          0%, 100% { box-shadow: 0 0 24px rgba(245,158,11,0.35); }
+          50% { box-shadow: 0 0 50px rgba(245,158,11,0.65), 0 0 100px rgba(245,158,11,0.18); }
+        }
+        .streak-glow { animation: streakGlow 1.8s ease-in-out infinite; }
+      `}</style>
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div
@@ -1096,129 +1127,29 @@ function AppInner() {
 
             {selectedGame === "schulte" && (
               <div className="max-w-lg">
-                <SchulteTableGame
-                  onComplete={async (tel) => {
-                    try {
-                      const result = await completeRound("schulte", tel);
-                      const { rows } = applyAxes(profile, result.axes, result.profile);
-                      setRoundResult({
-                        game: "schulte",
-                        timeMs: result.timeMs,
-                        label: result.label,
-                        headline: result.headline,
-                        rows,
-                        xpAwarded: result.xpAwarded,
-                        xpLevel: result.level,
-                        leveledUp: result.leveledUp,
-                      });
-                    } catch (err) {
-                      console.error("schulte submit failed:", err);
-                      toast.error(t.save_failed);
-                    }
-                  }}
-                />
+                <SchulteTableGame onComplete={makeGameHandler("schulte")} />
               </div>
             )}
 
             {selectedGame === "sudoku" && (
               <div className="max-w-md">
-                <SudokuGame
-                  onComplete={async (tel) => {
-                    try {
-                      const result = await completeRound("sudoku", tel);
-                      const { rows } = applyAxes(profile, result.axes, result.profile);
-                      setRoundResult({
-                        game: "sudoku",
-                        timeMs: result.timeMs,
-                        label: result.label,
-                        headline: result.headline,
-                        rows,
-                        xpAwarded: result.xpAwarded,
-                        xpLevel: result.level,
-                        leveledUp: result.leveledUp,
-                      });
-                    } catch (err) {
-                      console.error("sudoku submit failed:", err);
-                      toast.error(t.save_failed);
-                    }
-                  }}
-                />
+                <SudokuGame onComplete={makeGameHandler("sudoku")} />
               </div>
             )}
 
             {selectedGame === "stroop" && (
               <div className="max-w-sm">
-                <StroopGame
-                  onComplete={async (tel) => {
-                    try {
-                      const result = await completeRound("stroop", tel);
-                      const { rows } = applyAxes(profile, result.axes, result.profile);
-                      setRoundResult({
-                        game: "stroop",
-                        timeMs: result.timeMs,
-                        label: result.label,
-                        headline: result.headline,
-                        rows,
-                        xpAwarded: result.xpAwarded,
-                        xpLevel: result.level,
-                        leveledUp: result.leveledUp,
-                      });
-                    } catch (err) {
-                      console.error("stroop submit failed:", err);
-                      toast.error(t.save_failed);
-                    }
-                  }}
-                />
+                <StroopGame onComplete={makeGameHandler("stroop")} />
               </div>
             )}
             {selectedGame === "reaction" && (
               <div className="max-w-sm">
-                <ReactionTimeGame
-                  onComplete={async (tel) => {
-                    try {
-                      const result = await completeRound("reaction", tel);
-                      const { rows } = applyAxes(profile, result.axes, result.profile);
-                      setRoundResult({
-                        game: "reaction",
-                        timeMs: result.timeMs,
-                        label: result.label,
-                        headline: result.headline,
-                        rows,
-                        xpAwarded: result.xpAwarded,
-                        xpLevel: result.level,
-                        leveledUp: result.leveledUp,
-                      });
-                    } catch (err) {
-                      console.error("reaction submit failed:", err);
-                      toast.error(t.save_failed);
-                    }
-                  }}
-                />
+                <ReactionTimeGame onComplete={makeGameHandler("reaction")} />
               </div>
             )}
             {selectedGame === "memory" && (
               <div className="max-w-sm">
-                <MemoryMatrixGame
-                  onComplete={async (tel) => {
-                    try {
-                      const result = await completeRound("memory", tel);
-                      const { rows } = applyAxes(profile, result.axes, result.profile);
-                      setRoundResult({
-                        game: "memory",
-                        timeMs: result.timeMs,
-                        label: result.label,
-                        headline: result.headline,
-                        rows,
-                        xpAwarded: result.xpAwarded,
-                        xpLevel: result.level,
-                        leveledUp: result.leveledUp,
-                      });
-                    } catch (err) {
-                      console.error("memory submit failed:", err);
-                      toast.error(t.save_failed);
-                    }
-                  }}
-                />
+                <MemoryMatrixGame onComplete={makeGameHandler("memory")} />
               </div>
             )}
           </>
@@ -1228,23 +1159,20 @@ function AppInner() {
           <>
             {/* ROW 2.5: Level / XP */}
             <div className="grid grid-cols-1 gap-5">
-              <GlassCard
-                accent={getLevelColor(levelFromXp(profile.total_xp ?? 0))}
-                className="p-6"
-              >
+              <GlassCard accent={levelColor} className="p-6">
                 <div className="flex items-center gap-5">
                   <div
                     className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center shrink-0"
                     style={{
-                      background: `linear-gradient(135deg, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}88)`,
-                      boxShadow: `0 0 40px ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}44`,
+                      background: `linear-gradient(135deg, ${levelColor}, ${levelColor}88)`,
+                      boxShadow: `0 0 40px ${levelColor}44`,
                     }}
                   >
                     <span
                       className="text-3xl font-bold text-white leading-none"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
-                      {levelFromXp(profile.total_xp ?? 0)}
+                      {levelProgress.level}
                     </span>
                     <span
                       className="text-[8px] tracking-widest text-white/70 mt-0.5"
@@ -1254,23 +1182,21 @@ function AppInner() {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Label
-                      color={getLevelColor(levelFromXp(profile.total_xp ?? 0))}
-                    >
-                      {getLevelTitle(levelFromXp(profile.total_xp ?? 0))}
+                    <Label color={levelColor}>
+                      {getLevelTitle(levelProgress.level)}
                     </Label>
                     <div className="flex items-baseline gap-2 mt-1 mb-2">
                       <span
                         className="text-2xl font-bold text-white"
                         style={{ fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        {getLevelProgress(profile.total_xp ?? 0).xpIntoLevel}
+                        {levelProgress.xpIntoLevel}
                       </span>
                       <span
                         className="text-sm text-slate-500"
                         style={{ fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        / {getLevelProgress(profile.total_xp ?? 0).xpNeeded} XP
+                        / {levelProgress.xpNeeded} XP
                       </span>
                       <span
                         className="ml-auto text-xs text-slate-500"
@@ -1286,9 +1212,9 @@ function AppInner() {
                       <div
                         className="h-full rounded-full"
                         style={{
-                          width: `${Math.min(100, getLevelProgress(profile.total_xp ?? 0).progress * 100)}%`,
-                          background: `linear-gradient(90deg, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}, ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}aa)`,
-                          boxShadow: `0 0 10px ${getLevelColor(levelFromXp(profile.total_xp ?? 0))}66`,
+                          width: `${Math.min(100, levelProgress.progress * 100)}%`,
+                          background: `linear-gradient(90deg, ${levelColor}, ${levelColor}aa)`,
+                          boxShadow: `0 0 10px ${levelColor}66`,
                           transition: "width 0.6s ease",
                         }}
                       />
@@ -1305,13 +1231,9 @@ function AppInner() {
                 <div className="flex items-center gap-5 mt-4">
                   <div className="relative shrink-0">
                     <div
-                      className="w-20 h-20 rounded-2xl flex items-center justify-center"
+                      className="w-20 h-20 rounded-2xl flex items-center justify-center streak-glow"
                       style={{
                         background: "linear-gradient(135deg, #F59E0B, #EF4444)",
-                        boxShadow: pulse
-                          ? "0 0 50px rgba(245,158,11,0.65), 0 0 100px rgba(245,158,11,0.18)"
-                          : "0 0 24px rgba(245,158,11,0.35)",
-                        transition: "box-shadow 1.8s ease",
                       }}
                     >
                       <Brain size={34} className="text-white" />
@@ -1366,7 +1288,7 @@ function AppInner() {
                       className="text-[10px] text-slate-600 mt-1"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
-                      MON — SUN
+                      {t.streak_week_label}
                     </div>
                   </div>
                 </div>
@@ -1547,7 +1469,7 @@ function AppInner() {
                   textShadow: "0 0 20px rgba(239,68,68,0.6)",
                 }}
               >
-                ACCESS DENIED
+                {t.access_denied_title}
               </div>
               <div
                 className="text-[11px] tracking-widest text-red-700"
@@ -1557,7 +1479,7 @@ function AppInner() {
               </div>
             </div>
 
-            {/* Log lines */}
+            {/* Log lines — never reveal the admin username here */}
             <div
               className="w-full rounded-lg p-4 space-y-1.5 text-left"
               style={{
@@ -1573,7 +1495,7 @@ function AppInner() {
                 },
                 {
                   label: t.required_label,
-                  value: "nguyenhuumanh",
+                  value: t.access_denied_role,
                   color: "#EF4444",
                 },
                 { label: "CLEARANCE", value: "OMEGA-1", color: "#EF4444" },
@@ -1800,7 +1722,7 @@ function SchulteTableGame({
 
   const handleClick = useCallback(
     async (cell: SCell, idx: number) => {
-      if (status === "done" || foundSet.has(idx)) return;
+      if (status === "done" || foundSet.has(idx) || flashCell !== null) return;
       if (status === "idle") {
         startRef.current = Date.now();
         lastHitRef.current = startRef.current;
@@ -1834,7 +1756,7 @@ function SchulteTableGame({
       setFoundSet(nf);
       setSeqIdx(seqIdx + 1);
     },
-    [status, foundSet, sequence, seqIdx, hearts, reset, later],
+    [status, foundSet, sequence, seqIdx, hearts, reset, later, flashCell],
   );
 
   const fmtTime = (ms: number) => {
@@ -1876,7 +1798,7 @@ function SchulteTableGame({
               color: "#A855F7",
             }}
           >
-            FOCUS TRAINING
+            {t.focus_training}
           </div>
           <div className="text-base font-bold text-white">Schulte Table</div>
         </div>
@@ -2320,6 +2242,69 @@ function SudokuGame({
 }: {
   onComplete: (tel: SudokuTelemetry) => Promise<void>;
 }) {
+  const workerRef = useRef<Worker | null>(null);
+  const workerReqRef = useRef(0);
+  const pendingGenRef = useRef<{
+    resolve: (v: { puzzle: (number | null)[][]; solution: number[][] }) => void;
+    reject: (e: unknown) => void;
+    requestId: number;
+  } | null>(null);
+
+  const ensureSudokuWorker = useCallback(() => {
+    if (workerRef.current) return workerRef.current;
+    try {
+      const w = new Worker(new URL("./lib/sudoku-worker.ts", import.meta.url), {
+        type: "module",
+      });
+      w.onmessage = (ev: MessageEvent) => {
+        const pending = pendingGenRef.current;
+        if (!pending) return;
+        if (ev.data?.requestId !== pending.requestId) return;
+        pendingGenRef.current = null;
+        pending.resolve({
+          puzzle: ev.data.puzzle,
+          solution: ev.data.solution,
+        });
+      };
+      w.onerror = (err) => {
+        const pending = pendingGenRef.current;
+        pendingGenRef.current = null;
+        pending?.reject(err);
+      };
+      workerRef.current = w;
+      return w;
+    } catch (err) {
+      console.warn("Sudoku worker unavailable, using main thread:", err);
+      return null;
+    }
+  }, []);
+
+  const generateSudokuAsync = useCallback(
+    (clues: number) =>
+      new Promise<{ puzzle: (number | null)[][]; solution: number[][] }>(
+        (resolve, reject) => {
+          const w = ensureSudokuWorker();
+          if (!w) {
+            resolve(generateSudoku(clues));
+            return;
+          }
+          const requestId = ++workerReqRef.current;
+          pendingGenRef.current = { resolve, reject, requestId };
+          w.postMessage({ clues, requestId });
+        },
+      ),
+    [ensureSudokuWorker],
+  );
+
+  useEffect(
+    () => () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      pendingGenRef.current = null;
+    },
+    [],
+  );
+
   const { t } = useLang();
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const level = SUDOKU_LEVELS.find((l) => l.id === difficulty)!;
@@ -2357,32 +2342,39 @@ function SudokuGame({
   );
 
   // Build a fresh board for the given difficulty and reset all play state.
-  const startBoard = useCallback((diff: Difficulty) => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    const lvl = SUDOKU_LEVELS.find((l) => l.id === diff)!;
-    // Sinh đề chạy đồng bộ và rất nặng ở Master/Extreme. Bật cờ "đang tạo đề"
-    // rồi nhường một nhịp cho trình duyệt vẽ xong, nếu không giao diện sẽ đứng
-    // hình vài giây mà không báo gì cho người chơi.
-    setGenerating(true);
-    setTimeout(() => {
-      const nd = generateSudoku(lvl.clues);
-      setPuzzleData(nd);
-      setUserGrid(nd.puzzle.map((r) => [...r]));
-      setGenerating(false);
-    }, 30);
-    setSelected(null);
-    setStatus("idle");
-    setElapsed(0);
-    setMistakes(0);
-    completedRef.current = false;
-    startRef.current = null;
-    placementsRef.current = 0;
-    moveRtsRef.current = [];
-    lastMoveRef.current = null;
-    reEntriesRef.current = 0;
-    repeatMistakesRef.current = 0;
-    wrongCellsRef.current = new Set();
-  }, []);
+  const startBoard = useCallback(
+    (diff: Difficulty) => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      const lvl = SUDOKU_LEVELS.find((l) => l.id === diff)!;
+      // Sinh đề off-thread qua Web Worker (fallback main thread nếu worker lỗi).
+      setGenerating(true);
+      setSelected(null);
+      setStatus("idle");
+      setElapsed(0);
+      setMistakes(0);
+      completedRef.current = false;
+      startRef.current = null;
+      placementsRef.current = 0;
+      moveRtsRef.current = [];
+      lastMoveRef.current = null;
+      reEntriesRef.current = 0;
+      repeatMistakesRef.current = 0;
+      wrongCellsRef.current = new Set();
+      void generateSudokuAsync(lvl.clues)
+        .then((nd) => {
+          setPuzzleData(nd);
+          setUserGrid(nd.puzzle.map((r) => [...r]));
+        })
+        .catch((err) => {
+          console.error("Sudoku generate failed:", err);
+          const nd = generateSudoku(lvl.clues);
+          setPuzzleData(nd);
+          setUserGrid(nd.puzzle.map((r) => [...r]));
+        })
+        .finally(() => setGenerating(false));
+    },
+    [generateSudokuAsync],
+  );
 
   // Declarative win detection: fire onComplete once the board fully matches the
   // solution. Runs in an effect so it can't be skipped by stale closures.
@@ -2575,7 +2567,7 @@ function SudokuGame({
               color: "#00D4FF",
             }}
           >
-            LOGIC TRAINING
+            {t.logic_training}
           </div>
           <div className="text-base font-bold text-white">Sudoku</div>
         </div>
@@ -2914,16 +2906,33 @@ function StroopGame({
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTimers = useCallback(() => {
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+  }, []);
+
+  const later = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current = timeoutsRef.current.filter((x) => x !== id);
+      fn();
+    }, ms);
+    timeoutsRef.current.push(id);
+  }, []);
 
   useEffect(
     () => () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
     },
     [],
   );
 
   const reset = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    clearTimers();
     wrongRef.current = 0;
     rtsRef.current = [];
     lastTrialRef.current = null;
@@ -2995,7 +3004,7 @@ function StroopGame({
         wrongRef.current += 1;
         const nh = hearts - 1;
         setHearts(nh);
-        setTimeout(() => {
+        later(() => {
           setFlash(null);
           // Phải lấy màu mực của câu VỪA hiện, không phải câu đúng gần nhất:
           // prevInkRef chỉ cập nhật khi trả lời đúng, nên nếu dùng nó thì sau
@@ -3014,12 +3023,12 @@ function StroopGame({
       prevInkRef.current = stimulus.inkId;
       const newLeft = trialsLeft - 1;
       setTrialsLeft(newLeft);
-      setTimeout(() => {
+      later(() => {
         setFlash(null);
         if (newLeft > 0) setStimulus(makeStimulus(stimulus.inkId));
       }, 240);
     },
-    [status, flash, stimulus, hearts, trialsLeft],
+    [status, flash, stimulus, hearts, trialsLeft, later],
   );
 
   const fmtTime = (ms: number) => {
@@ -3801,12 +3810,16 @@ function MemoryMatrixGame({
         later(() => {
           setStatus("done");
           setSaving(true);
-          onComplete({
+          void onComplete({
             timeMs: Date.now() - (startRef.current ?? Date.now()),
             // Cấp đã vượt qua, không phải cấp đang thua. Sever yêu cầu tối thiểu 1.
             maxLevel: Math.max(1, maxClearedRef.current),
             wrongClicks: wrongClicks + 1,
-          }).finally(() => setSaving(false));
+          })
+            .catch((err) => {
+              console.error("Memory completion: onComplete failed:", err);
+            })
+            .finally(() => setSaving(false));
         }, 1000);
       } else {
         later(() => generateLevel(), 1000);
@@ -3925,7 +3938,7 @@ function MemoryMatrixGame({
             className="text-[9px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            TIME
+            {t.time_label}
           </span>
           <div
             className="text-3xl font-bold tabular-nums"
@@ -3946,7 +3959,7 @@ function MemoryMatrixGame({
             className="text-[9px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            LEVEL
+            {t.level_label}
           </span>
           <span
             className="text-4xl font-bold tabular-nums"
@@ -3985,7 +3998,7 @@ function MemoryMatrixGame({
               boxShadow: "0 0 20px rgba(244,63,94,0.2)",
             }}
           >
-            START MATRIX
+            {t.mem_start}
           </button>
         </div>
       ) : status === "done" ? (
@@ -3998,13 +4011,13 @@ function MemoryMatrixGame({
             className="text-lg font-bold text-white mb-1"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            GAME OVER
+            {t.game_over}
           </div>
           <div
             className="text-sm text-slate-400"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            Max Level:{" "}
+            {t.mem_max_level}:{" "}
             <span className="text-[#F43F5E]">
               {Math.max(1, maxClearedRef.current)}
             </span>
@@ -4095,7 +4108,7 @@ function MemoryMatrixGame({
             border: "1px solid rgba(244,63,94,0.25)",
           }}
         >
-          <RefreshCw size={12} /> ABORT & RESTART
+          <RefreshCw size={12} /> {t.abort_restart}
         </button>
       )}
     </div>
@@ -4176,6 +4189,8 @@ function ReactionTimeGame({
         rts: completedRts,
         falseStarts: falseStartsRef.current,
       });
+    } catch (err) {
+      console.error("Reaction completion: onComplete failed:", err);
     } finally {
       setSaving(false);
     }
@@ -4290,21 +4305,21 @@ function ReactionTimeGame({
 
       <div className="grid grid-cols-3 gap-3 mt-5">
         <div className="text-center">
-          <div className="text-[9px] text-slate-500">TRIAL</div>
+          <div className="text-[9px] text-slate-500">{t.rx_trial}</div>
           <div className="text-lg font-bold text-white">
             {Math.min(rts.length + 1, TOTAL_TRIALS)}/{TOTAL_TRIALS}
           </div>
         </div>
 
         <div className="text-center">
-          <div className="text-[9px] text-slate-500">AVERAGE</div>
+          <div className="text-[9px] text-slate-500">{t.rx_average}</div>
           <div className="text-lg font-bold text-[#10B981]">
             {average || "--"} ms
           </div>
         </div>
 
         <div className="text-center">
-          <div className="text-[9px] text-slate-500">TOO SOON</div>
+          <div className="text-[9px] text-slate-500">{t.rx_too_soon}</div>
           <div className="text-lg font-bold text-[#F43F5E]">{falseStarts}</div>
         </div>
       </div>
@@ -4335,7 +4350,7 @@ function ReactionTimeGame({
               border: "1px solid rgba(16,185,129,0.4)",
             }}
           >
-            START TEST
+            {t.rx_start}
           </button>
         </div>
       ) : phase === "done" ? (
@@ -4345,14 +4360,14 @@ function ReactionTimeGame({
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
 
-          <div className="text-lg font-bold text-white">TEST COMPLETE</div>
+          <div className="text-lg font-bold text-white">{t.rx_complete}</div>
 
           <div className="mt-2 text-4xl font-bold text-[#10B981]">
             {average} ms
           </div>
 
           <div className="mt-1 text-xs text-slate-500">
-            Average reaction time
+            {t.rx_avg_label}
           </div>
         </div>
       ) : (
@@ -4402,7 +4417,7 @@ function ReactionTimeGame({
           }}
         >
           <RefreshCw size={12} />
-          RESTART TEST
+          {t.rx_restart}
         </button>
       )}
     </div>
