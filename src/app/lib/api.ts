@@ -826,3 +826,49 @@ export async function fetchPersonalBests(): Promise<PersonalBest[]> {
     last_played_at: String(row.last_played_at ?? ""),
   }));
 }
+
+// ─── Giai đoạn 3: chuỗi tiến trình theo ngày ───
+
+export type ProgressPoint = {
+  day: string;
+  rounds: number;
+  xp: number;
+  avg_score: number | null;
+  best_score: number | null;
+  speed: number | null;
+  focus: number | null;
+  spatial: number | null;
+  logic: number | null;
+  memory: number | null;
+};
+
+const numOrNull = (v: unknown): number | null =>
+  v === null || v === undefined ? null : Number(v);
+
+/**
+ * Số liệu luyện tập gộp theo ngày (giờ Việt Nam) cho N ngày gần nhất.
+ * Hàm SQL tự lấy auth.uid() nên không truyền user id từ trình duyệt.
+ * Ngày không chơi vẫn có một dòng với rounds = 0 và các trục = null.
+ */
+export async function fetchProgressSeries(days = 30): Promise<ProgressPoint[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("get_progress_series", {
+    p_days: days,
+  });
+  if (error) throw new Error(`Fetch progress series failed: ${error.message}`);
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    day: String(row.day ?? ""),
+    rounds: Number(row.rounds ?? 0),
+    xp: Number(row.xp ?? 0),
+    avg_score: numOrNull(row.avg_score),
+    best_score: numOrNull(row.best_score),
+    speed: numOrNull(row.speed),
+    focus: numOrNull(row.focus),
+    spatial: numOrNull(row.spatial),
+    logic: numOrNull(row.logic),
+    memory: numOrNull(row.memory),
+  }));
+}

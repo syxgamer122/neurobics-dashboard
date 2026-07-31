@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProgressChart } from "./progress-chart";
 import {
   fetchTrainingHistory,
   fetchPersonalBests,
@@ -121,6 +122,9 @@ export function HistoryPanel() {
         </p>
       </div>
 
+      {/* ── Giai đoạn 3: biểu đồ tiến trình ── */}
+      <ProgressChart />
+
       {/* ── Kỷ lục cá nhân ── */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {GAMES.map((game) => {
@@ -178,9 +182,8 @@ export function HistoryPanel() {
                 ...mono,
                 color: isActive ? accent : "#64748b",
                 background: isActive ? `${accent}1F` : "rgba(255,255,255,0.03)",
-                border: `1px solid ${
-                  isActive ? `${accent}66` : "rgba(255,255,255,0.06)"
-                }`,
+                border: `1px solid ${isActive ? `${accent}66` : "rgba(255,255,255,0.06)"
+                  }`,
               }}
             >
               {label.toUpperCase()}
