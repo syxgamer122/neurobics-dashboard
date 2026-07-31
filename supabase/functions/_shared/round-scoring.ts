@@ -40,7 +40,11 @@ const numberArray = (
 ): number[] => {
   if (!Array.isArray(v) || v.length < minLength || v.length > maxLength)
     throw new Error(`Invalid ${name} length`);
-  return v.map((x, i) => finite(x, `${name}[${i}]`, 1, 3_600_000));
+  // Lần nhập đầu tiên có thể bằng 0ms nếu xảy ra trong cùng một clock tick.
+// Chuẩn hóa thành 1ms thay vì từ chối toàn bộ kết quả ván.
+return v.map((x, i) =>
+  Math.max(1, finite(x, `${name}[${i}]`, 0, 3_600_000)),
+);
 };
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);

@@ -127,3 +127,5 @@ revoke update (
   schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions,
   memory_sessions, total_xp
 ) on public.profiles from authenticated, anon;
+apply_round_rating(integer, integer)
+apply_round_rating(double precision, integer)

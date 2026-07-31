@@ -276,7 +276,9 @@ app.post("/server/submit-round", async (c) => {
       p_axes: axisPayload,
       p_round_score: scored.headline,
     });
-    if (error) throw error;
+    if (error) {
+  throw new Error(error.message);
+}
 
     return c.json({
       ...data,
@@ -287,7 +289,12 @@ app.post("/server/submit-round", async (c) => {
     });
   } catch (err) {
     console.log(`Submit round error: ${err}`);
-    const message = err instanceof Error ? err.message : String(err);
+    const message =
+  err instanceof Error
+    ? err.message
+    : typeof err === "object" && err !== null && "message" in err
+      ? String((err as { message: unknown }).message)
+      : JSON.stringify(err);
     return c.json(
       { error: message },
       message.includes("already submitted") ? 409 : 400,
