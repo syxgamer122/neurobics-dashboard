@@ -32,6 +32,11 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
       return;
     }
 
+    if (mode === "signup" && password.length < 8) {
+      setError(t.password_min_length ?? "Password must be at least 8 characters.");
+      return;
+    }
+
     if (mode === "signup" && !captchaToken) {
       setError("Please complete the human verification.");
       return;

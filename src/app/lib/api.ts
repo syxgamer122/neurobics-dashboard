@@ -58,6 +58,8 @@ export type Profile = {
   birth_year: number | null;
   // Public avatar URL in the `avatars` storage bucket (nullable until uploaded).
   avatar_url: string | null;
+  // Server-controlled: 'user' | 'admin'. Never trust username for privilege.
+  role: "user" | "admin";
   created_at: string;
 };
 
@@ -196,6 +198,7 @@ function hydrateProfile(p: Profile): Profile {
     ...p,
     avatar_url: p.avatar_url ?? null,
     birth_year: p.birth_year ?? null,
+    role: p.role === "admin" ? "admin" : "user",
   });
   const idle = daysSince(clean.last_active_date);
   if (idle === 0) return clean;
@@ -566,8 +569,8 @@ export async function changePassword(
   if (!currentPassword || !newPassword) {
     throw new Error("Both current and new passwords are required.");
   }
-  if (newPassword.length < 6) {
-    throw new Error("New password must be at least 6 characters.");
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters.");
   }
   if (currentPassword === newPassword) {
     throw new Error("New password must be different from the current one.");
@@ -891,28 +894,39 @@ export async function fetchActivityStats(): Promise<ActivityStats> {
   const userId = await currentUserId();
   if (!userId) return { xpToday: 0, sessionsThisMonth: 0 };
 
+  // Prefer server aggregate (VN day/month bounds inside Postgres).
+  const { data, error } = await getSupabase().rpc("get_activity_stats");
+  if (!error) {
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      xpToday: Number(row?.xp_today ?? 0),
+      sessionsThisMonth: Number(row?.sessions_this_month ?? 0),
+    };
+  }
+
+  console.warn(
+    "get_activity_stats RPC unavailable, falling back to client aggregate:",
+    error.message,
+  );
+
   const now = new Date();
   const dayStart = vnDayStartUtc(now);
   const monthStart = vnMonthStartUtc(now);
 
-  const { data, error } = await getSupabase()
+  const fb = await getSupabase()
     .from("xp_events")
     .select("xp_awarded, created_at")
     .eq("user_id", userId)
     .gte("created_at", monthStart.toISOString());
 
-  if (error) throw new Error(`Fetch activity stats failed: ${error.message}`);
+  if (fb.error) throw new Error(`Fetch activity stats failed: ${fb.error.message}`);
 
-  // So bằng mốc thời gian chứ không so chuỗi: Postgres trả "+00:00" còn
-  // toISOString() trả "Z", hai chuỗi này không so sánh được với nhau.
   const dayStartMs = dayStart.getTime();
-  const rows = data ?? [];
-
+  const rows = fb.data ?? [];
   let xpToday = 0;
   for (const row of rows) {
     if (Date.parse(row.created_at) >= dayStartMs) xpToday += row.xp_awarded ?? 0;
   }
-
   return { xpToday, sessionsThisMonth: rows.length };
 }
 // ─── Giai đoạn 2: Lịch sử luyện tập ─────────────────────────────────────────

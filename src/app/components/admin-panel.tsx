@@ -34,7 +34,6 @@ import {
 import { levelFromXp } from "../lib/xp";
 import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 
-const ADMIN_USERNAME = "nguyenhuumanh";
 
 const consoleBoot = [
   "[sys] neurobics-db admin control-plane v2.4.1",
@@ -68,7 +67,7 @@ export function AdminPanel({
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
-  const isAdmin = profile.username?.trim().toLowerCase() === ADMIN_USERNAME;
+  const isAdmin = profile.role === "admin";
 
   const SUPABASE_URL = `https://${projectId}.supabase.co`;
   const ANON_KEY = publicAnonKey;
@@ -239,7 +238,7 @@ const handleApplyGrant = () => {
           </div>
           <div className="space-y-2">
             <div className="text-xl font-bold tracking-[0.25em]" style={{ color: red }}>ACCESS DENIED</div>
-            <div className="text-[10px] text-slate-500">Signed in as <span style={{ color: amber }}>{profile.username}</span> · required <span style={{ color: red }}>{ADMIN_USERNAME}</span></div>
+            <div className="text-[10px] text-slate-500">Signed in as <span style={{ color: amber }}>{profile.username}</span> · required <span style={{ color: red }}>admin role</span></div>
           </div>
           <button onClick={onExit} className="w-full py-2.5 rounded-xl text-xs tracking-widest font-bold" style={{ background: `${red}12`, color: red, border: `1px solid ${red}33` }}>RETURN</button>
         </div>
@@ -589,7 +588,7 @@ const handleApplyGrant = () => {
                   </thead>
                   <tbody>
                     {rows.map((r) => {
-                      const isAdminRow = r.username?.trim().toLowerCase() === ADMIN_USERNAME;
+                      const isAdminRow = r.role === "admin";
                       const isSelected = selectedUser?.id === r.id;
                       return (
                         <tr

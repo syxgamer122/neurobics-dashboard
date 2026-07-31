@@ -88,15 +88,25 @@ const totalRounds = (p: Profile) =>
   (p.memory_sessions ?? 0);
 // Each domain is the stored proficiency rating (0–RATING_MAX) mapped to 0–100
 // for the radar. No session division: the rating is already a moving average.
-function buildCognitiveData(p: Profile) {
+function buildCognitiveData(
+  p: Profile,
+  labels?: { memory: string; focus: string; logic: string; spatial: string; speed: string },
+) {
   const toPct = (r: number | null | undefined) =>
     clamp100(((r ?? 0) / RATING_MAX) * 100);
+  const L = labels ?? {
+    memory: "Memory",
+    focus: "Focus",
+    logic: "Logic",
+    spatial: "Spatial",
+    speed: "Speed",
+  };
   return [
-    { subject: "Memory", value: toPct(p.memory_score) },
-    { subject: "Focus", value: toPct(p.focus_score) },
-    { subject: "Logic", value: toPct(p.algebraic_logic_score) },
-    { subject: "Spatial", value: toPct(p.cfop_spatial_record) },
-    { subject: "Speed", value: toPct(p.speed_score) },
+    { subject: L.memory, value: toPct(p.memory_score) },
+    { subject: L.focus, value: toPct(p.focus_score) },
+    { subject: L.logic, value: toPct(p.algebraic_logic_score) },
+    { subject: L.spatial, value: toPct(p.cfop_spatial_record) },
+    { subject: L.speed, value: toPct(p.speed_score) },
   ];
 }
 
@@ -351,6 +361,9 @@ function AppInner() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  // Snapshot for overlay prev-values — avoids stale closure after setProfile.
+  const profileRef = useRef<Profile | null>(null);
+  profileRef.current = profile;
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
   const [selectedGame, setSelectedGame] = useState<
     "schulte" | "sudoku" | "stroop" | "memory" | "reaction" | null
@@ -452,7 +465,16 @@ function AppInner() {
 
   const completeRound = useCallback(
     async (game: RoundGame, telemetry: unknown) => {
-      const ticket = await prepareRound(game);
+      // CRITICAL: do NOT call prepareRound here. Minting a fresh ticket at
+      // submit time would reset startedAt and break server elapsed-time checks.
+      const ticket = roundTicketsRef.current[game];
+      if (!ticket) {
+        throw new Error("Round ticket missing. Start the game again.");
+      }
+      if (Date.parse(ticket.expiresAt) <= Date.now()) {
+        delete roundTicketsRef.current[game];
+        throw new Error("Round ticket expired. Start the game again.");
+      }
       try {
         const result = await submitRound(ticket.roundId, game, telemetry);
         setProfile(result.profile);
@@ -473,12 +495,15 @@ function AppInner() {
 
   const makeGameHandler = useCallback(
     (game: RoundGame) => async (tel: unknown) => {
+      // Capture baseline BEFORE await — profile state may change during submit.
+      const baseline = profileRef.current;
       try {
         const result = await completeRound(game, tel);
-        // completeRound already wrote the fresh row into state; use that as the
-        // baseline so we never pass Profile | null into applyAxes.
-        const baseline = profile ?? result.profile;
-        const { rows } = applyAxes(baseline, result.axes, result.profile);
+        const { rows } = applyAxes(
+          baseline ?? result.profile,
+          result.axes,
+          result.profile,
+        );
         setRoundResult({
           game,
           timeMs: result.timeMs,
@@ -491,10 +516,13 @@ function AppInner() {
         });
       } catch (err) {
         console.error(`${game} submit failed:`, err);
-        toast.error(t.save_failed);
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(
+          /ticket/i.test(msg) ? msg : t.save_failed,
+        );
       }
     },
-    [completeRound, profile, t.save_failed],
+    [completeRound, t.save_failed],
   );
 
   const onLogout = async () => {
@@ -535,9 +563,15 @@ function AppInner() {
     );
   }
 
-  const isAdmin = profile.username.trim().toLowerCase() === "nguyenhuumanh";
+  const isAdmin = profile.role === "admin";
 
-  const cognitiveData = buildCognitiveData(profile);
+  const cognitiveData = buildCognitiveData(profile, {
+    memory: t.axis_memory,
+    focus: t.axis_focus,
+    logic: t.axis_logic,
+    spatial: t.axis_spatial,
+    speed: t.axis_speed,
+  });
   const levelProgress = getLevelProgress(profile.total_xp ?? 0);
   const levelColor = getLevelColor(levelProgress.level);
   const brainAge = calcBrainAge(
@@ -910,7 +944,7 @@ function AppInner() {
                           className="text-4xl font-bold text-white"
                           style={{ fontFamily: "'JetBrains Mono', monospace" }}
                         >
-                          {brainAge.age} yrs
+                          {brainAge.age} {t.yrs_unit}
                         </div>
                         <div className="text-xs text-slate-400 mt-1.5">
                           {t.brain_age_percentile(
@@ -1202,7 +1236,7 @@ function AppInner() {
                         className="ml-auto text-xs text-slate-500"
                         style={{ fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        Total: {(profile.total_xp ?? 0).toLocaleString()}
+                        {t.total_xp_label}: {(profile.total_xp ?? 0).toLocaleString()}
                       </span>
                     </div>
                     <div
@@ -1930,11 +1964,11 @@ function SchulteTableGame({
             }}
           >
             {size === 3
-              ? "BASIC"
+              ? t.size_basic
               : size === 4
-                ? "NORMAL"
+                ? t.size_normal
                 : size === 5
-                  ? "ADVANCED"
+                  ? t.size_advanced
                   : "MASTER"}{" "}
             · FOCUS
           </span>
@@ -2308,11 +2342,12 @@ function SudokuGame({
   const { t } = useLang();
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const level = SUDOKU_LEVELS.find((l) => l.id === difficulty)!;
-  const [{ puzzle, solution }, setPuzzleData] = useState(() =>
-    generateSudoku(level.clues),
-  );
+  const [{ puzzle, solution }, setPuzzleData] = useState<{
+    puzzle: (number | null)[][];
+    solution: number[][];
+  }>({ puzzle: Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null as number | null)), solution: Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => 0)) });
   const [userGrid, setUserGrid] = useState<(number | null)[][]>(() =>
-    puzzle.map((r) => [...r]),
+    Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null as number | null)),
   );
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [status, setStatus] = useState<"idle" | "playing" | "done">("idle");
@@ -2321,6 +2356,18 @@ function SudokuGame({
   const [mistakes, setMistakes] = useState(0);
   const [generating, setGenerating] = useState(false);
   const MAX_MISTAKES = 3;
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearTimers = useCallback(() => {
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+  }, []);
+  const later = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current = timeoutsRef.current.filter((x) => x !== id);
+      fn();
+    }, ms);
+    timeoutsRef.current.push(id);
+  }, []);
   const startRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
@@ -2337,6 +2384,8 @@ function SudokuGame({
   useEffect(
     () => () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
     },
     [],
   );
@@ -2345,6 +2394,7 @@ function SudokuGame({
   const startBoard = useCallback(
     (diff: Difficulty) => {
       if (timerRef.current) clearInterval(timerRef.current);
+      clearTimers();
       const lvl = SUDOKU_LEVELS.find((l) => l.id === diff)!;
       // Sinh đề off-thread qua Web Worker (fallback main thread nếu worker lỗi).
       setGenerating(true);
@@ -2373,8 +2423,17 @@ function SudokuGame({
         })
         .finally(() => setGenerating(false));
     },
-    [generateSudokuAsync],
+    [generateSudokuAsync, clearTimers],
   );
+
+  // First board via worker (avoid sync generateSudoku on mount).
+  useEffect(() => {
+    startBoard(difficulty);
+    return () => {
+      clearTimers();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Declarative win detection: fire onComplete once the board fully matches the
   // solution. Runs in an effect so it can't be skipped by stale closures.
@@ -2459,7 +2518,7 @@ function SudokuGame({
         const ng = userGrid.map((row) => [...row]);
         ng[r][c] = n;
         setUserGrid(ng);
-        setTimeout(() => {
+        later(() => {
           setUserGrid((prev) =>
             prev.map((row, ri) =>
               row.map((v, ci) =>
@@ -2492,8 +2551,7 @@ function SudokuGame({
       solution,
       mistakes,
       ensureStarted,
-      reset,
-    ],
+      reset,, later],
   );
 
   // Keyboard support

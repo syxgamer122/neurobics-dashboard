@@ -129,6 +129,33 @@ app.post("/server/signup", async (c) => {
     }
 
     const normalized = String(username).trim().toLowerCase();
+    const pw = String(password);
+
+    if (normalized.length < 3 || normalized.length > 24) {
+      return c.json(
+        { error: "Signup error: username must be 3–24 characters." },
+        400,
+      );
+    }
+    if (pw.length < 8) {
+      return c.json(
+        { error: "Signup error: password must be at least 8 characters." },
+        400,
+      );
+    }
+
+    // Reserved names (admin/system) — table not readable by clients.
+    const { data: reserved } = await adminClient
+      .from("reserved_usernames")
+      .select("username")
+      .eq("username", normalized)
+      .maybeSingle();
+    if (reserved) {
+      return c.json(
+        { error: `Signup error: username "${username}" is not available.` },
+        409,
+      );
+    }
 
     // Case-insensitive uniqueness check against the genuine profiles table.
     const { data: existing, error: lookupErr } = await adminClient
@@ -311,10 +338,10 @@ app.post("/server/award-xp", (c) =>
 async function requireAdmin(userId: string) {
   const { data, error } = await adminClient
     .from("profiles")
-    .select("username")
+    .select("role")
     .eq("id", userId)
     .single();
-  if (error || data?.username?.trim().toLowerCase() !== "nguyenhuumanh")
+  if (error || data?.role !== "admin")
     throw new Error("Admin access denied");
 }
 
