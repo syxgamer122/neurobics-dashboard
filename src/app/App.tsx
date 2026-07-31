@@ -228,13 +228,13 @@ const SUDOKU_LEVELS: {
   points: number;
   accent: string;
 }[] = [
-  { id: "Easy", clues: 38, points: 1, accent: "#10B981" },
-  { id: "Medium", clues: 36, points: 2, accent: "#00D4FF" },
-  { id: "Hard", clues: 32, points: 3, accent: "#A855F7" },
-  { id: "Expert", clues: 30, points: 4, accent: "#F59E0B" },
-  { id: "Master", clues: 26, points: 5, accent: "#F97316" },
-  { id: "Extreme", clues: 23, points: 6, accent: "#F43F5E" },
-];
+    { id: "Easy", clues: 38, points: 1, accent: "#10B981" },
+    { id: "Medium", clues: 36, points: 2, accent: "#00D4FF" },
+    { id: "Hard", clues: 32, points: 3, accent: "#A855F7" },
+    { id: "Expert", clues: 30, points: 4, accent: "#F59E0B" },
+    { id: "Master", clues: 26, points: 5, accent: "#F97316" },
+    { id: "Extreme", clues: 23, points: 6, accent: "#F43F5E" },
+  ];
 /** Đếm số nghiệm của lưới, dừng sớm khi chạm `limit`. */
 function countSolutions(grid: (number | null)[][], limit = 2): number {
   const g = grid.map((r) => r.map((v) => v ?? 0));
@@ -507,11 +507,12 @@ function AppInner() {
   });
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.id) return;
+
     fetchActivityStats()
       .then(setActivity)
       .catch((err) => console.error("Activity stats failed:", err));
-  }, [profile]);
+  }, [profile?.id, profile?.total_xp]);
   useEffect(() => {
     const i = setInterval(() => setPulse((p) => !p), 1800);
     return () => clearInterval(i);
@@ -1369,10 +1370,10 @@ function AppInner() {
                           style={
                             i < profile.synapse_streak % 7
                               ? {
-                                  background:
-                                    "linear-gradient(90deg, #F59E0B, #EF4444)",
-                                  boxShadow: "0 0 6px rgba(245,158,11,0.5)",
-                                }
+                                background:
+                                  "linear-gradient(90deg, #F59E0B, #EF4444)",
+                                boxShadow: "0 0 6px rgba(245,158,11,0.5)",
+                              }
                               : { background: "rgba(255,255,255,0.07)" }
                           }
                         />
@@ -4292,9 +4293,8 @@ function ReactionTimeGame({
       ) : (
         <button
           onClick={handlePadClick}
-          className={`mt-6 rounded-2xl flex flex-col items-center justify-center transition-all ${
-            phase === "ready" ? "animate-pulse" : ""
-          }`}
+          className={`mt-6 rounded-2xl flex flex-col items-center justify-center transition-all ${phase === "ready" ? "animate-pulse" : ""
+            }`}
           style={{
             minHeight: 280,
             background: padBackground,

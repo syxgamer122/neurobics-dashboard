@@ -695,9 +695,10 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
     .filter(
       (p) =>
         (p.schulte_sessions ?? 0) +
-          (p.sudoku_sessions ?? 0) +
-          (p.stroop_sessions ?? 0) +
-          (p.reaction_sessions ?? 0) >=
+        (p.sudoku_sessions ?? 0) +
+        (p.stroop_sessions ?? 0) +
+        (p.reaction_sessions ?? 0) +
+        (p.memory_sessions ?? 0) >=
         5,
     )
     .map(cognitiveIndex);
