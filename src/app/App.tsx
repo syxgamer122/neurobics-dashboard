@@ -23,11 +23,13 @@ import {
   Grid3X3,
   Focus,
   Sparkles,
+  Calculator,
 } from "lucide-react";
 import { AdminPanel } from "./components/admin-panel";
 import { HistoryPanel } from "./components/history-panel";
 import { SettingsPanel } from "./components/settings-panel";
 import { NBackGame } from "./components/nback-game";
+import { MathSprintGame } from "./components/math-game";
 import { AchievementsPanel } from "./components/achievements-panel";
 import { QuestsPanel } from "./components/quests-panel";
 import { FriendsPanel } from "./components/friends-panel";
@@ -384,6 +386,7 @@ function AppInner() {
     | "memory"
     | "reaction"
     | "nback"
+    | "math"
     | null
   >(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
@@ -1217,6 +1220,15 @@ function AppInner() {
                   playLabel={t.play_now}
                   onPlay={() => setSelectedGame("nback")}
                 />
+                <GameTile
+                  accent="#38BDF8"
+                  icon={<Calculator size={22} />}
+                  tag={t.math_tag}
+                  title="Math Sprint"
+                  desc={t.math_desc}
+                  playLabel={t.play_now}
+                  onPlay={() => setSelectedGame("math")}
+                />
               </div>
             )}
 
@@ -1267,6 +1279,14 @@ function AppInner() {
                 <NBackGame
                   onComplete={makeGameHandler("nback")}
                   onPlayStart={() => beginPlay("nback")}
+                />
+              </div>
+            )}
+            {selectedGame === "math" && (
+              <div className="max-w-sm">
+                <MathSprintGame
+                  onComplete={makeGameHandler("math")}
+                  onPlayStart={() => beginPlay("math")}
                 />
               </div>
             )}
@@ -3650,6 +3670,7 @@ function RoundResultOverlay({
     reaction: { title: "REACTION TIME", accent: "#10B981" },
     memory: { title: "MEMORY MATRIX", accent: "#F43F5E" },
     nback: { title: "N-BACK", accent: "#8B5CF6" },
+    math: { title: "MATH SPRINT", accent: "#38BDF8" },
   };
   const meta = GAME_META[result.game] ?? GAME_META.sudoku;
   const accent = meta.accent;

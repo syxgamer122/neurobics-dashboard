@@ -273,6 +273,7 @@ const GAMES = new Set([
   "reaction",
   "memory",
   "nback",
+  "math",
 ]);
 
 async function authenticatedUser(c: any) {

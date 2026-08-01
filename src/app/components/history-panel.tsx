@@ -15,6 +15,7 @@ const GAME_META: Record<RoundGame, { name: string; accent: string }> = {
   reaction: { name: "Reaction Time", accent: "#10B981" },
   memory: { name: "Memory Matrix", accent: "#F43F5E" },
   nback: { name: "N-Back", accent: "#8B5CF6" },
+  math: { name: "Math Sprint", accent: "#38BDF8" },
 };
 
 const GAMES = Object.keys(GAME_META) as RoundGame[];

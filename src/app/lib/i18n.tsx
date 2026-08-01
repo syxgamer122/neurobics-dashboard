@@ -165,6 +165,10 @@ days: "ngày",
   nback_desc:
     "Nhớ vị trí ô sáng N lượt trước rồi bấm khi nó lặp lại — bài tập trí nhớ làm việc kinh điển.",
 
+  math_tag: "TÍNH NHẨM",
+  math_desc:
+    "Hai mươi phép tính, bốn lựa chọn. Vừa đo khả năng tính toán vừa đo tốc độ xử lý.",
+
   axis_memory: "Trí nhớ",
   axis_focus: "Tập trung",
   axis_logic: "Tư duy",
@@ -375,6 +379,10 @@ days: "days",
   nback_tag: "WORKING MEMORY",
   nback_desc:
     "Track the cell shown N steps back and tap when it repeats — the classic working memory drill.",
+
+  math_tag: "MENTAL MATH",
+  math_desc:
+    "Twenty problems, four choices. Measures both calculation and processing speed.",
 
   axis_memory: "Memory",
   axis_focus: "Focus",

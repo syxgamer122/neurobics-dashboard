@@ -224,6 +224,59 @@ function scoreMemory(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: `Level ${level}`, timeMs };
 }
 
+// Math Sprint: logic (dung/sai) + toc do (do tre tung cau).
+const MATH_DIFF: Record<string, number> = {
+  easy: 0.62,
+  medium: 0.82,
+  hard: 1.0,
+};
+const MATH_TARGET_MS: Record<string, number> = {
+  easy: 3000,
+  medium: 4200,
+  hard: 5500,
+};
+const MATH_LABEL: Record<string, string> = {
+  easy: "Math Easy",
+  medium: "Math Medium",
+  hard: "Math Hard",
+};
+function scoreMath(t: any): ScoredRound {
+  const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
+  const difficulty = String(t?.difficulty ?? "medium");
+  if (!(difficulty in MATH_DIFF)) throw new Error("Invalid math difficulty");
+  const totalProblems = int(t?.totalProblems, "totalProblems", 5, 100);
+  const correct = int(t?.correct, "correct", 0, 100);
+  const wrong = int(t?.wrong, "wrong", 0, 100);
+  const rts = numberArray(t?.rts, "rts", 0, 200);
+
+  if (correct + wrong > totalProblems)
+    throw new Error("Math telemetry is inconsistent");
+  if (rts.length > 0 && rts.length !== correct + wrong)
+    throw new Error("Math rts length mismatch");
+
+  const accuracy = clamp01(correct / Math.max(1, totalProblems));
+  const diff = MATH_DIFF[difficulty];
+  const target = MATH_TARGET_MS[difficulty];
+  const clean = withoutStartArtifact(rts, 80);
+  const med = clean.length ? median(clean) : target;
+  const pace = clamp01((2 * target - med) / target);
+
+  const axes = {
+    ...NO_AXES,
+    logic: clamp(MAX * diff * accuracy * (0.72 + 0.28 * pace)),
+    speed:
+      clean.length >= 3
+        ? clamp(speed(clean, target, diff) * (0.55 + 0.45 * accuracy))
+        : null,
+  };
+  return {
+    axes,
+    headline: headline(axes),
+    label: MATH_LABEL[difficulty] ?? "Math Sprint",
+    timeMs,
+  };
+}
+
 // N-Back: do tri nho lam viec. Client gui so lan dung/sai va do tre phan hoi.
 function scoreNBack(t: any): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
@@ -254,59 +307,6 @@ function scoreNBack(t: any): ScoredRound {
     speed: rts.length >= 3 ? speed(rts, 700, 0.85) : null,
   };
   return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
-}
-
-// Toan nhanh: de cang kho thi tran diem cang cao.
-const MATH_DIFF: Record<string, number> = {
-  easy: 0.62,
-  medium: 0.82,
-  hard: 1.0,
-};
-// Thoi gian ky vong cho moi cau, dung de quy doi nhip tinh nham.
-const MATH_TARGET_MS: Record<string, number> = {
-  easy: 3_000,
-  medium: 4_200,
-  hard: 5_500,
-};
-const MATH_LABEL: Record<string, string> = {
-  easy: "Math Easy",
-  medium: "Math Medium",
-  hard: "Math Hard",
-};
-
-function scoreMath(t: any): ScoredRound {
-  const timeMs = finite(t?.timeMs, "timeMs", 2_000, 7_200_000);
-  const difficulty = String(t?.difficulty ?? "");
-  if (!(difficulty in MATH_DIFF)) throw new Error("Invalid difficulty");
-
-  const totalProblems = int(t?.totalProblems, "totalProblems", 5, 100);
-  const correct = int(t?.correct, "correct", 0, 100);
-  const wrong = int(t?.wrong, "wrong", 0, 100);
-  const rts = withoutStartArtifact(numberArray(t?.rts, "rts", 1, 100), 80);
-
-  if (correct + wrong > totalProblems)
-    throw new Error("Math telemetry is inconsistent");
-
-  const accuracy = clamp01(correct / totalProblems);
-  const diff = MATH_DIFF[difficulty];
-  const target = MATH_TARGET_MS[difficulty];
-  // Nhip tinh nham chi duoc cong them khi dap an dung; nhanh ma sai thi vo nghia.
-  const pace = rts.length ? clamp01(ratio(target, median(rts))) : 0;
-
-  const axes = {
-    ...NO_AXES,
-    logic: clamp(MAX * diff * accuracy * (0.72 + 0.28 * pace)),
-    speed:
-      rts.length >= 3
-        ? clamp(speed(rts, target, diff) * (0.55 + 0.45 * accuracy))
-        : null,
-  };
-  return {
-    axes,
-    headline: headline(axes),
-    label: MATH_LABEL[difficulty],
-    timeMs,
-  };
 }
 
 export function scoreAndValidate(

@@ -51,6 +51,8 @@ export type Profile = {
   stroop_sessions: number;
   reaction_sessions: number;
   memory_sessions: number;
+  nback_sessions: number;
+  math_sessions: number;
   total_xp: number; // cumulative XP (drives Level)
   last_active_date: string | null; // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
@@ -171,7 +173,7 @@ const PROFILE_COLS = "*";
 // tầng kiểu để suy ra kiểu của `data`. Dùng [...].join() sẽ cho kiểu `string`
 // chung chung, khiến TypeScript trả về GenericStringError\[\] và báo lỗi ép kiểu.
 const LEADERBOARD_COLS =
-  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, created_at";
+  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, created_at";
 
 // The rating scale and its guards live in ./scoring, the single source of truth
 // for everything score-related. Re-exported so existing importers keep working.
@@ -433,6 +435,8 @@ export async function resetActiveUserScores(): Promise<Profile> {
       stroop_sessions: 0,
       reaction_sessions: 0,
       memory_sessions: 0,
+      nback_sessions: 0,
+      math_sessions: 0,
       total_xp: 0,
       last_active_date: null,
     })
@@ -713,7 +717,8 @@ export type RoundGame =
   | "stroop"
   | "reaction"
   | "memory"
-  | "nback";
+  | "nback"
+  | "math";
 export type RoundTicket = {
   roundId: string;
   game: RoundGame;

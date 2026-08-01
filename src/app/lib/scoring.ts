@@ -405,6 +405,59 @@ export function scoreMemory(tm: MemoryTelemetry): AxisRatings {
 // Người chơi phải giữ trong đầu N ô gần nhất và liên tục cập nhật — đây là bài
 // working memory kinh điển. Chỉ bấm đúng thôi chưa đủ: bấm bừa (false alarm) bị
 // trừ nặng, giống cách d-prime phạt đoán mò.
+// ─── Math Sprint ────────────────────────────────────────────────────────
+// ⚠️ Công thức này phải trùng với scoreMath ở supabase/functions/_shared/round-scoring.ts
+
+export type MathDifficulty = "easy" | "medium" | "hard";
+
+export type MathTelemetry = {
+  timeMs: number;
+  difficulty: MathDifficulty;
+  totalProblems: number;
+  correct: number;
+  wrong: number;
+  /** Độ trễ từng câu (cả đúng lẫn sai), theo thứ tự. */
+  rts: number[];
+};
+
+export const MATH_DIFF: Record<MathDifficulty, number> = {
+  easy: 0.62,
+  medium: 0.82,
+  hard: 1.0,
+};
+export const MATH_TARGET_MS: Record<MathDifficulty, number> = {
+  easy: 3000,
+  medium: 4200,
+  hard: 5500,
+};
+
+export function scoreMath(tm: MathTelemetry): AxisRatings {
+  const total = Math.max(1, tm.totalProblems);
+  const correct = Math.max(0, tm.correct);
+  const wrong = Math.max(0, tm.wrong);
+  if (correct + wrong > total) return { ...NO_AXES };
+
+  const accuracy = clamp01(correct / total);
+  const diff = MATH_DIFF[tm.difficulty] ?? MATH_DIFF.medium;
+  const target = MATH_TARGET_MS[tm.difficulty] ?? MATH_TARGET_MS.medium;
+  const rts = tm.rts.filter((x) => Number.isFinite(x) && x > 0);
+  const med =
+    rts.length > 0
+      ? [...rts].sort((a, b) => a - b)[Math.floor(rts.length / 2)]
+      : target;
+  // Nhanh hơn target → pace gần 1; chậm gấp đôi → pace gần 0.
+  const pace = clamp01((2 * target - med) / target);
+
+  return {
+    ...NO_AXES,
+    logic: clampRating(RATING_MAX * diff * accuracy * (0.72 + 0.28 * pace)),
+    speed:
+      rts.length >= 3
+        ? clampRating(speedAxis(rts, target, diff) * (0.55 + 0.45 * accuracy))
+        : null,
+  };
+}
+
 // ⚠️ Công thức này phải trùng với scoreNBack ở supabase/functions/_shared/round-scoring.ts
 
 /** Mức N được coi là chuẩn — trên mức này trần điểm mới nâng thêm. */
