@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Calculator, Play } from "lucide-react";
+import { Calculator, Check, Play, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import type { MathDifficulty, MathTelemetry } from "../lib/scoring";
 
@@ -281,6 +281,18 @@ export function MathSprintGame({
     setPhase("playing");
   };
 
+  // Dọn timer flash khi rời game để không setState/finish sau unmount.
+  const flashTimerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current !== null) {
+        window.clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
   const answer = (choice: number) => {
     if (phase !== "playing" || lockRef.current || finishedRef.current) return;
     lockRef.current = true;
@@ -305,7 +317,8 @@ export function MathSprintGame({
     setStats(statsRef.current);
     setFlash(ok ? "ok" : "bad");
 
-    window.setTimeout(() => {
+    flashTimerRef.current = window.setTimeout(() => {
+      flashTimerRef.current = null;
       setFlash(null);
       const next = idx + 1;
       if (next >= TOTAL) {
@@ -341,7 +354,7 @@ export function MathSprintGame({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [phase, idx]);
 
   const problem = problemsRef.current[idx];
   const levels: { id: MathDifficulty; label: string }[] = [
@@ -450,7 +463,20 @@ export function MathSprintGame({
               }`,
             }}
           >
-            {problem.prompt} = ?
+            <span className="inline-flex items-center justify-center gap-3">
+              {/* Icon dung/sai: khong chi dua vao mau cho nguoi mu mau. */}
+              {flash === "ok" && (
+                <Check
+                  size={26}
+                  aria-label={s.correct}
+                  style={{ color: "#10B981" }}
+                />
+              )}
+              {flash === "bad" && (
+                <X size={26} aria-label={s.wrong} style={{ color: "#F43F5E" }} />
+              )}
+              <span>{problem.prompt} = ?</span>
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">

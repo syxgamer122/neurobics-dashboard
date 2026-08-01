@@ -28,6 +28,19 @@ const SUDOKU_LEVELS: {
 // ─── App ──────────────────────────────────────────────────────────────────────
 // ─── Sudoku Game ───────────────────────────────────────────────────────────────
 
+// Lỗi báo hiệu request generate đã bị thay bởi request mới hơn (đổi độ khó nhanh).
+class SupersededError extends Error {
+  readonly superseded = true;
+  constructor() {
+    super("Superseded by newer sudoku request");
+    this.name = "SupersededError";
+  }
+}
+
+export function isSuperseded(e: unknown): boolean {
+  return !!e && typeof e === "object" && (e as { superseded?: boolean }).superseded === true;
+}
+
 export function SudokuGame({
   onComplete,
   onPlayStart,
@@ -82,6 +95,8 @@ export function SudokuGame({
             return;
           }
           const requestId = ++workerReqRef.current;
+          // Hủy request cũ trước khi ghi đè, nếu không promise cũ treo vĩnh viễn.
+          pendingGenRef.current?.reject(new SupersededError());
           pendingGenRef.current = { resolve, reject, requestId };
           w.postMessage({ clues, requestId });
         },
@@ -93,6 +108,7 @@ export function SudokuGame({
     () => () => {
       workerRef.current?.terminate();
       workerRef.current = null;
+      pendingGenRef.current?.reject(new SupersededError());
       pendingGenRef.current = null;
     },
     [],
@@ -175,12 +191,16 @@ export function SudokuGame({
           setUserGrid(nd.puzzle.map((r) => [...r]));
         })
         .catch((err) => {
+          // Request bi thay boi request moi hon => bo qua, khong ve de cu len.
+          if (isSuperseded(err)) return;
           console.error("Sudoku generate failed:", err);
           const nd = generateSudoku(lvl.clues);
           setPuzzleData(nd);
           setUserGrid(nd.puzzle.map((r) => [...r]));
         })
-        .finally(() => setGenerating(false));
+        .finally(() => {
+          setGenerating(false);
+        });
     },
     [generateSudokuAsync, clearTimers],
   );
@@ -316,7 +336,6 @@ export function SudokuGame({
       solution,
       mistakes,
       ensureStarted,
-      reset,
       later,
     ],
   );
@@ -445,6 +464,12 @@ export function SudokuGame({
           {Array.from({ length: MAX_MISTAKES }).map((_, i) => (
             <span
               key={i}
+              role="img"
+              aria-label={
+                i < mistakes
+                  ? (t.heart_empty ?? "Life lost")
+                  : (t.heart_full ?? "Life remaining")
+              }
               style={{
                 fontSize: 12,
                 opacity: i < mistakes ? 0.25 : 1,

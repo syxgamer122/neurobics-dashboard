@@ -18,6 +18,8 @@ export function MemoryMatrixGame({
 
   const [level, setLevel] = useState(1);
   const [hearts, setHearts] = useState(MAX_HEARTS);
+  const heartsRef = useRef(MAX_HEARTS);
+  const wrongClicksRef = useRef(0);
   const [status, setStatus] = useState<
     "idle" | "memorize" | "recall" | "success" | "fail" | "done"
   >("idle");
@@ -97,6 +99,8 @@ export function MemoryMatrixGame({
     recallMsRef.current = 0;
     recallStartRef.current = null;
     setLevel(1);
+    heartsRef.current = MAX_HEARTS;
+    wrongClicksRef.current = 0;
     setHearts(MAX_HEARTS);
     setStatus("idle");
     setElapsed(0);
@@ -111,8 +115,11 @@ export function MemoryMatrixGame({
     setSelected(newSelected);
 
     if (!targets.includes(idx)) {
-      setWrongClicks((prev) => prev + 1);
-      const newHearts = hearts - 1;
+      // Dung ref: hai click sai trong cung frame khong doc trung gia tri cu.
+      wrongClicksRef.current += 1;
+      setWrongClicks(wrongClicksRef.current);
+      heartsRef.current = Math.max(0, heartsRef.current - 1);
+      const newHearts = heartsRef.current;
       setHearts(newHearts);
       // Close recall window before fail pause.
       if (recallStartRef.current != null) {
@@ -131,7 +138,7 @@ export function MemoryMatrixGame({
             timeMs: recallMsRef.current,
             // Cấp đã vượt qua, không phải cấp đang thua. Sever yêu cầu tối thiểu 1.
             maxLevel: Math.max(1, maxClearedRef.current),
-            wrongClicks: wrongClicks + 1,
+            wrongClicks: wrongClicksRef.current,
           })
             .catch((err) => {
               console.error("Memory completion: onComplete failed:", err);
@@ -233,10 +240,20 @@ export function MemoryMatrixGame({
             +{level} MEMORY
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div
+          className="flex items-center gap-1"
+          role="group"
+          aria-label={`${hearts}/${MAX_HEARTS} ${t.heart_full ?? "lives"}`}
+        >
           {Array.from({ length: MAX_HEARTS }).map((_, i) => (
             <span
               key={i}
+              role="img"
+              aria-label={
+                i < hearts
+                  ? (t.heart_full ?? "Life remaining")
+                  : (t.heart_empty ?? "Life lost")
+              }
               style={{
                 fontSize: 14,
                 opacity: i < hearts ? 1 : 0.2,
@@ -389,6 +406,10 @@ export function MemoryMatrixGame({
               return (
                 <button
                   key={idx}
+                  type="button"
+                  aria-label={`${t.cell_label ?? "Cell"} ${idx + 1}`}
+                  aria-pressed={isSelected}
+                  disabled={status !== "recall"}
                   onClick={() => handleCellClick(idx)}
                   className="rounded-lg transition-all duration-200"
                   style={{

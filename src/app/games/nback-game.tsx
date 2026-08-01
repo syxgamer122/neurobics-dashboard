@@ -189,17 +189,20 @@ export function NBackGame({
   };
 
   // Phím cách để bấm khớp cho nhanh tay.
+  // Handler đọc press() qua ref => listener chỉ gắn/gỡ khi đổi phase.
+  const pressRef = useRef(press);
+  pressRef.current = press;
   useEffect(() => {
     if (phase !== "playing") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
-        press();
+        pressRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [phase]);
 
   const warmup = phase === "playing" && trial < n;
 

@@ -333,6 +333,97 @@ function scoreNBack(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
 }
 
+// ---- Rang buoc bien cho telemetry tho (chong gia mao tu DevTools) ----
+// Khong the chung minh tuyet doi, nhung chan duoc cac gia tri phi ly.
+const MIN_RT_MS = 120; // nhanh hon nguong nay la khong kha thi voi nguoi that
+const MAX_RT_MS = 60_000;
+
+function assertRtBounds(
+  rts: unknown,
+  serverElapsedMs: number,
+  label: string,
+): void {
+  if (rts == null) return;
+  if (!Array.isArray(rts)) throw new Error(`${label}: rts must be an array`);
+  if (rts.length > 5_000) throw new Error(`${label}: too many reaction times`);
+  let total = 0;
+  for (const r of rts) {
+    if (typeof r !== "number" || !Number.isFinite(r))
+      throw new Error(`${label}: reaction time is not a number`);
+    if (r < MIN_RT_MS)
+      throw new Error(`${label}: reaction time below human threshold`);
+    if (r > MAX_RT_MS)
+      throw new Error(`${label}: reaction time out of range`);
+    total += r;
+  }
+  // Tong thoi gian phan ung khong the vuot thoi gian van dau (dem bien 15s).
+  if (total > serverElapsedMs + 15_000)
+    throw new Error(`${label}: sum of reaction times exceeds round duration`);
+}
+
+function assertCountBounds(game: Game, telemetry: unknown): void {
+  const t = (telemetry ?? {}) as Record<string, unknown>;
+  const num = (k: string): number | null => {
+    const v = t[k];
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  };
+  const nonNeg = (k: string) => {
+    const v = num(k);
+    if (v !== null && v < 0) throw new Error(`${game}: ${k} cannot be negative`);
+  };
+  for (const k of [
+    "wrongClicks",
+    "mistakes",
+    "correct",
+    "wrong",
+    "hits",
+    "misses",
+    "falseAlarms",
+    "falseStarts",
+    "totalStimuli",
+    "trials",
+    "targets",
+    "maxLevel",
+  ])
+    nonNeg(k);
+
+  const rtsLen = Array.isArray(t.rts) ? t.rts.length : null;
+
+  if (game === "nback") {
+    const trials = num("trials");
+    const targets = num("targets");
+    const hits = num("hits");
+    const fa = num("falseAlarms");
+    if (trials !== null && targets !== null && targets > trials)
+      throw new Error("nback: targets exceed trials");
+    if (targets !== null && hits !== null && hits > targets)
+      throw new Error("nback: hits exceed targets");
+    if (trials !== null && fa !== null && fa > trials)
+      throw new Error("nback: false alarms exceed trials");
+    if (trials !== null && rtsLen !== null && rtsLen > trials)
+      throw new Error("nback: more reaction times than trials");
+  }
+
+  if (game === "math") {
+    const correct = num("correct");
+    const wrong = num("wrong");
+    const total = num("total");
+    if (correct !== null && wrong !== null && total !== null && correct + wrong > total)
+      throw new Error("math: answered more problems than served");
+    if (rtsLen !== null && total !== null && rtsLen > total)
+      throw new Error("math: more reaction times than problems");
+  }
+
+  if (game === "stroop") {
+    const totalStimuli = num("totalStimuli");
+    const wrongClicks = num("wrongClicks");
+    if (totalStimuli !== null && wrongClicks !== null && wrongClicks > totalStimuli)
+      throw new Error("stroop: wrong clicks exceed stimuli shown");
+    if (totalStimuli !== null && rtsLen !== null && rtsLen > totalStimuli)
+      throw new Error("stroop: more reaction times than stimuli");
+  }
+}
+
 export function scoreAndValidate(
   game: Game,
   telemetry: unknown,
@@ -344,6 +435,15 @@ export function scoreAndValidate(
     serverElapsedMs > 2 * 60 * 60 * 1000
   )
     throw new Error("Round duration is invalid or expired");
+
+  // Chan telemetry phi ly TRUOC khi cham diem.
+  assertCountBounds(game, telemetry);
+  assertRtBounds(
+    (telemetry as { rts?: unknown } | null)?.rts,
+    serverElapsedMs,
+    game,
+  );
+
   const scored =
     game === "schulte"
       ? scoreSchulte(telemetry)

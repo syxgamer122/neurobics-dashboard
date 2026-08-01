@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CheckCircle, Focus, Loader2, RefreshCw, Star } from "lucide-react";
+import { Check, CheckCircle, Focus, Loader2, RefreshCw, Star, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { shuffleArray } from "../lib/sudoku-gen";
 import type { SchulteTelemetry } from "../lib/scoring";
@@ -249,7 +249,6 @@ export function SchulteTableGame({
       sequence,
       seqIdx,
       hearts,
-      reset,
       later,
       flashCell,
       onPlayStart,
@@ -436,10 +435,20 @@ export function SchulteTableGame({
             · FOCUS
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div
+          className="flex items-center gap-1"
+          role="group"
+          aria-label={`${hearts}/${MAX_HEARTS} ${t.heart_full ?? "lives"}`}
+        >
           {Array.from({ length: MAX_HEARTS }).map((_, i) => (
             <span
               key={i}
+              role="img"
+              aria-label={
+                i < hearts
+                  ? (t.heart_full ?? "Life remaining")
+                  : (t.heart_empty ?? "Life lost")
+              }
               style={{
                 fontSize: 14,
                 opacity: i < hearts ? 1 : 0.2,
@@ -450,7 +459,7 @@ export function SchulteTableGame({
                     : "none",
               }}
             >
-              <span aria-hidden="true"><span aria-hidden="true">❤️</span></span>
+              <span aria-hidden="true">❤️</span>
             </span>
           ))}
         </div>
@@ -645,6 +654,7 @@ export function SchulteTableGame({
               className="rounded-xl font-bold flex items-center justify-center select-none transition-all duration-[120ms]"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
+                position: "relative",
                 aspectRatio: "1",
                 fontSize:
                   size === 6 ? 12 : size === 3 ? 22 : size === 4 ? 18 : 15,
@@ -686,6 +696,30 @@ export function SchulteTableGame({
                 cursor: status === "done" || isDone ? "default" : "pointer",
               }}
             >
+              {isFlash && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    lineHeight: 0,
+                  }}
+                >
+                  {flashCell!.ok ? (
+                    <Check
+                      size={11}
+                      aria-label={t.answer_correct ?? "Correct"}
+                      style={{ color: "#10B981" }}
+                    />
+                  ) : (
+                    <X
+                      size={11}
+                      aria-label={t.answer_wrong ?? "Wrong"}
+                      style={{ color: "#F43F5E" }}
+                    />
+                  )}
+                </span>
+              )}
               {cell.value}
             </button>
           );

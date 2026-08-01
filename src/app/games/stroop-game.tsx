@@ -80,7 +80,6 @@ export function StroopGame({
   // not in the total — so Focus reads consistency while Speed reads the median.
   const rtsRef = useRef<number[]>([]);
   const lastTrialRef = useRef<number | null>(null);
-  const prevInkRef = useRef<StroopColorId | undefined>(undefined);
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
@@ -121,7 +120,6 @@ export function StroopGame({
     shownRef.current = 1;
     rtsRef.current = [];
     lastTrialRef.current = null;
-    prevInkRef.current = undefined;
     completedRef.current = false;
     setStimulus(makeStimulus());
     setTrialsLeft(TOTAL);
@@ -146,9 +144,11 @@ export function StroopGame({
       intervalRef.current = null;
     }
     const ms = Date.now() - (startRef.current ?? Date.now());
+    // Thắng = hết trial. Hết tim là THUA, không được tính kỷ lục.
+    const won = trialsLeft <= 0;
     setElapsed(ms);
     setStatus("done");
-    setBestTime((prev) => (prev === null || ms < prev ? ms : prev));
+    if (won) setBestTime((prev) => (prev === null || ms < prev ? ms : prev));
     setSaving(true);
     (async () => {
       try {
@@ -194,7 +194,6 @@ export function StroopGame({
         setHearts(nh);
         later(() => {
           setFlash(null);
-          prevInkRef.current = stimulus.inkId;
           if (nh > 0) {
             setStimulus(makeStimulus(stimulus.inkId));
             shownRef.current += 1;
@@ -206,7 +205,6 @@ export function StroopGame({
 
       rtsRef.current.push(rt);
 
-      prevInkRef.current = stimulus.inkId;
       const newLeft = trialsLeft - 1;
       setTrialsLeft(newLeft);
       later(() => {
