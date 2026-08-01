@@ -14,12 +14,20 @@ import { fetchProgressSeries, type ProgressPoint } from "../lib/api";
 
 type AxisName = "speed" | "focus" | "spatial" | "logic" | "memory";
 
-const AXES: { key: AxisName; short: string; name: string; color: string }[] = [
-  { key: "speed", short: "SPD", name: "Tốc độ", color: "#10B981" },
-  { key: "focus", short: "FOC", name: "Tập trung", color: "#A855F7" },
-  { key: "spatial", short: "SPA", name: "Không gian", color: "#F59E0B" },
-  { key: "logic", short: "LOG", name: "Logic", color: "#00D4FF" },
-  { key: "memory", short: "MEM", name: "Trí nhớ", color: "#F43F5E" },
+// `dash` giup phan biet cac duong khi nguoi dung khong thay duoc mau
+// (mu mau do-luc chiem ~8% nam gioi) hoac khi in den trang.
+const AXES: {
+  key: AxisName;
+  short: string;
+  name: string;
+  color: string;
+  dash: string | undefined;
+}[] = [
+  { key: "speed", short: "SPD", name: "Tốc độ", color: "#10B981", dash: undefined },
+  { key: "focus", short: "FOC", name: "Tập trung", color: "#A855F7", dash: "6 3" },
+  { key: "spatial", short: "SPA", name: "Không gian", color: "#F59E0B", dash: "2 3" },
+  { key: "logic", short: "LOG", name: "Logic", color: "#00D4FF", dash: "10 3 2 3" },
+  { key: "memory", short: "MEM", name: "Trí nhớ", color: "#F43F5E", dash: "1 4" },
 ];
 
 const RANGES: { days: number; label: string }[] = [
@@ -31,7 +39,7 @@ const RANGES: { days: number; label: string }[] = [
 const panelStyle: React.CSSProperties = {
   background: "rgba(15,23,42,0.55)",
   border: "1px solid rgba(148,163,184,0.14)",
-  backdropFilter: "blur(12px)",
+  backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.6667))",
 };
 
 const mono: React.CSSProperties = {
@@ -254,6 +262,9 @@ export function ProgressChart() {
                   key={a.key}
                   type="button"
                   onClick={() => toggleAxis(a.key)}
+                  aria-pressed={!off}
+                  aria-label={`${a.name} (${a.short})`}
+                  title={a.name}
                   className="rounded-full px-2.5 py-1 text-[11px] tracking-wider transition"
                   style={{
                     ...mono,
@@ -264,6 +275,23 @@ export function ProgressChart() {
                     }`,
                   }}
                 >
+                  <svg
+                    width="14"
+                    height="8"
+                    viewBox="0 0 14 8"
+                    aria-hidden="true"
+                    style={{ display: "inline-block", marginRight: 5 }}
+                  >
+                    <line
+                      x1="0"
+                      y1="4"
+                      x2="14"
+                      y2="4"
+                      stroke={off ? "#475569" : a.color}
+                      strokeWidth="2"
+                      strokeDasharray={a.dash}
+                    />
+                  </svg>
                   {a.short}
                 </button>
               );
@@ -307,6 +335,7 @@ export function ProgressChart() {
                   name={a.name}
                   stroke={a.color}
                   strokeWidth={2}
+                  strokeDasharray={a.dash}
                   dot={false}
                   connectNulls
                 />
@@ -320,7 +349,8 @@ export function ProgressChart() {
         >
           Mỗi điểm là trung bình của trục đó trong ngày. Ngày không chơi game
           liên quan sẽ bị bỏ trống và đường biểu diễn nối thẳng qua. Bấm nhãn
-          SPD/FOC/SPA/LOG/MEM để ẩn hoặc hiện từng trục.
+          SPD/FOC/SPA/LOG/MEM để ẩn hoặc hiện từng trục. Mỗi trục có kiểu nét
+          riêng nên vẫn phân biệt được khi không nhìn rõ màu.
         </p>
       </div>
     </div>

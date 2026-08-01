@@ -2,6 +2,9 @@
 
 :root {
   --font-size: 16px;
+  /* Do mo cua cac panel kinh. Ha xuong o may yeu / man nho vi
+     backdrop-filter la mot trong nhung thuoc tinh dat nhat khi cuon. */
+  --glass-blur: 18px;
   --background: #050A18;
   --foreground: #E2E8F4;
   --card: #0D1430;
@@ -177,5 +180,30 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+/* Man hinh nho thuong di kem GPU yeu: blur 18px o hang chuc panel lam tut
+   khung hinh khi cuon. Giam con 8px, van giu cam giac kinh mo. */
+@media (max-width: 640px) {
+  :root {
+    --glass-blur: 8px;
+  }
+}
+
+/* Nguoi dung yeu cau giam chuyen dong thuong nhay cam voi hieu ung nen.
+   Tat han blur va cac transition trang tri. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --glass-blur: 0px;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

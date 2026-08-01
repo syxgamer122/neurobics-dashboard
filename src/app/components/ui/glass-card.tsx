@@ -15,8 +15,8 @@ export function GlassCard({
       style={{
         background: "rgba(13,20,45,0.62)",
         border: `1px solid ${accent}18`,
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
+        backdropFilter: "blur(var(--glass-blur, 18px))",
+        WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow:
           "0 4px 44px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)",
       }}

@@ -25,8 +25,8 @@ const mono: React.CSSProperties = {
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
   border: "1px solid rgba(0,212,255,0.16)",
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
+  backdropFilter: "blur(var(--glass-blur, 18px))",
+  WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
 
 const TXT = {

@@ -660,7 +660,7 @@ const handleApplyGrant = () => {
 
 function Panel({ children, className = "", accent = "#00FF9C" }: { children: React.ReactNode; className?: string; accent?: string }) {
   return (
-    <div className={`rounded-xl p-5 ${className}`} style={{ background: "rgba(8,14,24,0.72)", border: `1px solid ${accent}22`, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 4px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)" }}>
+    <div className={`rounded-xl p-5 ${className}`} style={{ background: "rgba(8,14,24,0.72)", border: `1px solid ${accent}22`, backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.7778))", WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.7778))", boxShadow: "0 4px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)" }}>
       {children}
     </div>
   );

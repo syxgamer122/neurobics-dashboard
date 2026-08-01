@@ -17,35 +17,8 @@ const mono: React.CSSProperties = {
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
   border: `1px solid ${ACCENT}2E`,
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
-};
-
-const TXT = {
-  vi: {
-    tag: "TÍNH NHẨM",
-    desc: "Hai mươi phép tính, bốn lựa chọn. Không làm lại câu sai.",
-    level: "Chọn độ khó",
-    start: "BẮT ĐẦU",
-    q: "Câu",
-    correct: "Đúng",
-    wrong: "Sai",
-    easy: "Dễ",
-    medium: "Vừa",
-    hard: "Khó",
-  },
-  en: {
-    tag: "MENTAL MATH",
-    desc: "Twenty problems, four choices. No second try on misses.",
-    level: "Choose difficulty",
-    start: "START",
-    q: "Q",
-    correct: "Correct",
-    wrong: "Wrong",
-    easy: "Easy",
-    medium: "Medium",
-    hard: "Hard",
-  },
+  backdropFilter: "blur(var(--glass-blur, 18px))",
+  WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
 
 type Problem = {
@@ -235,8 +208,20 @@ export function MathSprintGame({
   onComplete: (telemetry: MathTelemetry) => void;
   onPlayStart?: () => void;
 }) {
-  const { lang } = useLang();
-  const s = TXT[lang];
+  const { t } = useLang();
+  // Chuoi lay tu i18n.tsx; giu ten `s` de khong phai doi het cho dung.
+  const s = {
+    tag: t.math_tag,
+    desc: t.math_hint,
+    level: t.math_level,
+    start: t.math_start,
+    q: t.math_q,
+    correct: t.math_correct,
+    wrong: t.math_wrong,
+    easy: t.math_easy,
+    medium: t.math_medium,
+    hard: t.math_hard,
+  };
 
   const [diff, setDiff] = useState<MathDifficulty>("medium");
   const [phase, setPhase] = useState<"idle" | "playing">("idle");

@@ -29,8 +29,8 @@ export function GameTile({
       style={{
         background: "rgba(13,20,45,0.62)",
         border: `1px solid ${accent}${hover ? "55" : "22"}`,
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
+        backdropFilter: "blur(var(--glass-blur, 18px))",
+        WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: hover
           ? `0 0 34px ${accent}33`
           : "0 4px 44px rgba(0,0,0,0.45)",

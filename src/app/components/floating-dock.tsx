@@ -43,8 +43,8 @@ export function FloatingDock({
         style={{
           background: "rgba(10,16,36,0.72)",
           border: "1px solid rgba(0,212,255,0.14)",
-          backdropFilter: "blur(22px)",
-          WebkitBackdropFilter: "blur(22px)",
+          backdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
+          WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
           boxShadow: "0 10px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
         }}
       >

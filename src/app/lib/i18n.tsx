@@ -251,6 +251,27 @@ days: "ngày",
   color_yellow: "VÀNG",
   color_purple: "TÍM",
   color_orange: "CAM",
+  // Math Sprint — chuoi trong man choi (gom tu TXT cuc bo)
+  math_hint: "Hai mươi phép tính, bốn lựa chọn. Không làm lại câu sai.",
+  math_level: "Chọn độ khó",
+  math_start: "BẮT ĐẦU",
+  math_q: "Câu",
+  math_correct: "Đúng",
+  math_wrong: "Sai",
+  math_easy: "Dễ",
+  math_medium: "Vừa",
+  math_hard: "Khó",
+
+  // N-Back — chuoi trong man choi (gom tu TXT cuc bo)
+  nback_hint: "Bấm KHỬP khi ô đang sáng trùng với ô đã hiện N lượt trước.",
+  nback_level: "Chọn độ sâu",
+  nback_start: "BẮT ĐẦU",
+  nback_match: "KHỬP",
+  nback_trial: "Lượt",
+  nback_hit: "Đúng",
+  nback_miss: "Bỏ lỡ",
+  nback_false: "Bấm nhầm",
+  nback_watch: "Ghi nhớ vị trí…",
 };
 
 const en: typeof vi = {
@@ -490,6 +511,27 @@ days: "days",
   color_yellow: "YELLOW",
   color_purple: "PURPLE",
   color_orange: "ORANGE",
+  // Math Sprint — in-round strings
+  math_hint: "Twenty problems, four choices. No second try on misses.",
+  math_level: "Choose difficulty",
+  math_start: "START",
+  math_q: "Q",
+  math_correct: "Correct",
+  math_wrong: "Wrong",
+  math_easy: "Easy",
+  math_medium: "Medium",
+  math_hard: "Hard",
+
+  // N-Back — in-round strings
+  nback_hint: "Press MATCH when the lit cell repeats the one from N steps back.",
+  nback_level: "Choose depth",
+  nback_start: "START",
+  nback_match: "MATCH",
+  nback_trial: "Trial",
+  nback_hit: "Hits",
+  nback_miss: "Misses",
+  nback_false: "False",
+  nback_watch: "Memorise the positions…",
 };
 
 export const translations = { vi, en };

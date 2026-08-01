@@ -62,7 +62,7 @@ export function RoundResultOverlay({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(5,10,24,0.88)", backdropFilter: "blur(8px)" }}
+      style={{ background: "rgba(5,10,24,0.88)", backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.4444))" }}
     >
       <div
         className="relative w-full max-w-sm rounded-2xl p-6 flex flex-col gap-5"

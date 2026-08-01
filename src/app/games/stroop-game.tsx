@@ -237,8 +237,8 @@ export function StroopGame({
       style={{
         background: "rgba(13,20,45,0.62)",
         border: "1px solid rgba(234,179,8,0.2)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
+        backdropFilter: "blur(var(--glass-blur, 18px))",
+        WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
       }}
     >

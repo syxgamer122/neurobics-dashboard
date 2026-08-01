@@ -33,8 +33,8 @@ const mono: React.CSSProperties = {
 const cardStyle = (accent: string): React.CSSProperties => ({
   background: "rgba(10,16,36,0.55)",
   border: `1px solid ${accent}33`,
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
+  backdropFilter: "blur(var(--glass-blur, 18px))",
+  WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 });
 
 function SectionTitle({

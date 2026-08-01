@@ -158,7 +158,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
         style={{
           background: "rgba(13,20,45,0.75)",
           border: usernameError ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(0,212,255,0.16)",
-          backdropFilter: "blur(18px)",
+          backdropFilter: "blur(var(--glass-blur, 18px))",
           boxShadow: usernameError
             ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(239,68,68,0.15)"
             : success

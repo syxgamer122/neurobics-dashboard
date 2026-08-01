@@ -206,6 +206,15 @@ async function currentUserId(): Promise<string | null> {
 // Turn a PostgrestError (plain object, not an Error) into a readable message.
 const IS_DEV = import.meta.env.DEV;
 
+/**
+ * Ca hai fallback duoi day keo hang tram dong ve trinh duyet roi sap xep
+ * tai chO. Chung chi ton tai de app khong chet khi migration chua chay —
+ * KHONG duoc coi la duong chinh. Neu thay canh bao nay trong production,
+ * hay chay migration supabase/migrations/ roi kiem tra lai.
+ */
+const MIGRATION_HINT =
+  "Run the SQL migrations in supabase/migrations/ to restore the RPC.";
+
 function describeError(err: unknown, context: string): string {
   const e = err as {
     message?: string;
@@ -761,7 +770,9 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
     ? ((data ?? []) as Profile[])
     : await (async () => {
         console.warn(
-          "get_leaderboard RPC unavailable, falling back to client sort:",
+          "[neurobics] get_leaderboard RPC unavailable — using the client-side",
+          "fallback (fetches up to 200 rows and sorts in the browser).",
+          MIGRATION_HINT,
           error.message,
         );
         const fb = await getSupabase()
@@ -805,7 +816,9 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
   }
 
   console.warn(
-    "get_population_stats RPC unavailable, falling back to client stats:",
+    "[neurobics] get_population_stats RPC unavailable — using the client-side",
+    "fallback (fetches up to 1000 rows and aggregates in the browser).",
+    MIGRATION_HINT,
     error.message,
   );
 

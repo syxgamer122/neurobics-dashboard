@@ -28,35 +28,8 @@ const mono: React.CSSProperties = {
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
   border: "1px solid rgba(168,85,247,0.18)",
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
-};
-
-const TXT = {
-  vi: {
-    tag: "TRÍ NHỚ LÀM VIỆC",
-    desc: "Bấm KHỚP khi ô đang sáng trùng với ô đã hiện N lượt trước.",
-    level: "Chọn độ sâu",
-    start: "BẮT ĐẦU",
-    match: "KHỚP",
-    trial: "Lượt",
-    hit: "Đúng",
-    miss: "Bỏ lỡ",
-    false: "Bấm nhầm",
-    watch: "Ghi nhớ vị trí…",
-  },
-  en: {
-    tag: "WORKING MEMORY",
-    desc: "Press MATCH when the lit cell repeats the one from N steps back.",
-    level: "Choose depth",
-    start: "START",
-    match: "MATCH",
-    trial: "Trial",
-    hit: "Hits",
-    miss: "Misses",
-    false: "False",
-    watch: "Memorise the positions…",
-  },
+  backdropFilter: "blur(var(--glass-blur, 18px))",
+  WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
 
 /** Chuỗi vị trí có khoảng 30% lượt trùng khớp, phần còn lại chắc chắn không trùng. */
@@ -82,8 +55,20 @@ export function NBackGame({
   onComplete: (telemetry: NBackTelemetry) => void;
   onPlayStart?: () => void;
 }) {
-  const { lang } = useLang();
-  const s = TXT[lang];
+  const { t } = useLang();
+  // Chuoi lay tu i18n.tsx; giu ten `s` de khong phai doi het cho dung.
+  const s = {
+    tag: t.nback_tag,
+    desc: t.nback_hint,
+    level: t.nback_level,
+    start: t.nback_start,
+    match: t.nback_match,
+    trial: t.nback_trial,
+    hit: t.nback_hit,
+    miss: t.nback_miss,
+    false: t.nback_false,
+    watch: t.nback_watch,
+  };
 
   const [n, setN] = useState<number>(2);
   const [phase, setPhase] = useState<"idle" | "playing">("idle");

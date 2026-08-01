@@ -1373,7 +1373,7 @@ function AppInner() {
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{
             background: "rgba(5,10,24,0.92)",
-            backdropFilter: "blur(6px)",
+            backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.3333))",
           }}
           onClick={() => setAccessDenied(false)}
         >
