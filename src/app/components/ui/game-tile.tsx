@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Zap } from "lucide-react";
+import { ChevronRight, Zap } from "lucide-react";
 
 export function GameTile({
   accent,
