@@ -3649,6 +3649,7 @@ function RoundResultOverlay({
     stroop: { title: "STROOP TEST", accent: "#EAB308" },
     reaction: { title: "REACTION TIME", accent: "#10B981" },
     memory: { title: "MEMORY MATRIX", accent: "#F43F5E" },
+    nback: { title: "N-BACK", accent: "#8B5CF6" },
   };
   const meta = GAME_META[result.game] ?? GAME_META.sudoku;
   const accent = meta.accent;
