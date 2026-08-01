@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { Brain, Lock, User, ArrowRight, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { handleSignUp, handleLogin, fetchProfile, type Profile } from "../lib/api";
+import {
+  handleSignUp,
+  handleLogin,
+  fetchProfile,
+  resetPasswordWithRecoveryCode,
+  type Profile,
+} from "../lib/api";
 import { useLang } from "../lib/i18n";
 import { TurnstileWidget } from "./turnstile-widget";
 
 export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [issuedRecoveryCode, setIssuedRecoveryCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,20 +41,47 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
       return;
     }
 
-    if (mode === "signup" && password.length < 8) {
+    if ((mode === "signup" || mode === "recover") && password.length < 8) {
       setError(t.password_min_length ?? "Password must be at least 8 characters.");
       return;
     }
 
-    if (mode === "signup" && !captchaToken) {
+    if (mode === "recover" && !recoveryCode.trim()) {
+      setError(t.recovery_code_required ?? "Enter your recovery code.");
+      return;
+    }
+
+    if ((mode === "signup" || mode === "recover") && !captchaToken) {
       setError("Please complete the human verification.");
       return;
     }
 
     setBusy(true);
     try {
+      if (mode === "recover") {
+        await resetPasswordWithRecoveryCode(
+          username.trim(),
+          recoveryCode.trim(),
+          password,
+          captchaToken,
+        );
+        setMode("login");
+        setPassword("");
+        setRecoveryCode("");
+        setUsernameError(false);
+        setSuccess(false);
+        setError("✓ " + (t.recovery_success ?? "Password updated. You can sign in now."));
+        setCaptchaToken("");
+        setCaptchaResetKey((k) => k + 1);
+        return;
+      }
       if (mode === "signup") {
-        const profile = await handleSignUp(username.trim(), password, captchaToken);
+        const { profile, recoveryCode: code } = await handleSignUp(
+          username.trim(),
+          password,
+          captchaToken,
+        );
+        if (code) setIssuedRecoveryCode(code);
         setSuccess(true);
         setTimeout(() => onAuthed(profile), 1200);
       } else {
@@ -80,6 +116,8 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
 
   const switchMode = () => {
     setMode((m) => (m === "login" ? "signup" : "login"));
+    setRecoveryCode("");
+    setIssuedRecoveryCode(null);
     setError(null);
     setUsernameError(false);
     setSuccess(false);
@@ -216,6 +254,41 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
           </div>
 
           {mode === "signup" && (
+            <div
+              className="text-[10px] leading-relaxed px-3 py-2 rounded-lg"
+              style={{
+                background: "rgba(245,158,11,0.08)",
+                border: "1px solid rgba(245,158,11,0.28)",
+                color: "#FBBF24",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {t.signup_no_email_warning ??
+                "No real email is stored. If you forget this password, only the recovery code shown after sign-up can restore the account. Save it offline."}
+            </div>
+          )}
+
+          {mode === "recover" && (
+            <div
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+              style={{
+                background: "rgba(0,0,0,0.3)",
+                border: "1px solid rgba(0,212,255,0.14)",
+              }}
+            >
+              <input
+                type="text"
+                placeholder={t.recovery_code_label ?? "Recovery code"}
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+                autoComplete="one-time-code"
+                className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-600 tracking-widest"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              />
+            </div>
+          )}
+
+          {(mode === "signup" || mode === "recover") && (
             <TurnstileWidget
               onToken={setCaptchaToken}
               resetKey={captchaResetKey}
@@ -234,7 +307,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
 
           <button
             type="submit"
-            disabled={busy || success || (mode === "signup" && !captchaToken)}
+            disabled={busy || success || ((mode === "signup" || mode === "recover") && !captchaToken)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
@@ -244,16 +317,105 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             }}
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
-            {mode === "login" ? t.sign_in.toUpperCase() : t.sign_up.toUpperCase()}
+            {mode === "login"
+              ? t.sign_in.toUpperCase()
+              : mode === "recover"
+                ? (t.recover_submit ?? "RESET PASSWORD").toUpperCase()
+                : t.sign_up.toUpperCase()}
           </button>
         </form>
 
-        <div className="text-center mt-5 text-xs text-slate-500">
-          {mode === "login" ? t.no_account : t.have_account}{" "}
-          <button onClick={switchMode} className="text-[#00D4FF] hover:underline" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            {mode === "login" ? t.sign_up : t.sign_in}
-          </button>
+        <div className="text-center mt-5 text-xs text-slate-500 space-y-2">
+          {mode !== "recover" && (
+            <div>
+              {mode === "login" ? t.no_account : t.have_account}{" "}
+              <button
+                onClick={switchMode}
+                className="text-[#00D4FF] hover:underline"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {mode === "login" ? t.sign_up : t.sign_in}
+              </button>
+            </div>
+          )}
+          {mode === "login" && (
+            <div>
+              <button
+                onClick={() => {
+                  setMode("recover");
+                  setError("");
+                  setSuccess(false);
+                  setCaptchaToken("");
+                  setCaptchaResetKey((k) => k + 1);
+                }}
+                className="text-slate-400 hover:text-[#00D4FF] hover:underline"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {t.forgot_password ?? "Forgot password?"}
+              </button>
+            </div>
+          )}
+          {mode === "recover" && (
+            <div>
+              <button
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setRecoveryCode("");
+                  setCaptchaToken("");
+                  setCaptchaResetKey((k) => k + 1);
+                }}
+                className="text-[#00D4FF] hover:underline"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {t.back_to_sign_in ?? "Back to sign in"}
+              </button>
+            </div>
+          )}
         </div>
+
+        {issuedRecoveryCode && (
+          <div
+            className="mt-4 p-3 rounded-xl text-xs space-y-2"
+            style={{
+              background: "rgba(16,185,129,0.1)",
+              border: "1px solid rgba(16,185,129,0.35)",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            <div className="text-emerald-300 font-semibold">
+              {t.recovery_code_title ?? "Save your recovery code"}
+            </div>
+            <div className="text-white/60 leading-relaxed">
+              {t.recovery_code_body ??
+                "This is the only way to reset your password. It will not be shown again."}
+            </div>
+            <div className="text-lg tracking-[0.2em] text-emerald-200 text-center py-2">
+              {issuedRecoveryCode}
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(issuedRecoveryCode);
+                  setCopied(true);
+                } catch {
+                  setCopied(false);
+                }
+              }}
+              className="w-full py-2 rounded-lg text-[11px]"
+              style={{
+                background: "rgba(16,185,129,0.15)",
+                border: "1px solid rgba(16,185,129,0.4)",
+                color: "#6EE7B7",
+              }}
+            >
+              {copied
+                ? (t.copied ?? "Copied")
+                : (t.copy_recovery_code ?? "Copy code")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

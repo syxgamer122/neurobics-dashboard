@@ -69,6 +69,7 @@ import {
   getLevelTitle,
   getLevelColor,
 } from "./lib/xp";
+import { generateSudoku } from "./lib/sudoku-gen";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -229,58 +230,7 @@ const SUDOKU_LEVELS: {
     { id: "Master", clues: 26, points: 5, accent: "#F97316" },
     { id: "Extreme", clues: 23, points: 6, accent: "#F43F5E" },
   ];
-/** Đếm số nghiệm của lưới, dừng sớm khi chạm `limit`. */
-function countSolutions(grid: (number | null)[][], limit = 2): number {
-  const g = grid.map((r) => r.map((v) => v ?? 0));
-  let count = 0;
-
-  const ok = (r: number, c: number, n: number) => {
-    for (let i = 0; i < 9; i++) {
-      if (g[r][i] === n || g[i][c] === n) return false;
-    }
-    const br = r - (r % 3);
-    const bc = c - (c % 3);
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        if (g[br + i][bc + j] === n) return false;
-      }
-    }
-    return true;
-  };
-
-  const solve = () => {
-    let r = -1;
-    let c = -1;
-    outer: for (let i = 0; i < 9; i++) {
-      for (let j = 0; j < 9; j++) {
-        if (g[i][j] === 0) {
-          r = i;
-          c = j;
-          break outer;
-        }
-      }
-    }
-    if (r === -1) {
-      count++;
-      return;
-    }
-    for (let n = 1; n <= 9; n++) {
-      if (!ok(r, c, n)) continue;
-      g[r][c] = n;
-      solve();
-      g[r][c] = 0;
-      if (count >= limit) return;
-    }
-  };
-
-  solve();
-  return count;
-}
-
-function generateSudoku(clues = 34): {
-  puzzle: (number | null)[][];
-  solution: number[][];
-} {
+ {
   // Base valid sudoku pattern
   const base: number[][] = [
     [1, 2, 3, 4, 5, 6, 7, 8, 9],

@@ -180,6 +180,19 @@ days: "ngày",
   total_xp_label: "Tổng",
   yrs_unit: "tuổi",
   password_min_length: "Mật khẩu phải có ít nhất 8 ký tự.",
+  signup_no_email_warning:
+    "Không lưu email thật. Quên mật khẩu thì chỉ còn mã khôi phục hiện sau khi đăng ký — hãy chép ra chỗ an toàn.",
+  forgot_password: "Quên mật khẩu?",
+  back_to_sign_in: "Quay lại đăng nhập",
+  recovery_code_label: "Mã khôi phục",
+  recovery_code_required: "Nhập mã khôi phục.",
+  recover_submit: "Đặt lại mật khẩu",
+  recovery_success: "Đã đổi mật khẩu. Hãy đăng nhập.",
+  recovery_code_title: "Lưu mã khôi phục của bạn",
+  recovery_code_body:
+    "Đây là cách duy nhất để reset mật khẩu. Mã sẽ không hiện lại lần nữa.",
+  copy_recovery_code: "Sao chép mã",
+  copied: "Đã sao chép",
 
   // Profile settings (Giai đoạn 4)
   settings_profile_section: "Thông tin cá nhân",
@@ -395,6 +408,19 @@ days: "days",
   total_xp_label: "Total",
   yrs_unit: "yrs",
   password_min_length: "Password must be at least 8 characters.",
+  signup_no_email_warning:
+    "No real email is stored. If you forget this password, only the recovery code shown after sign-up can restore the account. Save it offline.",
+  forgot_password: "Forgot password?",
+  back_to_sign_in: "Back to sign in",
+  recovery_code_label: "Recovery code",
+  recovery_code_required: "Enter your recovery code.",
+  recover_submit: "Reset password",
+  recovery_success: "Password updated. You can sign in now.",
+  recovery_code_title: "Save your recovery code",
+  recovery_code_body:
+    "This is the only way to reset your password. It will not be shown again.",
+  copy_recovery_code: "Copy code",
+  copied: "Copied",
 
   // Profile settings (Phase 4)
   settings_profile_section: "Personal info",

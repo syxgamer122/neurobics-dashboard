@@ -209,12 +209,6 @@ const NO_AXES: AxisRatings = { speed: null, focus: null, spatial: null, logic: n
  * long pause (phone rang) barely moves the median, so this measures habitual
  * pace rather than whether the session was interrupted.
  */
-function speedAxis(rts: number[], targetPerItemMs: number, diffFactor: number, fallbackMs?: number): number {
-  const m = rts.length > 0 ? median(rts) : (fallbackMs ?? 0);
-  if (m <= 0) return 0;
-  return clampRating(RATING_MAX * diffFactor * timeRatio(targetPerItemMs, m));
-}
-
 /**
  * FOCUS — sustained attention, deliberately pace-normalized.
  * Built from the coefficient of variation (rhythm), the lapse rate (moments of
@@ -226,96 +220,18 @@ export const FOCUS_CV_FLOOR = 0.25;
 /** CV từ mốc này trở lên chịu phạt tối đa. */
 export const FOCUS_CV_CEILING = 1.2;
 
-function focusAxis(rts: number[], accuracy: number, diffFactor: number): number {
-  const cv = coefficientOfVariation(rts);
-  // Chuẩn hóa lại: cv ≤ 0.25 → rhythm = 1.0 (đạt trần được).
-  // Trước đây yêu cầu cv = 0, tức là bất khả thi, nên Focus vĩnh viễn kẹt ~0.83.
-  const rhythmPenalty = clamp01(
-    (cv - FOCUS_CV_FLOOR) / (FOCUS_CV_CEILING - FOCUS_CV_FLOOR),
-  );
-  const rhythm = 1 - rhythmPenalty * 0.6;
-  const attention = 1 - lapseRate(rts);
-  return clampRating(RATING_MAX * diffFactor * rhythm * attention * accuracy);
-}
 // ─── Schulte → Spatial, Focus, Speed ───────────────────────────────────────
 // Schulte is a visual-search task. It says nothing about deduction or recall,
 // so Logic and Memory stay null here.
-
-export function scoreSchulte(tm: SchulteTelemetry): AxisRatings {
-  const { timeMs, cells, wrongClicks, hitRts } = tm;
-  const diff = SCHULTE_DIFF_FACTOR[cells] ?? 0.7;
-  const totalTarget = SCHULTE_TARGETS[cells] ?? 90000;
-  const perItemTarget = totalTarget / Math.max(cells, 1);
-  const accuracy = cells / (cells + Math.max(0, wrongClicks));
-
-  // SPATIAL — the LATE phase only. Early finds are easy (numbers are everywhere);
-  // the real spatial work is locating the last few targets in a depleted grid,
-  // which rewards a systematic scan pattern rather than raw reaction speed.
-  const lateStart = Math.floor(hitRts.length * (2 / 3));
-  const lateRts = hitRts.slice(lateStart);
-  const lateMedian = lateRts.length > 0 ? median(lateRts) : timeMs / Math.max(cells, 1);
-  // Late finds are expected to be slower, so the budget is widened by 1.6×.
-  const spatial = clampRating(
-    RATING_MAX * diff * timeRatio(perItemTarget * 1.6, lateMedian) * accuracy,
-  );
-
-  return {
-    ...NO_AXES,
-    speed: speedAxis(hitRts, perItemTarget, diff, timeMs / Math.max(cells, 1)),
-    focus: focusAxis(hitRts, accuracy, diff),
-    spatial,
-  };
-}
 
 // ─── Sudoku → Logic, Memory, Speed ─────────────────────────────────────────
 // Sudoku has no visual-search component worth scoring and no sustained-attention
 // signal that is not confounded with thinking time, so Spatial and Focus are null.
 
-export function scoreSudoku(tm: SudokuTelemetry): AxisRatings {
-  const { timeMs, difficulty, mistakes, placements, moveRts, reEntries, repeatMistakes } = tm;
-  const diff = SUDOKU_DIFF_FACTOR[difficulty] ?? 0.7;
-  const totalTarget = SUDOKU_TARGETS[difficulty] ?? 480000;
-  const perMoveTarget = totalTarget / Math.max(placements, 1);
-
-  // LOGIC — pure deduction quality, with NO time term. Taking an hour to solve an
-  // Extreme board flawlessly is a logic success, and this axis says so. Speed is
-  // measured separately; conflating the two is what made every axis move together.
-  const deduction = 1 - clamp01(mistakes / SUDOKU_MAX_MISTAKES);
-  const logic = clampRating(RATING_MAX * diff * deduction);
-
-  // MEMORY — board-state retention, also time-free. Two distinct failure modes:
-  //   reEntries      = overwriting a cell you had already solved (lost the board)
-  //   repeatMistakes = retrying a digit already proven wrong in that cell
-  //                    (failed to retain an eliminated candidate)
-  // Budget scales with board size so a bigger puzzle is not unfairly punished.
-  const retentionBudget = Math.max(4, placements * 0.25);
-  const retention = 1 - clamp01((reEntries + repeatMistakes * 1.5) / retentionBudget);
-  const memory = clampRating(RATING_MAX * diff * retention);
-
-  return {
-    ...NO_AXES,
-    speed: speedAxis(moveRts, perMoveTarget, diff, timeMs / Math.max(placements, 1)),
-    logic,
-    memory,
-  };
-}
-
 // ─── Stroop → Focus, Speed ───────────────────────────────────────────────
 // Stroop measures interference control. It is not a spatial, logic, or memory
 // task, so it writes to exactly two axes.
 
-export function scoreStroop(tm: StroopTelemetry): AxisRatings {
-  const { timeMs, totalStimuli, wrongClicks, rts } = tm;
-  const completion = rts.length / Math.max(1, totalStimuli);
-  const accuracy =
-    (rts.length / Math.max(1, rts.length + Math.max(0, wrongClicks))) * completion;
-
-  return {
-    ...NO_AXES,
-    speed: speedAxis(rts, STROOP_TARGET_PER_TRIAL, STROOP_DIFF_FACTOR, timeMs / Math.max(rts.length, 1)),
-    focus: focusAxis(rts, accuracy, STROOP_DIFF_FACTOR),
-  };
-}
 // ─── Reaction Time → Speed, Focus ─────────────────────────────────────────
 // Reaction Time đo tốc độ phản ứng trực tiếp. Focus được tính từ độ ổn định
 // giữa các lượt và bị giảm nếu người chơi bấm sớm.
@@ -330,35 +246,6 @@ export type ReactionTelemetry = {
   falseStarts: number;
 };
 
-export function scoreReaction(tm: ReactionTelemetry): AxisRatings {
-  const validTrials = tm.rts.length;
-
-  if (validTrials === 0) {
-    return { ...NO_AXES };
-  }
-
-  const accuracy =
-    validTrials / (validTrials + Math.max(0, tm.falseStarts));
-
-  return {
-    ...NO_AXES,
-
-    // Tốc độ dựa trên trung vị của các lượt, để một lượt quá chậm không
-    // làm hỏng toàn bộ kết quả.
-    speed: speedAxis(
-      tm.rts,
-      REACTION_TARGET_MS,
-      REACTION_DIFF_FACTOR,
-    ),
-
-    // Focus dựa trên độ ổn định giữa các lượt và số lần bấm sớm.
-    focus: focusAxis(
-      tm.rts,
-      accuracy,
-      REACTION_FOCUS_FACTOR,
-    ),
-  };
-}
 // ─── Memory Matrix → Memory, Spatial ─────────────────────────────────────
 // Người chơi ghi nhớ một tập ô sáng rồi tái tạo lại: đây là tác vụ working
 // memory có thành phần không gian. Không có bước suy luận (Logic = null), và
@@ -377,29 +264,6 @@ export type MemoryTelemetry = {
   maxLevel: number;
   wrongClicks: number;
 };
-
-export function scoreMemory(tm: MemoryTelemetry): AxisRatings {
-  const level = Math.max(0, tm.maxLevel);
-  if (level <= 0) return { ...NO_AXES };
-
-  // Đi được bao xa trên đường cong độ khó, bão hòa tại mốc thành thục.
-  const progression = clamp01(level / MEMORY_TARGET_LEVEL);
-
-  // Xấp xỉ số ô phải tái tạo trong cả lượt chơi. Game tăng số ô mục tiêu theo
-  // 2 + floor(level / 1.5), nên ~3 ô mỗi level là ước lượng hợp lý.
-  const cellsShown = Math.max(1, Math.round(level * 3));
-  const accuracy = cellsShown / (cellsShown + Math.max(0, tm.wrongClicks));
-
-  return {
-    ...NO_AXES,
-    // MEMORY — khả năng lưu giữ, cố tình không dùng thời gian, giống trục
-    // memory của Sudoku.
-    memory: clampRating(RATING_MAX * MEMORY_DIFF_FACTOR * progression * accuracy),
-    // SPATIAL — nhớ các ô đó Ở ĐÂU. Cùng tín hiệu nhưng trần thấp hơn, vì lưới
-    // được hiện ra sẵn chứ người chơi không phải tìm kiếm.
-    spatial: clampRating(RATING_MAX * MEMORY_SPATIAL_FACTOR * progression * accuracy),
-  };
-}
 
 // ─── N-Back → Memory, Focus (+Speed phu) ───────────────────────────────
 // Người chơi phải giữ trong đầu N ô gần nhất và liên tục cập nhật — đây là bài
@@ -431,33 +295,6 @@ export const MATH_TARGET_MS: Record<MathDifficulty, number> = {
   hard: 5500,
 };
 
-export function scoreMath(tm: MathTelemetry): AxisRatings {
-  const total = Math.max(1, tm.totalProblems);
-  const correct = Math.max(0, tm.correct);
-  const wrong = Math.max(0, tm.wrong);
-  if (correct + wrong > total) return { ...NO_AXES };
-
-  const accuracy = clamp01(correct / total);
-  const diff = MATH_DIFF[tm.difficulty] ?? MATH_DIFF.medium;
-  const target = MATH_TARGET_MS[tm.difficulty] ?? MATH_TARGET_MS.medium;
-  const rts = tm.rts.filter((x) => Number.isFinite(x) && x > 0);
-  const med =
-    rts.length > 0
-      ? [...rts].sort((a, b) => a - b)[Math.floor(rts.length / 2)]
-      : target;
-  // Nhanh hơn target → pace gần 1; chậm gấp đôi → pace gần 0.
-  const pace = clamp01((2 * target - med) / target);
-
-  return {
-    ...NO_AXES,
-    logic: clampRating(RATING_MAX * diff * accuracy * (0.72 + 0.28 * pace)),
-    speed:
-      rts.length >= 3
-        ? clampRating(speedAxis(rts, target, diff) * (0.55 + 0.45 * accuracy))
-        : null,
-  };
-}
-
 // ⚠️ Công thức này phải trùng với scoreNBack ở supabase/functions/_shared/round-scoring.ts
 
 /** Mức N được coi là chuẩn — trên mức này trần điểm mới nâng thêm. */
@@ -483,43 +320,13 @@ export type NBackTelemetry = {
   rts: number[];
 };
 
-export function scoreNBack(tm: NBackTelemetry): AxisRatings {
-  const targets = Math.max(0, tm.hits) + Math.max(0, tm.misses);
-  const trials = Math.max(1, tm.trials);
-  if (targets === 0 && tm.falseAlarms === 0) return { ...NO_AXES };
-
-  const hitRate = targets > 0 ? tm.hits / targets : 0;
-  // Mẫu số là số lượt ĐÁNG LẼ không bấm, nên bấm bừa nhiều thì tỷ lệ này vọt lên.
-  const faRate = clamp01(tm.falseAlarms / Math.max(1, trials - targets));
-  const accuracy = clamp01(hitRate - faRate * NBACK_FALSE_ALARM_PENALTY);
-
-  // n=2 được 0.6 trần, n=4 gần chạm trần tối đa.
-  const depth = clamp01((Math.max(1, tm.n) + 1) / 5);
-
-  return {
-    ...NO_AXES,
-    memory: clampRating(
-      RATING_MAX * accuracy * (NBACK_MEMORY_BASE + 0.38 * depth),
-    ),
-    focus: clampRating(
-      RATING_MAX *
-        accuracy *
-        (NBACK_FOCUS_BASE + 0.45 * clamp01(1 - faRate)) *
-        (0.7 + 0.3 * depth),
-    ),
-    // Cần ít nhất 3 lần bắt đúng thì số liệu tốc độ mới đáng tin.
-    speed:
-      tm.rts.length >= 3
-        ? speedAxis(tm.rts, NBACK_TARGET_MS, 0.85)
-        : null,
-  };
-}
-
 /** Headline number shown on the round overlay: the best axis earned this round. */
-export function roundHeadline(axes: AxisRatings): number {
-  const vals = Object.values(axes).filter((v): v is number => v !== null);
-  return vals.length === 0 ? 0 : Math.max(...vals);
-}
+
+// ─── Server is the only scorer ─────────────────────────────────────────
+// Công thức chấm điểm (scoreSchulte/Sudoku/...) sống duy nhất ở
+// supabase/functions/_shared/round-scoring.ts. Client chỉ giữ kiểu telemetry,
+// pullUpRating (fallback UI), decayRating, và brain age.
+// KHÔNG nhân đôi công thức ở đây — tránh lệch điểm client/server.
 
 // ─── Brain age ────────────────────────────────────────────────────────
 

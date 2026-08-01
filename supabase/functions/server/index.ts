@@ -4,6 +4,11 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import { scoreAndValidate, type Game } from "../_shared/round-scoring.ts";
+import {
+  inspectRound,
+  hasHardFlag,
+  softFlags,
+} from "../_shared/anticheat.ts";
 
 const app = new Hono();
 
@@ -37,6 +42,16 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/** Mã khôi phục dạng XXXX-XXXX-XXXX (dễ chép tay), chỉ hiện 1 lần lúc đăng ký. */
+function mintRecoveryCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  let raw = "";
+  for (let i = 0; i < 12; i++) raw += alphabet[bytes[i] % alphabet.length];
+  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
 }
 
 function clientIp(c: any): string {
@@ -250,6 +265,18 @@ app.post("/server/signup", async (c) => {
       );
     }
 
+    // Mã khôi phục: chỉ trả về một lần. DB chỉ lưu hash SHA-256.
+    const recoveryCode = mintRecoveryCode();
+    const recoveryHash = await sha256(
+      `neurobics-recovery:${normalized}:${recoveryCode}`,
+    );
+    const { error: recErr } = await adminClient
+      .from("profiles")
+      .update({ recovery_code_hash: recoveryHash })
+      .eq("id", data.user.id);
+    if (recErr)
+      console.log(`Recovery code persist failed: ${recErr.message}`);
+
     // Den day tai khoan da chac chan duoc tao, moi tru mot luot. Cac lan
     // that bai truoc do khong dot han muc cua nguoi cung duong mang.
     const { error: recordErr } = await adminClient.rpc(
@@ -259,12 +286,92 @@ app.post("/server/signup", async (c) => {
     if (recordErr)
       console.log(`Signup rate-limit record failed: ${recordErr.message}`);
 
-    return c.json({ profile });
+    return c.json({ profile, recoveryCode });
   } catch (err) {
     console.log(`Signup error (unexpected) in /signup route: ${err}`);
     return c.json({ error: `Signup error: ${err}` }, 500);
   }
 });
+// ─── Password recovery (no real email) ─────────────────────────────────────
+// Tài khoản dùng email giả @neurobics.local nên không reset qua hộp thư được.
+// Người dùng phải giữ mã khôi phục cấp lúc đăng ký.
+app.post("/server/recover-password", async (c) => {
+  try {
+    const ip = clientIp(c);
+    const { username, recoveryCode, newPassword, captchaToken } =
+      await c.req.json();
+
+    if (!username || !recoveryCode || !newPassword || !captchaToken) {
+      return c.json({ error: "Missing fields." }, 400);
+    }
+    if (String(newPassword).length < 8) {
+      return c.json({ error: "Password must be at least 8 characters." }, 400);
+    }
+
+    const verdict = await verifyTurnstile(String(captchaToken), ip);
+    if (!verdict.ok) {
+      return c.json(
+        {
+          error: turnstileMessage(verdict.codes),
+          code: verdict.codes.join(", ") || "unknown",
+        },
+        400,
+      );
+    }
+
+    const normalized = String(username).trim().toLowerCase();
+    const { data: prof, error: pErr } = await adminClient
+      .from("profiles")
+      .select("id, username, recovery_code_hash")
+      .ilike("username", normalized)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!prof?.recovery_code_hash) {
+      return c.json(
+        { error: "Invalid recovery code or username.", code: "bad_recovery" },
+        400,
+      );
+    }
+
+    const candidate = await sha256(
+      `neurobics-recovery:${normalized}:${String(recoveryCode).trim().toUpperCase()}`,
+    );
+    // Also accept as-typed (in case user kept original casing from mint)
+    const candidateRaw = await sha256(
+      `neurobics-recovery:${normalized}:${String(recoveryCode).trim()}`,
+    );
+    if (
+      candidate !== prof.recovery_code_hash &&
+      candidateRaw !== prof.recovery_code_hash
+    ) {
+      return c.json(
+        { error: "Invalid recovery code or username.", code: "bad_recovery" },
+        400,
+      );
+    }
+
+    const { error: upErr } = await adminClient.auth.admin.updateUserById(
+      prof.id,
+      { password: String(newPassword) },
+    );
+    if (upErr) throw upErr;
+
+    // Mã dùng một lần: xoá hash sau khi đổi mật khẩu thành công.
+    await adminClient
+      .from("profiles")
+      .update({ recovery_code_hash: null })
+      .eq("id", prof.id);
+
+    return c.json({ ok: true });
+  } catch (err) {
+    console.log(`Recover password error: ${err}`);
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
+  }
+});
+
 // ─── Secure round lifecycle ────────────────────────────────────────────────
 const GAMES = new Set([
   "schulte",
@@ -319,7 +426,8 @@ app.post("/server/start-round", async (c) => {
 app.post("/server/submit-round", async (c) => {
   try {
     const user = await authenticatedUser(c);
-    const { roundId, game, telemetry } = await c.req.json();
+    const body = await c.req.json();
+    const { roundId, game, telemetry, fingerprint } = body ?? {};
     if (!roundId || !GAMES.has(String(game)))
       return c.json({ error: "roundId and valid game are required" }, 400);
 
@@ -339,6 +447,50 @@ app.post("/server/submit-round", async (c) => {
       return c.json({ error: "Round ticket expired" }, 410);
 
     const serverElapsedMs = Date.now() - Date.parse(ticket.started_at);
+
+    // Lớp chống gian lận: hard flag từ chối ván, soft flag vẫn chấm nhưng ghi log.
+    const cheat = inspectRound(String(game), telemetry, serverElapsedMs);
+    if (hasHardFlag(cheat)) {
+      const hard = cheat.flags.filter((f) => f.severity === "hard");
+      for (const f of hard) {
+        await adminClient.rpc("record_cheat_flag", {
+          p_user_id: user.id,
+          p_game: String(game),
+          p_reason: f.msg,
+          p_severity: "hard",
+          p_details: f.detail ?? {},
+        });
+      }
+      return c.json(
+        {
+          error: "Round rejected: suspicious timing patterns.",
+          code: "anticheat_hard",
+          flags: hard.map((f) => f.msg),
+        },
+        422,
+      );
+    }
+    for (const f of softFlags(cheat)) {
+      const { error: softErr } = await adminClient.rpc("record_cheat_flag", {
+        p_user_id: user.id,
+        p_game: String(game),
+        p_reason: f.msg,
+        p_severity: "soft",
+        p_details: f.detail ?? {},
+      });
+      if (softErr)
+        console.log(`Soft cheat flag failed: ${softErr.message}`);
+    }
+
+    // Ghi dấu vân thiết bị (không chặn ván nếu RPC lỗi).
+    if (typeof fingerprint === "string" && fingerprint.length >= 8) {
+      const { error: fpErr } = await adminClient.rpc("link_device", {
+        p_user_id: user.id,
+        p_fingerprint: fingerprint.slice(0, 200),
+      });
+      if (fpErr) console.log(`link_device failed: ${fpErr.message}`);
+    }
+
     const scored = scoreAndValidate(game as Game, telemetry, serverElapsedMs);
     const axisPayload = Object.fromEntries(
       Object.entries(scored.axes).filter(([, value]) => value !== null),
@@ -354,8 +506,8 @@ app.post("/server/submit-round", async (c) => {
       p_time_ms: Math.round(scored.timeMs),
     });
     if (error) {
-  throw new Error(error.message);
-}
+      throw new Error(error.message);
+    }
 
     return c.json({
       ...data,
@@ -363,6 +515,10 @@ app.post("/server/submit-round", async (c) => {
       headline: scored.headline,
       label: scored.label,
       timeMs: scored.timeMs,
+      cheatFlags: cheat.flags.map((f) => ({
+        msg: f.msg,
+        severity: f.severity,
+      })),
     });
   } catch (err) {
     console.log(`Submit round error: ${err}`);

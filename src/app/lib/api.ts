@@ -71,11 +71,17 @@ const toEmail = (username: string) =>
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+export type SignUpResult = {
+  profile: Profile;
+  /** Mã khôi phục một lần — chỉ hiện ngay lúc đăng ký, server không lưu bản rõ. */
+  recoveryCode: string;
+};
+
 export async function handleSignUp(
   username: string,
   password: string,
   captchaToken: string,
-): Promise<Profile> {
+): Promise<SignUpResult> {
   // Server creates the confirmed auth user; the on_auth_user_created trigger
   // auto-inserts the matching public.profiles row.
   const res = await fetch(`${BASE}/signup`, {
@@ -90,14 +96,47 @@ export async function handleSignUp(
   if (!res.ok) {
     console.error("Sign up failed during account creation:", body);
     const reason = String(body.error ?? "Sign up failed.");
-    // Ma loi ky thuat khong phai bi mat. Giau no di chi lam nguoi dung va
-    // nguoi sua deu mu, nen ghep thang vao cuoi cau.
     throw new Error(body.code ? `${reason} [${body.code}]` : reason);
   }
 
-  // Immediately sign the new user in.
   await handleLogin(username, password);
-  return body.profile as Profile;
+  return {
+    profile: sanitizeProfile(body.profile as Profile),
+    recoveryCode: String(body.recoveryCode ?? ""),
+  };
+}
+
+/** Đặt lại mật khẩu bằng mã khôi phục đã cấp lúc đăng ký (email giả không nhận được mail). */
+export async function resetPasswordWithRecoveryCode(
+  username: string,
+  recoveryCode: string,
+  newPassword: string,
+  captchaToken: string,
+): Promise<void> {
+  if (!username.trim() || !recoveryCode.trim() || !newPassword) {
+    throw new Error("Username, recovery code and new password are required.");
+  }
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters.");
+  }
+  const res = await fetch(`${BASE}/recover-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${publicAnonKey}`,
+    },
+    body: JSON.stringify({
+      username: username.trim(),
+      recoveryCode: recoveryCode.trim(),
+      newPassword,
+      captchaToken,
+    }),
+  });
+  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    const reason = String(body.error ?? "Recovery failed.");
+    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
+  }
 }
 
 export async function handleLogin(
@@ -761,6 +800,25 @@ async function serverPost<T>(path: string, payload: unknown): Promise<T> {
   return body as T;
 }
 
+const DEVICE_KEY = "neurobics.device";
+
+/** Dấu vân thô phía client — server chỉ dùng để phát hiện nhiều tài khoản. */
+function deviceFingerprint(): string {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id =
+        (globalThis.crypto?.randomUUID?.() ??
+          `${Date.now()}-${Math.random().toString(36).slice(2)}`) +
+        `.${screen.width}x${screen.height}x${new Date().getTimezoneOffset()}`;
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return `anon.${Date.now()}`;
+  }
+}
+
 /** Obtain a short-lived, one-use round ticket before play. */
 export const startRound = (game: RoundGame): Promise<RoundTicket> =>
   serverPost<RoundTicket>("start-round", { game });
@@ -775,6 +833,7 @@ export async function submitRound(
     roundId,
     game,
     telemetry,
+    fingerprint: deviceFingerprint(),
   });
   return { ...result, profile: sanitizeProfile(result.profile) };
 }
