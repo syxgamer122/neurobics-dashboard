@@ -14,6 +14,7 @@ const GAME_META: Record<RoundGame, { name: string; accent: string }> = {
   stroop: { name: "Stroop Test", accent: "#A855F7" },
   reaction: { name: "Reaction Time", accent: "#10B981" },
   memory: { name: "Memory Matrix", accent: "#F43F5E" },
+  nback: { name: "N-Back", accent: "#8B5CF6" },
 };
 
 const GAMES = Object.keys(GAME_META) as RoundGame[];
@@ -182,8 +183,9 @@ export function HistoryPanel() {
                 ...mono,
                 color: isActive ? accent : "#64748b",
                 background: isActive ? `${accent}1F` : "rgba(255,255,255,0.03)",
-                border: `1px solid ${isActive ? `${accent}66` : "rgba(255,255,255,0.06)"
-                  }`,
+                border: `1px solid ${
+                  isActive ? `${accent}66` : "rgba(255,255,255,0.06)"
+                }`,
               }}
             >
               {label.toUpperCase()}

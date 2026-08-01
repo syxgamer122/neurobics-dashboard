@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A1024"/>
+      <stop offset="100%" stop-color="#050914"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <g filter="url(#glow)" fill="none" stroke="url(#stroke)" stroke-width="16"
+     stroke-linecap="round" stroke-linejoin="round">
+    <!-- Mang luoi than kinh cach dieu -->
+    <path d="M256 108v296"/>
+    <path d="M256 152c-46-44-118-30-140 26-16 40 2 74 26 92-22 32-12 78 30 96 38 16 70 2 84-16"/>
+    <path d="M256 152c46-44 118-30 140 26 16 40-2 74-26 92 22 32 12 78-30 96-38 16-70 2-84-16"/>
+    <path d="M186 220h44M282 220h44M204 300h52M256 300h52"/>
+  </g>
+
+  <g fill="#00D4FF">
+    <circle cx="186" cy="220" r="16"/>
+    <circle cx="204" cy="300" r="14"/>
+  </g>
+  <g fill="#A855F7">
+    <circle cx="326" cy="220" r="16"/>
+    <circle cx="308" cy="300" r="14"/>
+  </g>
+</svg>

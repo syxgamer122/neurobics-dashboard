@@ -1,0 +1,27 @@
+{
+  "name": "Neurobics Dashboard",
+  "short_name": "Neurobics",
+  "description": "Rèn luyện trí não · Theo dõi tiến bộ · Vươn lên đỉnh cao",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050914",
+  "theme_color": "#050914",
+  "categories": ["education", "games", "health"],
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

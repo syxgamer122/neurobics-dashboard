@@ -401,6 +401,67 @@ export function scoreMemory(tm: MemoryTelemetry): AxisRatings {
   };
 }
 
+// ─── N-Back → Memory, Focus (+Speed phu) ───────────────────────────────
+// Người chơi phải giữ trong đầu N ô gần nhất và liên tục cập nhật — đây là bài
+// working memory kinh điển. Chỉ bấm đúng thôi chưa đủ: bấm bừa (false alarm) bị
+// trừ nặng, giống cách d-prime phạt đoán mò.
+// ⚠️ Công thức này phải trùng với scoreNBack ở supabase/functions/_shared/round-scoring.ts
+
+/** Mức N được coi là chuẩn — trên mức này trần điểm mới nâng thêm. */
+export const NBACK_TARGET_MS = 700;
+export const NBACK_MEMORY_BASE = 0.62;
+export const NBACK_FOCUS_BASE = 0.55;
+/** Mỗi lần bấm nhầm ăn mất 75% giá trị của một lần bắt đúng. */
+export const NBACK_FALSE_ALARM_PENALTY = 0.75;
+
+export type NBackTelemetry = {
+  timeMs: number;
+  /** Mức N đang chơi (2-back, 3-back...). */
+  n: number;
+  /** Tổng số lượt hiển thị. */
+  trials: number;
+  /** Bắt đúng lúc trùng khớp. */
+  hits: number;
+  /** Trùng khớp nhưng bỏ lỡ. */
+  misses: number;
+  /** Bấm trong khi không hề trùng khớp. */
+  falseAlarms: number;
+  /** Độ trễ của những lần bắt đúng. */
+  rts: number[];
+};
+
+export function scoreNBack(tm: NBackTelemetry): AxisRatings {
+  const targets = Math.max(0, tm.hits) + Math.max(0, tm.misses);
+  const trials = Math.max(1, tm.trials);
+  if (targets === 0 && tm.falseAlarms === 0) return { ...NO_AXES };
+
+  const hitRate = targets > 0 ? tm.hits / targets : 0;
+  // Mẫu số là số lượt ĐÁNG LẼ không bấm, nên bấm bừa nhiều thì tỷ lệ này vọt lên.
+  const faRate = clamp01(tm.falseAlarms / Math.max(1, trials - targets));
+  const accuracy = clamp01(hitRate - faRate * NBACK_FALSE_ALARM_PENALTY);
+
+  // n=2 được 0.6 trần, n=4 gần chạm trần tối đa.
+  const depth = clamp01((Math.max(1, tm.n) + 1) / 5);
+
+  return {
+    ...NO_AXES,
+    memory: clampRating(
+      RATING_MAX * accuracy * (NBACK_MEMORY_BASE + 0.38 * depth),
+    ),
+    focus: clampRating(
+      RATING_MAX *
+        accuracy *
+        (NBACK_FOCUS_BASE + 0.45 * clamp01(1 - faRate)) *
+        (0.7 + 0.3 * depth),
+    ),
+    // Cần ít nhất 3 lần bắt đúng thì số liệu tốc độ mới đáng tin.
+    speed:
+      tm.rts.length >= 3
+        ? speedAxis(tm.rts, NBACK_TARGET_MS, 0.85)
+        : null,
+  };
+}
+
 /** Headline number shown on the round overlay: the best axis earned this round. */
 export function roundHeadline(axes: AxisRatings): number {
   const vals = Object.values(axes).filter((v): v is number => v !== null);

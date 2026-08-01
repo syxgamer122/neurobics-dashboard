@@ -704,7 +704,13 @@ export async function awardXp(
   return null;
 }
 
-export type RoundGame = "schulte" | "sudoku" | "stroop" | "reaction" | "memory";
+export type RoundGame =
+  | "schulte"
+  | "sudoku"
+  | "stroop"
+  | "reaction"
+  | "memory"
+  | "nback";
 export type RoundTicket = {
   roundId: string;
   game: RoundGame;
@@ -1043,5 +1049,188 @@ export async function fetchProgressSeries(days = 30): Promise<ProgressPoint[]> {
     spatial: numOrNull(row.spatial),
     logic: numOrNull(row.logic),
     memory: numOrNull(row.memory),
+  }));
+}
+
+// ─── Giai đoạn 5: thành tựu, nhiệm vụ ngày, bạn bè ──────────────────────────
+// Mọi điều kiện mở khoá và phần thưởng XP đều được tính lại trong Postgres.
+// Trình duyệt chỉ đọc kết quả, không bao giờ tự khai báo đã hoàn thành.
+
+export type AchievementUnlock = {
+  code: string;
+  unlocked_at: string;
+  newly_unlocked: boolean;
+};
+
+/**
+ * Xét lại toàn bộ thành tựu từ dữ liệu thật và trả về danh sách đã mở khoá.
+ * `newly_unlocked` đánh dấu những cái vừa mở trong lần gọi này để hiện hiệu ứng.
+ */
+export async function syncAchievements(): Promise<AchievementUnlock[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("sync_achievements");
+  if (error) throw new Error(`Sync achievements failed: ${error.message}`);
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    code: String(row.code ?? ""),
+    unlocked_at: String(row.unlocked_at ?? ""),
+    newly_unlocked: Boolean(row.newly_unlocked),
+  }));
+}
+
+export type DailyQuest = {
+  code: string;
+  progress: number;
+  goal: number;
+  xp_reward: number;
+  claimed: boolean;
+};
+
+/** Tiến độ nhiệm vụ hôm nay, mốc ngày theo giờ Việt Nam. */
+export async function fetchDailyQuests(): Promise<DailyQuest[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("get_daily_quests");
+  if (error) throw new Error(`Fetch daily quests failed: ${error.message}`);
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    code: String(row.code ?? ""),
+    progress: Number(row.progress ?? 0),
+    goal: Number(row.goal ?? 1),
+    xp_reward: Number(row.xp_reward ?? 0),
+    claimed: Boolean(row.claimed),
+  }));
+}
+
+/** Nhận thưởng một nhiệm vụ. Server tự kiểm tra đủ điều kiện và chưa nhận. */
+export async function claimQuest(
+  code: string,
+): Promise<{ code: string; xpAwarded: number; totalXp: number }> {
+  const { data, error } = await getSupabase().rpc("claim_quest", {
+    p_code: code,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = (data ?? {}) as Record<string, unknown>;
+  return {
+    code: String(row.code ?? code),
+    xpAwarded: Number(row.xpAwarded ?? 0),
+    totalXp: Number(row.totalXp ?? 0),
+  };
+}
+
+export type PlayerSearchResult = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  cognitive_index: number;
+};
+
+/** Tìm người chơi theo tên, tối thiểu 2 ký tự. */
+export async function searchPlayers(
+  query: string,
+): Promise<PlayerSearchResult[]> {
+  if (query.trim().length < 2) return [];
+
+  const { data, error } = await getSupabase().rpc("search_players", {
+    p_query: query.trim(),
+    p_limit: 10,
+  });
+  if (error) throw new Error(`Search players failed: ${error.message}`);
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: String(row.id ?? ""),
+    username: String(row.username ?? ""),
+    avatar_url: (row.avatar_url as string | null) ?? null,
+    cognitive_index: Number(row.cognitive_index ?? 0),
+  }));
+}
+
+export type FriendEntry = {
+  friendship_id: string;
+  player_id: string;
+  username: string;
+  avatar_url: string | null;
+  status: "pending" | "accepted";
+  direction: "friend" | "incoming" | "outgoing";
+  created_at: string;
+};
+
+/** Bạn bè đã kết nối + lời mời hai chiều trong một lần gọi. */
+export async function fetchFriends(): Promise<FriendEntry[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("get_friends");
+  if (error) throw new Error(`Fetch friends failed: ${error.message}`);
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    friendship_id: String(row.friendship_id ?? ""),
+    player_id: String(row.player_id ?? ""),
+    username: String(row.username ?? ""),
+    avatar_url: (row.avatar_url as string | null) ?? null,
+    status: (row.status as "pending" | "accepted") ?? "pending",
+    direction:
+      (row.direction as "friend" | "incoming" | "outgoing") ?? "outgoing",
+    created_at: String(row.created_at ?? ""),
+  }));
+}
+
+export async function sendFriendRequest(targetId: string): Promise<string> {
+  const { data, error } = await getSupabase().rpc("send_friend_request", {
+    p_target: targetId,
+  });
+  if (error) throw new Error(error.message);
+  return String((data as Record<string, unknown>)?.status ?? "pending");
+}
+
+export async function respondFriendRequest(
+  friendshipId: string,
+  accept: boolean,
+): Promise<string> {
+  const { data, error } = await getSupabase().rpc("respond_friend_request", {
+    p_request: friendshipId,
+    p_accept: accept,
+  });
+  if (error) throw new Error(error.message);
+  return String((data as Record<string, unknown>)?.status ?? "declined");
+}
+
+export async function removeFriend(playerId: string): Promise<void> {
+  const { error } = await getSupabase().rpc("remove_friend", {
+    p_other: playerId,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export type FriendRank = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  cognitive_index: number;
+  total_xp: number;
+  synapse_streak: number;
+  is_me: boolean;
+};
+
+/** Bảng xếp hạng chỉ gồm bạn bè đã chấp nhận và chính mình. */
+export async function fetchFriendLeaderboard(): Promise<FriendRank[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("get_friend_leaderboard");
+  if (error) throw new Error(`Fetch friend leaderboard failed: ${error.message}`);
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: String(row.id ?? ""),
+    username: String(row.username ?? ""),
+    avatar_url: (row.avatar_url as string | null) ?? null,
+    cognitive_index: Number(row.cognitive_index ?? 0),
+    total_xp: Number(row.total_xp ?? 0),
+    synapse_streak: Number(row.synapse_streak ?? 0),
+    is_me: Boolean(row.is_me),
   }));
 }

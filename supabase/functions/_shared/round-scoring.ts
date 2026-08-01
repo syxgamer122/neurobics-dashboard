@@ -1,5 +1,11 @@
 // Server-side source of truth for round validation and cognitive scoring.
-export type Game = "schulte" | "sudoku" | "stroop" | "reaction" | "memory";
+export type Game =
+  | "schulte"
+  | "sudoku"
+  | "stroop"
+  | "reaction"
+  | "memory"
+  | "nback";
 export type AxisRatings = {
   speed: number | null;
   focus: number | null;
@@ -217,6 +223,38 @@ function scoreMemory(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: `Level ${level}`, timeMs };
 }
 
+// N-Back: do tri nho lam viec. Client gui so lan dung/sai va do tre phan hoi.
+function scoreNBack(t: any): ScoredRound {
+  const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
+  const n = int(t?.n, "n", 1, 9);
+  const trials = int(t?.trials, "trials", 5, 200);
+  const hits = int(t?.hits, "hits", 0, 200);
+  const misses = int(t?.misses, "misses", 0, 200);
+  const falseAlarms = int(t?.falseAlarms, "falseAlarms", 0, 200);
+  const rts = withoutStartArtifact(numberArray(t?.rts, "rts", 0, 200), 80);
+
+  if (hits + misses > trials || falseAlarms > trials)
+    throw new Error("N-Back telemetry is inconsistent");
+
+  const targets = hits + misses;
+  // d-prime rut gon: ti le bat dung tru ti le bao dong nham.
+  const hitRate = targets > 0 ? hits / targets : 0;
+  const faRate = clamp01(falseAlarms / Math.max(1, trials - targets));
+  const accuracy = clamp01(hitRate - faRate * 0.75);
+  // Moi muc n cao hon thi tran diem cao hon (n=2 la moc chuan).
+  const depth = clamp01((n + 1) / 5);
+
+  const axes = {
+    ...NO_AXES,
+    memory: clamp(MAX * accuracy * (0.62 + 0.38 * depth)),
+    focus: clamp(
+      MAX * accuracy * (0.55 + 0.45 * clamp01(1 - faRate)) * (0.7 + 0.3 * depth),
+    ),
+    speed: rts.length >= 3 ? speed(rts, 700, 0.85) : null,
+  };
+  return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
+}
+
 export function scoreAndValidate(
   game: Game,
   telemetry: unknown,
@@ -237,7 +275,9 @@ export function scoreAndValidate(
           ? scoreStroop(telemetry)
           : game === "reaction"
             ? scoreReaction(telemetry)
-            : scoreMemory(telemetry);
+            : game === "nback"
+              ? scoreNBack(telemetry)
+              : scoreMemory(telemetry);
   // Client time may exclude fixed animations/wait periods. It may not exceed server elapsed by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000)
     throw new Error("Telemetry time exceeds server round time");

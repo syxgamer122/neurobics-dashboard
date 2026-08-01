@@ -161,6 +161,10 @@ days: "ngày",
   dock_profile: "Hồ Sơ",
   dock_admin: "Bảng Quản Trị",
 
+  nback_tag: "TRÍ NHỚ LÀM VIỆC",
+  nback_desc:
+    "Nhớ vị trí ô sáng N lượt trước rồi bấm khi nó lặp lại — bài tập trí nhớ làm việc kinh điển.",
+
   axis_memory: "Trí nhớ",
   axis_focus: "Tập trung",
   axis_logic: "Tư duy",
@@ -367,6 +371,10 @@ days: "days",
   dock_arena: "Neurobics Arena",
   dock_profile: "Master Control",
   dock_admin: "Admin Panel",
+
+  nback_tag: "WORKING MEMORY",
+  nback_desc:
+    "Track the cell shown N steps back and tap when it repeats — the classic working memory drill.",
 
   axis_memory: "Memory",
   axis_focus: "Focus",

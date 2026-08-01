@@ -22,10 +22,15 @@ import {
   CheckCircle,
   Grid3X3,
   Focus,
+  Sparkles,
 } from "lucide-react";
 import { AdminPanel } from "./components/admin-panel";
 import { HistoryPanel } from "./components/history-panel";
 import { SettingsPanel } from "./components/settings-panel";
+import { NBackGame } from "./components/nback-game";
+import { AchievementsPanel } from "./components/achievements-panel";
+import { QuestsPanel } from "./components/quests-panel";
+import { FriendsPanel } from "./components/friends-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
 import {
@@ -371,9 +376,17 @@ function AppInner() {
   }, [profile]);
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
   const [selectedGame, setSelectedGame] = useState<
-    "schulte" | "sudoku" | "stroop" | "memory" | "reaction" | null
+    | "schulte"
+    | "sudoku"
+    | "stroop"
+    | "memory"
+    | "reaction"
+    | "nback"
+    | null
   >(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
+  // Tang len sau moi van de panel nhiem vu / thanh tuu tu tinh lai tien do.
+  const [gamificationKey, setGamificationKey] = useState(0);
   // Real distribution of Cognitive Index across users — the baseline the brain
   // age is ranked against. Seeded until enough calibrated players exist.
   const [popStats, setPopStats] = useState<PopulationStats>(DEFAULT_POPULATION);
@@ -550,6 +563,7 @@ function AppInner() {
           xpLevel: result.level,
           leveledUp: result.leveledUp,
         });
+        setGamificationKey((k) => k + 1);
       } catch (err) {
         console.error(`${game} submit failed:`, err);
         const msg = err instanceof Error ? err.message : String(err);
@@ -1192,6 +1206,15 @@ function AppInner() {
                   playLabel={t.play_now}
                   onPlay={() => setSelectedGame("memory")}
                 />
+                <GameTile
+                  accent="#A855F7"
+                  icon={<Sparkles size={22} />}
+                  tag={t.nback_tag}
+                  title="N-Back"
+                  desc={t.nback_desc}
+                  playLabel={t.play_now}
+                  onPlay={() => setSelectedGame("nback")}
+                />
               </div>
             )}
 
@@ -1234,6 +1257,14 @@ function AppInner() {
                 <MemoryMatrixGame
                   onComplete={makeGameHandler("memory")}
                   onPlayStart={() => beginPlay("memory")}
+                />
+              </div>
+            )}
+            {selectedGame === "nback" && (
+              <div className="max-w-sm">
+                <NBackGame
+                  onComplete={makeGameHandler("nback")}
+                  onPlayStart={() => beginPlay("nback")}
                 />
               </div>
             )}
@@ -1402,6 +1433,20 @@ function AppInner() {
                 </div>
               </GlassCard>
             </div>
+
+            <QuestsPanel
+              refreshKey={gamificationKey}
+              onClaimed={() => {
+                // XP thuong duoc cong o server, keo ho so moi ve de hien dung.
+                void fetchProfile()
+                  .then((fresh) => {
+                    if (fresh) setProfile(fresh);
+                  })
+                  .catch(() => undefined);
+              }}
+            />
+
+            <AchievementsPanel refreshKey={gamificationKey} />
           </>
         )}
 
@@ -1434,6 +1479,8 @@ function AppInner() {
                 />
               </GlassCard>
             </div>
+
+            <FriendsPanel />
 
             <SettingsPanel
               profile={profile}

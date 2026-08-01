@@ -226,7 +226,14 @@ app.post("/server/signup", async (c) => {
   }
 });
 // ─── Secure round lifecycle ────────────────────────────────────────────────
-const GAMES = new Set(["schulte", "sudoku", "stroop", "reaction", "memory"]);
+const GAMES = new Set([
+  "schulte",
+  "sudoku",
+  "stroop",
+  "reaction",
+  "memory",
+  "nback",
+]);
 
 async function authenticatedUser(c: any) {
   const authHeader = c.req.header("Authorization");
@@ -302,6 +309,8 @@ app.post("/server/submit-round", async (c) => {
       p_game: String(game),
       p_axes: axisPayload,
       p_round_score: scored.headline,
+      p_label: scored.label,
+      p_time_ms: Math.round(scored.timeMs),
     });
     if (error) {
   throw new Error(error.message);
