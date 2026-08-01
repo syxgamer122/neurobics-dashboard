@@ -162,33 +162,57 @@ function scoreSudoku(t: any): ScoredRound {
   if (!(difficulty in SUDOKU_DIFF))
     throw new Error("Invalid Sudoku difficulty");
   const timeMs = finite(t?.timeMs, "timeMs", 500, 7_200_000);
-  const placements = int(t?.placements, "placements", 1, 200);
-  const rts = numberArray(t?.moveRts, "moveRts", placements, placements + 3);
+  // Ván thua (het mang) co the placements = 0.
+  const placements = int(t?.placements, "placements", 0, 200);
+  const rts = numberArray(
+    t?.moveRts,
+    "moveRts",
+    0,
+    Math.max(placements + 3, 1),
+  );
   const mistakes = int(t?.mistakes, "mistakes", 0, 3);
+  const failed = t?.failed === true || mistakes >= 3;
   const reEntries = int(t?.reEntries, "reEntries", 0, 100);
   const repeat = int(t?.repeatMistakes, "repeatMistakes", 0, 100);
-  const diff = SUDOKU_DIFF[difficulty],
-    per = SUDOKU_TARGET[difficulty] / placements;
+  const diff = SUDOKU_DIFF[difficulty];
+  const per = SUDOKU_TARGET[difficulty] / Math.max(1, placements);
   const logic = clamp(MAX * diff * (1 - clamp01(mistakes / 3)));
   const retention =
     1 - clamp01((reEntries + repeat * 1.5) / Math.max(4, placements * 0.25));
   const axes = {
     ...NO_AXES,
-    speed: speed(withoutStartArtifact(rts), per, diff, timeMs / placements),
-    logic,
-    memory: clamp(MAX * diff * retention),
+    // placements=0 (thua som): khong co RT hop le → speed null, chi logic/memory.
+    speed:
+      placements > 0 && rts.length > 0
+        ? speed(
+            withoutStartArtifact(rts),
+            per,
+            diff,
+            timeMs / Math.max(1, placements),
+          )
+        : null,
+    logic: failed ? clamp(logic * 0.35) : logic,
+    memory: failed ? clamp(MAX * diff * retention * 0.5) : clamp(MAX * diff * retention),
   };
-  return { axes, headline: headline(axes), label: difficulty, timeMs };
+  return {
+    axes,
+    headline: headline(axes),
+    label: failed ? `${difficulty} (failed)` : difficulty,
+    timeMs,
+  };
 }
 function scoreStroop(t: any): ScoredRound {
-  const total = int(t?.totalStimuli, "totalStimuli", 20, 20);
-  const wrong = int(t?.wrongClicks, "wrongClicks", 0, 3);
+  // totalStimuli = so lan stimulus da hien (dung + sai), khong con hardcode 20.
+  const total = int(t?.totalStimuli, "totalStimuli", 1, 80);
+  const wrong = int(t?.wrongClicks, "wrongClicks", 0, 20);
   const rts = numberArray(t?.rts, "rts", 0, total);
   const timeMs = finite(t?.timeMs, "timeMs", 1_000, 600_000);
-  // completion vẫn đếm đủ số câu trả lời đúng; chỉ thống kê nhịp độ mới bỏ mốc
-  // khởi động, nếu không người chơi bị trừ oan 5% hoàn thành mỗi ván.
-  const completion = rts.length / total;
-  const accuracy = (rts.length / Math.max(1, rts.length + wrong)) * completion;
+  if (rts.length + wrong > total)
+    throw new Error("Stroop telemetry is inconsistent");
+  // Accuracy tren cac lan tra loi; completion so voi so stimulus da hien.
+  const answered = rts.length + wrong;
+  const accuracy =
+    answered > 0 ? rts.length / answered : 0;
   const statRts = withoutStartArtifact(rts);
   const axes = {
     ...NO_AXES,

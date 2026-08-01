@@ -69,7 +69,8 @@ import {
   getLevelTitle,
   getLevelColor,
 } from "./lib/xp";
-import { generateSudoku } from "./lib/sudoku-gen";
+import { generateSudoku, shuffleArray } from "./lib/sudoku-gen";
+import { totalSessions } from "./lib/sessions";
 import { AXIS_META, type AxisKey } from "./lib/axes";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -89,12 +90,7 @@ const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const displayIndex = (p: Profile): number => Math.round(cognitiveIndex(p));
 
 /** Total rounds across all games — drives brain-age calibration. */
-const totalRounds = (p: Profile) =>
-  (p.schulte_sessions ?? 0) +
-  (p.sudoku_sessions ?? 0) +
-  (p.stroop_sessions ?? 0) +
-  (p.reaction_sessions ?? 0) +
-  (p.memory_sessions ?? 0);
+const totalRounds = (p: Profile) => totalSessions(p);
 // Each domain is the stored proficiency rating (0–RATING_MAX) mapped to 0–100
 // for the radar. No session division: the rating is already a moving average.
 function buildCognitiveData(
@@ -189,15 +185,6 @@ function applyAxes(
 }
 
 // ─── Schulte Table helpers ─────────────────────────────────────────────────────
-
-function shuffleArray<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 // ─── Sudoku helpers ────────────────────────────────────────────────────────────
 
@@ -1293,6 +1280,8 @@ function AppInner() {
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       {t.streak_week_label}
+                      {" · "}
+                      {t.streak_tz_note}
                     </div>
                   </div>
                 </div>
@@ -1760,7 +1749,17 @@ function SchulteTableGame({
         return;
 
       const wasIdle = status === "idle";
-      if (wasIdle) {
+      const target = sequence[seqIdx];
+      const ok = cell.value === target.value && cell.color === target.color;
+
+      // Idle: chi bat dong ho khi bam DUNG o dau tien — bam sai khong tinh gio.
+      if (wasIdle && !ok) {
+        setFlashCell({ idx, ok: false });
+        later(() => setFlashCell(null), 380);
+        return;
+      }
+
+      if (wasIdle && ok) {
         onPlayStart?.();
         startRef.current = Date.now();
         lastHitRef.current = startRef.current;
@@ -1770,19 +1769,14 @@ function SchulteTableGame({
           50,
         );
       }
-      const target = sequence[seqIdx];
-      const ok = cell.value === target.value && cell.color === target.color;
+
       setFlashCell({ idx, ok });
       later(() => setFlashCell(null), ok ? 260 : 380);
       if (!ok) {
-        // First idle misclick only starts the clock — no heart penalty. Once
-        // the run is live, wrong clicks cost a life as usual.
-        if (!wasIdle) {
-          wrongClicksRef.current += 1;
-          const newHearts = hearts - 1;
-          setHearts(newHearts);
-          // Het tim: effect completion se submit — khong reset im lang.
-        }
+        wrongClicksRef.current += 1;
+        const newHearts = hearts - 1;
+        setHearts(newHearts);
+        // Het tim: effect completion se submit — khong reset im lang.
         return;
       }
 
@@ -2455,15 +2449,15 @@ function SudokuGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Declarative win detection: fire onComplete once the board fully matches the
-  // solution. Runs in an effect so it can't be skipped by stale closures.
+  // Win (board full) HOAC thua (het mang): submit telemetry — khong reset im lang.
   useEffect(() => {
     if (completedRef.current) return;
     if (status !== "playing") return;
     const solved = userGrid.every((row, ri) =>
       row.every((v, ci) => v === solution[ri][ci]),
     );
-    if (!solved) return;
+    const lost = mistakes >= MAX_MISTAKES;
+    if (!solved && !lost) return;
 
     completedRef.current = true;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -2481,6 +2475,7 @@ function SudokuGame({
           moveRts: [...moveRtsRef.current],
           reEntries: reEntriesRef.current,
           repeatMistakes: repeatMistakesRef.current,
+          failed: lost && !solved,
         });
       } catch (err) {
         console.error("Sudoku completion: onComplete failed:", err);
@@ -2555,7 +2550,7 @@ function SudokuGame({
               ),
             ),
           );
-          if (next >= MAX_MISTAKES) reset();
+          // Het mang: effect completion se submit — khong reset im lang.
         }, 600);
         return;
       }
@@ -2985,6 +2980,8 @@ function StroopGame({
   const [saving, setSaving] = useState(false);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const wrongRef = useRef(0);
+  /** So lan stimulus da hien (ke ca cau sai) — gui len server thay vi hardcode 20. */
+  const shownRef = useRef(1);
   // Per-trial reaction times. Stroop interference shows up in the RT spread,
   // not in the total — so Focus reads consistency while Speed reads the median.
   const rtsRef = useRef<number[]>([]);
@@ -3027,6 +3024,7 @@ function StroopGame({
     }
     clearTimers();
     wrongRef.current = 0;
+    shownRef.current = 1;
     rtsRef.current = [];
     lastTrialRef.current = null;
     prevInkRef.current = undefined;
@@ -3062,7 +3060,7 @@ function StroopGame({
       try {
         await onComplete({
           timeMs: ms,
-          totalStimuli: TOTAL,
+          totalStimuli: shownRef.current,
           wrongClicks: wrongRef.current,
           rts: [...rtsRef.current],
         });
@@ -3075,7 +3073,7 @@ function StroopGame({
   }, [trialsLeft, hearts, status, onComplete]);
 
   const handleAnswer = useCallback(
-    async (chosen: StroopColorId) => {
+    (chosen: StroopColorId) => {
       if (status === "done" || flash !== null) return;
 
       if (status === "idle") {
@@ -3105,6 +3103,7 @@ function StroopGame({
           prevInkRef.current = stimulus.inkId;
           if (nh > 0) {
             setStimulus(makeStimulus(stimulus.inkId));
+            shownRef.current += 1;
             lastTrialRef.current = Date.now();
           }
         }, 420);
@@ -3120,6 +3119,7 @@ function StroopGame({
         setFlash(null);
         if (newLeft > 0) {
           setStimulus(makeStimulus(stimulus.inkId));
+          shownRef.current += 1;
           lastTrialRef.current = Date.now();
         }
       }, 240);

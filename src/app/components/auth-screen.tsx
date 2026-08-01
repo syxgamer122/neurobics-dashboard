@@ -5,6 +5,7 @@ import {
   handleLogin,
   fetchProfile,
   resetPasswordWithRecoveryCode,
+  USERNAME_RE,
   type Profile,
 } from "../lib/api";
 import { useLang } from "../lib/i18n";
@@ -38,6 +39,18 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
 
     if (!username.trim() || !password) {
       setError("Enter a username and password.");
+      return;
+    }
+
+    if (
+      (mode === "signup" || mode === "recover") &&
+      !USERNAME_RE.test(username.trim())
+    ) {
+      setError(
+        t.username_invalid ??
+          "Username must be 3–20 characters: letters, numbers, _ . - only.",
+      );
+      setUsernameError(true);
       return;
     }
 

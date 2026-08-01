@@ -86,6 +86,7 @@ days: "ngày",
   game_over: "KẾT THÚC",
   abort_restart: "HUỶ & CHƠI LẠI",
   streak_week_label: "Chuỗi hiện tại (tối đa 7 ô)",
+  streak_tz_note: "Reset 00:00 GMT+7",
   access_denied_title: "TRUY CẬP BỊ TỪ CHỐI",
   access_denied_role: "QUẢN TRỊ VIÊN",
 
@@ -181,6 +182,8 @@ days: "ngày",
   total_xp_label: "Tổng",
   yrs_unit: "tuổi",
   password_min_length: "Mật khẩu phải có ít nhất 8 ký tự.",
+  username_invalid:
+    "Tên 3–20 ký tự: chữ, số, _ . - (không dấu cách).",
   signup_no_email_warning:
     "Không lưu email thật. Quên mật khẩu thì chỉ còn mã khôi phục hiện sau khi đăng ký — hãy chép ra chỗ an toàn.",
   forgot_password: "Quên mật khẩu?",
@@ -321,6 +324,7 @@ days: "days",
   game_over: "GAME OVER",
   abort_restart: "ABORT & RESTART",
   streak_week_label: "Current streak (up to 7 dots)",
+  streak_tz_note: "Resets 00:00 GMT+7",
   access_denied_title: "ACCESS DENIED",
   access_denied_role: "ADMINISTRATOR",
 
@@ -410,6 +414,8 @@ days: "days",
   total_xp_label: "Total",
   yrs_unit: "yrs",
   password_min_length: "Password must be at least 8 characters.",
+  username_invalid:
+    "Username 3–20 chars: letters, numbers, _ . - only.",
   signup_no_email_warning:
     "No real email is stored. If you forget this password, only the recovery code shown after sign-up can restore the account. Save it offline.",
   forgot_password: "Forgot password?",

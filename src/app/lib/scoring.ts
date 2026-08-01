@@ -155,6 +155,8 @@ export type SudokuTelemetry = {
   reEntries: number;
   /** Entering a wrong digit into a cell that was already wrong once before. */
   repeatMistakes: number;
+  /** true khi thua het mang — van submit de ghi streak/quest/ticket. */
+  failed?: boolean;
 };
 
 export type StroopTelemetry = {

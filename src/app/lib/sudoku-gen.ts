@@ -106,11 +106,17 @@ export function generateSudoku(clues = 34): {
   }
 
   const solution = shuffledGrid.map((r) => [...r]);
-  const puzzle: (number | null)[][] = solution.map((r) => [...r] as (number | null)[]);
+  const puzzle: (number | null)[][] = solution.map(
+    (r) => [...r] as (number | null)[],
+  );
   let remaining = 81;
+  // Main-thread fallback: dung sau budget de khong do UI (Extreme ~58 digs).
+  const budgetMs = 1500;
+  const deadline = Date.now() + budgetMs;
 
   for (const pos of shuffleArray(Array.from({ length: 81 }, (_, i) => i))) {
     if (remaining <= clues) break;
+    if (Date.now() > deadline) break; // giu them clue neu het gio
     const r = Math.floor(pos / 9);
     const c = pos % 9;
     const backup = puzzle[r][c];

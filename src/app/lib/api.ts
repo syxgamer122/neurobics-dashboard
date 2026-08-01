@@ -66,8 +66,25 @@ export type Profile = {
 };
 
 // Username -> spoofed email so users never provide a real email address.
+export const USERNAME_RE = /^[a-z0-9_.-]{3,20}$/i;
+
+export function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+/** Reject spaces/@/unicode before they become invalid spoofed emails. */
+export function assertValidUsername(username: string): string {
+  const n = normalizeUsername(username);
+  if (!USERNAME_RE.test(n)) {
+    throw new Error(
+      "Username must be 3–20 characters: letters, numbers, _ . - only.",
+    );
+  }
+  return n;
+}
+
 const toEmail = (username: string) =>
-  `${username.trim().toLowerCase()}@neurobics.local`;
+  `${assertValidUsername(username)}@neurobics.local`;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -82,6 +99,7 @@ export async function handleSignUp(
   password: string,
   captchaToken: string,
 ): Promise<SignUpResult> {
+  const safeName = assertValidUsername(username);
   // Server creates the confirmed auth user; the on_auth_user_created trigger
   // auto-inserts the matching public.profiles row.
   const res = await fetch(`${BASE}/signup`, {
@@ -90,7 +108,7 @@ export async function handleSignUp(
       "Content-Type": "application/json",
       Authorization: `Bearer ${publicAnonKey}`,
     },
-    body: JSON.stringify({ username, password, captchaToken }),
+    body: JSON.stringify({ username: safeName, password, captchaToken }),
   });
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
@@ -99,7 +117,7 @@ export async function handleSignUp(
     throw new Error(body.code ? `${reason} [${body.code}]` : reason);
   }
 
-  await handleLogin(username, password);
+  await handleLogin(safeName, password);
   return {
     profile: sanitizeProfile(body.profile as Profile),
     recoveryCode: String(body.recoveryCode ?? ""),
@@ -219,6 +237,8 @@ const LEADERBOARD_COLS =
 // for everything score-related. Re-exported so existing importers keep working.
 export { RATING_MAX, sanitizeRating };
 export { AXIS_COLUMNS, AXIS_META, type AxisKey } from "./axes";
+import { SESSION_COLUMNS, totalSessions } from "./sessions";
+export { SESSION_COLUMNS, totalSessions };
 
 /** Sanitize every cognitive axis on a freshly-fetched profile. */
 function sanitizeProfile(p: Profile): Profile {
@@ -650,7 +670,7 @@ async function serverPost<T>(path: string, payload: unknown): Promise<T> {
 
 const DEVICE_KEY = "neurobics.device";
 
-/** Dấu vân thô phía client — server chỉ dùng để phát hiện nhiều tài khoản. */
+/** Dấu vân thô phía client — chỉ tín hiệu tham khảo (localStorage xoá là mất). Chống lạm dụng thật dựa rate-limit IP + captcha phía server. */
 function deviceFingerprint(): string {
   try {
     let id = localStorage.getItem(DEVICE_KEY);
@@ -704,19 +724,26 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
     p_limit: 25,
   });
 
-  if (!error) {
-    return ((data ?? []) as Profile[]).map(hydrateProfile);
-  }
+  // Luon hydrate (decay) roi SORT LAI theo diem hien thi — RPC co the
+  // sap theo cognitive_index thô trong DB neu migration decay chua chay.
+  const rows = !error
+    ? ((data ?? []) as Profile[])
+    : await (async () => {
+        console.warn(
+          "get_leaderboard RPC unavailable, falling back to client sort:",
+          error.message,
+        );
+        const fb = await getSupabase()
+          .from("profiles")
+          .select(LEADERBOARD_COLS)
+          .limit(200);
+        if (fb.error) {
+          throw new Error(describeError(fb.error, "Fetch leaderboard failed"));
+        }
+        return (fb.data ?? []) as Profile[];
+      })();
 
-  console.warn(
-    "get_leaderboard RPC unavailable, falling back to client sort:",
-    error.message,
-  );
-  const fb = await getSupabase().from("profiles").select(LEADERBOARD_COLS).limit(200);
-  if (fb.error) {
-    throw new Error(describeError(fb.error, "Fetch leaderboard failed"));
-  }
-  return ((fb.data ?? []) as Profile[])
+  return rows
     .map(hydrateProfile)
     .sort((a, b) => cognitiveIndex(b) - cognitiveIndex(a))
     .slice(0, 25);
@@ -763,15 +790,7 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
 
   const indices = ((fb.data ?? []) as Profile[])
     .map(hydrateProfile)
-    .filter(
-      (p) =>
-        (p.schulte_sessions ?? 0) +
-        (p.sudoku_sessions ?? 0) +
-        (p.stroop_sessions ?? 0) +
-        (p.reaction_sessions ?? 0) +
-        (p.memory_sessions ?? 0) >=
-        5,
-    )
+    .filter((p) => totalSessions(p) >= 5)
     .map(cognitiveIndex);
 
   if (indices.length < MIN_POPULATION)
@@ -834,21 +853,34 @@ export async function fetchActivityStats(): Promise<ActivityStats> {
   const dayStart = vnDayStartUtc(now);
   const monthStart = vnMonthStartUtc(now);
 
-  const fb = await getSupabase()
+  const xpFb = await getSupabase()
     .from("xp_events")
-    .select("xp_awarded, created_at")
+    .select("xp_awarded, created_at, game")
+    .eq("user_id", userId)
+    .gte("created_at", dayStart.toISOString());
+
+  if (xpFb.error)
+    throw new Error(`Fetch activity stats failed: ${xpFb.error.message}`);
+
+  let xpToday = 0;
+  for (const row of xpFb.data ?? []) {
+    xpToday += row.xp_awarded ?? 0;
+  }
+
+  // Dem phien choi that tu training_sessions — khong gom quest/achievement XP.
+  const sessFb = await getSupabase()
+    .from("training_sessions")
+    .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .gte("created_at", monthStart.toISOString());
 
-  if (fb.error) throw new Error(`Fetch activity stats failed: ${fb.error.message}`);
+  if (sessFb.error)
+    throw new Error(`Fetch session count failed: ${sessFb.error.message}`);
 
-  const dayStartMs = dayStart.getTime();
-  const rows = fb.data ?? [];
-  let xpToday = 0;
-  for (const row of rows) {
-    if (Date.parse(row.created_at) >= dayStartMs) xpToday += row.xp_awarded ?? 0;
-  }
-  return { xpToday, sessionsThisMonth: rows.length };
+  return {
+    xpToday,
+    sessionsThisMonth: sessFb.count ?? 0,
+  };
 }
 // ─── Giai đoạn 2: Lịch sử luyện tập ─────────────────────────────────────────
 

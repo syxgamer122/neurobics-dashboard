@@ -190,9 +190,13 @@ app.post("/server/signup", async (c) => {
     const normalized = String(username).trim().toLowerCase();
     const pw = String(password);
 
-    if (normalized.length < 3 || normalized.length > 24) {
+    // Chi cho phep a-z 0-9 _ . - (3-20) — tranh email gia khong hop le.
+    if (!/^[a-z0-9_.-]{3,20}$/.test(normalized)) {
       return c.json(
-        { error: "Signup error: username must be 3–24 characters." },
+        {
+          error:
+            "Signup error: username must be 3–20 characters (letters, numbers, _ . -).",
+        },
         400,
       );
     }
