@@ -223,6 +223,9 @@ export function MathSprintGame({
     hard: t.math_hard,
   };
 
+  // Khớp MIN_RT_MS trong supabase/functions/_shared/round-scoring.ts.
+  const MIN_RT_MS = 120;
+
   const [diff, setDiff] = useState<MathDifficulty>("medium");
   const [phase, setPhase] = useState<"idle" | "playing">("idle");
   const [idx, setIdx] = useState(0);
@@ -285,8 +288,11 @@ export function MathSprintGame({
     const p = problemsRef.current[idx];
     const ok = choice === p.answer;
     const rt = performance.now() - qStartRef.current;
-    // Ghi mọi độ trễ (cả câu sai) để chấm tốc độ trung thực.
-    rtsRef.current.push(rt);
+    // Ghi mọi độ trễ (cả câu sai) để chấm tốc độ trung thực, NHƯNG phải kẹp
+    // sàn: server chạy assertRtBounds() trên mảng này và từ chối cả ván nếu
+    // có mẫu < MIN_RT_MS (120ms). Một cú bấm nhầm siêu nhanh không được phép
+    // đánh rớt một ván hợp lệ.
+    rtsRef.current.push(Math.max(MIN_RT_MS, rt));
 
     if (ok) {
       statsRef.current = {

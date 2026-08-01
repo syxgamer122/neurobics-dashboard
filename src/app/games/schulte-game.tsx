@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Check, CheckCircle, Focus, Loader2, RefreshCw, Star, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { fetchPersonalBests } from "../lib/api";
 import { shuffleArray } from "../lib/sudoku-gen";
 import type { SchulteTelemetry } from "../lib/scoring";
 
@@ -86,12 +87,37 @@ export function SchulteTableGame({
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
   const [bestTime, setBestTime] = useState<number | null>(null);
+  /**
+   * Ky luc luu tren server (RPC get_personal_bests). Truoc day bestTime chi nam
+   * trong state nen reload la mat trang. Luu y: RPC tra ve best THEO GAME, chua
+   * tach theo size x mode — nen day chi la moc tham khao chung cho Schulte, va
+   * chi hien khi nguoi choi chua lap ky luc moi trong phien nay.
+   */
+  const [serverBestMs, setServerBestMs] = useState<number | null>(null);
   const [showCenter, setShowCenter] = useState(true);
   const [hearts, setHearts] = useState(3);
   const MAX_HEARTS = 3;
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wrongClicksRef = useRef(0);
+  // Hydrate ky luc tu server mot lan khi vao man. Loi mang thi bo qua: day chi
+  // la thong tin trang tri, khong duoc chan nguoi choi.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const bests = await fetchPersonalBests();
+        const schulte = bests.find((b) => b.game === "schulte");
+        const ms = schulte?.best_time_ms;
+        if (alive && typeof ms === "number" && ms > 0) setServerBestMs(ms);
+      } catch (err) {
+        console.error("Schulte: personal best unavailable:", err);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
   const completedRef = useRef(false);
   // Per-find reaction times. The gap between consecutive correct hits is the
   // real signal here: total time alone can't tell a steady searcher apart from
@@ -183,6 +209,11 @@ export function SchulteTableGame({
           wrongClicks: wrongClicksRef.current,
           hitRts: [...hitRtsRef.current],
           modeLabel,
+          // Van thua dung giua chung => hitRts NGAN hon cells. Phai bao cho
+          // server biet, neu khong no bat buoc hitRts.length === cells va tra
+          // ve 400 "Invalid hitRts length", lam mat streak/quest/ticket.
+          failed: lost && !won,
+          intendedCells: size * size,
         });
       } catch (err) {
         console.error("Schulte completion: onComplete failed:", err);
@@ -233,9 +264,9 @@ export function SchulteTableGame({
 
       // Record how long this particular target took to locate.
       const now = Date.now();
-      // LUON ghi du 'cells' mau: server bat buoc hitRts.length === cells
-      // (round-scoring.ts scoreSchulte), thieu 1 mau la bi tra ve 400
-      // "Invalid hitRts length". Mau mo man ~0ms khong gay hai vi:
+      // Van THANG ghi du 'cells' mau; van THUA ghi it hon va gui kem co
+      // `failed` de server chap nhan (xem scoreSchulte). Mau mo man ~0ms
+      // khong gay hai vi:
       //  - scoreAndValidate chi chay assertRtBounds tren 'rts', KHONG tren 'hitRts',
       //    nen nguong MIN_RT_MS=120 khong ap dung o day;
       //  - numberArray() da nang moi gia tri len toi thieu 1ms;
@@ -502,7 +533,7 @@ export function SchulteTableGame({
                 color: "#475569",
               }}
             >
-              {t.best_label} {fmtTime(bestTime)}
+              {t.best_label} {fmtTime(bestTime ?? serverBestMs)}
             </span>
           )}
         </div>

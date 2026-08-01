@@ -18,6 +18,10 @@ const vi = {
   brain_age: "Ước Tính Tuổi Não",
 yrs_younger: (n: number) => `Trẻ hơn ${n} tuổi`,
 yrs_older: (n: number) => `Già hơn ${n} tuổi`,
+yrs_same: "Bằng đúng tuổi thật",
+data_partial: "Dữ liệu một phần",
+data_partial_note: (scanned: number) =>
+  `Đang dùng nguồn dự phòng: chỉ quét ${scanned} người chơi đầu tiên nên thứ hạng có thể thiếu người.`,
 brain_age_needs_age:
   "Tuổi não được tính bằng cách so tuổi thật của bạn với thứ hạng trong cộng đồng. Hãy nhập năm sinh để bắt đầu.",
 birth_year_placeholder: "Năm sinh",
@@ -198,7 +202,7 @@ days: "ngày",
   recovery_code_label: "Mã khôi phục",
   recovery_code_required: "Nhập mã khôi phục.",
   recover_submit: "Đặt lại mật khẩu",
-  recovery_success: "Đã đổi mật khẩu. Hãy đăng nhập.",
+  recovery_success: "Đã đ��i mật khẩu. Hãy đăng nhập.",
   recovery_code_title: "Lưu mã khôi phục của bạn",
   recovery_code_body:
     "Đây là cách duy nhất để reset mật khẩu. Mã sẽ không hiện lại lần nữa.",
@@ -286,6 +290,10 @@ const en: typeof vi = {
   brain_age: "Brain Age Estimate",
   yrs_younger: (n) => `${n} yrs younger`,
 yrs_older: (n) => `${n} yrs older`,
+yrs_same: "Exactly your real age",
+data_partial: "Partial data",
+data_partial_note: (scanned) =>
+  `Fallback source: only the first ${scanned} players were scanned, so the ranking may be missing people.`,
 brain_age_needs_age:
   "Brain age compares your real age against how you rank among other players. Enter your birth year to begin.",
 birth_year_placeholder: "Birth year",
@@ -568,10 +576,13 @@ export function LangProvider({ children }: { children: ReactNode }) {
         if (base === "vi") return "vi";
         if (base === "en") return "en";
       }
-      // Ngon ngu khac tieng Viet => tieng Anh de doc duoc.
+      // Khai bao ngon ngu khac han => tieng Anh de doc duoc.
+      // (Truoc day co them nhanh `if (tags.length > 0) return "en"` roi moi
+      //  `return "vi"`; nhanh cuoi gan nhu khong bao gio chay vi tags hau nhu
+      //  luon co phan tu. Bo di cho ro y: chi SSR/test moi roi ve mac dinh.)
       if (tags.length > 0) return "en";
     } catch {
-      /* khong co navigator (SSR/test) */
+      /* khong co navigator (SSR/test) => mac dinh tieng Viet */
     }
     return "vi";
   });

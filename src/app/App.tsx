@@ -823,12 +823,21 @@ function AppInner() {
                           className="text-xs mt-1 font-semibold"
                           style={{
                             fontFamily: "'JetBrains Mono', monospace",
-                            color: brainAge.delta >= 0 ? "#10B981" : "#F43F5E",
+                            color:
+                              brainAge.delta === 0
+                                ? "#94A3B8"
+                                : brainAge.delta > 0
+                                  ? "#10B981"
+                                  : "#F43F5E",
                           }}
                         >
-                          {brainAge.delta >= 0
-                            ? t.yrs_younger(brainAge.delta)
-                            : t.yrs_older(Math.abs(brainAge.delta))}
+                          {/* delta === 0 truoc day roi vao nhanh ">= 0" va hien
+                              "Tre hon 0 tuoi" — vo nghia. Tach nhanh rieng. */}
+                          {brainAge.delta === 0
+                            ? t.yrs_same
+                            : brainAge.delta > 0
+                              ? t.yrs_younger(brainAge.delta)
+                              : t.yrs_older(Math.abs(brainAge.delta))}
                         </div>
                         {brainAge.provisional && (
                           <div className="text-[11px] text-slate-500 mt-1.5 leading-snug">

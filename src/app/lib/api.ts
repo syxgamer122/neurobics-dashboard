@@ -743,8 +743,16 @@ export function cognitiveIndex(p: Profile): number {
 
   const active = axes.filter((v) => v > 0);
   if (active.length === 0) return 0;
-  return active.reduce((a, b) => a + b, 0) / active.length;
+  const raw = active.reduce((a, b) => a + b, 0) / active.length;
+  // Shrinkage theo do phu: chia cung cho 5 thi phat oan nguoi moi, con trung
+  // binh tren rieng truc da mo thi nghieng nguoc lai — cang choi IT game cang
+  // de giu index cao (Logic 800 mot truc dung tren nguoi du 5 truc trung binh
+  // 700). He so keo index ve theo so truc da mo, day du 5 truc moi duoc 100%.
+  return raw * (COVERAGE_FLOOR + (1 - COVERAGE_FLOOR) * (active.length / 5));
 }
+
+/** Ty le index giu lai khi chi mo dung 1 truc (0.4 => phat 60% + shrinkage). */
+export const COVERAGE_FLOOR = 0.4;
 
 /** So truc da co du lieu (0–5) — dung de canh bao ho so chua day du. */
 export function axesCovered(p: Profile): number {
@@ -757,6 +765,24 @@ export function axesCovered(p: Profile): number {
   ].filter((v) => typeof v === "number" && Number.isFinite(v) && v > 0).length;
 }
 
+/**
+ * Bao hieu du lieu dang o nhanh fallback (chi doc duoc mot phan nguoi choi).
+ * UI doc ngay sau await de hien badge "du lieu mot phan" thay vi hien so sai
+ * mot cach im lang.
+ */
+export type DataQuality = { partial: boolean; scanned: number };
+
+export const LEADERBOARD_FALLBACK_LIMIT = 200;
+export const POPULATION_FALLBACK_LIMIT = 1000;
+
+export const dataQuality: {
+  leaderboard: DataQuality;
+  population: DataQuality;
+} = {
+  leaderboard: { partial: false, scanned: 0 },
+  population: { partial: false, scanned: 0 },
+};
+
 export async function fetchLeaderboard(): Promise<Profile[]> {
   // Prefer the Postgres RPC (ordered by generated cognitive_index). Fall back
   // to a client-side sort only if the migration has not been applied yet.
@@ -766,6 +792,8 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
 
   // Luon hydrate (decay) roi SORT LAI theo diem hien thi — RPC co the
   // sap theo cognitive_index thô trong DB neu migration decay chua chay.
+  dataQuality.leaderboard = { partial: false, scanned: 0 };
+
   const rows = !error
     ? ((data ?? []) as Profile[])
     : await (async () => {
@@ -778,10 +806,17 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
         const fb = await getSupabase()
           .from("profiles")
           .select(LEADERBOARD_COLS)
-          .limit(200);
+          .limit(LEADERBOARD_FALLBACK_LIMIT);
         if (fb.error) {
           throw new Error(describeError(fb.error, "Fetch leaderboard failed"));
         }
+        const scanned = (fb.data ?? []).length;
+        // Doc du gioi han => rat co the con nguoi choi chua duoc quet, top that
+        // co the vang mat. Danh dau de UI noi ro thay vi hien bang sai im lang.
+        dataQuality.leaderboard = {
+          partial: scanned >= LEADERBOARD_FALLBACK_LIMIT,
+          scanned,
+        };
         return (fb.data ?? []) as Profile[];
       })();
 
@@ -806,6 +841,8 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
     p_min_rounds: 5,
   });
 
+  dataQuality.population = { partial: false, scanned: 0 };
+
   if (!error) {
     const row = Array.isArray(data) ? data[0] : data;
     const n = Number(row?.n ?? 0);
@@ -825,7 +862,12 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
   const fb = await getSupabase()
     .from("profiles")
     .select(LEADERBOARD_COLS)
-    .limit(1000);
+    .limit(POPULATION_FALLBACK_LIMIT);
+
+  dataQuality.population = {
+    partial: (fb.data ?? []).length >= POPULATION_FALLBACK_LIMIT,
+    scanned: (fb.data ?? []).length,
+  };
 
   if (fb.error) {
     console.error(describeError(fb.error, "Fetch population stats failed"));

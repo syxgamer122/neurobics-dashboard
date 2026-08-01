@@ -39,9 +39,21 @@ export const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
  * that would pin an axis at 100% forever. Anything outside the valid range is
  * treated as un-baselined and read as 0.
  */
+/**
+ * Sai so lam tron duoc THA THU: mot ban ghi 1001 gan nhu chac chan la loi
+ * rounding chu khong phai du lieu legacy kieu tich luy (4200). Truoc day moi
+ * gia tri > 1000 deu bi coi la legacy va xoa trang truc do, tuc mot bug lam
+ * tron 1 diem lam mat sach ca truc. Gio chi kep xuong tran.
+ */
+export const RATING_TOLERANCE = 1.05;
+
 export function sanitizeRating(val: number | null | undefined): number {
-  if (typeof val !== "number" || !Number.isFinite(val) || val < RATING_MIN || val > RATING_MAX) {
+  if (typeof val !== "number" || !Number.isFinite(val) || val < RATING_MIN) {
     return 0;
+  }
+  // Vuot tran mot chut => kep ve 1000. Vuot xa => du lieu tien-model, doc la 0.
+  if (val > RATING_MAX) {
+    return val <= RATING_MAX * RATING_TOLERANCE ? RATING_MAX : 0;
   }
   return val;
 }
@@ -155,6 +167,14 @@ export type SchulteTelemetry = {
   /** Time in ms taken for each successful find, in order. */
   hitRts: number[];
   modeLabel: string;
+  /**
+   * true khi thua het tim. Van thua dung giua chung nen hitRts NGAN hon cells;
+   * server chi chap nhan hitRts.length < cells khi co co nay (khong co no thi
+   * moi van Schulte thua deu bi tra ve 400 "Invalid hitRts length").
+   */
+  failed?: boolean;
+  /** Tong so o cua de (= cells). Giu lai de server biet muc do hoan thanh. */
+  intendedCells?: number;
 };
 
 export type SudokuTelemetry = {
@@ -169,6 +189,12 @@ export type SudokuTelemetry = {
   reEntries: number;
   /** Entering a wrong digit into a cell that was already wrong once before. */
   repeatMistakes: number;
+  /**
+   * Do tre cua cac nuoc SAI, tach rieng khoi moveRts. Nuoc sai thuong la bam
+   * au va rat nhanh; de lan vao moveRts se keo median xuong va thuong nham
+   * diem Speed cho nguoi bam bua.
+   */
+  wrongMoveRts?: number[];
   /** true khi thua het mang — van submit de ghi streak/quest/ticket. */
   failed?: boolean;
   /** So o de lo THUC TE cua de nay (>= muc chuan neu generator het budget). */
@@ -240,7 +266,15 @@ export type ReactionTelemetry = {
 
 export type MemoryTelemetry = {
   timeMs: number;
+  /**
+   * Cap cao nhat DA VUOT QUA. Truoc day client gui Math.max(1, ...) nen thua
+   * ngay cap 1 (chua nho noi o nao) van duoc tinh nhu da qua cap 1.
+   */
   maxLevel: number;
+  /** So cap thuc su hoan thanh — 0 khi thua ngay cap dau. */
+  clearedLevels?: number;
+  /** true khi het tim. */
+  failed?: boolean;
   wrongClicks: number;
 };
 

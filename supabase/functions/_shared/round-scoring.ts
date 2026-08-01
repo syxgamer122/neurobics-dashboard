@@ -174,24 +174,39 @@ function scoreSchulte(t: any): ScoredRound {
   const cells = int(t?.cells, "cells", 9, 36);
   if (![9, 16, 25, 36].includes(cells)) throw new Error("Invalid Schulte size");
   const timeMs = finite(t?.timeMs, "timeMs", 100, 3_600_000);
-  const rts = numberArray(t?.hitRts, "hitRts", cells, cells);
+  // Van THUA (het tim) dung giua chung, nen so mau hitRts BANG so o da tim
+  // duoc chu khong bang cells. Truoc day server bat buoc hitRts.length ===
+  // cells nen MOI van Schulte thua deu bi tra ve 400 "Invalid hitRts length",
+  // keo theo mat streak/quest/ticket cua van do. Van thua duoc chap nhan voi
+  // hitRts ngan hon, va bi ha diem theo ty le hoan thanh.
+  const failed = t?.failed === true;
+  const rts = numberArray(t?.hitRts, "hitRts", failed ? 0 : cells, cells);
   const wrong = int(t?.wrongClicks, "wrongClicks", 0, 500);
   const diff = SCHULTE_DIFF[cells];
   const per = SCHULTE_TARGET[cells] / cells;
-  const accuracy = cells / (cells + wrong);
+  const found = rts.length;
+  // Ty le hoan thanh: van thang = 1, van thua = phan da tim duoc.
+  const completion = clamp01(found / cells);
+  const accuracy = found + wrong > 0 ? found / (found + wrong) : 0;
   const statRts = withoutStartArtifact(rts);
   const late = statRts.slice(Math.floor((statRts.length * 2) / 3));
-  const spatial = clamp(MAX * diff * ratio(per * 1.6, median(late)) * accuracy);
+  const spatial = late.length
+    ? clamp(MAX * diff * ratio(per * 1.6, median(late)) * accuracy * completion)
+    : 0;
   const axes = {
     ...NO_AXES,
-    speed: speed(statRts, per, diff, timeMs / cells),
-    focus: focus(statRts, accuracy, diff),
+    // Khong tim duoc o nao => khong co tin hieu nhip do, de speed null.
+    speed: found
+      ? clamp(speed(statRts, per, diff, timeMs / found) * completion)
+      : null,
+    focus: found ? clamp(focus(statRts, accuracy, diff) * completion) : 0,
     spatial,
   };
+  const size = Math.round(Math.sqrt(cells));
   return {
     axes,
     headline: headline(axes),
-    label: String(t?.modeLabel ?? `${Math.sqrt(cells)}×${Math.sqrt(cells)}`),
+    label: String(t?.modeLabel ?? `${size}×${size}`),
     timeMs,
   };
 }
@@ -278,12 +293,19 @@ function scoreReaction(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: "Reaction Time", timeMs };
 }
 function scoreMemory(t: any): ScoredRound {
-  const timeMs = finite(t?.timeMs, "timeMs", 800, 7_200_000);
-  const level = int(t?.maxLevel, "maxLevel", 1, 100);
-  const wrong = int(t?.wrongClicks, "wrongClicks", 1, 100);
+  // Thua ngay cap 1 thi pha recall rat ngan; nguong 800ms cu lam van do bi
+  // tu choi thay vi duoc cham 0.
+  const timeMs = finite(t?.timeMs, "timeMs", 100, 7_200_000);
+  // clearedLevels = so cap THUC SU vuot qua (0 khi chua nho noi o nao).
+  // maxLevel la truong cu, giu de tuong thich client chua cap nhat.
+  const level =
+    t?.clearedLevels !== undefined
+      ? int(t?.clearedLevels, "clearedLevels", 0, 100)
+      : int(t?.maxLevel, "maxLevel", 1, 100);
+  const wrong = int(t?.wrongClicks, "wrongClicks", 0, 100);
   const progression = clamp01(level / 12),
     cells = Math.max(1, Math.round(level * 3)),
-    accuracy = cells / (cells + wrong);
+    accuracy = level > 0 ? cells / (cells + wrong) : 0;
   const axes = {
     ...NO_AXES,
     memory: clamp(MAX * 0.9 * progression * accuracy),

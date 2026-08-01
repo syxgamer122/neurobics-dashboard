@@ -136,8 +136,11 @@ export function MemoryMatrixGame({
           setSaving(true);
           void onComplete({
             timeMs: recallMsRef.current,
-            // Cấp đã vượt qua, không phải cấp đang thua. Sever yêu cầu tối thiểu 1.
+            // KHÔNG nâng sàn lên 1 nữa: thua ngay cấp 1 nghĩa là chưa vượt
+            // được cấp nào, phải được chấm 0 thay vì được tính như đã qua cấp 1.
             maxLevel: Math.max(1, maxClearedRef.current),
+            clearedLevels: maxClearedRef.current,
+            failed: true,
             wrongClicks: wrongClicksRef.current,
           })
             .catch((err) => {

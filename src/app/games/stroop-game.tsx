@@ -65,10 +65,19 @@ export function StroopGame({
   const colorHex = (id: StroopColorId): string =>
     STROOP_COLORS.find((c) => c.id === id)!.hex;
 
+  /** So giay dem nguoc sau khi bam START truoc khi stimulus dau tien hien. */
+  const COUNTDOWN_FROM = 3;
+
   const [stimulus, setStimulus] = useState<Stimulus>(() => makeStimulus());
   const [trialsLeft, setTrialsLeft] = useState(TOTAL);
   const [hearts, setHearts] = useState(MAX_HEARTS);
-  const [status, setStatus] = useState<"idle" | "playing" | "done">("idle");
+  // "countdown" chen giua idle va playing: truoc day stimulus hien ngay khi vao
+  // man va dong ho chi chay tu click dau tien, nen cau 1 la "mien phi" (ngam bao
+  // lau cung duoc) va RT cua no phai vut bo. Gio clock va RT deu tinh tu onset.
+  const [status, setStatus] = useState<
+    "idle" | "countdown" | "playing" | "done"
+  >("idle");
+  const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
   const [elapsed, setElapsed] = useState(0);
   const [flash, setFlash] = useState<"correct" | "wrong" | null>(null);
   const [saving, setSaving] = useState(false);
@@ -125,10 +134,41 @@ export function StroopGame({
     setTrialsLeft(TOTAL);
     setHearts(MAX_HEARTS);
     setStatus("idle");
+    setCountdown(COUNTDOWN_FROM);
     setElapsed(0);
     setFlash(null);
     startRef.current = null;
+    lastTrialRef.current = null;
   };
+
+  /**
+   * START -> dem nguoc -> stimulus dau tien hien, dong ho VA lastTrialRef cung
+   * chay tu dung thoi diem onset do. Nho vay cau 1 duoc do that su.
+   */
+  const beginRound = useCallback(() => {
+    if (status !== "idle") return;
+    onPlayStart?.();
+    setStatus("countdown");
+    setCountdown(COUNTDOWN_FROM);
+
+    for (let i = 1; i <= COUNTDOWN_FROM; i += 1) {
+      later(() => setCountdown(COUNTDOWN_FROM - i), i * 1000);
+    }
+
+    later(() => {
+      // Stimulus moi tinh tai onset, khong phai cai da nam san tren man hinh.
+      setStimulus(makeStimulus());
+      shownRef.current = 1;
+      const onset = Date.now();
+      startRef.current = onset;
+      lastTrialRef.current = onset;
+      setStatus("playing");
+      intervalRef.current = setInterval(
+        () => setElapsed(Date.now() - (startRef.current ?? Date.now())),
+        50,
+      );
+    }, COUNTDOWN_FROM * 1000);
+  }, [status, onPlayStart, later]);
 
   // Declarative end-of-round: fires onComplete exactly once when the run ends —
   // either all trials cleared or hearts exhausted. Running in an effect means it
@@ -168,22 +208,9 @@ export function StroopGame({
 
   const handleAnswer = useCallback(
     (chosen: StroopColorId) => {
-      if (status === "done" || flash !== null) return;
-
-      // Click dau tien vua khoi dong dong ho vua la cau tra loi => RT ~0ms.
-      // Khong ghi mau nay, neu khong median Speed bi keo xuong va CV Focus tang gia.
-      const wasIdle = status === "idle";
-
-      if (status === "idle") {
-        onPlayStart?.();
-        startRef.current = Date.now();
-        lastTrialRef.current = startRef.current;
-        setStatus("playing");
-        intervalRef.current = setInterval(
-          () => setElapsed(Date.now() - (startRef.current ?? Date.now())),
-          50,
-        );
-      }
+      // Chi nhan cau tra loi khi van dang chay: idle/countdown thi chua co
+      // stimulus hop le de cham diem.
+      if (status !== "playing" || flash !== null) return;
 
       const now = Date.now();
       // RT = tu luc stimulus hien (lastTrialRef), KHONG gom thoi gian flash.
@@ -207,7 +234,8 @@ export function StroopGame({
         return;
       }
 
-      if (!wasIdle) rtsRef.current.push(rt);
+      // Moi cau deu co RT that (do tu onset), ke ca cau dau tien.
+      rtsRef.current.push(rt);
 
       const newLeft = trialsLeft - 1;
       setTrialsLeft(newLeft);
@@ -426,6 +454,32 @@ export function StroopGame({
           >
             <CheckCircle size={16} /> {t.stroop_complete}
           </div>
+        ) : status === "idle" ? (
+          <div className="py-8 px-6 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={beginRound}
+              className="rounded-xl px-8 py-3 font-black tracking-[0.15em] text-white transition-all duration-150 hover:brightness-110"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 20,
+                background: "rgba(16,185,129,0.16)",
+                border: "1.5px solid rgba(16,185,129,0.55)",
+                boxShadow: "0 0 22px rgba(16,185,129,0.25)",
+              }}
+            >
+              START
+            </button>
+          </div>
+        ) : status === "countdown" ? (
+          <div className="py-8 px-6 flex flex-col items-center gap-2">
+            <span
+              className="font-black tracking-[0.15em] select-none text-white"
+              style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 52 }}
+            >
+              {countdown > 0 ? countdown : "GO"}
+            </span>
+          </div>
         ) : (
           <div className="py-8 px-6 flex flex-col items-center gap-2">
             {/* The word, rendered in its INK color — always visible */}
@@ -459,9 +513,9 @@ export function StroopGame({
               key={cid}
               type="button"
               onClick={() => {
-                if (status !== "done") handleAnswer(cid);
+                if (status === "playing") handleAnswer(cid);
               }}
-              disabled={flash !== null || status === "done"}
+              disabled={flash !== null || status !== "playing"}
               aria-label={colorLabel(cid)}
               className="rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-150 disabled:opacity-60"
               style={{

@@ -166,6 +166,9 @@ export function SudokuGame({
   // that is what the Memory axis measures here, independent of the clock.
   const placementsRef = useRef(0);
   const moveRtsRef = useRef<number[]>([]);
+  // Nuoc SAI tach rieng: chung thuong la bam au, rat nhanh, neu de lan vao
+  // moveRts thi keo median xuong va thuong nham diem Speed cho nguoi bam bua.
+  const wrongMoveRtsRef = useRef<number[]>([]);
   const lastMoveRef = useRef<number | null>(null);
   const reEntriesRef = useRef(0);
   const repeatMistakesRef = useRef(0);
@@ -196,6 +199,7 @@ export function SudokuGame({
       startRef.current = null;
       placementsRef.current = 0;
       moveRtsRef.current = [];
+      wrongMoveRtsRef.current = [];
       lastMoveRef.current = null;
       reEntriesRef.current = 0;
       repeatMistakesRef.current = 0;
@@ -259,6 +263,7 @@ export function SudokuGame({
           mistakes,
           placements: placementsRef.current,
           moveRts: [...moveRtsRef.current],
+          wrongMoveRts: [...wrongMoveRtsRef.current],
           reEntries: reEntriesRef.current,
           repeatMistakes: repeatMistakesRef.current,
           failed: lost && !solved,
@@ -325,10 +330,14 @@ export function SudokuGame({
 
       const cellKey = `${r},${c}`;
       const now = Date.now();
-      moveRtsRef.current.push(now - (lastMoveRef.current ?? now));
+      const rt = now - (lastMoveRef.current ?? now);
       lastMoveRef.current = now;
 
       const isWrong = n !== solution[r][c];
+      // Chi nuoc DUNG moi vao moveRts (tin hieu Speed); nuoc sai di duong rieng.
+      if (isWrong) wrongMoveRtsRef.current.push(rt);
+      else moveRtsRef.current.push(rt);
+
       if (isWrong) {
         if (wrongCellsRef.current.has(cellKey)) repeatMistakesRef.current += 1;
         else wrongCellsRef.current.add(cellKey);

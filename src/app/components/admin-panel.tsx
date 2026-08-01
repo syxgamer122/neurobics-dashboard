@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import {
   fetchLeaderboard,
+  dataQuality,
+  type DataQuality,
   adminApplyGrant,
   adminResetScores,
   adminDeleteUser,
@@ -60,6 +62,12 @@ export function AdminPanel({
   const [revealKey, setRevealKey] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [latency, setLatency] = useState(12);
+  // Nhanh fallback chi quet duoc 200 dong dau => top that co the vang mat.
+  // Hien badge thay vi de bang xep hang sai mot cach im lang.
+  const [partial, setPartial] = useState<DataQuality>({
+    partial: false,
+    scanned: 0,
+  });
   const [beat, setBeat] = useState(0);
   const [log, setLog] = useState<string[]>(consoleBoot);
   const [busy, setBusy] = useState<string | null>(null);
@@ -92,6 +100,12 @@ export function AdminPanel({
       const data = await fetchLeaderboard();
       setLatency(Math.max(1, Math.round(performance.now() - t0)));
       setRows(data);
+      setPartial({ ...dataQuality.leaderboard });
+      if (dataQuality.leaderboard.partial) {
+        pushLog(
+          `WARN :: fallback quet toi da ${dataQuality.leaderboard.scanned} dong — thu hang co the thieu nguoi`,
+        );
+      }
       pushLog(`SELECT * FROM profiles — 200 OK (${data.length} rows, ${Math.round(performance.now() - t0)}ms)`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -317,6 +331,20 @@ const handleApplyGrant = () => {
               <Cpu size={13} style={{ color: green }} />
             </div>
             <div className="text-2xl font-bold text-white mt-3">{rows.length}</div>
+            {partial.partial && (
+              <div
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: "rgba(245,158,11,0.14)",
+                  border: "1px solid rgba(245,158,11,0.45)",
+                  color: "#FBBF24",
+                }}
+                title={`Nguon du phong: chi quet ${partial.scanned} nguoi choi dau tien.`}
+              >
+                DU LIEU MOT PHAN
+              </div>
+            )}
             <div className="text-[11px] text-slate-500 mt-1">profiles · live</div>
           </Panel>
 
