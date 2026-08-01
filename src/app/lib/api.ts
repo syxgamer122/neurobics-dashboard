@@ -84,10 +84,13 @@ export async function handleSignUp(
     },
     body: JSON.stringify({ username, password, captchaToken }),
   });
-  const body = await res.json();
+  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
-    console.error("Sign up failed during account creation:", body.error);
-    throw new Error(body.error ?? "Sign up failed.");
+    console.error("Sign up failed during account creation:", body);
+    const reason = String(body.error ?? "Sign up failed.");
+    // Ma loi ky thuat khong phai bi mat. Giau no di chi lam nguoi dung va
+    // nguoi sua deu mu, nen ghep thang vao cuoi cau.
+    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
   }
 
   // Immediately sign the new user in.

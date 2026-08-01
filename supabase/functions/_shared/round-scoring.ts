@@ -5,7 +5,8 @@ export type Game =
   | "stroop"
   | "reaction"
   | "memory"
-  | "nback";
+  | "nback"
+  | "math";
 export type AxisRatings = {
   speed: number | null;
   focus: number | null;
@@ -255,6 +256,59 @@ function scoreNBack(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
 }
 
+// Toan nhanh: de cang kho thi tran diem cang cao.
+const MATH_DIFF: Record<string, number> = {
+  easy: 0.62,
+  medium: 0.82,
+  hard: 1.0,
+};
+// Thoi gian ky vong cho moi cau, dung de quy doi nhip tinh nham.
+const MATH_TARGET_MS: Record<string, number> = {
+  easy: 3_000,
+  medium: 4_200,
+  hard: 5_500,
+};
+const MATH_LABEL: Record<string, string> = {
+  easy: "Math Easy",
+  medium: "Math Medium",
+  hard: "Math Hard",
+};
+
+function scoreMath(t: any): ScoredRound {
+  const timeMs = finite(t?.timeMs, "timeMs", 2_000, 7_200_000);
+  const difficulty = String(t?.difficulty ?? "");
+  if (!(difficulty in MATH_DIFF)) throw new Error("Invalid difficulty");
+
+  const totalProblems = int(t?.totalProblems, "totalProblems", 5, 100);
+  const correct = int(t?.correct, "correct", 0, 100);
+  const wrong = int(t?.wrong, "wrong", 0, 100);
+  const rts = withoutStartArtifact(numberArray(t?.rts, "rts", 1, 100), 80);
+
+  if (correct + wrong > totalProblems)
+    throw new Error("Math telemetry is inconsistent");
+
+  const accuracy = clamp01(correct / totalProblems);
+  const diff = MATH_DIFF[difficulty];
+  const target = MATH_TARGET_MS[difficulty];
+  // Nhip tinh nham chi duoc cong them khi dap an dung; nhanh ma sai thi vo nghia.
+  const pace = rts.length ? clamp01(ratio(target, median(rts))) : 0;
+
+  const axes = {
+    ...NO_AXES,
+    logic: clamp(MAX * diff * accuracy * (0.72 + 0.28 * pace)),
+    speed:
+      rts.length >= 3
+        ? clamp(speed(rts, target, diff) * (0.55 + 0.45 * accuracy))
+        : null,
+  };
+  return {
+    axes,
+    headline: headline(axes),
+    label: MATH_LABEL[difficulty],
+    timeMs,
+  };
+}
+
 export function scoreAndValidate(
   game: Game,
   telemetry: unknown,
@@ -277,7 +331,9 @@ export function scoreAndValidate(
             ? scoreReaction(telemetry)
             : game === "nback"
               ? scoreNBack(telemetry)
-              : scoreMemory(telemetry);
+              : game === "math"
+                ? scoreMath(telemetry)
+                : scoreMemory(telemetry);
   // Client time may exclude fixed animations/wait periods. It may not exceed server elapsed by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000)
     throw new Error("Telemetry time exceeds server round time");

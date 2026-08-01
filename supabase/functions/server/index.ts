@@ -26,7 +26,9 @@ const adminClient = createClient(
 );
 
 const PROFILE_COLS = "*";
-const SIGNUP_LIMIT = 5;
+// Ca nha thuong dung chung mot duong mang, nen mot dia chi phai du cho
+// vai nguoi cung dang ky.
+const SIGNUP_LIMIT = 10;
 const SIGNUP_WINDOW_SECONDS = 15 * 60;
 
 async function sha256(value: string): Promise<string> {
@@ -47,7 +49,12 @@ function clientIp(c: any): string {
   );
 }
 
-async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
+type TurnstileVerdict = { ok: boolean; codes: string[] };
+
+async function verifyTurnstile(
+  token: string,
+  ip: string,
+): Promise<TurnstileVerdict> {
   const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
   if (!secret) throw new Error("TURNSTILE_SECRET_KEY is not configured.");
 
@@ -68,11 +75,27 @@ async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
     success?: boolean;
     "error-codes"?: string[];
   };
+  const codes = result["error-codes"] ?? [];
   if (!result.success)
-    console.log(
-      `Turnstile rejected signup: ${(result["error-codes"] ?? []).join(", ")}`,
-    );
-  return result.success === true;
+    console.log(`Turnstile rejected signup: ${codes.join(", ") || "no code"}`);
+  return { ok: result.success === true, codes };
+}
+
+// Doi ma loi kho hieu cua Cloudflare thanh cau nguoi thuong doc duoc.
+function turnstileMessage(codes: string[]): string {
+  if (
+    codes.includes("missing-input-secret") ||
+    codes.includes("invalid-input-secret")
+  )
+    return "Human verification is misconfigured on the server. Please contact the admin.";
+  if (codes.includes("timeout-or-duplicate"))
+    return "Human verification expired. Please tick the box again and resubmit.";
+  if (
+    codes.includes("invalid-input-response") ||
+    codes.includes("missing-input-response")
+  )
+    return "Human verification token is invalid. Please tick the box again.";
+  return "Human verification failed or expired. Please try again.";
 }
 
 app.get("/server/health", (c) => c.json({ status: "ok" }));
@@ -84,6 +107,8 @@ app.post("/server/signup", async (c) => {
   try {
     const ip = clientIp(c);
     const ipHash = await sha256(`neurobics-signup:${ip}`);
+    // Chi HOI xem con luot khong, khong tru luot o day. Viec tru duoc doi
+    // den luc tai khoan that su duoc tao, o cuoi ham nay.
     const { data: allowed, error: rateError } = await adminClient.rpc(
       "check_signup_rate_limit",
       {
@@ -121,9 +146,15 @@ app.post("/server/signup", async (c) => {
       );
     }
 
-    if (!(await verifyTurnstile(String(captchaToken), ip))) {
+    const verdict = await verifyTurnstile(String(captchaToken), ip);
+    if (!verdict.ok) {
+      // Kem theo ma loi goc: khong phai bi mat, ma la thu duy nhat cho biet
+      // loi nam o khoa bi mat hay o ma da het han.
       return c.json(
-        { error: "Human verification failed or expired. Please try again." },
+        {
+          error: turnstileMessage(verdict.codes),
+          code: verdict.codes.join(", ") || "unknown",
+        },
         400,
       );
     }
@@ -218,6 +249,15 @@ app.post("/server/signup", async (c) => {
         500,
       );
     }
+
+    // Den day tai khoan da chac chan duoc tao, moi tru mot luot. Cac lan
+    // that bai truoc do khong dot han muc cua nguoi cung duong mang.
+    const { error: recordErr } = await adminClient.rpc(
+      "record_signup_attempt",
+      { p_key: ipHash, p_window_seconds: SIGNUP_WINDOW_SECONDS },
+    );
+    if (recordErr)
+      console.log(`Signup rate-limit record failed: ${recordErr.message}`);
 
     return c.json({ profile });
   } catch (err) {

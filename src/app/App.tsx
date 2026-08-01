@@ -129,7 +129,9 @@ export type RoundAxisRow = {
 };
 
 export type RoundResult = {
-  game: "schulte" | "sudoku" | "stroop" | "memory" | "reaction";
+  // Dung chung kieu voi api.ts: them game moi la tu dong theo, khong con
+  // canh mot ben biet mot ben khong.
+  game: RoundGame;
   timeMs: number;
   /** Only the axes this game actually measures. */
   rows: RoundAxisRow[];
