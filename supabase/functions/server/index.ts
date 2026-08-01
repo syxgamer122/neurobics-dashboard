@@ -16,7 +16,13 @@ app.use("*", logger(console.log));
 app.use(
   "/*",
   cors({
-    origin: "*",
+    // Chi domain app + localhost dev. Khong dung "*".
+    origin: [
+      "https://nguyenhuumanh.vercel.app",
+      "https://neurobics-dashboard-pfl3.vercel.app",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ],
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
@@ -30,7 +36,8 @@ const adminClient = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const PROFILE_COLS = "*";
+const PROFILE_COLS =
+  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, created_at";
 // Ca nha thuong dung chung mot duong mang, nen mot dia chi phai du cho
 // vai nguoi cung dang ky.
 const SIGNUP_LIMIT = 10;
@@ -163,8 +170,6 @@ app.post("/server/signup", async (c) => {
 
     const verdict = await verifyTurnstile(String(captchaToken), ip);
     if (!verdict.ok) {
-      // Kem theo ma loi goc: khong phai bi mat, ma la thu duy nhat cho biet
-      // loi nam o khoa bi mat hay o ma da het han.
       return c.json(
         {
           error: turnstileMessage(verdict.codes),
@@ -173,6 +178,14 @@ app.post("/server/signup", async (c) => {
         400,
       );
     }
+
+    // Dem moi lan da qua captcha (ke ca fail) — chan do username vo han.
+    const { error: recordEarlyErr } = await adminClient.rpc(
+      "record_signup_attempt",
+      { p_key: ipHash, p_window_seconds: SIGNUP_WINDOW_SECONDS },
+    );
+    if (recordEarlyErr)
+      console.log(`Signup rate-limit record failed: ${recordEarlyErr.message}`);
 
     const normalized = String(username).trim().toLowerCase();
     const pw = String(password);
@@ -190,20 +203,19 @@ app.post("/server/signup", async (c) => {
       );
     }
 
-    // Reserved names (admin/system) — table not readable by clients.
+    // Thong diep chung — khong tiet lo ten da ton tai / bi giu cho.
+    const NAME_TAKEN =
+      "Signup error: that username is not available. Try another.";
+
     const { data: reserved } = await adminClient
       .from("reserved_usernames")
       .select("username")
       .eq("username", normalized)
       .maybeSingle();
     if (reserved) {
-      return c.json(
-        { error: `Signup error: username "${username}" is not available.` },
-        409,
-      );
+      return c.json({ error: NAME_TAKEN }, 409);
     }
 
-    // Case-insensitive uniqueness check against the genuine profiles table.
     const { data: existing, error: lookupErr } = await adminClient
       .from("profiles")
       .select("id")
@@ -216,10 +228,7 @@ app.post("/server/signup", async (c) => {
       return c.json({ error: `Signup error: ${lookupErr.message}` }, 500);
     }
     if (existing) {
-      return c.json(
-        { error: `Signup error: username "${username}" is already taken.` },
-        409,
-      );
+      return c.json({ error: NAME_TAKEN }, 409);
     }
 
     // Email-spoofing trick so users only need a username.
@@ -265,26 +274,18 @@ app.post("/server/signup", async (c) => {
       );
     }
 
-    // Mã khôi phục: chỉ trả về một lần. DB chỉ lưu hash SHA-256.
+    // Ma khoi phuc: chi tra 1 lan. Hash nam bang account_recovery (service_role).
     const recoveryCode = mintRecoveryCode();
     const recoveryHash = await sha256(
       `neurobics-recovery:${normalized}:${recoveryCode}`,
     );
-    const { error: recErr } = await adminClient
-      .from("profiles")
-      .update({ recovery_code_hash: recoveryHash })
-      .eq("id", data.user.id);
+    const { error: recErr } = await adminClient.from("account_recovery").upsert({
+      user_id: data.user.id,
+      code_hash: recoveryHash,
+      created_at: new Date().toISOString(),
+    });
     if (recErr)
       console.log(`Recovery code persist failed: ${recErr.message}`);
-
-    // Den day tai khoan da chac chan duoc tao, moi tru mot luot. Cac lan
-    // that bai truoc do khong dot han muc cua nguoi cung duong mang.
-    const { error: recordErr } = await adminClient.rpc(
-      "record_signup_attempt",
-      { p_key: ipHash, p_window_seconds: SIGNUP_WINDOW_SECONDS },
-    );
-    if (recordErr)
-      console.log(`Signup rate-limit record failed: ${recordErr.message}`);
 
     return c.json({ profile, recoveryCode });
   } catch (err) {
@@ -322,11 +323,24 @@ app.post("/server/recover-password", async (c) => {
     const normalized = String(username).trim().toLowerCase();
     const { data: prof, error: pErr } = await adminClient
       .from("profiles")
-      .select("id, username, recovery_code_hash")
+      .select("id, username")
       .ilike("username", normalized)
       .maybeSingle();
     if (pErr) throw pErr;
-    if (!prof?.recovery_code_hash) {
+    if (!prof) {
+      return c.json(
+        { error: "Invalid recovery code or username.", code: "bad_recovery" },
+        400,
+      );
+    }
+
+    const { data: rec, error: rErr } = await adminClient
+      .from("account_recovery")
+      .select("code_hash")
+      .eq("user_id", prof.id)
+      .maybeSingle();
+    if (rErr) throw rErr;
+    if (!rec?.code_hash) {
       return c.json(
         { error: "Invalid recovery code or username.", code: "bad_recovery" },
         400,
@@ -336,14 +350,10 @@ app.post("/server/recover-password", async (c) => {
     const candidate = await sha256(
       `neurobics-recovery:${normalized}:${String(recoveryCode).trim().toUpperCase()}`,
     );
-    // Also accept as-typed (in case user kept original casing from mint)
     const candidateRaw = await sha256(
       `neurobics-recovery:${normalized}:${String(recoveryCode).trim()}`,
     );
-    if (
-      candidate !== prof.recovery_code_hash &&
-      candidateRaw !== prof.recovery_code_hash
-    ) {
+    if (candidate !== rec.code_hash && candidateRaw !== rec.code_hash) {
       return c.json(
         { error: "Invalid recovery code or username.", code: "bad_recovery" },
         400,
@@ -356,11 +366,7 @@ app.post("/server/recover-password", async (c) => {
     );
     if (upErr) throw upErr;
 
-    // Mã dùng một lần: xoá hash sau khi đổi mật khẩu thành công.
-    await adminClient
-      .from("profiles")
-      .update({ recovery_code_hash: null })
-      .eq("id", prof.id);
+    await adminClient.from("account_recovery").delete().eq("user_id", prof.id);
 
     return c.json({ ok: true });
   } catch (err) {
@@ -523,15 +529,23 @@ app.post("/server/submit-round", async (c) => {
   } catch (err) {
     console.log(`Submit round error: ${err}`);
     const message =
-  err instanceof Error
-    ? err.message
-    : typeof err === "object" && err !== null && "message" in err
-      ? String((err as { message: unknown }).message)
-      : JSON.stringify(err);
-    return c.json(
-      { error: message },
-      message.includes("already submitted") ? 409 : 400,
-    );
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+          ? String((err as { message: unknown }).message)
+          : JSON.stringify(err);
+    const lower = message.toLowerCase();
+    let status = 400;
+    if (
+      lower.includes("authorization") ||
+      lower.includes("session") ||
+      lower.includes("expired") ||
+      lower.includes("invalid or expired") ||
+      lower.includes("missing authorization")
+    )
+      status = 401;
+    else if (lower.includes("already submitted")) status = 409;
+    return c.json({ error: message }, status);
   }
 });
 
@@ -560,10 +574,11 @@ app.post("/server/admin-grant", async (c) => {
       return c.json({ error: "Invalid admin grant" }, 400);
     const { data: target, error: readError } = await adminClient
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLS)
       .eq("id", targetId)
       .single();
     if (readError || !target) throw readError ?? new Error("Target not found");
+    // Khop src/app/lib/axes.ts
     const columns: Record<string, string> = {
       logic: "algebraic_logic_score",
       memory: "memory_score",
@@ -591,7 +606,7 @@ app.post("/server/admin-grant", async (c) => {
       .from("profiles")
       .update(patch)
       .eq("id", targetId)
-      .select("*")
+      .select(PROFILE_COLS)
       .single();
     if (error) throw error;
     return c.json({ profile: data });
@@ -621,6 +636,8 @@ app.post("/server/admin-reset", async (c) => {
       stroop_sessions: 0,
       reaction_sessions: 0,
       memory_sessions: 0,
+      nback_sessions: 0,
+      math_sessions: 0,
       total_xp: 0,
       last_active_date: null,
     };
@@ -628,7 +645,7 @@ app.post("/server/admin-reset", async (c) => {
       .from("profiles")
       .update(patch)
       .eq("id", targetId)
-      .select("*")
+      .select(PROFILE_COLS)
       .single();
     if (error) throw error;
     return c.json({ profile: data });
@@ -637,6 +654,50 @@ app.post("/server/admin-reset", async (c) => {
       { error: err instanceof Error ? err.message : String(err) },
       403,
     );
+  }
+});
+
+// Admin xoa user tron (profile + auth + avatar).
+app.post("/server/admin-delete-user", async (c) => {
+  try {
+    const user = await authenticatedUser(c);
+    await requireAdmin(user.id);
+    const { targetId } = await c.req.json();
+    if (!targetId) return c.json({ error: "targetId required" }, 400);
+    if (targetId === user.id)
+      return c.json({ error: "Use delete-account for your own account" }, 400);
+
+    try {
+      const { data: listed } = await adminClient.storage
+        .from("avatars")
+        .list(targetId);
+      if (listed && listed.length > 0) {
+        await adminClient.storage
+          .from("avatars")
+          .remove(listed.map((f) => `${targetId}/${f.name}`));
+      }
+    } catch (storageErr) {
+      console.log(`admin-delete-user storage: ${storageErr}`);
+    }
+
+    await adminClient.from("account_recovery").delete().eq("user_id", targetId);
+    const { error: profileErr } = await adminClient
+      .from("profiles")
+      .delete()
+      .eq("id", targetId);
+    if (profileErr) throw profileErr;
+    const { error: authErr } = await adminClient.auth.admin.deleteUser(targetId);
+    if (authErr) throw authErr;
+    return c.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const status =
+      msg.includes("authorization") ||
+      msg.includes("session") ||
+      msg.includes("Admin")
+        ? 403
+        : 400;
+    return c.json({ error: msg }, status);
   }
 });
 

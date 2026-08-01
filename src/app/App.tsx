@@ -70,6 +70,7 @@ import {
   getLevelColor,
 } from "./lib/xp";
 import { generateSudoku } from "./lib/sudoku-gen";
+import { AXIS_META, type AxisKey } from "./lib/axes";
 import { LogOut, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -146,16 +147,6 @@ export type RoundResult = {
   leveledUp?: boolean;
 };
 
-// Axis display metadata plus the profile column each axis persists to.
-const AXIS_META = {
-  speed: { color: "#10B981", column: "speed_score" },
-  focus: { color: "#A855F7", column: "focus_score" },
-  spatial: { color: "#F59E0B", column: "cfop_spatial_record" },
-  logic: { color: "#00D4FF", column: "algebraic_logic_score" },
-  memory: { color: "#F43F5E", column: "memory_score" },
-} as const;
-
-type AxisKey = keyof typeof AXIS_META;
 
 /**
  * Converts a round's per-axis ratings into the columns to persist and the rows
@@ -909,7 +900,7 @@ function AppInner() {
                   <div>
                     <Label color="#00D4FF">{t.cog_matrix}</Label>
                     <div className="text-sm text-slate-400 mt-1">
-                      {t.cog_matrix_sub}
+                      {t.cog_matrix_sub(totalRounds(profile))}
                     </div>
                   </div>
                   <div
@@ -1723,14 +1714,13 @@ function SchulteTableGame({
     [],
   );
 
-  // Declarative win detection: the moment every number in the sequence has been
-  // found we fire onComplete exactly once (guarded by completedRef). Running this
-  // in an effect — rather than inside the click handler — means it can't be missed
-  // due to stale closures or state-update batching, which is why rounds weren't saving.
+  // Win (het day) hoac thua (het tim): submit telemetry mot lan — khong bien mat im lang.
   useEffect(() => {
     if (completedRef.current) return;
     if (status !== "playing") return;
-    if (sequence.length === 0 || seqIdx < sequence.length) return;
+    const won = sequence.length > 0 && seqIdx >= sequence.length;
+    const lost = hearts <= 0;
+    if (!won && !lost) return;
 
     completedRef.current = true;
     if (intervalRef.current) {
@@ -1740,9 +1730,11 @@ function SchulteTableGame({
     const ms = Date.now() - (startRef.current ?? Date.now());
     setElapsed(ms);
     setStatus("done");
-    setBestTime((prev) => (prev === null || ms < prev ? ms : prev));
+    if (won) setBestTime((prev) => (prev === null || ms < prev ? ms : prev));
     setSaving(true);
-    const modeLabel = `${size}×${size} ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+    const modeLabel = `${size}×${size} ${mode.charAt(0).toUpperCase() + mode.slice(1)}${
+      lost ? " (failed)" : ""
+    }`;
     (async () => {
       try {
         await onComplete({
@@ -1758,7 +1750,7 @@ function SchulteTableGame({
         setSaving(false);
       }
     })();
-  }, [seqIdx, sequence.length, status, size, mode, onComplete]);
+  }, [seqIdx, sequence.length, status, size, mode, hearts, onComplete]);
 
   const handleClick = useCallback(
     async (cell: SCell, idx: number) => {
@@ -1789,7 +1781,7 @@ function SchulteTableGame({
           wrongClicksRef.current += 1;
           const newHearts = hearts - 1;
           setHearts(newHearts);
-          if (newHearts <= 0) later(() => reset(), 420);
+          // Het tim: effect completion se submit — khong reset im lang.
         }
         return;
       }
@@ -2532,6 +2524,13 @@ function SudokuGame({
       if (puzzle[r][c] !== null) return;
       // Ignore re-tapping the same digit already in the cell (no RT/placement bump).
       if (userGrid[r][c] === n) return;
+
+      // O da dung: dem re-entry (mat dau suy luan) roi chan — dung pha o.
+      if (userGrid[r][c] === solution[r][c]) {
+        reEntriesRef.current += 1;
+        return;
+      }
+
       ensureStarted();
 
       const cellKey = `${r},${c}`;
@@ -2541,7 +2540,6 @@ function SudokuGame({
 
       const isWrong = n !== solution[r][c];
       if (isWrong) {
-        // Same cell wrong more than once = the earlier elimination was forgotten.
         if (wrongCellsRef.current.has(cellKey)) repeatMistakesRef.current += 1;
         else wrongCellsRef.current.add(cellKey);
         const next = mistakes + 1;
@@ -2553,8 +2551,6 @@ function SudokuGame({
           setUserGrid((prev) =>
             prev.map((row, ri) =>
               row.map((v, ci) =>
-                // Chỉ xoá khi ô vẫn đang sai. Nếu người chơi kịp điền đúng
-                // trong 600ms thì giữ lại, đừng xoá mất công của họ.
                 ri === r && ci === c && v !== solution[r][c] ? null : v,
               ),
             ),
@@ -2564,9 +2560,6 @@ function SudokuGame({
         return;
       }
 
-      // Re-entry: this cell was already correctly filled and is being rewritten
-      // with a *different* correct digit path — count it (same-digit already returned).
-      if (userGrid[r][c] === solution[r][c]) reEntriesRef.current += 1;
       placementsRef.current += 1;
 
       // Place the digit — the completion effect watches userGrid and fires
@@ -3097,39 +3090,38 @@ function StroopGame({
       }
 
       const now = Date.now();
+      // RT = tu luc stimulus hien (lastTrialRef), KHONG gom thoi gian flash.
       const rt = now - (lastTrialRef.current ?? now);
-      lastTrialRef.current = now;
 
       const correct = chosen === stimulus.inkId;
       setFlash(correct ? "correct" : "wrong");
 
       if (!correct) {
-        // Losing the last heart drops hearts to 0 — the completion effect ends the run.
         wrongRef.current += 1;
         const nh = hearts - 1;
         setHearts(nh);
         later(() => {
           setFlash(null);
-          // Phải lấy màu mực của câu VỪA hiện, không phải câu đúng gần nhất:
-          // prevInkRef chỉ cập nhật khi trả lời đúng, nên nếu dùng nó thì sau
-          // một câu sai màu mực cũ vẫn có thể lặp lại ngay lập tức.
           prevInkRef.current = stimulus.inkId;
-          if (nh > 0) setStimulus(makeStimulus(stimulus.inkId));
+          if (nh > 0) {
+            setStimulus(makeStimulus(stimulus.inkId));
+            lastTrialRef.current = Date.now();
+          }
         }, 420);
         return;
       }
 
-      // Only correct responses feed the RT distribution — mixing in error trials
-      // would let fast wrong guesses masquerade as fast processing.
       rtsRef.current.push(rt);
 
-      // Clearing the last trial drops trialsLeft to 0 — the completion effect ends the run.
       prevInkRef.current = stimulus.inkId;
       const newLeft = trialsLeft - 1;
       setTrialsLeft(newLeft);
       later(() => {
         setFlash(null);
-        if (newLeft > 0) setStimulus(makeStimulus(stimulus.inkId));
+        if (newLeft > 0) {
+          setStimulus(makeStimulus(stimulus.inkId));
+          lastTrialRef.current = Date.now();
+        }
       }, 240);
     },
     [status, flash, stimulus, hearts, trialsLeft, later, onPlayStart],

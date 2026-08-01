@@ -4,7 +4,7 @@
  */
 
 export const MAX_XP_PER_ROUND = 35;
-export const DAILY_XP_CAP = 300;
+// Daily XP cap enforced server-side only.
 
 /** XP needed to reach a given level (cumulative). */
 export function xpRequiredForLevel(level: number): number {

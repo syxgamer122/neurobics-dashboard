@@ -203,7 +203,8 @@ function describeError(err: unknown, context: string): string {
 
 // Select all columns so the app keeps working before/after the ALTER TABLE
 // migration adds memory_score, speed_score, focus_score, last_active_date.
-const PROFILE_COLS = "*";
+const PROFILE_COLS =
+  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, created_at";
 
 // Danh sách rút gọn dùng cho bảng xếp hạng và thống kê quần thể. Hai truy vấn đó
 // đọc hồ sơ của MỌI người chơi, nên tuyệt đối không dùng "*" — làm thế là gửi
@@ -217,6 +218,7 @@ const LEADERBOARD_COLS =
 // The rating scale and its guards live in ./scoring, the single source of truth
 // for everything score-related. Re-exported so existing importers keep working.
 export { RATING_MAX, sanitizeRating };
+export { AXIS_COLUMNS, AXIS_META, type AxisKey } from "./axes";
 
 /** Sanitize every cognitive axis on a freshly-fetched profile. */
 function sanitizeProfile(p: Profile): Profile {
@@ -299,78 +301,6 @@ export async function saveBirthYear(birthYear: number): Promise<Profile> {
  * only update their own row (auth.uid() = id).
  * scoreType: "cfop_spatial_record" (solve time), "algebraic_logic_score", or "synapse_streak".
  */
-export type ScoreColumn =
-  | "cfop_spatial_record"
-  | "algebraic_logic_score"
-  | "synapse_streak"
-  | "memory_score"
-  | "speed_score"
-  | "focus_score"
-  | "schulte_sessions"
-  | "sudoku_sessions"
-  | "stroop_sessions"
-  | "reaction_sessions"
-  | "memory_sessions"
-  | "total_xp";
-
-/**
- * @deprecated Từ Giai đoạn 1, mọi cột điểm đã bị `revoke update` khỏi vai trò
- * `authenticated`, nên hàm này luôn thất bại với lỗi 42501. Điểm chỉ được ghi
- * qua Edge Function `submit-round`. Giữ lại t��m để không vỡ import cũ.
- */
-export async function saveTrainingResult(
-  scoreType: ScoreColumn,
-  value: number,
-): Promise<Profile> {
-  const userId = await currentUserId();
-  if (!userId)
-    throw new Error("Save training result failed: not authenticated.");
-
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update({ [scoreType]: value })
-    .eq("id", userId)
-    .select(PROFILE_COLS)
-    .single();
-
-  if (error) {
-    const msg = describeError(
-      error,
-      `Save training result failed for ${scoreType}`,
-    );
-    console.error(msg);
-    throw new Error(msg);
-  }
-  return sanitizeProfile(data as Profile);
-}
-
-/**
- * @deprecated Xem `saveTrainingResult`. Các cột điểm đã bị thu quyền ghi ở phía
- * database, hàm này không còn đường chạy thành công.
- */
-export async function saveScores(
-  updates: Partial<Record<ScoreColumn, number>>,
-): Promise<Profile> {
-  const userId = await currentUserId();
-  if (!userId) throw new Error("Save scores failed: not authenticated.");
-
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update(updates)
-    .eq("id", userId)
-    .select(PROFILE_COLS)
-    .single();
-
-  if (error) {
-    const msg = describeError(
-      error,
-      `Save scores failed for [${Object.keys(updates).join(", ")}]`,
-    );
-    console.error(msg);
-    throw new Error(msg);
-  }
-  return sanitizeProfile(data as Profile);
-}
 
 // ─── Daily streak (Asia/Ho_Chi_Minh timezone) ──────────────────────────────────
 
@@ -396,59 +326,7 @@ function dayDiff(fromYmd: string, toYmd: string): number {
  *  - more than 1 day later (or first ever)   → streak reset to 1
  * Writes both synapse_streak and last_active_date back to the row.
  */
-/**
- * @deprecated Chuỗi ngày (streak) giờ do `submit_round_transaction` phía server
- * tự cập nhật. Không nơi nào trong ứng dụng gọi hàm này nữa.
- */
-export async function recordDailyActivity(): Promise<Profile> {
-  const userId = await currentUserId();
-  if (!userId)
-    throw new Error("Record daily activity failed: not authenticated.");
-
-  const current = await fetchProfile();
-  if (!current)
-    throw new Error("Record daily activity failed: profile not found.");
-
-  const today = vnDateString(new Date());
-  let streak: number;
-
-  if (!current.last_active_date) {
-    streak = 1;
-  } else if (current.last_active_date === today) {
-    streak = current.synapse_streak; // already active today, no change
-  } else {
-    const diff = dayDiff(current.last_active_date, today);
-    if (diff === 1) streak = current.synapse_streak + 1;
-    else if (diff > 1) streak = 1;
-    else streak = current.synapse_streak; // clock skew / past date, leave as-is
-  }
-
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update({ synapse_streak: streak, last_active_date: today })
-    .eq("id", userId)
-    .select(PROFILE_COLS)
-    .single();
-
-  if (error) {
-    const msg = describeError(error, "Record daily activity failed");
-    console.error(msg);
-    throw new Error(msg);
-  }
-  return sanitizeProfile(data as Profile);
-}
-
 // ─── Admin controls (active user) ───────────────────────────────────────────────
-
-/**
- * @deprecated Client cannot write score columns (revoke update). Use admin-grant
- * Edge Function instead. Kept only so old imports fail loudly rather than 42501.
- */
-export async function addPointsToActiveUser(_delta: number): Promise<Profile> {
-  throw new Error(
-    "addPointsToActiveUser is disabled: scores are server-only. Use admin-grant.",
-  );
-}
 
 /**
  * Wipes all cognitive metrics and the streak back to 0 for the active user.
@@ -504,14 +382,6 @@ export async function adminFetchUser(targetId: string): Promise<Profile> {
   return hydrateProfile(data as Profile);
 }
 
-export const AXIS_COLUMNS = {
-  logic: "algebraic_logic_score",
-  memory: "memory_score",
-  speed: "speed_score",
-  focus: "focus_score",
-  spatial: "cfop_spatial_record",
-} as const;
-export type AxisKey = keyof typeof AXIS_COLUMNS;
 export type AdminGrant = {
   axes?: Partial<Record<AxisKey, number>>;
   xp?: number;
@@ -563,13 +433,9 @@ export async function adminResetScores(targetId: string): Promise<Profile> {
   return sanitizeProfile(result.profile);
 }
 
-/** Delete any user's profile row (does NOT remove auth user). */
+/** Admin xoa user tron (profile + auth + avatar) qua Edge Function. */
 export async function adminDeleteUser(targetId: string): Promise<void> {
-  const { error } = await getSupabase()
-    .from("profiles")
-    .delete()
-    .eq("id", targetId);
-  if (error) throw new Error(describeError(error, "adminDeleteUser"));
+  await serverPost<{ ok: true }>("admin-delete-user", { targetId });
 }
 
 /**
@@ -731,24 +597,6 @@ export async function removeAvatar(): Promise<Profile> {
 }
 // ─── XP awarding (server-side, tamper-resistant) ──────────────────────────────
 
-export type XpAwardResult = {
-  totalXp: number;
-  xpAwarded: number;
-  level: number;
-  leveledUp: boolean;
-};
-
-/**
- * @deprecated Endpoint returns 410. XP is awarded inside submit-round.
- * Kept as a no-op so accidental callers do not hit the network.
- */
-export async function awardXp(
-  _game: string,
-  _roundScore: number,
-): Promise<XpAwardResult | null> {
-  console.warn("awardXp is deprecated; XP comes from submit-round.");
-  return null;
-}
 
 export type RoundGame =
   | "schulte"

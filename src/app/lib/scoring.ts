@@ -132,32 +132,6 @@ export function lapseRate(xs: number[], threshold = 2.5): number {
   return xs.filter((x) => x > med * threshold).length / xs.length;
 }
 
-/** Bounded reward for beating a target time. */
-export const TIME_RATIO_CAP = 1.4;
-export const timeRatio = (targetMs: number, actualMs: number): number =>
-  Math.min(targetMs / Math.max(actualMs, 1), TIME_RATIO_CAP);
-
-// ─── Difficulty ceilings ───────────────────────────────────────────────
-// The share of RATING_MAX reachable at a given difficulty. Grinding the easiest
-// level can never max an axis.
-
-export const SCHULTE_DIFF_FACTOR: Record<number, number> = { 9: 0.55, 16: 0.72, 25: 0.86, 36: 1.0 };
-export const SUDOKU_DIFF_FACTOR: Record<string, number> = {
-  Easy: 0.5, Medium: 0.6, Hard: 0.7, Expert: 0.8, Master: 0.9, Extreme: 1.0,
-};
-export const STROOP_DIFF_FACTOR = 0.82;
-
-/** Per-target time budget (ms) for Schulte, by cell count. */
-export const SCHULTE_TARGETS: Record<number, number> = { 9: 20000, 16: 45000, 25: 90000, 36: 160000 };
-/** Whole-board time budget (ms) for Sudoku, by difficulty. */
-export const SUDOKU_TARGETS: Record<string, number> = {
-  Easy: 240000, Medium: 360000, Hard: 480000, Expert: 720000, Master: 960000, Extreme: 1500000,
-};
-/** Per-stimulus time budget (ms) for Stroop. */
-export const STROOP_TARGET_PER_TRIAL = 1800;
-
-export const SUDOKU_MAX_MISTAKES = 3;
-
 // ─── Telemetry captured by each game ──────────────────────────────────────
 
 export type SchulteTelemetry = {
@@ -215,11 +189,6 @@ const NO_AXES: AxisRatings = { speed: null, focus: null, spatial: null, logic: n
  * drifting off), and error rate. Because CV is scale-free, playing faster does
  * NOT raise Focus; only playing *evenly and cleanly* does.
  */
-/** CV dưới mốc này được coi là nhịp hoàn hảo — con người không thể đạt cv = 0. */
-export const FOCUS_CV_FLOOR = 0.25;
-/** CV từ mốc này trở lên chịu phạt tối đa. */
-export const FOCUS_CV_CEILING = 1.2;
-
 // ─── Schulte → Spatial, Focus, Speed ───────────────────────────────────────
 // Schulte is a visual-search task. It says nothing about deduction or recall,
 // so Logic and Memory stay null here.
@@ -236,10 +205,6 @@ export const FOCUS_CV_CEILING = 1.2;
 // Reaction Time đo tốc độ phản ứng trực tiếp. Focus được tính từ độ ổn định
 // giữa các lượt và bị giảm nếu người chơi bấm sớm.
 
-export const REACTION_TARGET_MS = 350;
-export const REACTION_DIFF_FACTOR = 1.0;
-export const REACTION_FOCUS_FACTOR = 0.9;
-
 export type ReactionTelemetry = {
   timeMs: number;
   rts: number[];
@@ -253,12 +218,6 @@ export type ReactionTelemetry = {
 // chứ không phải nhịp chơi — nên Speed và Focus để null thay vì bịa ra từ một
 // tín hiệu thời gian đã bị nhiễu.
 
-/** Level được coi là đạt trình độ thành thục — tới đây thì số hạng level bão hòa. */
-export const MEMORY_TARGET_LEVEL = 12;
-export const MEMORY_DIFF_FACTOR = 0.9;
-/** Spatial chỉ là tín hiệu phụ của game này nên trần thấp hơn Memory. */
-export const MEMORY_SPATIAL_FACTOR = 0.7;
-
 export type MemoryTelemetry = {
   timeMs: number;
   maxLevel: number;
@@ -270,8 +229,6 @@ export type MemoryTelemetry = {
 // working memory kinh điển. Chỉ bấm đúng thôi chưa đủ: bấm bừa (false alarm) bị
 // trừ nặng, giống cách d-prime phạt đoán mò.
 // ─── Math Sprint ────────────────────────────────────────────────────────
-// ⚠️ Công thức này phải trùng với scoreMath ở supabase/functions/_shared/round-scoring.ts
-
 export type MathDifficulty = "easy" | "medium" | "hard";
 
 export type MathTelemetry = {
@@ -283,26 +240,6 @@ export type MathTelemetry = {
   /** Độ trễ từng câu (cả đúng lẫn sai), theo thứ tự. */
   rts: number[];
 };
-
-export const MATH_DIFF: Record<MathDifficulty, number> = {
-  easy: 0.62,
-  medium: 0.82,
-  hard: 1.0,
-};
-export const MATH_TARGET_MS: Record<MathDifficulty, number> = {
-  easy: 3000,
-  medium: 4200,
-  hard: 5500,
-};
-
-// ⚠️ Công thức này phải trùng với scoreNBack ở supabase/functions/_shared/round-scoring.ts
-
-/** Mức N được coi là chuẩn — trên mức này trần điểm mới nâng thêm. */
-export const NBACK_TARGET_MS = 700;
-export const NBACK_MEMORY_BASE = 0.62;
-export const NBACK_FOCUS_BASE = 0.55;
-/** Mỗi lần bấm nhầm ăn mất 75% giá trị của một lần bắt đúng. */
-export const NBACK_FALSE_ALARM_PENALTY = 0.75;
 
 export type NBackTelemetry = {
   timeMs: number;

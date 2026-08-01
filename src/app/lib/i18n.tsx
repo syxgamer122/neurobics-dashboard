@@ -31,7 +31,8 @@ brain_age_provisional: "Tạm tính: chưa đủ người chơi để lập phâ
 round_axis_detail: (round: number, gain: number) =>
   gain > 0 ? `Ván này: ${round} · +${gain}` : `Ván này: ${round} · chưa vượt kỷ lục`,
   cog_matrix: "Ma Trận Hiệu Suất Nhận Thức",
-  cog_matrix_sub: "Đánh giá 5 lĩnh vực thần kinh · Phiên #47",
+  cog_matrix_sub: (sessions: number) =>
+    `Đánh giá 5 lĩnh vực thần kinh · ${sessions} phiên`,
   live: "TRỰC TIẾP",
   synapse_streak: "Chuỗi Ngày Luyện Não",
   best_streak: "Chuỗi Tốt Nhất",
@@ -84,7 +85,7 @@ days: "ngày",
   mem_max_level: "Cấp cao nhất",
   game_over: "KẾT THÚC",
   abort_restart: "HUỶ & CHƠI LẠI",
-  streak_week_label: "T2 — CN",
+  streak_week_label: "Chuỗi hiện tại (tối đa 7 ô)",
   access_denied_title: "TRUY CẬP BỊ TỪ CHỐI",
   access_denied_role: "QUẢN TRỊ VIÊN",
 
@@ -267,7 +268,8 @@ brain_age_provisional: "Provisional: not enough players yet for a real distribut
 round_axis_detail: (round, gain) =>
   gain > 0 ? `This round: ${round} · +${gain}` : `This round: ${round} · no new record`,
   cog_matrix: "Cognitive Performance Matrix",
-  cog_matrix_sub: "5-domain neural assessment · Session #47",
+  cog_matrix_sub: (sessions: number) =>
+    `5-domain neural assessment · ${sessions} sessions`,
   live: "LIVE",
   synapse_streak: "Synapse Streak",
   best_streak: "Best Streak",
@@ -318,7 +320,7 @@ days: "days",
   mem_max_level: "Max Level",
   game_over: "GAME OVER",
   abort_restart: "ABORT & RESTART",
-  streak_week_label: "MON — SUN",
+  streak_week_label: "Current streak (up to 7 dots)",
   access_denied_title: "ACCESS DENIED",
   access_denied_role: "ADMINISTRATOR",
 
