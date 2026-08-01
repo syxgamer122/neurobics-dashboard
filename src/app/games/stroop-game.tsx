@@ -170,6 +170,10 @@ export function StroopGame({
     (chosen: StroopColorId) => {
       if (status === "done" || flash !== null) return;
 
+      // Click dau tien vua khoi dong dong ho vua la cau tra loi => RT ~0ms.
+      // Khong ghi mau nay, neu khong median Speed bi keo xuong va CV Focus tang gia.
+      const wasIdle = status === "idle";
+
       if (status === "idle") {
         onPlayStart?.();
         startRef.current = Date.now();
@@ -203,7 +207,7 @@ export function StroopGame({
         return;
       }
 
-      rtsRef.current.push(rt);
+      if (!wasIdle) rtsRef.current.push(rt);
 
       const newLeft = trialsLeft - 1;
       setTrialsLeft(newLeft);
@@ -242,7 +246,7 @@ export function StroopGame({
       <div className="flex items-start justify-between mb-1">
         <div>
           <div
-            className="text-[10px] tracking-[0.2em] mb-1.5"
+            className="text-[11px] tracking-[0.2em] mb-1.5"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: "#EAB308",
@@ -314,7 +318,7 @@ export function StroopGame({
       <div className="mt-4 flex items-center justify-between">
         <div className="flex flex-col">
           <span
-            className="text-[9px] text-slate-600 mb-0.5"
+            className="text-[11px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {t.time_label}
@@ -334,7 +338,7 @@ export function StroopGame({
           </div>
           {bestTime !== null && (
             <span
-              className="text-[9px] mt-0.5"
+              className="text-[11px] mt-0.5"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 color: "#475569",
@@ -346,7 +350,7 @@ export function StroopGame({
         </div>
         <div className="flex flex-col items-end">
           <span
-            className="text-[9px] text-slate-600 mb-0.5"
+            className="text-[11px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {t.stroop_trial}
@@ -382,13 +386,13 @@ export function StroopGame({
       {/* Instruction label */}
       <div className="mt-4 flex items-center justify-between">
         <span
-          className="text-[10px] text-slate-500"
+          className="text-[11px] text-slate-500"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {t.stroop_instruction}
         </span>
         <span
-          className="text-[10px] text-slate-600"
+          className="text-[11px] text-slate-600"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {t.stroop_hint}
@@ -490,7 +494,7 @@ export function StroopGame({
                 }}
               />
               <span
-                className="text-[9px] font-bold tracking-wider"
+                className="text-[11px] font-bold tracking-wider"
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   color: hex,

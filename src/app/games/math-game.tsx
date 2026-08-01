@@ -368,7 +368,7 @@ export function MathSprintGame({
       <div className="flex items-center gap-2 mb-1">
         <Calculator size={16} style={{ color: ACCENT }} />
         <span
-          className="text-[10px] tracking-[0.25em] uppercase"
+          className="text-[11px] tracking-[0.25em] uppercase"
           style={{ ...mono, color: ACCENT }}
         >
           {s.tag}
@@ -382,7 +382,7 @@ export function MathSprintGame({
       {phase === "idle" && (
         <>
           <div
-            className="text-[10px] text-white/40 mb-2 tracking-widest uppercase"
+            className="text-[11px] text-white/40 mb-2 tracking-widest uppercase"
             style={mono}
           >
             {s.level}
@@ -429,7 +429,7 @@ export function MathSprintGame({
       {phase === "playing" && problem && (
         <>
           <div
-            className="flex items-center justify-between text-[10px] mb-3"
+            className="flex items-center justify-between text-[11px] mb-3"
             style={{ ...mono, color: "rgba(255,255,255,0.45)" }}
           >
             <span>
@@ -492,14 +492,14 @@ export function MathSprintGame({
                   color: "#E2F6FF",
                 }}
               >
-                <span className="text-white/35 text-[10px] mr-2">{i + 1}</span>
+                <span className="text-white/35 text-[11px] mr-2">{i + 1}</span>
                 {c}
               </button>
             ))}
           </div>
 
           <div
-            className="flex justify-between text-[10px] mt-3"
+            className="flex justify-between text-[11px] mt-3"
             style={{ ...mono, color: "rgba(255,255,255,0.4)" }}
           >
             <span style={{ color: "#10B981" }}>

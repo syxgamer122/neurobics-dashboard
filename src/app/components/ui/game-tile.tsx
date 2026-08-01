@@ -58,7 +58,7 @@ export function GameTile({
         />
       </div>
       <div
-        className="text-[10px] tracking-[0.2em] mt-4"
+        className="text-[11px] tracking-[0.2em] mt-4"
         style={{ fontFamily: "'JetBrains Mono', monospace", color: accent }}
       >
         {tag}

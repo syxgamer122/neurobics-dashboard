@@ -270,7 +270,7 @@ export function SettingsPanel({
             }}
           />
         </div>
-        <div className="text-[10px] text-slate-500 mt-1.5" style={mono}>
+        <div className="text-[11px] text-slate-500 mt-1.5" style={mono}>
           {level.xpIntoLevel} / {level.xpNeeded} XP
         </div>
 
@@ -286,7 +286,7 @@ export function SettingsPanel({
           </button>
         )}
 
-        <p className="text-[10px] text-slate-600 mt-4 leading-relaxed" style={mono}>
+        <p className="text-[11px] text-slate-600 mt-4 leading-relaxed" style={mono}>
           {t.settings_avatar_hint}
         </p>
       </div>
@@ -301,7 +301,7 @@ export function SettingsPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
                 {t.birth_year_placeholder}
               </label>
               <div className="flex gap-2">
@@ -332,14 +332,14 @@ export function SettingsPanel({
                 </button>
               </div>
               {profile.birth_year && (
-                <p className="text-[10px] text-slate-500 mt-1.5" style={mono}>
+                <p className="text-[11px] text-slate-500 mt-1.5" style={mono}>
                   {t.settings_birth_current}: {profile.birth_year}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
                 <span className="inline-flex items-center gap-1">
                   <Languages size={11} /> {t.settings_language}
                 </span>
@@ -381,7 +381,7 @@ export function SettingsPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[10px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
                 {t.settings_pw_current}
               </label>
               <input
@@ -394,7 +394,7 @@ export function SettingsPanel({
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
                 {t.settings_pw_new}
               </label>
               <input
@@ -407,7 +407,7 @@ export function SettingsPanel({
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
                 {t.settings_pw_confirm}
               </label>
               <input
@@ -440,7 +440,7 @@ export function SettingsPanel({
             )}
             {t.settings_pw_submit}
           </button>
-          <p className="text-[10px] text-slate-600 mt-2" style={mono}>
+          <p className="text-[11px] text-slate-600 mt-2" style={mono}>
             {t.settings_pw_hint}
           </p>
         </div>
@@ -464,7 +464,7 @@ export function SettingsPanel({
             </p>
           </div>
 
-          <label className="text-[10px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+          <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
             {t.settings_delete_type_username.replace("{u}", profile.username)}
           </label>
           <div className="flex flex-col sm:flex-row gap-2">

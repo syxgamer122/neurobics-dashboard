@@ -171,7 +171,7 @@ export function ReactionTimeGame({
       <div className="flex items-start justify-between">
         <div>
           <div
-            className="text-[10px] tracking-[0.2em] mb-1.5"
+            className="text-[11px] tracking-[0.2em] mb-1.5"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: "#10B981",
@@ -197,26 +197,26 @@ export function ReactionTimeGame({
 
       <div className="grid grid-cols-3 gap-3 mt-5">
         <div className="text-center">
-          <div className="text-[9px] text-slate-500">{t.rx_trial}</div>
+          <div className="text-[11px] text-slate-500">{t.rx_trial}</div>
           <div className="text-lg font-bold text-white">
             {Math.min(rts.length + 1, TOTAL_TRIALS)}/{TOTAL_TRIALS}
           </div>
         </div>
 
         <div className="text-center">
-          <div className="text-[9px] text-slate-500">{t.rx_average}</div>
+          <div className="text-[11px] text-slate-500">{t.rx_average}</div>
           <div className="text-lg font-bold text-[#10B981]">
             {average || "--"} ms
           </div>
         </div>
 
         <div className="text-center">
-          <div className="text-[9px] text-slate-500">{t.rx_too_soon}</div>
+          <div className="text-[11px] text-slate-500">{t.rx_too_soon}</div>
           <div className="text-lg font-bold text-[#F43F5E]">{falseStarts}</div>
         </div>
       </div>
 
-      <div className="mt-2 text-[10px] text-slate-500 text-center">
+      <div className="mt-2 text-[11px] text-slate-500 text-center">
         {t.rx_false_start_note}
       </div>
 

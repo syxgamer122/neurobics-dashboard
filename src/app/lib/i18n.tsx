@@ -90,6 +90,8 @@ days: "ngày",
   heart_full: "Còn mạng",
   heart_empty: "Mất mạng",
   cell_label: "Ô",
+  confirm_change_difficulty:
+    "Đổi độ khó sẽ bỏ toàn bộ tiến độ ván này. Tiếp tục?",
   answer_correct: "Đúng",
   answer_wrong: "Sai",
   access_denied_title: "TRUY CẬP BỊ TỪ CHỐI",
@@ -333,6 +335,8 @@ days: "days",
   heart_full: "Life remaining",
   heart_empty: "Life lost",
   cell_label: "Cell",
+  confirm_change_difficulty:
+    "Changing difficulty discards this game's progress. Continue?",
   answer_correct: "Correct",
   answer_wrong: "Wrong",
   access_denied_title: "ACCESS DENIED",
@@ -506,7 +510,28 @@ const Ctx = createContext<LangCtx>({
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>(() => {
-    try { return (localStorage.getItem("nb_lang") as Lang) ?? "vi"; } catch { return "vi"; }
+    try {
+      const saved = localStorage.getItem("nb_lang");
+      if (saved === "vi" || saved === "en") return saved;
+    } catch {
+      /* localStorage bi chan (private mode) — roi xuong doan do trinh duyet */
+    }
+    // Nguoi dung moi: doan theo ngon ngu trinh duyet, mac dinh cuoi cung la vi.
+    try {
+      const tags = navigator.languages?.length
+        ? navigator.languages
+        : [navigator.language];
+      for (const tag of tags) {
+        const base = String(tag ?? "").toLowerCase().split("-")[0];
+        if (base === "vi") return "vi";
+        if (base === "en") return "en";
+      }
+      // Ngon ngu khac tieng Viet => tieng Anh de doc duoc.
+      if (tags.length > 0) return "en";
+    } catch {
+      /* khong co navigator (SSR/test) */
+    }
+    return "vi";
   });
 
   const toggle = () =>

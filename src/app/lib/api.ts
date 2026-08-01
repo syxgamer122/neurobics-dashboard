@@ -204,6 +204,8 @@ async function currentUserId(): Promise<string | null> {
 // ─── Data (genuine public.profiles table) ───────────────────────────────────────
 
 // Turn a PostgrestError (plain object, not an Error) into a readable message.
+const IS_DEV = import.meta.env.DEV;
+
 function describeError(err: unknown, context: string): string {
   const e = err as {
     message?: string;
@@ -212,11 +214,19 @@ function describeError(err: unknown, context: string): string {
     code?: string;
   } | null;
   if (e && typeof e === "object") {
-    const parts = [e.message, e.details, e.hint].filter(Boolean);
-    const msg = parts.length ? parts.join(" · ") : JSON.stringify(e);
+    // Production: chi giu message + code. details/hint cua Postgres lo ten bang,
+    // ten cot va cau truy van — khong day ra cho nguoi dung cuoi.
+    const parts = IS_DEV
+      ? [e.message, e.details, e.hint].filter(Boolean)
+      : [e.message].filter(Boolean);
+    const msg = parts.length
+      ? parts.join(" · ")
+      : IS_DEV
+        ? JSON.stringify(e)
+        : "Unexpected error";
     return e.code ? `${context}: [${e.code}] ${msg}` : `${context}: ${msg}`;
   }
-  return `${context}: ${String(err)}`;
+  return `${context}: ${IS_DEV ? String(err) : "Unexpected error"}`;
 }
 
 // Select all columns so the app keeps working before/after the ALTER TABLE
@@ -706,15 +716,36 @@ export async function submitRound(
   return { ...result, profile: sanitizeProfile(result.profile) };
 }
 
-/** Global Cognitive Index = average of the 5 cognitive axes (0–1000). */
+/**
+ * Global Cognitive Index = trung binh cac truc DA CO du lieu (0–1000).
+ *
+ * Truoc day chia cung cho 5 ke ca truc chua bao gio choi, nen nguoi chi choi
+ * Sudoku bi keo index xuong ~1/5 va brain age gia di rat nhieu. Gio chi tinh
+ * tren truc > 0; UI hien so truc da mo qua axesCovered().
+ */
 export function cognitiveIndex(p: Profile): number {
-  const sum =
-    (p.algebraic_logic_score ?? 0) +
-    (p.focus_score ?? 0) +
-    (p.speed_score ?? 0) +
-    (p.memory_score ?? 0) +
-    (p.cfop_spatial_record ?? 0);
-  return sum / 5;
+  const axes = [
+    p.algebraic_logic_score,
+    p.focus_score,
+    p.speed_score,
+    p.memory_score,
+    p.cfop_spatial_record,
+  ].map((v) => (typeof v === "number" && Number.isFinite(v) ? v : 0));
+
+  const active = axes.filter((v) => v > 0);
+  if (active.length === 0) return 0;
+  return active.reduce((a, b) => a + b, 0) / active.length;
+}
+
+/** So truc da co du lieu (0–5) — dung de canh bao ho so chua day du. */
+export function axesCovered(p: Profile): number {
+  return [
+    p.algebraic_logic_score,
+    p.focus_score,
+    p.speed_score,
+    p.memory_score,
+    p.cfop_spatial_record,
+  ].filter((v) => typeof v === "number" && Number.isFinite(v) && v > 0).length;
 }
 
 export async function fetchLeaderboard(): Promise<Profile[]> {

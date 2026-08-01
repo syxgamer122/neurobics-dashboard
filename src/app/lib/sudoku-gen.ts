@@ -60,6 +60,10 @@ export const countSolutions = (grid: (number | null)[][], limit = 2): number => 
 export function generateSudoku(clues = 34): {
   puzzle: (number | null)[][];
   solution: number[][];
+  /** So o de lo THUC TE sau khi dao. >= clues neu het budget som. */
+  actualClues: number;
+  /** true khi vong dao bi cat vi het budget => de de hon nhan dan. */
+  budgetExceeded: boolean;
 } {
   const base: number[][] = [
     [1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -114,9 +118,15 @@ export function generateSudoku(clues = 34): {
   const budgetMs = 1500;
   const deadline = Date.now() + budgetMs;
 
+  let budgetExceeded = false;
   for (const pos of shuffleArray(Array.from({ length: 81 }, (_, i) => i))) {
     if (remaining <= clues) break;
-    if (Date.now() > deadline) break; // giu them clue neu het gio
+    if (Date.now() > deadline) {
+      // Het gio: giu them clue => de DE HON nhan do kho. Bao ra ngoai de
+      // telemetry gui so clue that, tranh cham diem theo nhan "Extreme" ao.
+      budgetExceeded = true;
+      break;
+    }
     const r = Math.floor(pos / 9);
     const c = pos % 9;
     const backup = puzzle[r][c];
@@ -125,5 +135,5 @@ export function generateSudoku(clues = 34): {
     if (countSolutions(puzzle) === 1) remaining--;
     else puzzle[r][c] = backup;
   }
-  return { puzzle, solution };
+  return { puzzle, solution, actualClues: remaining, budgetExceeded };
 }

@@ -76,7 +76,7 @@ export function RoundResultOverlay({
         <div className="flex items-start justify-between">
           <div>
             <div
-              className="text-[10px] tracking-[0.25em] mb-1"
+              className="text-[11px] tracking-[0.25em] mb-1"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 color: accent,
@@ -143,7 +143,7 @@ export function RoundResultOverlay({
         {/* Domain scores */}
         <div className="flex flex-col gap-3">
           <div
-            className="text-[10px] text-slate-600 tracking-widest"
+            className="text-[11px] text-slate-600 tracking-widest"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {t.current_rating_label} · {t.domains_this_round}
@@ -184,7 +184,7 @@ export function RoundResultOverlay({
                 />
               </div>
               <div
-                className="text-[9px] text-slate-600"
+                className="text-[11px] text-slate-600"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {t.round_axis_detail(
@@ -228,7 +228,7 @@ export function RoundResultOverlay({
             </span>
             {result.xpLevel != null && (
               <span
-                className="text-[10px] px-2 py-1 rounded-md"
+                className="text-[11px] px-2 py-1 rounded-md"
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   background: "rgba(255,255,255,0.06)",
@@ -243,7 +243,7 @@ export function RoundResultOverlay({
 
         {/* Note */}
         <div
-          className="text-[10px] text-slate-600 text-center"
+          className="text-[11px] text-slate-600 text-center"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {t.score_note}

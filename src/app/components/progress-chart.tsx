@@ -99,7 +99,7 @@ export function ProgressChart() {
 
   const axisTick = {
     fill: "#64748b",
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: mono.fontFamily,
   };
 
@@ -127,7 +127,7 @@ export function ProgressChart() {
               key={r.days}
               type="button"
               onClick={() => setDays(r.days)}
-              className="rounded-full px-3 py-1 text-[10px] tracking-wider transition"
+              className="rounded-full px-3 py-1 text-[11px] tracking-wider transition"
               style={{
                 ...mono,
                 color: days === r.days ? "#020617" : "#94a3b8",
@@ -172,7 +172,7 @@ export function ProgressChart() {
       {/* ── XP và số ván mỗi ngày ── */}
       <div className="mb-3 rounded-2xl p-4" style={panelStyle}>
         <p
-          className="mb-3 text-[10px] tracking-[0.2em]"
+          className="mb-3 text-[11px] tracking-[0.2em]"
           style={{ ...mono, color: "#64748b" }}
         >
           XP VÀ SỐ VÁN MỖI NGÀY
@@ -241,7 +241,7 @@ export function ProgressChart() {
       <div className="rounded-2xl p-4" style={panelStyle}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p
-            className="text-[10px] tracking-[0.2em]"
+            className="text-[11px] tracking-[0.2em]"
             style={{ ...mono, color: "#64748b" }}
           >
             DIỄN BIẾN 5 TRỤC
@@ -254,7 +254,7 @@ export function ProgressChart() {
                   key={a.key}
                   type="button"
                   onClick={() => toggleAxis(a.key)}
-                  className="rounded-full px-2.5 py-1 text-[9px] tracking-wider transition"
+                  className="rounded-full px-2.5 py-1 text-[11px] tracking-wider transition"
                   style={{
                     ...mono,
                     color: off ? "#475569" : a.color,
@@ -315,7 +315,7 @@ export function ProgressChart() {
           </ResponsiveContainer>
         )}
         <p
-          className="mt-3 text-[9px] leading-relaxed"
+          className="mt-3 text-[11px] leading-relaxed"
           style={{ ...mono, color: "#475569" }}
         >
           Mỗi điểm là trung bình của trục đó trong ngày. Ngày không chơi game
@@ -343,7 +343,7 @@ function SummaryCard({
   return (
     <div className="rounded-xl px-3 py-2.5" style={panelStyle}>
       <p
-        className="text-[9px] tracking-[0.18em]"
+        className="text-[11px] tracking-[0.18em]"
         style={{ ...mono, color: "#475569" }}
       >
         {label}
@@ -354,7 +354,7 @@ function SummaryCard({
         </span>
         {hint ? (
           <span
-            className="text-[10px]"
+            className="text-[11px]"
             style={{ ...mono, color: hintColor ?? "#64748b" }}
           >
             {hint}

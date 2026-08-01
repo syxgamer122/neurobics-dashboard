@@ -50,8 +50,16 @@ export function SudokuGame({
 }) {
   const workerRef = useRef<Worker | null>(null);
   const workerReqRef = useRef(0);
+  // So clue thuc te cua de dang choi + co bao de bi cat dao som.
+  const actualCluesRef = useRef<number | null>(null);
+  const budgetExceededRef = useRef(false);
   const pendingGenRef = useRef<{
-    resolve: (v: { puzzle: (number | null)[][]; solution: number[][] }) => void;
+    resolve: (v: {
+      puzzle: (number | null)[][];
+      solution: number[][];
+      actualClues: number;
+      budgetExceeded: boolean;
+    }) => void;
     reject: (e: unknown) => void;
     requestId: number;
   } | null>(null);
@@ -70,6 +78,8 @@ export function SudokuGame({
         pending.resolve({
           puzzle: ev.data.puzzle,
           solution: ev.data.solution,
+          actualClues: ev.data.actualClues,
+          budgetExceeded: ev.data.budgetExceeded,
         });
       };
       w.onerror = (err) => {
@@ -87,7 +97,12 @@ export function SudokuGame({
 
   const generateSudokuAsync = useCallback(
     (clues: number) =>
-      new Promise<{ puzzle: (number | null)[][]; solution: number[][] }>(
+      new Promise<{
+        puzzle: (number | null)[][];
+        solution: number[][];
+        actualClues: number;
+        budgetExceeded: boolean;
+      }>(
         (resolve, reject) => {
           const w = ensureSudokuWorker();
           if (!w) {
@@ -185,8 +200,12 @@ export function SudokuGame({
       reEntriesRef.current = 0;
       repeatMistakesRef.current = 0;
       wrongCellsRef.current = new Set();
+      actualCluesRef.current = null;
+      budgetExceededRef.current = false;
       void generateSudokuAsync(lvl.clues)
         .then((nd) => {
+          actualCluesRef.current = nd.actualClues;
+          budgetExceededRef.current = nd.budgetExceeded;
           setPuzzleData(nd);
           setUserGrid(nd.puzzle.map((r) => [...r]));
         })
@@ -195,6 +214,8 @@ export function SudokuGame({
           if (isSuperseded(err)) return;
           console.error("Sudoku generate failed:", err);
           const nd = generateSudoku(lvl.clues);
+          actualCluesRef.current = nd.actualClues;
+          budgetExceededRef.current = nd.budgetExceeded;
           setPuzzleData(nd);
           setUserGrid(nd.puzzle.map((r) => [...r]));
         })
@@ -241,6 +262,9 @@ export function SudokuGame({
           reEntries: reEntriesRef.current,
           repeatMistakes: repeatMistakesRef.current,
           failed: lost && !solved,
+          // Gui so clue THAT: neu generator het budget, de de hon nhan do kho.
+          actualClues: actualCluesRef.current ?? undefined,
+          budgetExceeded: budgetExceededRef.current,
         });
       } catch (err) {
         console.error("Sudoku completion: onComplete failed:", err);
@@ -258,10 +282,16 @@ export function SudokuGame({
   // Changing difficulty immediately generates a new board at that level.
   const changeDifficulty = useCallback(
     (diff: Difficulty) => {
+      if (diff === difficulty) return;
+      // Dang choi dang do: doi do kho se xoa sach tien do => phai hoi truoc.
+      if (status === "playing") {
+        const msg = t.confirm_change_difficulty ?? "Discard current game?";
+        if (!window.confirm(msg)) return;
+      }
       setDifficulty(diff);
       startBoard(diff);
     },
-    [startBoard],
+    [startBoard, difficulty, status, t],
   );
 
   const ensureStarted = useCallback(() => {
@@ -405,7 +435,7 @@ export function SudokuGame({
       <div className="flex items-start justify-between">
         <div>
           <div
-            className="text-[10px] tracking-[0.2em] mb-2"
+            className="text-[11px] tracking-[0.2em] mb-2"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: "#00D4FF",
@@ -440,7 +470,7 @@ export function SudokuGame({
 
       <div className="flex items-center gap-2.5 mt-2 flex-wrap">
         <span
-          className="text-[10px] px-2 py-0.5 rounded"
+          className="text-[11px] px-2 py-0.5 rounded"
           style={{
             fontFamily: "'JetBrains Mono', monospace",
             background: `${level.accent}22`,
@@ -451,7 +481,7 @@ export function SudokuGame({
           {level.clues} {t.clues}
         </span>
         <span
-          className="text-[10px] flex items-center gap-1"
+          className="text-[11px] flex items-center gap-1"
           style={{
             fontFamily: "'JetBrains Mono', monospace",
             color: level.accent,
@@ -482,7 +512,7 @@ export function SudokuGame({
         </div>
         {status === "done" && (
           <span
-            className="text-[10px] text-emerald-400 ml-auto flex items-center gap-1"
+            className="text-[11px] text-emerald-400 ml-auto flex items-center gap-1"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             <CheckCircle size={10} /> {t.solved}
@@ -499,7 +529,7 @@ export function SudokuGame({
               key={l.id}
               onClick={() => changeDifficulty(l.id)}
               disabled={saving || generating}
-              className="rounded-lg py-1.5 text-[10px] font-bold tracking-wide transition-all duration-150 disabled:opacity-50"
+              className="rounded-lg py-1.5 text-[11px] font-bold tracking-wide transition-all duration-150 disabled:opacity-50"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 background: isActive
@@ -658,7 +688,7 @@ export function SudokuGame({
               }}
             >
               {n}
-              <span style={{ fontSize: 9, opacity: 0.55, lineHeight: 1 }}>
+              <span style={{ fontSize: 11, opacity: 0.55, lineHeight: 1 }}>
                 {remaining}
               </span>
             </button>

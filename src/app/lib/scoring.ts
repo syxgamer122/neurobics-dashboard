@@ -77,12 +77,26 @@ export const DECAY_FLOOR_RATIO = 0.35;
 
 const DAY_MS = 86_400_000;
 
-/** Whole days between an ISO `YYYY-MM-DD` date and now. Negative clamps to 0. */
+/**
+ * Whole days between an ISO `YYYY-MM-DD` date and now. Negative clamps to 0.
+ *
+ * `last_active_date` duoc ghi bang vnDateString() — tuc NGAY LICH Viet Nam
+ * (UTC+7). Neu parse moc do o UTC thi decay va streak dung hai dinh nghia
+ * "ngay" khac nhau, lech toi 7 gio. Parse ca hai dau o +07:00 cho thong nhat.
+ */
+export const VN_UTC_OFFSET = "+07:00";
+
 export function daysSince(isoDate: string | null | undefined, now: Date = new Date()): number {
   if (!isoDate) return 0;
-  const then = Date.parse(`${isoDate}T00:00:00Z`);
+  const then = Date.parse(`${isoDate}T00:00:00${VN_UTC_OFFSET}`);
   if (!Number.isFinite(then)) return 0;
-  return Math.max(0, Math.floor((now.getTime() - then) / DAY_MS));
+  // Quy "bay gio" ve dau ngay lich VN de hieu so luon la so ngay tron.
+  const nowVnYmd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(now);
+  const nowVnMidnight = Date.parse(`${nowVnYmd}T00:00:00${VN_UTC_OFFSET}`);
+  if (!Number.isFinite(nowVnMidnight)) return 0;
+  return Math.max(0, Math.round((nowVnMidnight - then) / DAY_MS));
 }
 
 /**
@@ -157,6 +171,10 @@ export type SudokuTelemetry = {
   repeatMistakes: number;
   /** true khi thua het mang — van submit de ghi streak/quest/ticket. */
   failed?: boolean;
+  /** So o de lo THUC TE cua de nay (>= muc chuan neu generator het budget). */
+  actualClues?: number;
+  /** true khi de bi cat dao som => de hon nhan do kho, server ha he so. */
+  budgetExceeded?: boolean;
 };
 
 export type StroopTelemetry = {

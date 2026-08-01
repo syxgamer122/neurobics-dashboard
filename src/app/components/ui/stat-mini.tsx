@@ -12,7 +12,7 @@ export function StatMini({
   return (
     <div className="text-center">
       <div
-        className="text-[10px] text-slate-600 mb-1"
+        className="text-[11px] text-slate-600 mb-1"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
       >
         {label.toUpperCase()}
@@ -24,7 +24,7 @@ export function StatMini({
         {value}
       </div>
       <div
-        className="text-[10px] mt-0.5"
+        className="text-[11px] mt-0.5"
         style={{ fontFamily: "'JetBrains Mono', monospace", color }}
       >
         {unit}

@@ -84,7 +84,7 @@ export function TurnstileWidget({
 
   if (!siteKey) {
     return (
-      <div className="text-[10px] text-amber-400 rounded-lg px-3 py-2" style={{ border: "1px solid rgba(251,191,36,0.3)" }}>
+      <div className="text-[11px] text-amber-400 rounded-lg px-3 py-2" style={{ border: "1px solid rgba(251,191,36,0.3)" }}>
         Missing VITE_TURNSTILE_SITE_KEY.
       </div>
     );

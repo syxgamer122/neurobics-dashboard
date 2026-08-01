@@ -199,7 +199,7 @@ export function MemoryMatrixGame({
       <div className="flex items-start justify-between mb-1">
         <div>
           <div
-            className="text-[10px] tracking-[0.2em] mb-1.5"
+            className="text-[11px] tracking-[0.2em] mb-1.5"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: "#F43F5E",
@@ -273,7 +273,7 @@ export function MemoryMatrixGame({
       <div className="mt-4 flex items-center justify-between">
         <div className="flex flex-col">
           <span
-            className="text-[9px] text-slate-600 mb-0.5"
+            className="text-[11px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {t.time_label}
@@ -294,7 +294,7 @@ export function MemoryMatrixGame({
         </div>
         <div className="flex flex-col items-end">
           <span
-            className="text-[9px] text-slate-600 mb-0.5"
+            className="text-[11px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {t.level_label}

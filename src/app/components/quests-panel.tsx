@@ -100,11 +100,11 @@ export function QuestsPanel({
             {s.title}
           </span>
         </div>
-        <span className="text-[10px]" style={{ ...mono, color: "#10B981" }}>
+        <span className="text-[11px]" style={{ ...mono, color: "#10B981" }}>
           {completed}/{(quests ?? []).length} {s.done}
         </span>
       </div>
-      <p className="text-[10px] text-white/40 mb-4" style={mono}>
+      <p className="text-[11px] text-white/40 mb-4" style={mono}>
         {s.sub}
       </p>
 
@@ -138,7 +138,7 @@ export function QuestsPanel({
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <span className="text-[11px] text-white/85">{label}</span>
                   <span
-                    className="text-[10px] shrink-0"
+                    className="text-[11px] shrink-0"
                     style={{ ...mono, color: "#F59E0B" }}
                   >
                     +{q.xp_reward} XP
@@ -159,7 +159,7 @@ export function QuestsPanel({
                     />
                   </div>
                   <span
-                    className="text-[10px] w-12 text-right"
+                    className="text-[11px] w-12 text-right"
                     style={{ ...mono, color: "rgba(255,255,255,0.45)" }}
                   >
                     {q.progress}/{q.goal}
@@ -167,7 +167,7 @@ export function QuestsPanel({
 
                   {q.claimed ? (
                     <span
-                      className="text-[9px] flex items-center gap-1 w-20 justify-end"
+                      className="text-[11px] flex items-center gap-1 w-20 justify-end"
                       style={{ ...mono, color: "#10B981" }}
                     >
                       <CheckCircle2 size={11} /> {s.claimed}
@@ -176,7 +176,7 @@ export function QuestsPanel({
                     <button
                       disabled={!ready || busy === q.code}
                       onClick={() => claim(q.code)}
-                      className="text-[9px] py-1.5 px-2.5 rounded-lg flex items-center gap-1 w-20 justify-center transition-all"
+                      className="text-[11px] py-1.5 px-2.5 rounded-lg flex items-center gap-1 w-20 justify-center transition-all"
                       style={{
                         ...mono,
                         opacity: ready ? 1 : 0.35,

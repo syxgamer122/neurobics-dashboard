@@ -193,7 +193,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             <div className="text-xs font-bold tracking-wider text-emerald-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               ACCOUNT CREATED
             </div>
-            <div className="text-[10px] text-emerald-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <div className="text-[11px] text-emerald-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               Welcome, {username}. Initializing neural profile…
             </div>
           </div>
@@ -236,14 +236,14 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", boxShadow: "0 0 12px rgba(239,68,68,0.1)" }}
             >
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#F43F5E" }}>
+                <span className="text-[11px] font-bold tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#F43F5E" }}>
                   ✕ DB_CONSTRAINT_VIOLATION
                 </span>
               </div>
               <div className="text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#FCA5A5" }}>
                 ERROR: Username already taken. Please choose another.
               </div>
-              <div className="text-[9px] text-red-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <div className="text-[11px] text-red-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 UNIQUE constraint failed: profiles.username
               </div>
             </div>
@@ -268,7 +268,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
 
           {mode === "signup" && (
             <div
-              className="text-[10px] leading-relaxed px-3 py-2 rounded-lg"
+              className="text-[11px] leading-relaxed px-3 py-2 rounded-lg"
               style={{
                 background: "rgba(245,158,11,0.08)",
                 border: "1px solid rgba(245,158,11,0.28)",

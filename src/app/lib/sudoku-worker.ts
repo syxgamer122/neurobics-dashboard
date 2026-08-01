@@ -6,6 +6,8 @@ export type SudokuWorkerResponse = {
   requestId: number;
   puzzle: (number | null)[][];
   solution: number[][];
+  actualClues: number;
+  budgetExceeded: boolean;
 };
 
 self.onmessage = (ev: MessageEvent<SudokuWorkerRequest>) => {
@@ -15,6 +17,8 @@ self.onmessage = (ev: MessageEvent<SudokuWorkerRequest>) => {
     requestId,
     puzzle: result.puzzle,
     solution: result.solution,
+    actualClues: result.actualClues,
+    budgetExceeded: result.budgetExceeded,
   };
   (self as DedicatedWorkerGlobalScope).postMessage(response);
 };

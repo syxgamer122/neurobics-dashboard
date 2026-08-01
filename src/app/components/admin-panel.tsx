@@ -238,7 +238,7 @@ const handleApplyGrant = () => {
           </div>
           <div className="space-y-2">
             <div className="text-xl font-bold tracking-[0.25em]" style={{ color: red }}>ACCESS DENIED</div>
-            <div className="text-[10px] text-slate-500">Signed in as <span style={{ color: amber }}>{profile.username}</span> · required <span style={{ color: red }}>admin role</span></div>
+            <div className="text-[11px] text-slate-500">Signed in as <span style={{ color: amber }}>{profile.username}</span> · required <span style={{ color: red }}>admin role</span></div>
           </div>
           <button onClick={onExit} className="w-full py-2.5 rounded-xl text-xs tracking-widest font-bold" style={{ background: `${red}12`, color: red, border: `1px solid ${red}33` }}>RETURN</button>
         </div>
@@ -267,10 +267,10 @@ const handleApplyGrant = () => {
           </div>
           <div>
             <div className="text-sm font-bold text-white tracking-[0.18em]">ADMIN PANEL · DB CONTROL</div>
-            <div className="text-[10px] text-slate-500 tracking-wider">SUPER ADMIN — HỮU MẠNH</div>
+            <div className="text-[11px] text-slate-500 tracking-wider">SUPER ADMIN — HỮU MẠNH</div>
           </div>
         </div>
-        <span className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded" style={{ background: `${green}12`, color: green, border: `1px solid ${green}30` }}>
+        <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded" style={{ background: `${green}12`, color: green, border: `1px solid ${green}30` }}>
           <ShieldCheck size={11} /> ROOT ACCESS
         </span>
       </div>
@@ -281,7 +281,7 @@ const handleApplyGrant = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Panel accent={green}>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] tracking-widest text-slate-500">SUPABASE STATUS</span>
+              <span className="text-[11px] tracking-widest text-slate-500">SUPABASE STATUS</span>
               <Server size={13} style={{ color: green }} />
             </div>
             <div className="flex items-center gap-2 mt-3">
@@ -295,7 +295,7 @@ const handleApplyGrant = () => {
 
           <Panel accent={blue}>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] tracking-widest text-slate-500">DB LATENCY</span>
+              <span className="text-[11px] tracking-widest text-slate-500">DB LATENCY</span>
               <Activity size={13} style={{ color: blue }} />
             </div>
             <div className="flex items-baseline gap-1 mt-3">
@@ -313,23 +313,23 @@ const handleApplyGrant = () => {
 
           <Panel accent={green}>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] tracking-widest text-slate-500">TOTAL USERS</span>
+              <span className="text-[11px] tracking-widest text-slate-500">TOTAL USERS</span>
               <Cpu size={13} style={{ color: green }} />
             </div>
             <div className="text-2xl font-bold text-white mt-3">{rows.length}</div>
-            <div className="text-[10px] text-slate-500 mt-1">profiles · live</div>
+            <div className="text-[11px] text-slate-500 mt-1">profiles · live</div>
           </Panel>
 
           <Panel accent={purple}>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] tracking-widest text-slate-500">TARGET</span>
+              <span className="text-[11px] tracking-widest text-slate-500">TARGET</span>
               <UserCheck size={13} style={{ color: purple }} />
             </div>
             {selectedUser ? (
               <div className="mt-2 flex items-center justify-between gap-2">
                 <div>
                   <div className="text-sm font-bold" style={{ color: purple }}>{selectedUser.username}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">streak {selectedUser.synapse_streak}d · {selectedUser.algebraic_logic_score} pts</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">streak {selectedUser.synapse_streak}d · {selectedUser.algebraic_logic_score} pts</div>
                 </div>
                 <button onClick={() => { setSelectedUser(null); setConfirmDelete(false); }} className="shrink-0 text-slate-600 hover:text-slate-300 transition-colors">
                   <X size={14} />
@@ -349,10 +349,10 @@ const handleApplyGrant = () => {
             {selectedUser ? (
               <span className="text-[11px] px-2.5 py-0.5 rounded-lg ml-1" style={{ background: `${purple}18`, color: purple, border: `1px solid ${purple}30` }}>
                 @{selectedUser.username}
-                {selectedUser.id === profile.id && <span className="ml-1 text-[9px] opacity-70">(you)</span>}
+                {selectedUser.id === profile.id && <span className="ml-1 text-[11px] opacity-70">(you)</span>}
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600 ml-1">— select a user from the table below</span>
+              <span className="text-[11px] text-slate-600 ml-1">— select a user from the table below</span>
             )}
           </div>
 
@@ -363,7 +363,7 @@ const handleApplyGrant = () => {
                 <Plus size={13} style={{ color: green }} />
                 <span className="text-xs font-bold tracking-wider" style={{ color: green }}>ADD POINTS</span>
               </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
+              <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
   Nhập số vào từng trục. Bỏ trống nghĩa là không đụng tới. Số âm để trừ.
   Mọi trục đều bị kẹp trong 0–1000.
 </p>
@@ -375,7 +375,7 @@ const handleApplyGrant = () => {
       key={m}
       onClick={() => setGrantMode(m)}
       disabled={!!busy || !selectedUser}
-      className="py-1.5 rounded-lg text-[10px] font-bold tracking-wider"
+      className="py-1.5 rounded-lg text-[11px] font-bold tracking-wider"
       style={
         grantMode === m
           ? { background: `${green}22`, color: green, border: `1px solid ${green}55` }
@@ -394,7 +394,7 @@ const handleApplyGrant = () => {
       key={amt}
       onClick={() => fillAllAxes(amt)}
       disabled={!!busy || !selectedUser}
-      className="py-1 rounded-md text-[9px] font-bold"
+      className="py-1 rounded-md text-[11px] font-bold"
       style={{ background: "rgba(0,0,0,0.3)", color: green, border: `1px solid ${green}22` }}
     >
       {amt}
@@ -412,8 +412,8 @@ const handleApplyGrant = () => {
     ["spatial", "SPATIAL", selectedUser?.cfop_spatial_record],
   ] as [AxisKey, string, number | null | undefined][]).map(([key, label, current]) => (
     <div key={key} className="flex items-center gap-2">
-      <span className="text-[9px] text-slate-500 w-14 shrink-0">{label}</span>
-      <span className="text-[10px] text-slate-400 w-10 shrink-0 text-right">{current ?? 0}</span>
+      <span className="text-[11px] text-slate-500 w-14 shrink-0">{label}</span>
+      <span className="text-[11px] text-slate-400 w-10 shrink-0 text-right">{current ?? 0}</span>
       <input
         type="number"
         value={grantAxes[key]}
@@ -427,8 +427,8 @@ const handleApplyGrant = () => {
   ))}
 
   <div className="flex items-center gap-2 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-    <span className="text-[9px] w-14 shrink-0" style={{ color: amber }}>XP</span>
-    <span className="text-[10px] text-slate-400 w-10 shrink-0 text-right">
+    <span className="text-[11px] w-14 shrink-0" style={{ color: amber }}>XP</span>
+    <span className="text-[11px] text-slate-400 w-10 shrink-0 text-right">
       {selectedUser?.total_xp ?? 0}
     </span>
     <input
@@ -443,7 +443,7 @@ const handleApplyGrant = () => {
   </div>
 
   {selectedUser && (
-    <div className="text-[9px] text-slate-500 pl-16">
+    <div className="text-[11px] text-slate-500 pl-16">
       Level hiện tại {levelFromXp(selectedUser.total_xp ?? 0)}
       {parseField(grantXp) !== undefined && (
         <span style={{ color: amber }}>
@@ -479,7 +479,7 @@ const handleApplyGrant = () => {
                 <RotateCcw size={13} style={{ color: blue }} />
                 <span className="text-xs font-bold tracking-wider" style={{ color: blue }}>RESET SCORES</span>
               </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
+              <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
                 Xóa toàn bộ điểm số và streak về 0.
               </p>
               {selectedUser && (
@@ -514,7 +514,7 @@ const handleApplyGrant = () => {
                 <AlertTriangle size={13} style={{ color: red }} />
                 <span className="text-xs font-bold tracking-wider" style={{ color: red }}>DANGER ZONE</span>
               </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
+              <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
                 Xóa vĩnh viễn profile. Không thể hoàn tác.
                 {selectedUser?.id === profile.id && <span style={{ color: amber }}> Đây là tài khoản của bạn!</span>}
               </p>
@@ -529,7 +529,7 @@ const handleApplyGrant = () => {
                 />
               ) : (
                 <div className="space-y-2">
-                  <div className="text-[10px] text-red-300/90 text-center">
+                  <div className="text-[11px] text-red-300/90 text-center">
                     Xóa <span style={{ color: red }}>@{selectedUser?.username}</span>? Không hoàn tác được!
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -556,9 +556,9 @@ const handleApplyGrant = () => {
               <div className="flex items-center gap-2">
                 <Database size={14} style={{ color: green }} />
                 <span className="text-xs font-bold tracking-widest text-white">LIVE DATA GRID</span>
-                <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: `${green}12`, color: green }}>public.profiles</span>
+                <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: `${green}12`, color: green }}>public.profiles</span>
               </div>
-              <button onClick={fetchProfiles} disabled={loading} className="flex items-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50">
+              <button onClick={fetchProfiles} disabled={loading} className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50">
                 <RefreshCw size={11} className={loading ? "animate-spin" : ""} /> REFRESH
               </button>
             </div>
@@ -582,7 +582,7 @@ const handleApplyGrant = () => {
                   <thead>
                     <tr style={{ background: "rgba(0,255,156,0.04)" }}>
                       {["Username", "Logic", "Memory", "Speed", "Focus", "Streak", "Sessions"].map((c) => (
-                        <th key={c} className="px-4 py-2.5 text-[10px] tracking-wider whitespace-nowrap" style={{ color: green, borderBottom: `1px solid ${green}18` }}>{c}</th>
+                        <th key={c} className="px-4 py-2.5 text-[11px] tracking-wider whitespace-nowrap" style={{ color: green, borderBottom: `1px solid ${green}18` }}>{c}</th>
                       ))}
                     </tr>
                   </thead>
@@ -607,7 +607,7 @@ const handleApplyGrant = () => {
                               {isSelected && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: purple, boxShadow: `0 0 6px ${purple}` }} />}
                               <span style={{ color: isAdminRow ? amber : isSelected ? purple : "#E2E8F4" }}>
                                 {r.username}
-                                {isAdminRow && <span className="ml-1.5 text-[9px]" style={{ color: green }}>★</span>}
+                                {isAdminRow && <span className="ml-1.5 text-[11px]" style={{ color: green }}>★</span>}
                               </span>
                             </div>
                           </td>
@@ -633,7 +633,7 @@ const handleApplyGrant = () => {
             </div>
             <EnvField label="VITE_SUPABASE_URL" value={SUPABASE_URL} revealed={revealUrl} onToggle={() => setRevealUrl((v) => !v)} onCopy={() => copy("url", SUPABASE_URL)} copied={copied === "url"} mask={mask} accent={blue} />
             <EnvField label="VITE_SUPABASE_ANON_KEY" value={ANON_KEY} revealed={revealKey} onToggle={() => setRevealKey((v) => !v)} onCopy={() => copy("key", ANON_KEY)} copied={copied === "key"} mask={mask} accent={blue} />
-            <div className="mt-4 p-3 rounded-lg text-[10px] text-slate-500 leading-relaxed" style={{ background: `${blue}06`, border: `1px solid ${blue}18` }}>
+            <div className="mt-4 p-3 rounded-lg text-[11px] text-slate-500 leading-relaxed" style={{ background: `${blue}06`, border: `1px solid ${blue}18` }}>
               <span style={{ color: blue }}>ⓘ</span> Anon key is safe for client use. Service role key is never exposed to the browser.
             </div>
           </Panel>
@@ -692,7 +692,7 @@ function EnvField({ label, value, revealed, onToggle, onCopy, copied, mask, acce
 }) {
   return (
     <div className="mb-3">
-      <div className="text-[10px] text-slate-500 mb-1.5 tracking-wider">{label}</div>
+      <div className="text-[11px] text-slate-500 mb-1.5 tracking-wider">{label}</div>
       <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${accent}18` }}>
         <span className="flex-1 text-[11px] truncate" style={{ color: revealed ? accent : "#64748B" }}>{revealed ? value : mask(value)}</span>
         <button onClick={onToggle} className="text-slate-500 hover:text-white transition-colors shrink-0">{revealed ? <EyeOff size={13} /> : <Eye size={13} />}</button>

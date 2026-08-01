@@ -179,7 +179,7 @@ export function HistoryPanel() {
             <button
               key={id}
               onClick={() => setFilter(id)}
-              className="rounded-lg px-3 py-1.5 text-[10px] tracking-[0.15em] transition-all duration-200"
+              className="rounded-lg px-3 py-1.5 text-[11px] tracking-[0.15em] transition-all duration-200"
               style={{
                 ...mono,
                 color: isActive ? accent : "#64748b",
@@ -252,7 +252,7 @@ export function HistoryPanel() {
                   <div className="text-[12px]" style={{ ...mono, color: "#e2e8f0" }}>
                     {meta.name}
                   </div>
-                  <div className="text-[10px]" style={{ ...mono, color: "#64748b" }}>
+                  <div className="text-[11px]" style={{ ...mono, color: "#64748b" }}>
                     {s.label || "—"} · {fmtWhen(s.created_at)}
                   </div>
                 </div>
@@ -264,7 +264,7 @@ export function HistoryPanel() {
                     return (
                       <div key={a.short} className="text-center">
                         <div
-                          className="text-[9px]"
+                          className="text-[11px]"
                           style={{ ...mono, color: "#475569" }}
                         >
                           {a.short}
@@ -281,7 +281,7 @@ export function HistoryPanel() {
                 </div>
 
                 <div className="w-16 text-right">
-                  <div className="text-[9px]" style={{ ...mono, color: "#475569" }}>
+                  <div className="text-[11px]" style={{ ...mono, color: "#475569" }}>
                     THỜI GIAN
                   </div>
                   <div className="text-[11px]" style={{ ...mono, color: "#94a3b8" }}>
@@ -290,7 +290,7 @@ export function HistoryPanel() {
                 </div>
 
                 <div className="w-16 text-right">
-                  <div className="text-[9px]" style={{ ...mono, color: "#475569" }}>
+                  <div className="text-[11px]" style={{ ...mono, color: "#475569" }}>
                     ĐIỂM
                   </div>
                   <div
@@ -302,7 +302,7 @@ export function HistoryPanel() {
                 </div>
 
                 <div className="w-12 text-right">
-                  <div className="text-[9px]" style={{ ...mono, color: "#475569" }}>
+                  <div className="text-[11px]" style={{ ...mono, color: "#475569" }}>
                     XP
                   </div>
                   <div className="text-[11px]" style={{ ...mono, color: "#10B981" }}>
@@ -329,7 +329,7 @@ function Stat({
   return (
     <div>
       <div
-        className="text-[9px] tracking-wider"
+        className="text-[11px] tracking-wider"
         style={{ ...mono, color: "#475569" }}
       >
         {label}

@@ -137,11 +137,11 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             {s.title}
           </span>
         </div>
-        <span className="text-[10px]" style={{ ...mono, color: "#F59E0B" }}>
+        <span className="text-[11px]" style={{ ...mono, color: "#F59E0B" }}>
           {unlocked.size}/{CATALOG.length} {s.unlocked}
         </span>
       </div>
-      <p className="text-[10px] text-white/40 mb-4" style={mono}>
+      <p className="text-[11px] text-white/40 mb-4" style={mono}>
         {s.sub}
       </p>
 
@@ -172,7 +172,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   </span>
                   {got ? (
                     <span
-                      className="text-[9px]"
+                      className="text-[11px]"
                       style={{ ...mono, color: b.accent }}
                     >
                       +{b.xp} XP
@@ -187,7 +187,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                 >
                   {name}
                 </div>
-                <div className="text-[9px] text-white/35 leading-snug" style={mono}>
+                <div className="text-[11px] text-white/35 leading-snug" style={mono}>
                   {desc}
                 </div>
               </div>

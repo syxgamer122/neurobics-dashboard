@@ -233,7 +233,10 @@ export function SchulteTableGame({
 
       // Record how long this particular target took to locate.
       const now = Date.now();
-      hitRtsRef.current.push(now - (lastHitRef.current ?? now));
+      // Hit dau tien vua bat dong ho => RT ~0ms, khong phai mau do that.
+      if (!wasIdle) {
+        hitRtsRef.current.push(now - (lastHitRef.current ?? now));
+      }
       lastHitRef.current = now;
 
       // Advance state only — the completion effect above watches seqIdx and fires
@@ -288,7 +291,7 @@ export function SchulteTableGame({
       <div className="flex items-start justify-between mb-1">
         <div>
           <div
-            className="text-[10px] tracking-[0.2em] mb-1.5"
+            className="text-[11px] tracking-[0.2em] mb-1.5"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: "#A855F7",
@@ -302,7 +305,7 @@ export function SchulteTableGame({
           <button
             onClick={() => setShowCenter((c) => !c)}
             title="Toggle center fixation"
-            className="px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1.5 transition-all duration-150"
+            className="px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 transition-all duration-150"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               background: showCenter
@@ -330,7 +333,7 @@ export function SchulteTableGame({
       {/* Size selector */}
       <div className="flex items-center gap-2.5 mt-3">
         <span
-          className="text-[10px] text-slate-600 w-10 shrink-0"
+          className="text-[11px] text-slate-600 w-10 shrink-0"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {t.size_label}
@@ -369,7 +372,7 @@ export function SchulteTableGame({
       {/* Mode selector */}
       <div className="flex items-center gap-2.5 mt-2">
         <span
-          className="text-[10px] text-slate-600 w-10 shrink-0"
+          className="text-[11px] text-slate-600 w-10 shrink-0"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {t.mode_label}
@@ -400,7 +403,7 @@ export function SchulteTableGame({
               >
                 {m.label}
                 {active && (
-                  <span style={{ fontSize: 9, opacity: 0.7 }}>{m.hint}</span>
+                  <span style={{ fontSize: 11, opacity: 0.7 }}>{m.hint}</span>
                 )}
               </button>
             );
@@ -469,7 +472,7 @@ export function SchulteTableGame({
       <div className="mt-4 flex items-center justify-between">
         <div className="flex flex-col">
           <span
-            className="text-[9px] text-slate-600 mb-0.5"
+            className="text-[11px] text-slate-600 mb-0.5"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {t.time_label}
@@ -489,7 +492,7 @@ export function SchulteTableGame({
           </div>
           {bestTime !== null && (
             <span
-              className="text-[9px] mt-0.5"
+              className="text-[11px] mt-0.5"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 color: "#475569",
@@ -503,7 +506,7 @@ export function SchulteTableGame({
         {status !== "done" ? (
           <div className="flex flex-col items-end">
             <span
-              className="text-[9px] text-slate-600 mb-0.5"
+              className="text-[11px] text-slate-600 mb-0.5"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
               {status === "idle" ? t.start_with_label : t.find_label}
@@ -543,7 +546,7 @@ export function SchulteTableGame({
               <CheckCircle size={13} /> {t.complete}
             </span>
             <span
-              className="text-[10px] text-slate-400"
+              className="text-[11px] text-slate-400"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
               {size}×{size} · {mode}
@@ -568,19 +571,19 @@ export function SchulteTableGame({
       </div>
       <div className="flex justify-between mt-0.5">
         <span
-          className="text-[9px] text-slate-700"
+          className="text-[11px] text-slate-700"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           0
         </span>
         <span
-          className="text-[9px] text-slate-600"
+          className="text-[11px] text-slate-600"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {seqIdx} / {sequence.length}
         </span>
         <span
-          className="text-[9px] text-slate-700"
+          className="text-[11px] text-slate-700"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {sequence.length}

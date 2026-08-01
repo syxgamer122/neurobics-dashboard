@@ -166,7 +166,9 @@ export function NBackGame({
 
   const press = () => {
     // Mỗi lượt chỉ nhận một phản hồi, bấm thêm không bị tính là bấm nhầm.
-    if (phase !== "playing" || respondedRef.current) return;
+    // trial < n là warmup: chưa thể có target nên không tính false alarm.
+    // Nút MATCH đã disabled, chặn luôn ở đây cho phím Space.
+    if (phase !== "playing" || respondedRef.current || trial < n) return;
     respondedRef.current = true;
 
     const seq = seqRef.current;
@@ -211,7 +213,7 @@ export function NBackGame({
       <div className="flex items-center gap-2 mb-1">
         <Brain size={16} style={{ color: "#A855F7" }} />
         <span
-          className="text-[10px] tracking-[0.25em] uppercase"
+          className="text-[11px] tracking-[0.25em] uppercase"
           style={{ ...mono, color: "#A855F7" }}
         >
           {s.tag}
@@ -225,7 +227,7 @@ export function NBackGame({
       {phase === "idle" && (
         <>
           <div
-            className="text-[10px] text-white/40 mb-2 tracking-widest uppercase"
+            className="text-[11px] text-white/40 mb-2 tracking-widest uppercase"
             style={mono}
           >
             {s.level}
@@ -268,7 +270,7 @@ export function NBackGame({
       {phase === "playing" && (
         <>
           <div
-            className="flex items-center justify-between text-[10px] mb-3"
+            className="flex items-center justify-between text-[11px] mb-3"
             style={{ ...mono, color: "rgba(255,255,255,0.45)" }}
           >
             <span>
@@ -330,7 +332,7 @@ export function NBackGame({
           </button>
 
           <div
-            className="flex justify-between text-[10px] mt-3"
+            className="flex justify-between text-[11px] mt-3"
             style={{ ...mono, color: "rgba(255,255,255,0.4)" }}
           >
             <span style={{ color: "#10B981" }}>

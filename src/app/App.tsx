@@ -542,7 +542,7 @@ function AppInner() {
             NEUROBICS
           </span>
           <span
-            className="text-[10px] rounded px-2 py-0.5 tracking-widest ml-1"
+            className="text-[11px] rounded px-2 py-0.5 tracking-widest ml-1"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               background: "rgba(0,212,255,0.08)",
@@ -591,7 +591,7 @@ function AppInner() {
                 {profile.username}
               </div>
               <div
-                className="text-[10px] text-slate-500"
+                className="text-[11px] text-slate-500"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {profile.synapse_streak} {t.day_streak}
@@ -678,10 +678,10 @@ function AppInner() {
                     className="flex justify-between mt-1.5"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    <span className="text-[10px] text-slate-600">
+                    <span className="text-[11px] text-slate-600">
                       {t.apprentice}
                     </span>
-                    <span className="text-[10px] text-slate-600">
+                    <span className="text-[11px] text-slate-600">
                       {t.mastermind}
                     </span>
                   </div>
@@ -831,7 +831,7 @@ function AppInner() {
                             : t.yrs_older(Math.abs(brainAge.delta))}
                         </div>
                         {brainAge.provisional && (
-                          <div className="text-[10px] text-slate-500 mt-1.5 leading-snug">
+                          <div className="text-[11px] text-slate-500 mt-1.5 leading-snug">
                             {t.brain_age_provisional}
                           </div>
                         )}
@@ -910,7 +910,7 @@ function AppInner() {
                   {cognitiveData.map((d) => (
                     <div key={d.subject} className="text-center">
                       <div
-                        className="text-[10px] text-slate-500 mb-0.5"
+                        className="text-[11px] text-slate-500 mb-0.5"
                         style={{ fontFamily: "'JetBrains Mono', monospace" }}
                       >
                         {d.subject.slice(0, 3).toUpperCase()}
@@ -1235,7 +1235,7 @@ function AppInner() {
                       ))}
                     </div>
                     <div
-                      className="text-[10px] text-slate-600 mt-1"
+                      className="text-[11px] text-slate-600 mt-1"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       {t.streak_week_label}
@@ -1479,12 +1479,12 @@ function AppInner() {
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   <span
-                    className="text-[9px] w-20 shrink-0"
+                    className="text-[11px] w-20 shrink-0"
                     style={{ color: "rgba(239,68,68,0.5)" }}
                   >
                     {label}
                   </span>
-                  <span className="text-[10px]" style={{ color }}>
+                  <span className="text-[11px]" style={{ color }}>
                     {">"} {value}
                   </span>
                 </div>

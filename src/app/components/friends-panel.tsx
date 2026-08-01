@@ -88,7 +88,7 @@ const Avatar = ({
     />
   ) : (
     <div
-      className="rounded-full flex items-center justify-center shrink-0 text-[10px] text-white/70"
+      className="rounded-full flex items-center justify-center shrink-0 text-[11px] text-white/70"
       style={{
         width: size,
         height: size,
@@ -177,7 +177,7 @@ export function FriendsPanel() {
           {s.title}
         </span>
       </div>
-      <p className="text-[10px] text-white/40 mb-4" style={mono}>
+      <p className="text-[11px] text-white/40 mb-4" style={mono}>
         {s.sub}
       </p>
 
@@ -202,7 +202,7 @@ export function FriendsPanel() {
       {results !== null && (
         <div className="space-y-1.5 mb-4">
           {results.length === 0 ? (
-            <div className="text-[10px] text-white/35 py-2" style={mono}>
+            <div className="text-[11px] text-white/35 py-2" style={mono}>
               {s.noResult}
             </div>
           ) : (
@@ -217,7 +217,7 @@ export function FriendsPanel() {
                   {p.username}
                 </span>
                 <span
-                  className="text-[10px]"
+                  className="text-[11px]"
                   style={{ ...mono, color: "rgba(255,255,255,0.4)" }}
                 >
                   {s.ci} {Math.round(p.cognitive_index)}
@@ -225,7 +225,7 @@ export function FriendsPanel() {
                 <button
                   disabled={busy}
                   onClick={() => act(() => sendFriendRequest(p.id), s.sent)}
-                  className="text-[9px] py-1.5 px-2.5 rounded-lg flex items-center gap-1"
+                  className="text-[11px] py-1.5 px-2.5 rounded-lg flex items-center gap-1"
                   style={{
                     ...mono,
                     background: "rgba(0,212,255,0.13)",
@@ -245,7 +245,7 @@ export function FriendsPanel() {
       {incoming.length > 0 && (
         <div className="mb-4">
           <div
-            className="text-[9px] tracking-widest uppercase text-white/35 mb-1.5"
+            className="text-[11px] tracking-widest uppercase text-white/35 mb-1.5"
             style={mono}
           >
             {s.incoming}
@@ -308,7 +308,7 @@ export function FriendsPanel() {
       {outgoing.length > 0 && (
         <div className="mb-4">
           <div
-            className="text-[9px] tracking-widest uppercase text-white/35 mb-1.5"
+            className="text-[11px] tracking-widest uppercase text-white/35 mb-1.5"
             style={mono}
           >
             {s.outgoing}
@@ -317,7 +317,7 @@ export function FriendsPanel() {
             {outgoing.map((f) => (
               <span
                 key={f.friendship_id}
-                className="text-[10px] px-2.5 py-1 rounded-lg text-white/50"
+                className="text-[11px] px-2.5 py-1 rounded-lg text-white/50"
                 style={{
                   ...mono,
                   background: "rgba(255,255,255,0.04)",
@@ -333,7 +333,7 @@ export function FriendsPanel() {
 
       {/* Bảng xếp hạng riêng */}
       <div
-        className="text-[9px] tracking-widest uppercase text-white/35 mb-1.5"
+        className="text-[11px] tracking-widest uppercase text-white/35 mb-1.5"
         style={mono}
       >
         {s.ranking}
@@ -344,7 +344,7 @@ export function FriendsPanel() {
           {s.loading}
         </div>
       ) : accepted.length === 0 ? (
-        <div className="text-[10px] text-white/35 py-3" style={mono}>
+        <div className="text-[11px] text-white/35 py-3" style={mono}>
           {s.empty}
         </div>
       ) : (
@@ -363,7 +363,7 @@ export function FriendsPanel() {
               }}
             >
               <span
-                className="text-[10px] w-5 shrink-0"
+                className="text-[11px] w-5 shrink-0"
                 style={{
                   ...mono,
                   color: i === 0 ? "#F59E0B" : "rgba(255,255,255,0.35)",
@@ -379,7 +379,7 @@ export function FriendsPanel() {
                 )}
               </span>
               <span
-                className="text-[10px]"
+                className="text-[11px]"
                 style={{ ...mono, color: "#00D4FF" }}
               >
                 {Math.round(r.cognitive_index)}

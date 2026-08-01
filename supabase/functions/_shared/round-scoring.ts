@@ -123,6 +123,44 @@ const SUDOKU_DIFF: Record<string, number> = {
   Master: 0.9,
   Extreme: 1,
 };
+// So clue chuan cua tung muc do kho (khop SUDOKU_LEVELS ben client).
+// Neu de that co NHIEU clue hon muc chuan => generator het budget, de de hon.
+const SUDOKU_CLUES: Record<string, number> = {
+  Easy: 38,
+  Medium: 36,
+  Hard: 32,
+  Expert: 30,
+  Master: 26,
+  Extreme: 23,
+};
+
+/**
+ * Quy so clue THUC TE ve he so kho.
+ *
+ * Truoc day chi doc nhan `difficulty` client gui len, nen mot van "Extreme"
+ * bi cat dao som (de hon nhieu) van duoc cham he so 1.0. Gio lay he so cua
+ * muc do kho gan nhat voi so clue that, va khong bao gio cao hon nhan.
+ */
+function effectiveSudokuDiff(
+  difficulty: string,
+  actualClues: number | null,
+): number {
+  const labelled = SUDOKU_DIFF[difficulty];
+  if (actualClues === null) return labelled;
+  const expected = SUDOKU_CLUES[difficulty];
+  if (expected === undefined || actualClues <= expected) return labelled;
+
+  // De de hon nhan: tim muc co so clue chuan >= so clue that (de nhat phu hop).
+  let best = labelled;
+  for (const [name, clues] of Object.entries(SUDOKU_CLUES)) {
+    if (clues >= actualClues) {
+      const d = SUDOKU_DIFF[name];
+      if (d !== undefined && d < best) best = d;
+    }
+  }
+  return best;
+}
+
 const SUDOKU_TARGET: Record<string, number> = {
   Easy: 240000,
   Medium: 360000,
@@ -174,7 +212,13 @@ function scoreSudoku(t: any): ScoredRound {
   const failed = t?.failed === true || mistakes >= 3;
   const reEntries = int(t?.reEntries, "reEntries", 0, 100);
   const repeat = int(t?.repeatMistakes, "repeatMistakes", 0, 100);
-  const diff = SUDOKU_DIFF[difficulty];
+  // Chi tin so clue trong khoang hop le; ngoai khoang thi bo qua.
+  const rawClues = t?.actualClues;
+  const actualClues =
+    typeof rawClues === "number" && Number.isFinite(rawClues) && rawClues >= 17 && rawClues <= 81
+      ? Math.round(rawClues)
+      : null;
+  const diff = effectiveSudokuDiff(difficulty, actualClues);
   const per = SUDOKU_TARGET[difficulty] / Math.max(1, placements);
   const logic = clamp(MAX * diff * (1 - clamp01(mistakes / 3)));
   const retention =
