@@ -233,10 +233,14 @@ export function SchulteTableGame({
 
       // Record how long this particular target took to locate.
       const now = Date.now();
-      // Hit dau tien vua bat dong ho => RT ~0ms, khong phai mau do that.
-      if (!wasIdle) {
-        hitRtsRef.current.push(now - (lastHitRef.current ?? now));
-      }
+      // LUON ghi du 'cells' mau: server bat buoc hitRts.length === cells
+      // (round-scoring.ts scoreSchulte), thieu 1 mau la bi tra ve 400
+      // "Invalid hitRts length". Mau mo man ~0ms khong gay hai vi:
+      //  - scoreAndValidate chi chay assertRtBounds tren 'rts', KHONG tren 'hitRts',
+      //    nen nguong MIN_RT_MS=120 khong ap dung o day;
+      //  - numberArray() da nang moi gia tri len toi thieu 1ms;
+      //  - withoutStartArtifact() tu loai mau dau khi tinh median/CV.
+      hitRtsRef.current.push(now - (lastHitRef.current ?? now));
       lastHitRef.current = now;
 
       // Advance state only — the completion effect above watches seqIdx and fires

@@ -1,5 +1,6 @@
 import { Clock, Star, Zap } from "lucide-react";
 import { useLang } from "../../lib/i18n";
+import { RATING_MAX } from "../../lib/scoring";
 import type { RoundGame } from "../../lib/api";
 
 export type RoundAxisRow = {
