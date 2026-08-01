@@ -1,24 +1,20 @@
-"use client";
+import type { ReactNode } from "react";
 
-import * as React from "react";
-import * as LabelPrimitive from "@radix-ui/react-label";
-
-import { cn } from "./utils";
-
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+export function Label({
+  children,
+  color,
+}: {
+  children: ReactNode;
+  color: string;
+}) {
   return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className,
-      )}
-      {...props}
-    />
+    <div
+      className="text-[11px] tracking-[0.2em] uppercase"
+      style={{ fontFamily: "'JetBrains Mono', monospace", color }}
+    >
+      {children}
+    </div>
   );
 }
 
-export { Label };
+
