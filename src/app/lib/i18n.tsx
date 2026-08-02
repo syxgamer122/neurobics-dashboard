@@ -29,12 +29,6 @@ const vi = {
   brain_age_percentile: (pct: number, realAge: number) =>
     `Vượt ${pct}% người chơi · tuổi thật ${realAge}`,
   brain_age_provisional: "Tạm tính: chưa đủ người chơi để lập phân phối thật.",
-  round_axis_detail: (round: number, gain: number) =>
-    gain > 0
-      ? `Ván này: ${round} · +${gain}`
-      : gain < 0
-        ? `Ván này: ${round} · ${gain}`
-        : `Ván này: ${round} · không đổi`,
   cog_matrix: "Ma Trận Hiệu Suất Nhận Thức",
   cog_matrix_sub: (sessions: number) =>
     `Đánh giá 5 lĩnh vực thần kinh · ${sessions} phiên`,
@@ -138,7 +132,6 @@ const vi = {
   round_score_label: "ĐIỂM VÁN NÀY",
   round_score_hint: "Chỉ ván vừa chơi — không phải rating hồ sơ",
   profile_rating_short: "Hồ sơ",
-  current_rating_label: "ĐIỂM TỪNG TRỤC",
   continue_btn: "TIẾP TỤC",
 
   // Profile
@@ -289,12 +282,6 @@ const en: typeof vi = {
     `Ahead of ${pct}% of players · real age ${realAge}`,
   brain_age_provisional:
     "Provisional: not enough players yet for a real distribution.",
-  round_axis_detail: (round, gain) =>
-    gain > 0
-      ? `This round: ${round} · +${gain}`
-      : gain < 0
-        ? `This round: ${round} · ${gain}`
-        : `This round: ${round} · unchanged`,
   cog_matrix: "Cognitive Performance Matrix",
   cog_matrix_sub: (sessions: number) =>
     `5-domain neural assessment · ${sessions} sessions`,
@@ -395,7 +382,6 @@ const en: typeof vi = {
   round_score_label: "ROUND SCORE",
   round_score_hint: "This round only — not your profile rating",
   profile_rating_short: "Profile",
-  current_rating_label: "AXIS SCORES",
   continue_btn: "CONTINUE",
 
   clearance: "Clearance",
