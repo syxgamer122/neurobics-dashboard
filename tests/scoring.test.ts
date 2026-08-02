@@ -29,16 +29,20 @@ describe("sanitizeRating", () => {
   });
 });
 
-describe("pullUpRating", () => {
-  it("never pulls down", () => {
-    expect(pullUpRating(500, 400)).toBe(500);
+describe("pullUpRating (bidirectional EMA)", () => {
+  it("pulls down on weaker rounds", () => {
+    // 500 + 0.28*(400-500) = 472
+    expect(pullUpRating(500, 400)).toBe(472);
+    // 1000 + 0.28*(293-1000) = 802
+    expect(pullUpRating(1000, 293)).toBe(802);
   });
 
-  it("snaps small gains and EMA large gains", () => {
+  it("snaps small gaps and EMA large gains", () => {
     expect(pullUpRating(500, 502)).toBe(502);
     expect(pullUpRating(500, 600)).toBe(540);
     expect(pullUpRating(900, 902)).toBe(902);
     expect(pullUpRating(998, 1000)).toBe(1000);
+    expect(pullUpRating(500, 497)).toBe(497);
   });
 
   it("cold-starts from empty/legacy baseline", () => {

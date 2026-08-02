@@ -114,17 +114,37 @@ const speed = (
 const FOCUS_CV_OK = 0.18;
 const FOCUS_CV_BAD = 1.05;
 const FOCUS_SCALE = 0.92;
-const focus = (rts: number[], accuracy: number, diff: number) => {
+/**
+ * He so nhip do cho Focus. Truoc day Focus chi nhin CV + accuracy — choi CHAM
+ * nhung DEU (co tinh ngu) van duoc Focus cao. Gio cham hon target thi Focus
+ * bi ha: median = 2x target ~ giam manh, 3x target ~ gan 0.
+ * paceTargetMs = null => bo qua (Memory khong co tin hieu RT nhip do).
+ */
+const focusPace = (rts: number[], paceTargetMs: number | null | undefined) => {
+  if (paceTargetMs == null || paceTargetMs <= 0 || rts.length < 1) return 1;
+  const m = median(rts);
+  if (m <= 0) return 1;
+  // 1.0 khi <= target; 0.55 o 2x; ~0.15 o 3x; 0 khi >= 4x.
+  return clamp01((4 * paceTargetMs - m) / (3 * paceTargetMs));
+};
+const focus = (
+  rts: number[],
+  accuracy: number,
+  diff: number,
+  paceTargetMs?: number | null,
+) => {
   const penalty = clamp01(
     (cv(rts) - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK),
   );
+  const pace = focusPace(rts, paceTargetMs);
   return clamp(
     MAX *
       diff *
       FOCUS_SCALE *
       (1 - penalty * 0.75) *
       (1 - lapseRate(rts) * 1.15) *
-      Math.pow(accuracy, 1.15),
+      Math.pow(accuracy, 1.15) *
+      Math.pow(pace, 1.25),
   );
 };
 // Headline = trung binh cac truc active (khong con lay max) de 1 truc full
@@ -236,7 +256,9 @@ function scoreSchulte(t: any): ScoredRound {
     speed: found
       ? clamp(speed(statRts, per, diff, timeMs / found) * completion)
       : null,
-    focus: found ? clamp(focus(statRts, accuracy, diff) * completion) : 0,
+    focus: found
+      ? clamp(focus(statRts, accuracy, diff, per) * completion)
+      : 0,
     spatial,
   };
   const size = Math.round(Math.sqrt(cells));
@@ -343,7 +365,7 @@ function scoreStroop(t: any): ScoredRound {
       speed(statRts, 1400, 0.78, timeMs / Math.max(1, rts.length)) *
         completion,
     ),
-    focus: clamp(focus(statRts, accuracy, 0.78) * completion),
+    focus: clamp(focus(statRts, accuracy, 0.78, 1400) * completion),
   };
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
 }
@@ -360,7 +382,7 @@ function scoreReaction(t: any): ScoredRound {
   const axes = {
     ...NO_AXES,
     speed: speed(statRts, 280, 0.95),
-    focus: focus(statRts, accuracy, 0.88),
+    focus: focus(statRts, accuracy, 0.88, 280),
   };
   return { axes, headline: headline(axes), label: "Reaction Time", timeMs };
 }

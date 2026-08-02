@@ -32,7 +32,9 @@ const vi = {
   round_axis_detail: (round: number, gain: number) =>
     gain > 0
       ? `Ván này: ${round} · +${gain}`
-      : `Ván này: ${round} · chưa vượt kỷ lục`,
+      : gain < 0
+        ? `Ván này: ${round} · ${gain}`
+        : `Ván này: ${round} · không đổi`,
   cog_matrix: "Ma Trận Hiệu Suất Nhận Thức",
   cog_matrix_sub: (sessions: number) =>
     `Đánh giá 5 lĩnh vực thần kinh · ${sessions} phiên`,
@@ -132,9 +134,11 @@ const vi = {
   round_complete: "HOÀN THÀNH VÁN",
   domains_this_round: "CÁC LĨNH VỰC NHẬN THỨC VÁN NÀY",
   score_note:
-    "Mỗi trục có công thức riêng và chỉ tăng khi bạn vượt kỷ lục của chính trục đó. Nghỉ quá 7 ngày, rating sẽ giảm dần.",
+    "Thanh và số lớn là điểm VÁN NÀY. Rating hồ sơ tăng khi chơi tốt và giảm khi chơi kém (EMA). Nghỉ >7 ngày còn bị decay thêm.",
   round_score_label: "ĐIỂM VÁN NÀY",
-  current_rating_label: "RATING HIỆN TẠI",
+  round_score_hint: "Chỉ ván vừa chơi — không phải rating hồ sơ",
+  profile_rating_short: "Hồ sơ",
+  current_rating_label: "ĐIỂM TỪNG TRỤC",
   continue_btn: "TIẾP TỤC",
 
   // Profile
@@ -288,7 +292,9 @@ const en: typeof vi = {
   round_axis_detail: (round, gain) =>
     gain > 0
       ? `This round: ${round} · +${gain}`
-      : `This round: ${round} · no new record`,
+      : gain < 0
+        ? `This round: ${round} · ${gain}`
+        : `This round: ${round} · unchanged`,
   cog_matrix: "Cognitive Performance Matrix",
   cog_matrix_sub: (sessions: number) =>
     `5-domain neural assessment · ${sessions} sessions`,
@@ -385,9 +391,11 @@ const en: typeof vi = {
   round_complete: "ROUND COMPLETE",
   domains_this_round: "COGNITIVE DOMAINS THIS ROUND",
   score_note:
-    "Each axis has its own formula and only rises when you beat that axis's own record. Rest more than 7 days and ratings decay.",
+    "Big number and bars are THIS ROUND. Profile rating rises on good play and falls on bad play (EMA). Idle >7 days also decays.",
   round_score_label: "ROUND SCORE",
-  current_rating_label: "CURRENT RATING",
+  round_score_hint: "This round only — not your profile rating",
+  profile_rating_short: "Profile",
+  current_rating_label: "AXIS SCORES",
   continue_btn: "CONTINUE",
 
   clearance: "Clearance",

@@ -40,14 +40,16 @@ t("sanitizeRating(-5)", M.sanitizeRating(-5), 0);
 t("sanitizeRating(null)", M.sanitizeRating(null), 0);
 t("sanitizeRating(NaN)", M.sanitizeRating(NaN), 0);
 
-console.log("\n===== pullUpRating (chi keo len, khong keo xuong) =====");
-t("van te hon: (500, 400)", M.pullUpRating(500, 400), 500);
+console.log("\n===== pullUpRating (EMA hai chieu) =====");
+t("van te hon: (500, 400) = 472", M.pullUpRating(500, 400), 472);
+t("van kem tu max: (1000, 293) = 802", M.pullUpRating(1000, 293), 802);
 t("hon it, snap: (500, 502)", M.pullUpRating(500, 502), 502);
 t("hon nhieu: (500, 600) = 500+0.4*100", M.pullUpRating(500, 600), 540);
 t("tu 0: (null, 300)", M.pullUpRating(null, 300), 300);
 t("gan tran: (998, 1000)", M.pullUpRating(998, 1000), 1000);
 t("legacy prev: (4200, 600)", M.pullUpRating(4200, 600), 600);
 t("tang toi thieu 1: (900, 902)", M.pullUpRating(900, 902), 902);
+t("giam snap: (500, 497)", M.pullUpRating(500, 497), 497);
 
 console.log("\n===== decayRating (an han 7 ngay, san 35%) =====");
 t("idle 0", M.decayRating(800, 0), 800);

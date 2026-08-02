@@ -12,8 +12,11 @@
 // i18n duoc lay theo do sau ngoac thay vi theo thut le.
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
+// Windows: URL.pathname la "/C:/Users/..." — path.resolve se tao "C:\C:\...".
+// fileURLToPath + decode dung cho ca Win/Linux/macOS.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src");
 
 function walk(dir, out = []) {
@@ -274,7 +277,7 @@ for (const f of files) {
       new RegExp(`\\{[^{}]*\\b${c}\\b[^{}]*\\}\\s*[=:)]`).test(s) ||
       new RegExp(`\\b${c}\\s*[:=]`).test(s);
     const env =
-      /^(JSON|NaN|URL|URLS|API|GET|POST|PUT|HEAD|HTTP|HTTPS|UTC|GMT|CSS|HTML|SVG|DOM|RGB|RGBA|USD|VND|NULL|TRUE|FALSE|CSV|PDF|PNG|JPG|TODO|FIXME|NOTE|ERROR|WARN|INFO|DEBUG|MATH|DATE|NUMBER|STRING|BOOLEAN|OBJECT|ARRAY|PROMISE|WINDOW|DOCUMENT|CONSOLE|IMPORT|EXPORT|REACT|VITE|NODE|MEMORY|FOCUS|LOGIC)$/.test(
+      /^(JSON|NaN|URL|URLS|API|GET|POST|PUT|HEAD|HTTP|HTTPS|UTC|GMT|CSS|HTML|SVG|DOM|RGB|RGBA|USD|VND|NULL|TRUE|FALSE|CSV|PDF|PNG|JPG|TODO|FIXME|NOTE|ERROR|WARN|INFO|DEBUG|MATH|DATE|NUMBER|STRING|BOOLEAN|OBJECT|ARRAY|PROMISE|WINDOW|DOCUMENT|CONSOLE|IMPORT|EXPORT|REACT|VITE|NODE|MEMORY|FOCUS|LOGIC|REFRESH|ACCESS|DENIED|ADMIN|PANEL|CRITICAL)$/.test(
         c,
       );
     if (!declared && !env) {

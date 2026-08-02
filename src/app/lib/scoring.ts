@@ -60,28 +60,46 @@ export function sanitizeRating(val: number | null | undefined): number {
 
 // ─── Rating movement ────────────────────────────────────────────────────
 
-/** How much of the gap to a better round is absorbed into the stored rating. */
+/** How much of the gap (up OR down) is absorbed into the stored rating. */
 export const EMA_ALPHA = 0.4;
+/** Downward moves use a slightly softer alpha so one bad round does not erase a week. */
+export const EMA_ALPHA_DOWN = 0.28;
+/** Khoảng cách còn lại đủ nhỏ thì nhảy thẳng, tránh tiệm cận mãi ở 999/1. */
+export const RATING_SNAP = 3;
+/** @deprecated use RATING_SNAP — kept so older imports do not break. */
+export const PULL_UP_SNAP = RATING_SNAP;
 
 /**
- * Upward-only moving average: a strong round pulls the rating up by EMA_ALPHA
- * of the gap, a weak round leaves it untouched. Decay (below) is what brings it
- * back down — not bad rounds, so one off day never wipes out months of work.
+ * Two-way EMA toward this round's score.
+ * - Better round → pull up (alpha 0.4)
+ * - Worse round → pull down (alpha 0.28)
+ * - Cold start (no baseline) → round becomes baseline
+ *
+ * Name `pullUpRating` kept for compatibility; behavior is bidirectional.
  */
-/** Khoảng cách còn lại đủ nhỏ thì nhảy thẳng, tránh tiệm cận mãi ở 999. */
-export const PULL_UP_SNAP = 3;
+export function pullUpRating(
+  prev: number | null | undefined,
+  round: number,
+): number {
+  return applyRoundRating(prev, round);
+}
 
-export function pullUpRating(prev: number | null | undefined, round: number): number {
+export function applyRoundRating(
+  prev: number | null | undefined,
+  round: number,
+): number {
   const o = sanitizeRating(prev);
-  if (round <= o) return o;
-  // COLD START: chua co baseline nao (truc moi, hoac gia tri legacy vua bi doc
-  // ve 0) thi KHONG lam tron. EMA can mot gia tri truoc de lam muot; lay 40%
-  // cua khoang cach so voi 0 chi tao ra thien lech: van dau tien duoc 300 diem
-  // lai chi ghi 120, va nguoi choi phai lap lai gan 10 van moi tien tiem can
-  // dung nang luc that cua minh. Van dau tien chinh la baseline.
-  if (o <= 0) return clampRating(round);
-  if (round - o <= PULL_UP_SNAP) return clampRating(round);
-  return clampRating(Math.max(o + 1, o + EMA_ALPHA * (round - o)));
+  const r = clampRating(round);
+  // COLD START: van dau tien la baseline.
+  if (o <= 0) return r;
+  if (r === o) return o;
+  const gap = r - o;
+  if (Math.abs(gap) <= RATING_SNAP) return r;
+  if (gap > 0) {
+    return clampRating(Math.max(o + 1, o + EMA_ALPHA * gap));
+  }
+  // Keo xuong: toi thieu -1 moi lan giam that su.
+  return clampRating(Math.min(o - 1, o + EMA_ALPHA_DOWN * gap));
 }
 
 // ─── Inactivity decay ──────────────────────────────────────────────────
@@ -104,7 +122,10 @@ const DAY_MS = 86_400_000;
  */
 export const VN_UTC_OFFSET = "+07:00";
 
-export function daysSince(isoDate: string | null | undefined, now: Date = new Date()): number {
+export function daysSince(
+  isoDate: string | null | undefined,
+  now: Date = new Date(),
+): number {
   if (!isoDate) return 0;
   const then = Date.parse(`${isoDate}T00:00:00${VN_UTC_OFFSET}`);
   if (!Number.isFinite(then)) return 0;
@@ -226,7 +247,13 @@ export type AxisRatings = {
   memory: number | null;
 };
 
-const NO_AXES: AxisRatings = { speed: null, focus: null, spatial: null, logic: null, memory: null };
+const NO_AXES: AxisRatings = {
+  speed: null,
+  focus: null,
+  spatial: null,
+  logic: null,
+  memory: null,
+};
 
 // ─── Shared axis kernels ───────────────────────────────────────────────
 
@@ -352,9 +379,11 @@ function erf(x: number): number {
   const t = 1 / (1 + 0.3275911 * ax);
   const y =
     1 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
-    t *
-    Math.exp(-ax * ax);
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
+      t +
+      0.254829592) *
+      t *
+      Math.exp(-ax * ax);
   return sign * y;
 }
 
@@ -369,17 +398,17 @@ export type BrainAgeResult =
   | { status: "needs_age" }
   | { status: "calibrating"; roundsPlayed: number; roundsNeeded: number }
   | {
-    status: "ready";
-    age: number;
-    realAge: number;
-    /** Years younger than real age. Negative = older. */
-    delta: number;
-    percentile: number;
-    /** 0–1 fill for the dial. */
-    ringPct: number;
-    /** True while ranked against the seed distribution rather than real peers. */
-    provisional: boolean;
-  };
+      status: "ready";
+      age: number;
+      realAge: number;
+      /** Years younger than real age. Negative = older. */
+      delta: number;
+      percentile: number;
+      /** 0–1 fill for the dial. */
+      ringPct: number;
+      /** True while ranked against the seed distribution rather than real peers. */
+      provisional: boolean;
+    };
 
 export type BrainAgeInput = {
   cognitiveIndex: number;
@@ -400,7 +429,11 @@ export function calcBrainAge(
   if (!birthYear || !Number.isFinite(birthYear)) return { status: "needs_age" };
 
   if (roundsPlayed < CALIBRATION_ROUNDS) {
-    return { status: "calibrating", roundsPlayed, roundsNeeded: CALIBRATION_ROUNDS };
+    return {
+      status: "calibrating",
+      roundsPlayed,
+      roundsNeeded: CALIBRATION_ROUNDS,
+    };
   }
 
   const realAge = Math.max(5, Math.min(120, now.getFullYear() - birthYear));

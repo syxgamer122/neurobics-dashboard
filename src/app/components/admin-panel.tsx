@@ -864,8 +864,8 @@ export function AdminPanel({
                 <RefreshCw
                   size={11}
                   className={loading ? "animate-spin" : ""}
-                />{" "}
-                REFRESH
+                />
+                <span>Refresh</span>
               </button>
             </div>
 
