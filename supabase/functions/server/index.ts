@@ -1,14 +1,9 @@
-// @ts-nocheck
-import { Hono } from "npm:hono";
+import { Hono, type Context } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import { scoreAndValidate, type Game } from "../_shared/round-scoring.ts";
-import {
-  inspectRound,
-  hasHardFlag,
-  softFlags,
-} from "../_shared/anticheat.ts";
+import { inspectRound, hasHardFlag, softFlags } from "../_shared/anticheat.ts";
 
 const app = new Hono();
 
@@ -16,13 +11,15 @@ app.use("*", logger(console.log));
 app.use(
   "/*",
   cors({
-    // Chi domain app + localhost dev. Khong dung "*".
-    origin: [
-      "https://nguyenhuumanh.vercel.app",
-      "https://neurobics-dashboard-pfl3.vercel.app",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ],
+    // ALLOWED_ORIGINS la danh sach phan cach boi dau phay. Van giu default
+    // production + localhost de deploy cu khong bi mat truy cap.
+    origin: (
+      Deno.env.get("ALLOWED_ORIGINS") ??
+      "https://nguyenhuumanh.vercel.app,https://neurobics-dashboard-pfl3.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
+    )
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
@@ -42,6 +39,9 @@ const PROFILE_COLS =
 // vai nguoi cung dang ky.
 const SIGNUP_LIMIT = 10;
 const SIGNUP_WINDOW_SECONDS = 15 * 60;
+const RECOVERY_LIMIT = 10;
+const RECOVERY_WINDOW_SECONDS = 60 * 60;
+const MAX_OPEN_TICKETS = 8;
 
 async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
@@ -49,6 +49,47 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function hex(bytes: ArrayBuffer): string {
+  return Array.from(new Uint8Array(bytes))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** HMAC cho ma recovery moi. Ma cu SHA-256 van duoc verify de khong khoa user cu. */
+async function recoveryHmac(username: string, code: string): Promise<string> {
+  const secret = Deno.env.get("RECOVERY_HMAC_SECRET");
+  if (!secret || secret.length < 32)
+    throw new Error("RECOVERY_HMAC_SECRET is not configured securely.");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return hex(
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(`${username}:${code}`),
+    ),
+  );
+}
+
+async function consumeRateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await adminClient.rpc("check_signup_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) throw new Error(`Rate-limit unavailable: ${error.message}`);
+  return data === true;
 }
 
 /** Mã khôi phục dạng XXXX-XXXX-XXXX (dễ chép tay), chỉ hiện 1 lần lúc đăng ký. */
@@ -61,7 +102,7 @@ function mintRecoveryCode(): string {
   return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
 }
 
-function clientIp(c: any): string {
+function clientIp(c: Context): string {
   // CHI tin x-forwarded-for: header nay do chinh ha tang Supabase/Deno gan vao.
   //
   // Truoc day `cf-connecting-ip` va `x-real-ip` duoc uu tien TRUOC. Edge
@@ -225,13 +266,13 @@ app.post("/server/signup", async (c) => {
     const { data: existing, error: lookupErr } = await adminClient
       .from("profiles")
       .select("id")
-      .ilike("username", normalized)
+      .eq("username", normalized)
       .maybeSingle();
     if (lookupErr) {
       console.log(
         `Signup error during username lookup for "${username}": ${lookupErr.message}`,
       );
-      return c.json({ error: `Signup error: ${lookupErr.message}` }, 500);
+      return c.json({ error: "Signup is temporarily unavailable." }, 500);
     }
     if (existing) {
       return c.json({ error: NAME_TAKEN }, 409);
@@ -252,11 +293,12 @@ app.post("/server/signup", async (c) => {
       console.log(
         `Signup error while creating auth user for "${username}": ${error?.message}`,
       );
+      const duplicate = /already|registered|exists|duplicate|unique/i.test(
+        error?.message ?? "",
+      );
       return c.json(
-        {
-          error: `Signup error: ${error?.message ?? "could not create user."}`,
-        },
-        400,
+        { error: duplicate ? NAME_TAKEN : "Signup could not be completed." },
+        duplicate ? 409 : 400,
       );
     }
 
@@ -272,31 +314,27 @@ app.post("/server/signup", async (c) => {
       console.log(
         `Signup error: profile row not found after user creation: ${profileErr?.message}`,
       );
-      return c.json(
-        {
-          error: `Signup error: profile was not auto-created (${profileErr?.message ?? "missing row"}).`,
-        },
-        500,
-      );
+      // Neu trigger profile fail, xoa auth user vua tao de khong tao tai khoan mo coi.
+      await adminClient.auth.admin.deleteUser(data.user.id);
+      return c.json({ error: "Signup could not be completed." }, 500);
     }
 
     // Ma khoi phuc: chi tra 1 lan. Hash nam bang account_recovery (service_role).
     const recoveryCode = mintRecoveryCode();
-    const recoveryHash = await sha256(
-      `neurobics-recovery:${normalized}:${recoveryCode}`,
-    );
-    const { error: recErr } = await adminClient.from("account_recovery").upsert({
-      user_id: data.user.id,
-      code_hash: recoveryHash,
-      created_at: new Date().toISOString(),
-    });
-    if (recErr)
-      console.log(`Recovery code persist failed: ${recErr.message}`);
+    const recoveryHash = await recoveryHmac(normalized, recoveryCode);
+    const { error: recErr } = await adminClient
+      .from("account_recovery")
+      .upsert({
+        user_id: data.user.id,
+        code_hash: recoveryHash,
+        created_at: new Date().toISOString(),
+      });
+    if (recErr) console.log(`Recovery code persist failed: ${recErr.message}`);
 
     return c.json({ profile, recoveryCode });
   } catch (err) {
     console.log(`Signup error (unexpected) in /signup route: ${err}`);
-    return c.json({ error: `Signup error: ${err}` }, 500);
+    return c.json({ error: "Signup is temporarily unavailable." }, 500);
   }
 });
 // ─── Password recovery (no real email) ─────────────────────────────────────
@@ -311,6 +349,32 @@ app.post("/server/recover-password", async (c) => {
     if (!username || !recoveryCode || !newPassword || !captchaToken) {
       return c.json({ error: "Missing fields." }, 400);
     }
+    const normalized = String(username).trim().toLowerCase();
+    if (!/^[a-z0-9_.-]{3,20}$/.test(normalized)) {
+      return c.json({ error: "Invalid recovery code or username." }, 400);
+    }
+
+    // Hai khoa doc lap: chan spam tu mot IP va brute-force mot username qua
+    // nhieu IP. Chi luu hash, khong luu IP/username tho.
+    const [ipAllowed, userAllowed] = await Promise.all([
+      consumeRateLimit(
+        await sha256(`neurobics-recovery-ip:${ip}`),
+        RECOVERY_LIMIT,
+        RECOVERY_WINDOW_SECONDS,
+      ),
+      consumeRateLimit(
+        await sha256(`neurobics-recovery-user:${normalized}`),
+        RECOVERY_LIMIT,
+        RECOVERY_WINDOW_SECONDS,
+      ),
+    ]);
+    if (!ipAllowed || !userAllowed) {
+      return c.json(
+        { error: "Too many recovery attempts. Try again in one hour." },
+        429,
+      );
+    }
+
     if (String(newPassword).length < 8) {
       return c.json({ error: "Password must be at least 8 characters." }, 400);
     }
@@ -326,11 +390,10 @@ app.post("/server/recover-password", async (c) => {
       );
     }
 
-    const normalized = String(username).trim().toLowerCase();
     const { data: prof, error: pErr } = await adminClient
       .from("profiles")
       .select("id, username")
-      .ilike("username", normalized)
+      .eq("username", normalized)
       .maybeSingle();
     if (pErr) throw pErr;
     if (!prof) {
@@ -353,13 +416,23 @@ app.post("/server/recover-password", async (c) => {
       );
     }
 
-    const candidate = await sha256(
-      `neurobics-recovery:${normalized}:${String(recoveryCode).trim().toUpperCase()}`,
+    const codeUpper = String(recoveryCode).trim().toUpperCase();
+    const codeRaw = String(recoveryCode).trim();
+    const candidate = await recoveryHmac(normalized, codeUpper);
+    const candidateRaw = await recoveryHmac(normalized, codeRaw);
+    // Tuong thich ma cu da cap truoc 20260820 (SHA-256 co prefix).
+    const legacy = await sha256(
+      `neurobics-recovery:${normalized}:${codeUpper}`,
     );
-    const candidateRaw = await sha256(
-      `neurobics-recovery:${normalized}:${String(recoveryCode).trim()}`,
+    const legacyRaw = await sha256(
+      `neurobics-recovery:${normalized}:${codeRaw}`,
     );
-    if (candidate !== rec.code_hash && candidateRaw !== rec.code_hash) {
+    if (
+      candidate !== rec.code_hash &&
+      candidateRaw !== rec.code_hash &&
+      legacy !== rec.code_hash &&
+      legacyRaw !== rec.code_hash
+    ) {
       return c.json(
         { error: "Invalid recovery code or username.", code: "bad_recovery" },
         400,
@@ -378,7 +451,7 @@ app.post("/server/recover-password", async (c) => {
   } catch (err) {
     console.log(`Recover password error: ${err}`);
     return c.json(
-      { error: err instanceof Error ? err.message : String(err) },
+      { error: "Password recovery is temporarily unavailable." },
       500,
     );
   }
@@ -395,7 +468,7 @@ const GAMES = new Set([
   "math",
 ]);
 
-async function authenticatedUser(c: any) {
+async function authenticatedUser(c: Context) {
   const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer "))
     throw new Error("Missing authorization");
@@ -411,6 +484,23 @@ app.post("/server/start-round", async (c) => {
     const user = await authenticatedUser(c);
     const { game } = await c.req.json();
     if (!GAMES.has(String(game))) return c.json({ error: "Invalid game" }, 400);
+
+    const { count, error: countError } = await adminClient
+      .from("round_tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .is("submitted_at", null)
+      .gt("expires_at", new Date().toISOString());
+    if (countError) throw countError;
+    if ((count ?? 0) >= MAX_OPEN_TICKETS) {
+      return c.json(
+        {
+          error:
+            "Too many open rounds. Finish or wait for old tickets to expire.",
+        },
+        429,
+      );
+    }
 
     const { data, error } = await adminClient
       .from("round_tickets")
@@ -463,15 +553,27 @@ app.post("/server/submit-round", async (c) => {
     // Lớp chống gian lận: hard flag từ chối ván, soft flag vẫn chấm nhưng ghi log.
     const cheat = inspectRound(String(game), telemetry, serverElapsedMs);
     if (hasHardFlag(cheat)) {
+      // Dot ticket TRUOC khi tra 422 de khong bien anti-cheat thanh oracle thu lai.
+      const { error: burnError } = await adminClient
+        .from("round_tickets")
+        .update({ submitted_at: new Date().toISOString() })
+        .eq("id", ticket.id)
+        .is("submitted_at", null);
+      if (burnError) {
+        console.log(`Hard-rejected ticket burn failed: ${burnError.message}`);
+        return c.json({ error: "Round could not be finalized." }, 503);
+      }
+
       const hard = cheat.flags.filter((f) => f.severity === "hard");
       for (const f of hard) {
-        await adminClient.rpc("record_cheat_flag", {
+        const { error: hardErr } = await adminClient.rpc("record_cheat_flag", {
           p_user_id: user.id,
           p_game: String(game),
           p_reason: f.msg,
           p_severity: "hard",
           p_details: f.detail ?? {},
         });
+        if (hardErr) console.log(`Hard cheat flag failed: ${hardErr.message}`);
       }
       return c.json(
         {
@@ -490,8 +592,7 @@ app.post("/server/submit-round", async (c) => {
         p_severity: "soft",
         p_details: f.detail ?? {},
       });
-      if (softErr)
-        console.log(`Soft cheat flag failed: ${softErr.message}`);
+      if (softErr) console.log(`Soft cheat flag failed: ${softErr.message}`);
     }
 
     // Ghi dấu vân thiết bị (không chặn ván nếu RPC lỗi).
@@ -567,8 +668,7 @@ async function requireAdmin(userId: string) {
     .select("role")
     .eq("id", userId)
     .single();
-  if (error || data?.role !== "admin")
-    throw new Error("Admin access denied");
+  if (error || data?.role !== "admin") throw new Error("Admin access denied");
 }
 
 app.post("/server/admin-grant", async (c) => {
@@ -686,14 +786,18 @@ app.post("/server/admin-delete-user", async (c) => {
       console.log(`admin-delete-user storage: ${storageErr}`);
     }
 
+    // Xoa auth truoc; FK ON DELETE CASCADE don profile va cac bang con.
+    const { error: authErr } =
+      await adminClient.auth.admin.deleteUser(targetId);
+    if (authErr) throw authErr;
+    // Fallback cho DB cu chua co cascade. Service role nen idempotent.
     await adminClient.from("account_recovery").delete().eq("user_id", targetId);
     const { error: profileErr } = await adminClient
       .from("profiles")
       .delete()
       .eq("id", targetId);
-    if (profileErr) throw profileErr;
-    const { error: authErr } = await adminClient.auth.admin.deleteUser(targetId);
-    if (authErr) throw authErr;
+    if (profileErr)
+      console.log(`admin-delete-user profile fallback: ${profileErr.message}`);
     return c.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -728,16 +832,20 @@ app.post("/server/delete-account", async (c) => {
       console.log(`Delete-account storage cleanup: ${storageErr}`);
     }
 
-    // 2) Profile row (cascades to related tables if FKs are set; otherwise orphan rows stay)
+    // 2) Xoa auth user TRUOC. FK ON DELETE CASCADE se don profile va bang con.
+    // Neu DB cu chua co cascade, lenh fallback service-role ben duoi se don profile.
+    const { error: authErr } = await adminClient.auth.admin.deleteUser(userId);
+    if (authErr) throw authErr;
+
+    // 3) Fallback idempotent: khong de profile mo coi neu FK cu chua cascade.
     const { error: profileErr } = await adminClient
       .from("profiles")
       .delete()
       .eq("id", userId);
-    if (profileErr) throw profileErr;
-
-    // 3) Auth user — permanent, cannot log in again
-    const { error: authErr } = await adminClient.auth.admin.deleteUser(userId);
-    if (authErr) throw authErr;
+    if (profileErr)
+      console.log(
+        `Delete-account profile fallback failed: ${profileErr.message}`,
+      );
 
     return c.json({ ok: true });
   } catch (err) {

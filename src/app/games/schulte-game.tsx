@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Check, CheckCircle, Focus, Loader2, RefreshCw, Star, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle,
+  Focus,
+  Loader2,
+  RefreshCw,
+  Star,
+  X,
+} from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { fetchPersonalBests } from "../lib/api";
 import { shuffleArray } from "../lib/sudoku-gen";
@@ -281,16 +289,7 @@ export function SchulteTableGame({
       setFoundSet(nf);
       setSeqIdx(seqIdx + 1);
     },
-    [
-      status,
-      foundSet,
-      sequence,
-      seqIdx,
-      hearts,
-      later,
-      flashCell,
-      onPlayStart,
-    ],
+    [status, foundSet, sequence, seqIdx, hearts, later, flashCell, onPlayStart],
   );
 
   const fmtTime = (ms: number) => {
@@ -304,6 +303,7 @@ export function SchulteTableGame({
 
   const target = sequence[seqIdx];
   const progress = seqIdx / sequence.length;
+  const displayedBestMs = bestTime ?? serverBestMs;
   const SIZES: SSize[] = [3, 4, 5, 6];
   const MODES: { id: SMode; label: string; hint: string }[] = [
     { id: "classic", label: t.classic, hint: t.hint_classic(size * size) },
@@ -527,7 +527,7 @@ export function SchulteTableGame({
           </div>
           {/* Guard cu la `bestTime !== null` nen nhanh `?? serverBestMs` khong
               bao gio chay — ky luc fetch tu server chang bao gio hien ra. */}
-          {(bestTime ?? serverBestMs) !== null && (
+          {displayedBestMs !== null && (
             <span
               className="text-[11px] mt-0.5"
               style={{
@@ -535,7 +535,7 @@ export function SchulteTableGame({
                 color: "#475569",
               }}
             >
-              {t.best_label} {fmtTime(bestTime ?? serverBestMs)}
+              {t.best_label} {fmtTime(displayedBestMs)}
             </span>
           )}
         </div>

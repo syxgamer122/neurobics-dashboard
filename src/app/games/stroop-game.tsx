@@ -248,7 +248,7 @@ export function StroopGame({
         }
       }, 240);
     },
-    [status, flash, stimulus, hearts, trialsLeft, later, onPlayStart],
+    [status, flash, stimulus, hearts, trialsLeft, later],
   );
 
   const fmtTime = (ms: number) => {
@@ -325,7 +325,11 @@ export function StroopGame({
             <span
               key={i}
               role="img"
-              aria-label={i < hearts ? (t.heart_full ?? "Life remaining") : (t.heart_empty ?? "Life lost")}
+              aria-label={
+                i < hearts
+                  ? (t.heart_full ?? "Life remaining")
+                  : (t.heart_empty ?? "Life lost")
+              }
               style={{
                 fontSize: 14,
                 opacity: i < hearts ? 1 : 0.2,
@@ -475,7 +479,10 @@ export function StroopGame({
           <div className="py-8 px-6 flex flex-col items-center gap-2">
             <span
               className="font-black tracking-[0.15em] select-none text-white"
-              style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 52 }}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 52,
+              }}
             >
               {countdown > 0 ? countdown : "GO"}
             </span>
@@ -537,7 +544,8 @@ export function StroopGame({
                   backgroundColor: hex,
                   backgroundImage:
                     PATTERN_BG[
-                      STROOP_COLORS.find((c) => c.id === cid)?.pattern ?? "solid"
+                      STROOP_COLORS.find((c) => c.id === cid)?.pattern ??
+                        "solid"
                     ],
                   backgroundSize: ["dots", "grid"].includes(
                     STROOP_COLORS.find((c) => c.id === cid)?.pattern ?? "solid",

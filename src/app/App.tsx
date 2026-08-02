@@ -80,11 +80,7 @@ import {
   type AxisRatings,
   type PopulationStats,
 } from "./lib/scoring";
-import {
-  getLevelProgress,
-  getLevelTitle,
-  getLevelColor,
-} from "./lib/xp";
+import { getLevelProgress, getLevelTitle, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { AXIS_META, type AxisKey } from "./lib/axes";
 
@@ -108,7 +104,13 @@ const totalRounds = (p: Profile) => totalSessions(p);
 // for the radar. No session division: the rating is already a moving average.
 function buildCognitiveData(
   p: Profile,
-  labels?: { memory: string; focus: string; logic: string; spatial: string; speed: string },
+  labels?: {
+    memory: string;
+    focus: string;
+    logic: string;
+    spatial: string;
+    speed: string;
+  },
 ) {
   const toPct = (r: number | null | undefined) =>
     clamp100(((r ?? 0) / RATING_MAX) * 100);
@@ -358,15 +360,12 @@ function AppInner() {
     [t.axis_memory, t.axis_focus, t.axis_logic, t.axis_spatial, t.axis_speed],
   );
 
-  // Payload cua van gan nhat submit that bai, giu lai de co the "Gui lai".
-  const PENDING_ROUND_KEY = "neurobics.pendingRound";
-
   /**
    * Gui telemetry cua mot van len server.
    *
    * Truoc day loi mang = mat trang ca van: catch -> toast -> het, khong con
-   * duong nao lay lai. Gio payload duoc giu lai (ref + localStorage de song sot
-   * qua ca reload) va toast co nut "Gui lai".
+   * duong nao lay lai. Gio payload duoc closure cua nut "Gui lai" giu trong
+   * phien hien tai. Khong ghi localStorage vi ticket/ref khong song qua reload.
    *
    * Luu y: neu server DA nhan va burn ticket ("already submitted"/"expired")
    * thi gui lai vo nghia — truong hop do khong stash va khong hien nut retry.
@@ -394,27 +393,15 @@ function AppInner() {
           leveledUp: result.leveledUp,
         });
         setGamificationKey((k) => k + 1);
-        try {
-          localStorage.removeItem(PENDING_ROUND_KEY);
-        } catch {
-          /* localStorage bi chan — bo qua */
-        }
         return true;
       } catch (err) {
         console.error(`${game} submit failed:`, err);
         const msg = err instanceof Error ? err.message : String(err);
-        const ticketGone =
-          /already submitted|expired|ticket not found/i.test(msg);
+        const ticketGone = /already submitted|expired|ticket not found/i.test(
+          msg,
+        );
 
         if (!ticketGone) {
-          try {
-            localStorage.setItem(
-              PENDING_ROUND_KEY,
-              JSON.stringify({ game, tel, at: Date.now() }),
-            );
-          } catch {
-            /* localStorage bi chan — van con ref trong phien nay */
-          }
           toast.error(t.save_failed, {
             action: {
               label: t.retry_send,
@@ -1216,7 +1203,8 @@ function AppInner() {
                         className="ml-auto text-xs text-slate-500"
                         style={{ fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        {t.total_xp_label}: {(profile.total_xp ?? 0).toLocaleString()}
+                        {t.total_xp_label}:{" "}
+                        {(profile.total_xp ?? 0).toLocaleString()}
                       </span>
                     </div>
                     <div
@@ -1289,10 +1277,10 @@ function AppInner() {
                               ? ((profile.synapse_streak - 1) % 7) + 1
                               : 0)
                               ? {
-                                background:
-                                  "linear-gradient(90deg, #F59E0B, #EF4444)",
-                                boxShadow: "0 0 6px rgba(245,158,11,0.5)",
-                              }
+                                  background:
+                                    "linear-gradient(90deg, #F59E0B, #EF4444)",
+                                  boxShadow: "0 0 6px rgba(245,158,11,0.5)",
+                                }
                               : { background: "rgba(255,255,255,0.07)" }
                           }
                         />
