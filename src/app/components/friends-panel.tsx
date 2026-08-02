@@ -13,6 +13,7 @@ import {
   type FriendRank,
   type PlayerSearchResult,
 } from "../lib/api";
+import { logError } from "../lib/logger";
 
 // ─── Bạn bè + bảng xếp hạng riêng ───────────────────────────────────────
 // Mọi thao tác đi qua RPC security definer: chỉ người được mời mới chấp nhận
@@ -119,7 +120,7 @@ export function FriendsPanel() {
       setFriends(list);
       setBoard(ranks);
     } catch (err) {
-      console.error("Load friends failed:", err);
+      logError("Load friends failed:", err);
       setFriends([]);
     }
   }, []);
@@ -139,7 +140,7 @@ export function FriendsPanel() {
       searchPlayers(q)
         .then(setResults)
         .catch((err) => {
-          console.error("Search players failed:", err);
+          logError("Search players failed:", err);
           setResults([]);
         });
     }, 350);

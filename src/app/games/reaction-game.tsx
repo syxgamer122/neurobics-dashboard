@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Activity, CheckCircle, Clock, Loader2, RefreshCw } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import type { ReactionTelemetry } from "../lib/scoring";
+import { logError } from "../lib/logger";
 
 // ─── Reaction Time Game ─────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ export function ReactionTimeGame({
         falseStarts: falseStartsRef.current,
       });
     } catch (err) {
-      console.error("Reaction completion: onComplete failed:", err);
+      logError("Reaction completion: onComplete failed:", err);
     } finally {
       setSaving(false);
     }

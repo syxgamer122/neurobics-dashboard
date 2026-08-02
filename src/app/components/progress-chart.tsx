@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { fetchProgressSeries, type ProgressPoint } from "../lib/api";
+import { logError } from "../lib/logger";
 
 type AxisName = "speed" | "focus" | "spatial" | "logic" | "memory";
 
@@ -66,7 +67,7 @@ export function ProgressChart() {
       const series = await fetchProgressSeries(days);
       setRows(series.map((p) => ({ ...p, label: fmtDay(p.day) })));
     } catch (err) {
-      console.error("fetchProgressSeries failed:", err);
+      logError("fetchProgressSeries failed:", err);
       setRows([]);
     } finally {
       setLoading(false);

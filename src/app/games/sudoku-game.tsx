@@ -3,6 +3,7 @@ import { CheckCircle, Grid3X3, Loader2, RefreshCw, Star } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { generateSudoku } from "../lib/sudoku-gen";
 import type { SudokuTelemetry } from "../lib/scoring";
+import { logError, logWarn } from "../lib/logger";
 
 export type Difficulty =
   "Easy" | "Medium" | "Hard" | "Expert" | "Master" | "Extreme";
@@ -90,7 +91,7 @@ export function SudokuGame({
       workerRef.current = w;
       return w;
     } catch (err) {
-      console.warn("Sudoku worker unavailable, using main thread:", err);
+      logWarn("Sudoku worker unavailable, using main thread:", err);
       return null;
     }
   }, []);
@@ -216,7 +217,7 @@ export function SudokuGame({
         .catch((err) => {
           // Request bi thay boi request moi hon => bo qua, khong ve de cu len.
           if (isSuperseded(err)) return;
-          console.error("Sudoku generate failed:", err);
+          logError("Sudoku generate failed:", err);
           const nd = generateSudoku(lvl.clues);
           actualCluesRef.current = nd.actualClues;
           budgetExceededRef.current = nd.budgetExceeded;
@@ -272,7 +273,7 @@ export function SudokuGame({
           budgetExceeded: budgetExceededRef.current,
         });
       } catch (err) {
-        console.error("Sudoku completion: onComplete failed:", err);
+        logError("Sudoku completion: onComplete failed:", err);
       } finally {
         setSaving(false);
       }

@@ -14,6 +14,7 @@ import type {
   RoundAxisRow,
   RoundResult,
 } from "../components/ui/round-result-overlay";
+import { logError } from "../lib/logger";
 
 function applyAxes(
   profile: Profile,
@@ -99,14 +100,14 @@ export function useRoundSubmission({
   useEffect(() => {
     if (!selectedGame) return;
     prepareRound(selectedGame).catch((err) =>
-      console.error("Prepare round failed:", err),
+      logError("Prepare round failed:", err),
     );
   }, [selectedGame, prepareRound]);
 
   const beginPlay = useCallback(
     (game: RoundGame) => {
       void prepareRound(game).catch((err) =>
-        console.error("Play-start ticket prepare failed:", err),
+        logError("Play-start ticket prepare failed:", err),
       );
     },
     [prepareRound],
@@ -169,7 +170,7 @@ export function useRoundSubmission({
         setGamificationKey((k) => k + 1);
         return true;
       } catch (err) {
-        console.error(`${game} submit failed:`, err);
+        logError(`${game} submit failed:`, err);
         const msg = err instanceof Error ? err.message : String(err);
         const ticketGone = /already submitted|expired|ticket not found/i.test(
           msg,

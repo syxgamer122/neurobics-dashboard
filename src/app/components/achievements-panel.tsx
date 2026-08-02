@@ -3,6 +3,7 @@ import { Award, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "../lib/i18n";
 import { syncAchievements, type AchievementUnlock } from "../lib/api";
+import { logError } from "../lib/logger";
 
 // ─── Thành tựu ─────────────────────────────────────────────────────────
 // Điều kiện mở khoá và XP thưởng nằm ở Postgres (sync_achievements).
@@ -112,7 +113,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       })
       .catch((err) => {
         if (alive) setRows([]);
-        console.error("Sync achievements failed:", err);
+        logError("Sync achievements failed:", err);
       });
     return () => {
       alive = false;

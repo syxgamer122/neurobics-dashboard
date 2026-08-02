@@ -3,6 +3,7 @@ import { Brain, CheckCircle, Loader2, RefreshCw, Star } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { shuffleArray } from "../lib/sudoku-gen";
 import type { MemoryTelemetry } from "../lib/scoring";
+import { logError } from "../lib/logger";
 
 // ─── Memory Matrix Game ──────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export function MemoryMatrixGame({
             wrongClicks: wrongClicksRef.current,
           })
             .catch((err) => {
-              console.error("Memory completion: onComplete failed:", err);
+              logError("Memory completion: onComplete failed:", err);
             })
             .finally(() => setSaving(false));
         }, 1000);

@@ -3,6 +3,7 @@ import { CheckCircle2, Gift, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "../lib/i18n";
 import { claimQuest, fetchDailyQuests, type DailyQuest } from "../lib/api";
+import { logError } from "../lib/logger";
 
 // ─── Nhiệm vụ ngày ────────────────────────────────────────────────────
 // Tiến độ do Postgres tính từ training_sessions trong ngày (giờ Việt Nam),
@@ -63,7 +64,7 @@ export function QuestsPanel({
     try {
       setQuests(await fetchDailyQuests());
     } catch (err) {
-      console.error("Fetch daily quests failed:", err);
+      logError("Fetch daily quests failed:", err);
       setQuests([]);
     }
   }, []);

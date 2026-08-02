@@ -1,3 +1,4 @@
+import { logWarn } from "./app/lib/logger";
 
   import { createRoot } from "react-dom/client";
   import App from "./app/App.tsx";
@@ -11,7 +12,7 @@
     window.addEventListener("load", () => {
       navigator.serviceWorker
         .register("/sw.js")
-        .catch((err) => console.warn("Service worker registration failed:", err));
+        .catch((err) => logWarn("Service worker registration failed:", err));
     });
   }
   

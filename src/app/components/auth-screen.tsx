@@ -10,6 +10,7 @@ import {
 } from "../lib/api";
 import { useLang } from "../lib/i18n";
 import { TurnstileWidget } from "./turnstile-widget";
+import { logError } from "../lib/logger";
 
 export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) => void }) {
   const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
@@ -111,7 +112,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
         onAuthed(profile);
       }
     } catch (err: any) {
-      console.error("Auth error during sign in:", err);
+      logError("Auth error during sign in:", err);
       const msg = err?.message ?? "Something went wrong.";
       // Show the styled DB-constraint block only when a name is genuinely taken.
       if (mode === "signup" && msg.toLowerCase().includes("already taken")) {

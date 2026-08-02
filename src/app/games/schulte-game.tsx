@@ -12,6 +12,7 @@ import { useLang } from "../lib/i18n";
 import { fetchPersonalBests } from "../lib/api";
 import { shuffleArray } from "../lib/sudoku-gen";
 import type { SchulteTelemetry } from "../lib/scoring";
+import { logError } from "../lib/logger";
 
 // ─── Schulte Table Game ────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export function SchulteTableGame({
         const ms = schulte?.best_time_ms;
         if (alive && typeof ms === "number" && ms > 0) setServerBestMs(ms);
       } catch (err) {
-        console.error("Schulte: personal best unavailable:", err);
+        logError("Schulte: personal best unavailable:", err);
       }
     })();
     return () => {
@@ -224,7 +225,7 @@ export function SchulteTableGame({
           intendedCells: size * size,
         });
       } catch (err) {
-        console.error("Schulte completion: onComplete failed:", err);
+        logError("Schulte completion: onComplete failed:", err);
       } finally {
         setSaving(false);
       }

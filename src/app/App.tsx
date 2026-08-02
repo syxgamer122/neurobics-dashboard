@@ -72,6 +72,7 @@ import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
 import { APP_VERSION_LABEL } from "./lib/version";
+import { logError } from "./lib/logger";
 
 // ─── Cognitive data ────────────────────────────────────────────────────────────
 
@@ -170,7 +171,7 @@ function AppInner() {
           setProfile(p);
         }
       } catch (err) {
-        console.error("Session restore error:", err);
+        logError("Session restore error:", err);
       } finally {
         setAuthChecked(true);
       }
@@ -181,7 +182,7 @@ function AppInner() {
     try {
       setProfile(await fetchProfile());
     } catch (err) {
-      console.error("Refresh profile error:", err);
+      logError("Refresh profile error:", err);
     }
   };
 
@@ -193,7 +194,7 @@ function AppInner() {
       try {
         setPopStats(await fetchPopulationStats());
       } catch (err) {
-        console.error(
+        logError(
           "Population stats unavailable, using seed baseline:",
           err,
         );
@@ -213,7 +214,7 @@ function AppInner() {
       setProfile(await saveBirthYear(year));
       setBirthYearInput("");
     } catch (err) {
-      console.error("Save birth year failed:", err);
+      logError("Save birth year failed:", err);
       toast.error(t.save_failed);
     } finally {
       setSavingAge(false);
@@ -258,7 +259,7 @@ function AppInner() {
 
     fetchActivityStats()
       .then(setActivity)
-      .catch((err) => console.error("Activity stats failed:", err));
+      .catch((err) => logError("Activity stats failed:", err));
   }, [profile?.id, profile?.total_xp]);
 
   if (!authChecked) {

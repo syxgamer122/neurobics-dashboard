@@ -25,6 +25,7 @@ import {
   getLevelProgress,
   getLevelTitle,
 } from "../lib/xp";
+import { logError } from "../lib/logger";
 
 const mono: React.CSSProperties = {
   
@@ -108,7 +109,7 @@ export function SettingsPanel({
       onProfileChange(next);
       toast.success(t.settings_avatar_ok);
     } catch (err) {
-      console.error(err);
+      logError(err);
       toast.error(err instanceof Error ? err.message : t.save_failed);
     } finally {
       setAvatarBusy(false);
@@ -123,7 +124,7 @@ export function SettingsPanel({
       onProfileChange(next);
       toast.success(t.settings_avatar_removed);
     } catch (err) {
-      console.error(err);
+      logError(err);
       toast.error(err instanceof Error ? err.message : t.save_failed);
     } finally {
       setAvatarBusy(false);
@@ -143,7 +144,7 @@ export function SettingsPanel({
       onProfileChange(next);
       toast.success(t.settings_birth_ok);
     } catch (err) {
-      console.error(err);
+      logError(err);
       toast.error(t.save_failed);
     } finally {
       setBirthBusy(false);
@@ -163,7 +164,7 @@ export function SettingsPanel({
       setConfirmPw("");
       toast.success(t.settings_pw_ok);
     } catch (err) {
-      console.error(err);
+      logError(err);
       toast.error(err instanceof Error ? err.message : t.save_failed);
     } finally {
       setPwBusy(false);
@@ -181,7 +182,7 @@ export function SettingsPanel({
       toast.success(t.settings_delete_ok);
       onDeleted();
     } catch (err) {
-      console.error(err);
+      logError(err);
       toast.error(err instanceof Error ? err.message : t.save_failed);
       setDeleteBusy(false);
     }
