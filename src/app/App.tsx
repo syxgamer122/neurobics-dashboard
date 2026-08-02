@@ -298,8 +298,8 @@ function AppInner() {
     [],
   );
 
-  // Warm a ticket when a game panel opens (fast first submit). Play-start
-  // still force-refreshes so anti-cheat elapsed time stays tight.
+  // Warm mot ticket khi mo game. onPlayStart se DUNG LAI ticket nay thay vi
+  // mint them ticket thu hai; telemetry time van do rieng trong game.
   useEffect(() => {
     if (!selectedGame) return;
     prepareRound(selectedGame).catch((err) =>
@@ -309,8 +309,10 @@ function AppInner() {
 
   const beginPlay = useCallback(
     (game: RoundGame) => {
-      void prepareRound(game, { force: true }).catch((err) =>
-        console.error("Play-start ticket refresh failed:", err),
+      // Reuse ticket da warm. Truoc day force=true moi lan bam Choi tao ticket
+      // moi, de ticket cu mo 3 gio va nhanh chong cham tran 429.
+      void prepareRound(game).catch((err) =>
+        console.error("Play-start ticket prepare failed:", err),
       );
     },
     [prepareRound],
@@ -334,16 +336,18 @@ function AppInner() {
       try {
         const result = await submitRound(ticket.roundId, game, telemetry);
         setProfile(result.profile);
-        return result;
-      } finally {
-        // Always drop the consumed/attempted ticket. If the server already
-        // burned it but the response failed, reusing the dead roundId would
-        // fail forever. Then immediately mint a replacement so the next
-        // attempt never hits "ticket missing".
+        // Submit thanh cong: ticket da bi transaction dot.
         delete roundTicketsRef.current[game];
-        void prepareRound(game, { force: true }).catch((err) =>
-          console.error("Prepare next round failed:", err),
-        );
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Chi xoa khi server khang dinh ticket khong con dung duoc. Loi mang
+        // khong ro ket qua thi giu ticket de nut "Gui lai" co the thu that.
+        if (
+          /already submitted|expired|ticket not found|round rejected/i.test(msg)
+        )
+          delete roundTicketsRef.current[game];
+        throw err;
       }
     },
     [prepareRound],

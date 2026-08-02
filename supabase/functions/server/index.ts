@@ -41,7 +41,7 @@ const SIGNUP_LIMIT = 10;
 const SIGNUP_WINDOW_SECONDS = 15 * 60;
 const RECOVERY_LIMIT = 10;
 const RECOVERY_WINDOW_SECONDS = 60 * 60;
-const MAX_OPEN_TICKETS = 8;
+const MAX_TICKET_STARTS_PER_MINUTE = 20;
 
 async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
@@ -485,19 +485,28 @@ app.post("/server/start-round", async (c) => {
     const { game } = await c.req.json();
     if (!GAMES.has(String(game))) return c.json({ error: "Invalid game" }, 400);
 
+    // Mot user chi co the choi mot van tai mot thoi diem. Dong ticket cu truoc
+    // khi mint ticket moi, tranh ticket warm/refresh bi tich trong 3 gio roi
+    // khoa nham nguoi choi bang 429.
+    const { error: closeError } = await adminClient
+      .from("round_tickets")
+      .update({ submitted_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .is("submitted_at", null);
+    if (closeError) throw closeError;
+
+    // Van chan spam DB that su, nhung dem toc do tao trong 1 phut thay vi dem
+    // ticket bo do trong 3 gio. Nguoi choi binh thuong khong the cham 20 lan/phut.
+    const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
     const { count, error: countError } = await adminClient
       .from("round_tickets")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
-      .is("submitted_at", null)
-      .gt("expires_at", new Date().toISOString());
+      .gt("created_at", oneMinuteAgo);
     if (countError) throw countError;
-    if ((count ?? 0) >= MAX_OPEN_TICKETS) {
+    if ((count ?? 0) >= MAX_TICKET_STARTS_PER_MINUTE) {
       return c.json(
-        {
-          error:
-            "Too many open rounds. Finish or wait for old tickets to expire.",
-        },
+        { error: "Too many round starts. Wait one minute and try again." },
         429,
       );
     }
