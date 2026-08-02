@@ -1,19 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Database,
-  Eye,
-  EyeOff,
-  Copy,
-  Check,
   Activity,
   Terminal,
-  RefreshCw,
   ShieldCheck,
-  ShieldAlert,
   Server,
   Cpu,
   ChevronLeft,
-  Loader2,
   AlertTriangle,
   Plus,
   RotateCcw,
@@ -22,7 +15,6 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
-import { APP_VERSION_LABEL } from "../lib/version";
 import {
   fetchLeaderboard,
   dataQuality,
@@ -37,12 +29,14 @@ import {
 import { levelFromXp } from "../lib/xp";
 import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 
-const consoleBoot = [
-  `[sys] neurobics-db admin control-plane ${APP_VERSION_LABEL}`,
-  "[auth] super_admin session verified :: Hữu Mạnh",
-  "[pg] connection pool established (max=100)",
-  "[rls] row-level-security policies loaded",
-];
+import {
+  ADMIN_COLORS,
+  consoleBoot,
+  Panel,
+  ActionBtn,
+  EnvField,
+  AccessDenied,
+} from "./admin";
 
 export function AdminPanel({
   onExit,
@@ -80,11 +74,7 @@ export function AdminPanel({
   const SUPABASE_URL = `https://${projectId}.supabase.co`;
   const ANON_KEY = publicAnonKey;
 
-  const green = "#00FF9C";
-  const blue = "#00D4FF";
-  const amber = "#F59E0B";
-  const red = "#F43F5E";
-  const purple = "#A855F7";
+  const { green, blue, amber, red, purple } = ADMIN_COLORS;
 
   const pushLog = useCallback(
     (line: string) =>
@@ -265,59 +255,9 @@ export function AdminPanel({
     });
   };
 
-  // ── Unauthorized view ──────────────────────────────────────────────────────
-  if (!isAdmin) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center p-6"
-        style={{ background: "#04060D" }}
-      >
-        <div
-          className="max-w-md w-full rounded-2xl p-8 flex flex-col items-center gap-5 text-center"
-          style={{
-            background: "rgba(20,6,10,0.9)",
-            border: `1px solid ${red}55`,
-            boxShadow: `0 0 80px ${red}22`,
-          }}
-        >
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center"
-            style={{
-              background: `${red}12`,
-              border: `2px solid ${red}55`,
-              boxShadow: `0 0 30px ${red}33`,
-            }}
-          >
-            <ShieldAlert size={28} style={{ color: red }} />
-          </div>
-          <div className="space-y-2">
-            <div
-              className="text-xl font-bold tracking-[0.25em] font-mono"
-              style={{ color: red }}
-            >
-              ACCESS DENIED
-            </div>
-            <div className="text-xs text-slate-500">
-              Signed in as{" "}
-              <span style={{ color: amber }}>{profile.username}</span> ·
-              required <span style={{ color: red }}>admin role</span>
-            </div>
-          </div>
-          <button
-            onClick={onExit}
-            className="w-full py-2.5 rounded-xl text-xs tracking-widest font-bold font-mono"
-            style={{
-              background: `${red}12`,
-              color: red,
-              border: `1px solid ${red}33`,
-            }}
-          >
-            RETURN
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // ── Unauthorized view ──────────────────────────────
+  if (!isAdmin)
+    return <AccessDenied username={profile.username} onExit={onExit} />;
 
   return (
     <div
@@ -1092,130 +1032,6 @@ export function AdminPanel({
             ))}
           </div>
         </Panel>
-      </div>
-    </div>
-  );
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Panel({
-  children,
-  className = "",
-  accent = "#00FF9C",
-}: {
-  children: React.ReactNode;
-  className?: string;
-  accent?: string;
-}) {
-  return (
-    <div
-      className={`rounded-xl p-5 ${className}`}
-      style={{
-        background: "rgba(8,14,24,0.72)",
-        border: `1px solid ${accent}22`,
-        backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.7778))",
-        WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.7778))",
-        boxShadow:
-          "0 4px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function ActionBtn({
-  label,
-  accent,
-  icon,
-  onClick,
-  loading = false,
-  disabled = false,
-  full = false,
-}: {
-  label: string;
-  accent: string;
-  icon?: React.ReactNode;
-  onClick: () => void;
-  loading?: boolean;
-  disabled?: boolean;
-  full?: boolean;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold tracking-wider transition-all duration-150 disabled:opacity-40 ${full ? "w-full" : ""}`}
-      style={{
-        background: hover && !disabled ? `${accent}22` : `${accent}10`,
-        color: accent,
-        border: `1px solid ${accent}33`,
-        boxShadow: hover && !disabled ? `0 0 18px ${accent}30` : "none",
-      }}
-    >
-      {loading ? <Loader2 size={11} className="animate-spin" /> : icon}
-      {label}
-    </button>
-  );
-}
-
-function EnvField({
-  label,
-  value,
-  revealed,
-  onToggle,
-  onCopy,
-  copied,
-  mask,
-  accent,
-}: {
-  label: string;
-  value: string;
-  revealed: boolean;
-  onToggle: () => void;
-  onCopy: () => void;
-  copied: boolean;
-  mask: (s: string) => string;
-  accent: string;
-}) {
-  return (
-    <div className="mb-3">
-      <div className="text-xs text-slate-500 mb-1.5 tracking-wider">
-        {label}
-      </div>
-      <div
-        className="flex items-center gap-2 rounded-lg px-3 py-2"
-        style={{
-          background: "rgba(0,0,0,0.4)",
-          border: `1px solid ${accent}18`,
-        }}
-      >
-        <span
-          className="flex-1 text-xs truncate"
-          style={{ color: revealed ? accent : "#64748B" }}
-        >
-          {revealed ? value : mask(value)}
-        </span>
-        <button
-          onClick={onToggle}
-          className="text-slate-500 hover:text-white transition-colors shrink-0"
-        >
-          {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
-        </button>
-        <button
-          onClick={onCopy}
-          className="text-slate-500 hover:text-white transition-colors shrink-0"
-        >
-          {copied ? (
-            <Check size={13} style={{ color: accent }} />
-          ) : (
-            <Copy size={13} />
-          )}
-        </button>
       </div>
     </div>
   );

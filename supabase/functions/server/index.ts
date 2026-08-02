@@ -42,6 +42,9 @@ const SIGNUP_WINDOW_SECONDS = 15 * 60;
 const RECOVERY_LIMIT = 10;
 const RECOVERY_WINDOW_SECONDS = 60 * 60;
 const MAX_TICKET_STARTS_PER_MINUTE = 20;
+// Tran XP tuyet doi cho moi duong ghi (admin grant lan thuong theo van).
+// Level = floor((-1 + sqrt(1 + xp/12.5))/2)+1, nen 200 trieu XP ~ level 2000.
+const XP_MAX = 200_000_000;
 
 async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
@@ -457,7 +460,7 @@ app.post("/server/recover-password", async (c) => {
   }
 });
 
-// ─── Secure round lifecycle ────────────────────────────────────────────────
+// ─── Secure round lifecycle ──────────────────────────────────────────────────
 const GAMES = new Set([
   "schulte",
   "sudoku",
@@ -713,7 +716,10 @@ app.post("/server/admin-grant", async (c) => {
     if (xp !== undefined && Number.isFinite(Number(xp))) {
       const next =
         mode === "set" ? Number(xp) : Number(target.total_xp ?? 0) + Number(xp);
-      patch.total_xp = Math.max(0, Math.round(next));
+      // Chan tren bat buoc: mot lan go nham so 0 tung day total_xp len 1e14,
+      // keo level nhay len 1.414.214 va lam hong ca bang xep hang. XP_MAX ung
+      // voi level ~2000, du cho moi muc choi that ma van khong tran float8.
+      patch.total_xp = Math.max(0, Math.min(XP_MAX, Math.round(next)));
     }
     if (!Object.keys(patch).length)
       return c.json({ error: "Nothing to update" }, 400);
