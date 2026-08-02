@@ -525,7 +525,9 @@ export function SchulteTableGame({
           >
             {fmtTime(elapsed)}
           </div>
-          {bestTime !== null && (
+          {/* Guard cu la `bestTime !== null` nen nhanh `?? serverBestMs` khong
+              bao gio chay — ky luc fetch tu server chang bao gio hien ra. */}
+          {(bestTime ?? serverBestMs) !== null && (
             <span
               className="text-[11px] mt-0.5"
               style={{

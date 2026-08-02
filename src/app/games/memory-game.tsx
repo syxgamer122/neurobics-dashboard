@@ -135,10 +135,14 @@ export function MemoryMatrixGame({
           setStatus("done");
           setSaving(true);
           void onComplete({
+            // CHI tinh pha recall (da tru thoi gian memorize) — anticheat phai
+            // dung nguong recall-only, khong phai nguong wall-clock ca van.
             timeMs: recallMsRef.current,
             // KHÔNG nâng sàn lên 1 nữa: thua ngay cấp 1 nghĩa là chưa vượt
             // được cấp nào, phải được chấm 0 thay vì được tính như đã qua cấp 1.
-            maxLevel: Math.max(1, maxClearedRef.current),
+            // (Truoc day van gui Math.max(1, ...) — trai nguoc chinh comment nay
+            //  — khien inspectMemory chia cho 1 va reject 422 oan.)
+            maxLevel: maxClearedRef.current,
             clearedLevels: maxClearedRef.current,
             failed: true,
             wrongClicks: wrongClicksRef.current,

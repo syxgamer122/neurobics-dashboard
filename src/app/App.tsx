@@ -358,8 +358,21 @@ function AppInner() {
     [t.axis_memory, t.axis_focus, t.axis_logic, t.axis_spatial, t.axis_speed],
   );
 
-  const makeGameHandler = useCallback(
-    (game: RoundGame) => async (tel: unknown) => {
+  // Payload cua van gan nhat submit that bai, giu lai de co the "Gui lai".
+  const PENDING_ROUND_KEY = "neurobics.pendingRound";
+
+  /**
+   * Gui telemetry cua mot van len server.
+   *
+   * Truoc day loi mang = mat trang ca van: catch -> toast -> het, khong con
+   * duong nao lay lai. Gio payload duoc giu lai (ref + localStorage de song sot
+   * qua ca reload) va toast co nut "Gui lai".
+   *
+   * Luu y: neu server DA nhan va burn ticket ("already submitted"/"expired")
+   * thi gui lai vo nghia — truong hop do khong stash va khong hien nut retry.
+   */
+  const submitTelemetry = useCallback(
+    async (game: RoundGame, tel: unknown): Promise<boolean> => {
       // Capture baseline BEFORE await — profile state may change during submit.
       const baseline = profileRef.current;
       try {
@@ -381,15 +394,57 @@ function AppInner() {
           leveledUp: result.leveledUp,
         });
         setGamificationKey((k) => k + 1);
+        try {
+          localStorage.removeItem(PENDING_ROUND_KEY);
+        } catch {
+          /* localStorage bi chan — bo qua */
+        }
+        return true;
       } catch (err) {
         console.error(`${game} submit failed:`, err);
         const msg = err instanceof Error ? err.message : String(err);
-        toast.error(
-          /ticket/i.test(msg) ? msg : t.save_failed,
-        );
+        const ticketGone =
+          /already submitted|expired|ticket not found/i.test(msg);
+
+        if (!ticketGone) {
+          try {
+            localStorage.setItem(
+              PENDING_ROUND_KEY,
+              JSON.stringify({ game, tel, at: Date.now() }),
+            );
+          } catch {
+            /* localStorage bi chan — van con ref trong phien nay */
+          }
+          toast.error(t.save_failed, {
+            action: {
+              label: t.retry_send,
+              onClick: () => {
+                void submitTelemetryRef.current?.(game, tel);
+              },
+            },
+            duration: 15000,
+          });
+        } else {
+          toast.error(/ticket/i.test(msg) ? msg : t.save_failed);
+        }
+        return false;
       }
     },
-    [completeRound, t.save_failed, axisLabels],
+    [completeRound, t.save_failed, t.retry_send, axisLabels],
+  );
+
+  // Ref de nut "Gui lai" trong toast luon goi ban moi nhat cua submitTelemetry
+  // ma khong tao vong phu thuoc trong useCallback.
+  const submitTelemetryRef = useRef(submitTelemetry);
+  useEffect(() => {
+    submitTelemetryRef.current = submitTelemetry;
+  }, [submitTelemetry]);
+
+  const makeGameHandler = useCallback(
+    (game: RoundGame) => async (tel: unknown) => {
+      await submitTelemetry(game, tel);
+    },
+    [submitTelemetry],
   );
 
   const onLogout = async () => {

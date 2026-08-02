@@ -130,13 +130,46 @@ function inspectSudoku(t: any): CheatFlag[] {
 
 function inspectMemory(t: any): CheatFlag[] {
   const timeMs = Number(t?.timeMs);
-  const maxLevel = Number(t?.maxLevel);
-  if (!Number.isFinite(timeMs) || !Number.isFinite(maxLevel) || maxLevel < 1)
-    return [];
-  const per = timeMs / maxLevel;
-  if (per < 1200)
-    return [flag("Memory pace impossibly fast", "hard", { per, maxLevel })];
+  // Uu tien clearedLevels (so cap THUC SU vuot qua). maxLevel cu bi client nang
+  // san len 1 nen van thua ngay cap 1 van bi chia cho 1.
+  const rawCleared = Number(t?.clearedLevels);
+  const cleared = Number.isFinite(rawCleared)
+    ? rawCleared
+    : Number(t?.maxLevel);
+
+  if (!Number.isFinite(timeMs) || !Number.isFinite(cleared)) return [];
+  // Chua vuot duoc cap nao => khong co "nhip do" de danh gia. Truoc day van nay
+  // bi chia cho maxLevel=1 va reject 422 oan, nguoi choi mat streak/quest.
+  if (cleared < 1) return [];
+
+  // timeMs cua Memory la RECALL-ONLY (da tru pha memorize), nen nguong 1200ms
+  // moi cap — dat tu thoi timeMs con la wall-clock ca van — la qua cao.
+  // ~600ms cho moi cap la san hop ly cho rieng pha recall.
+  const per = timeMs / cleared;
+  if (per < 600)
+    return [flag("Memory pace impossibly fast", "hard", { per, cleared })];
   return [];
+}
+
+/**
+ * Mau 80-120ms: nhanh bat thuong nhung van trong tam nguoi that (bam
+ * anticipation). Server khong con hard-reject ca van vi mot mau nhu vay — mau
+ * do bi loai khoi thong ke ben round-scoring, con day chi ghi soft flag.
+ */
+function inspectSubThreshold(t: any): CheatFlag[] {
+  const rts = nums(t?.rts);
+  if (!rts.length) return [];
+  const borderline = rts.filter((r) => r >= HUMAN_FLOOR_MS && r < 120);
+  if (!borderline.length) return [];
+  // Mot vai mau thi binh thuong; qua nua so mau duoi 120ms moi dang ngo.
+  const share = borderline.length / rts.length;
+  if (share < 0.5) return [];
+  return [
+    flag("Majority of reaction times below 120ms", "soft", {
+      borderline: borderline.length,
+      total: rts.length,
+    }),
+  ];
 }
 
 function inspectNBack(t: any): CheatFlag[] {
@@ -185,6 +218,7 @@ export function inspectRound(
   const t = telemetry as any;
   const flags: CheatFlag[] = [
     ...inspectShared(t, serverElapsedMs),
+    ...inspectSubThreshold(t),
     ...(game === "math"
       ? inspectMath(t)
       : game === "reaction"

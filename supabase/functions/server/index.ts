@@ -62,13 +62,15 @@ function mintRecoveryCode(): string {
 }
 
 function clientIp(c: any): string {
+  // CHI tin x-forwarded-for: header nay do chinh ha tang Supabase/Deno gan vao.
+  //
+  // Truoc day `cf-connecting-ip` va `x-real-ip` duoc uu tien TRUOC. Edge
+  // Function cua Supabase khong dung sau Cloudflare nen khong co gi ghi de hai
+  // header do => client tu dat duoc. Ke tan cong chi can doi header moi request
+  // la moi lan ra mot hash IP khac nhau, vo hieu hoan toan gioi han 10 lan/15
+  // phut cua rate-limit dang ky.
   const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-  return (
-    c.req.header("cf-connecting-ip") ??
-    c.req.header("x-real-ip") ??
-    forwarded ??
-    "unknown"
-  );
+  return forwarded && forwarded.length > 0 ? forwarded : "unknown";
 }
 
 type TurnstileVerdict = { ok: boolean; codes: string[] };

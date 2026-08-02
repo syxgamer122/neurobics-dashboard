@@ -63,6 +63,18 @@ const numberArray = (
 const withoutStartArtifact = (rts: number[], thresholdMs = 80): number[] =>
   rts.length > 1 && rts[0] <= thresholdMs ? rts.slice(1) : rts;
 
+/**
+ * Mau dung de tinh THONG KE (median, CV, lapse).
+ *
+ * Truoc day assertRtBounds nem loi cung khi bat ky mau nao < 120ms, nhung chi
+ * rieng Math kep san o client. Mot cu bam anticipation ~100ms o Reaction hay
+ * N-Back (hoan toan co that) lam hong ca van hop le. Gio nguong 120ms chi con
+ * la san THONG KE: mau duoi nguong bi loai khoi tinh toan (va anticheat ghi
+ * soft flag), con hard-reject chi xay ra duoi HUMAN_FLOOR_MS = 80ms.
+ */
+const statSamples = (rts: number[], thresholdMs = 80): number[] =>
+  withoutStartArtifact(rts, thresholdMs).filter((r) => r >= MIN_RT_MS);
+
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
   const m = s.length >> 1;
@@ -188,7 +200,7 @@ function scoreSchulte(t: any): ScoredRound {
   // Ty le hoan thanh: van thang = 1, van thua = phan da tim duoc.
   const completion = clamp01(found / cells);
   const accuracy = found + wrong > 0 ? found / (found + wrong) : 0;
-  const statRts = withoutStartArtifact(rts);
+  const statRts = statSamples(rts);
   const late = statRts.slice(Math.floor((statRts.length * 2) / 3));
   const spatial = late.length
     ? clamp(MAX * diff * ratio(per * 1.6, median(late)) * accuracy * completion)
@@ -203,10 +215,13 @@ function scoreSchulte(t: any): ScoredRound {
     spatial,
   };
   const size = Math.round(Math.sqrt(cells));
+  // Danh dau "(failed)" de get_personal_bests loc duoc van thua ra khoi ky luc
+  // thoi gian — van thua bo dang luon ngan bat thuong nen se chiem cho "Best".
+  const baseLabel = String(t?.modeLabel ?? `${size}×${size}`);
   return {
     axes,
     headline: headline(axes),
-    label: String(t?.modeLabel ?? `${size}×${size}`),
+    label: failed ? `${baseLabel} (failed)` : baseLabel,
     timeMs,
   };
 }
@@ -234,7 +249,17 @@ function scoreSudoku(t: any): ScoredRound {
       ? Math.round(rawClues)
       : null;
   const diff = effectiveSudokuDiff(difficulty, actualClues);
-  const per = SUDOKU_TARGET[difficulty] / Math.max(1, placements);
+  // LO HONG CU: per = TARGET / placements, tuc chia cho so nuoc THUC TE da dat.
+  // Dat dung 2 so o ban Easy roi co tinh thua => per = 240000/2 = 120000ms,
+  // moi nhip choi deu "nhanh hon muc tieu" => ratio cham tran 1.4 => Speed ~700
+  // du chi choi 10 giay. `failed` chi phat Logic/Memory nen Speed thoat sach.
+  // Gio chia cho so nuoc KY VONG cua ca de, va nhan Speed theo ty le hoan thanh.
+  const expected = Math.max(
+    1,
+    81 - (actualClues ?? SUDOKU_CLUES[difficulty] ?? 30),
+  );
+  const per = SUDOKU_TARGET[difficulty] / expected;
+  const completion = clamp01(placements / expected);
   const logic = clamp(MAX * diff * (1 - clamp01(mistakes / 3)));
   const retention =
     1 - clamp01((reEntries + repeat * 1.5) / Math.max(4, placements * 0.25));
@@ -243,11 +268,13 @@ function scoreSudoku(t: any): ScoredRound {
     // placements=0 (thua som): khong co RT hop le → speed null, chi logic/memory.
     speed:
       placements > 0 && rts.length > 0
-        ? speed(
-            withoutStartArtifact(rts),
-            per,
-            diff,
-            timeMs / Math.max(1, placements),
+        ? clamp(
+            speed(
+              statSamples(rts),
+              per,
+              diff,
+              timeMs / Math.max(1, placements),
+            ) * completion,
           )
         : null,
     logic: failed ? clamp(logic * 0.35) : logic,
@@ -260,6 +287,9 @@ function scoreSudoku(t: any): ScoredRound {
     timeMs,
   };
 }
+/** So cau chuan de hoan thanh mot van Stroop (khop TOTAL ben stroop-game.tsx). */
+const STROOP_TRIALS = 20;
+
 function scoreStroop(t: any): ScoredRound {
   // totalStimuli = so lan stimulus da hien (dung + sai), khong con hardcode 20.
   const total = int(t?.totalStimuli, "totalStimuli", 1, 80);
@@ -268,15 +298,22 @@ function scoreStroop(t: any): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 1_000, 600_000);
   if (rts.length + wrong > total)
     throw new Error("Stroop telemetry is inconsistent");
-  // Accuracy tren cac lan tra loi; completion so voi so stimulus da hien.
+  // Accuracy tren cac lan tra loi.
   const answered = rts.length + wrong;
-  const accuracy =
-    answered > 0 ? rts.length / answered : 0;
-  const statRts = withoutStartArtifact(rts);
+  const accuracy = answered > 0 ? rts.length / answered : 0;
+  // LO HONG CU: comment noi co "completion" nhung bien do khong he ton tai, nen
+  // tra loi dung 3-4 cau that nhanh roi co tinh bam sai 3 lan de ket thuc van
+  // se duoc cham Speed tren median cua 3 mau ma khong bi phat gi. Completion
+  // phai so voi SO CAU CHUAN cua ca van (khong phai so stimulus da hien - con
+  // so do luon bang so cau da lam nen ty le luon = 1).
+  const completion = clamp01(rts.length / STROOP_TRIALS);
+  const statRts = statSamples(rts);
   const axes = {
     ...NO_AXES,
-    speed: speed(statRts, 1800, 0.82, timeMs / Math.max(1, rts.length)),
-    focus: focus(statRts, accuracy, 0.82),
+    speed: clamp(
+      speed(statRts, 1800, 0.82, timeMs / Math.max(1, rts.length)) * completion,
+    ),
+    focus: clamp(focus(statRts, accuracy, 0.82) * completion),
   };
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
 }
@@ -285,10 +322,13 @@ function scoreReaction(t: any): ScoredRound {
   const falseStarts = int(t?.falseStarts, "falseStarts", 0, 50);
   const timeMs = finite(t?.timeMs, "timeMs", 5, 60_000);
   const accuracy = rts.length / (rts.length + falseStarts);
+  // Bam anticipation ~100ms la co that o Reaction: mau do bi loai khoi thong ke
+  // thay vi lam hong ca van (xem statSamples).
+  const statRts = statSamples(rts);
   const axes = {
     ...NO_AXES,
-    speed: speed(rts, 350, 1),
-    focus: focus(rts, accuracy, 0.9),
+    speed: speed(statRts, 350, 1),
+    focus: focus(statRts, accuracy, 0.9),
   };
   return { axes, headline: headline(axes), label: "Reaction Time", timeMs };
 }
@@ -347,7 +387,7 @@ function scoreMath(t: any): ScoredRound {
   const accuracy = clamp01(correct / Math.max(1, totalProblems));
   const diff = MATH_DIFF[difficulty];
   const target = MATH_TARGET_MS[difficulty];
-  const clean = withoutStartArtifact(rts, 80);
+  const clean = statSamples(rts, 80);
   const med = clean.length ? median(clean) : target;
   const pace = clamp01((2 * target - med) / target);
 
@@ -375,7 +415,7 @@ function scoreNBack(t: any): ScoredRound {
   const hits = int(t?.hits, "hits", 0, 200);
   const misses = int(t?.misses, "misses", 0, 200);
   const falseAlarms = int(t?.falseAlarms, "falseAlarms", 0, 200);
-  const rts = withoutStartArtifact(numberArray(t?.rts, "rts", 0, 200), 80);
+  const rts = statSamples(numberArray(t?.rts, "rts", 0, 200), 80);
 
   if (hits + misses > trials || falseAlarms > trials)
     throw new Error("N-Back telemetry is inconsistent");
@@ -401,7 +441,12 @@ function scoreNBack(t: any): ScoredRound {
 
 // ---- Rang buoc bien cho telemetry tho (chong gia mao tu DevTools) ----
 // Khong the chung minh tuyet doi, nhung chan duoc cac gia tri phi ly.
-const MIN_RT_MS = 120; // nhanh hon nguong nay la khong kha thi voi nguoi that
+// San THONG KE: mau nhanh hon nguong nay bi loai khoi median/CV (statSamples),
+// nhung KHONG lam hong ca van — xem HARD_MIN_RT_MS.
+const MIN_RT_MS = 120;
+// San CUNG: chi duoi nguong nay moi la phi nhan loai that su va bi tu choi.
+// Khop HUMAN_FLOOR_MS trong anticheat.ts.
+const HARD_MIN_RT_MS = 80;
 const MAX_RT_MS = 60_000;
 
 function assertRtBounds(
@@ -416,7 +461,7 @@ function assertRtBounds(
   for (const r of rts) {
     if (typeof r !== "number" || !Number.isFinite(r))
       throw new Error(`${label}: reaction time is not a number`);
-    if (r < MIN_RT_MS)
+    if (r < HARD_MIN_RT_MS)
       throw new Error(`${label}: reaction time below human threshold`);
     if (r > MAX_RT_MS)
       throw new Error(`${label}: reaction time out of range`);
