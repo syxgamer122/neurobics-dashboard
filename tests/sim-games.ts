@@ -453,7 +453,7 @@ cases.push({
 });
 cases.push({
   id: "G7",
-  desc: "Reaction bot deu tam tap (CV cuc thap)",
+  desc: "Reaction bot deu tam tap (CV cuc thap) -> soft flag, KHONG hard",
   game: "reaction",
   tel: {
     rts: [200, 201, 200, 199, 200],
@@ -461,7 +461,13 @@ cases.push({
     timeMs: 1000,
   },
   elapsed: 20000,
-  expect: { hardFlag: true },
+  // Chu y: co y KHONG hard-flag. Nhip do qua deu chi la nghi ngo, nguoi that
+  // luyen nhieu cung ra CV thap. Chinh sach da chot: "tha lot con hon bat oan"
+  // => chi gan soft flag de review, khong tu dong chan van dau.
+  expect: {
+    hardFlag: false,
+    softFlagContains: "metronomic",
+  },
 });
 
 // ─────────── Chay ───────────
