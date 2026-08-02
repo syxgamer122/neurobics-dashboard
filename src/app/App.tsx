@@ -1,25 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LangProvider, useLang } from "./lib/i18n";
 import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-} from "recharts";
-import {
   Brain,
   ChevronRight,
-  Flame,
-  Clock,
-  TrendingUp,
-  Star,
   Zap,
   Activity,
   Terminal,
-  RefreshCw,
-  CheckCircle,
   Grid3X3,
   Focus,
   Sparkles,
@@ -39,6 +25,13 @@ import { QuestsPanel } from "./components/quests-panel";
 import { FriendsPanel } from "./components/friends-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
+import {
+  BrainAgeCard,
+  CognitiveIndexCard,
+  CognitiveMatrixCard,
+  LevelCard,
+  StreakCard,
+} from "./components/dashboard";
 
 import { SchulteTableGame } from "./games/schulte-game";
 import { SudokuGame } from "./games/sudoku-game";
@@ -75,7 +68,7 @@ import {
   DEFAULT_POPULATION,
   type PopulationStats,
 } from "./lib/scoring";
-import { getLevelProgress, getLevelTitle, getLevelColor } from "./lib/xp";
+import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
 import { APP_VERSION_LABEL } from "./lib/version";
@@ -475,293 +468,23 @@ function AppInner() {
             {/* ROW 1: Scores + Radar */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="flex flex-col gap-5">
-                <GlassCard accent="#00D4FF" className="p-6 flex-1">
-                  <Label color="#00D4FF">{t.cognitive_index}</Label>
-                  <div className="flex items-baseline gap-2 mt-3 mb-1">
-                    <span
-                      className="text-7xl font-bold text-white"
-                      style={{
-                        textShadow: "0 0 40px rgba(0,212,255,0.55)",
-                      }}
-                    >
-                      {displayIndex(profile)}
-                    </span>
-                    <span className="text-lg text-slate-500">
-                      / {RATING_MAX}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp size={13} className="text-emerald-400" />
-                    <span className="text-sm text-emerald-400">
-                      {t.balanced_avg}
-                    </span>
-                  </div>
-                  <div
-                    className="h-1.5 rounded-full overflow-hidden"
-                    style={{ background: "rgba(255,255,255,0.06)" }}
-                  >
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${(displayIndex(profile) / RATING_MAX) * 100}%`,
-                        background: "linear-gradient(90deg, #00D4FF, #A855F7)",
-                        boxShadow: "0 0 14px rgba(0,212,255,0.6)",
-                        transition: "width 0.6s ease",
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1.5">
-                    <span className="text-xs text-slate-400">
-                      {t.apprentice}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {t.mastermind}
-                    </span>
-                  </div>
-                </GlassCard>
+                <CognitiveIndexCard index={displayIndex(profile)} />
 
-                <GlassCard accent="#A855F7" className="p-6">
-                  <Label color="#A855F7">{t.brain_age}</Label>
-
-                  {/* Brain age is only shown once it can actually mean something:
-                  we need the player's real age to shift from, and enough rounds
-                  to rank them. Anything less would be a decorative number. */}
-                  {brainAge.status === "needs_age" ? (
-                    <div className="mt-4 flex flex-col gap-3">
-                      <div className="text-xs text-slate-400 leading-relaxed">
-                        {t.brain_age_needs_age}
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          value={birthYearInput}
-                          onChange={(e) =>
-                            setBirthYearInput(
-                              e.target.value.replace(/\D/g, "").slice(0, 4),
-                            )
-                          }
-                          inputMode="numeric"
-                          placeholder={t.birth_year_placeholder}
-                          className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm text-white outline-none"
-                          style={{
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(168,85,247,0.25)",
-                          }}
-                        />
-                        <button
-                          onClick={submitBirthYear}
-                          disabled={savingAge}
-                          className="px-4 py-2 rounded-xl text-xs font-bold tracking-wider shrink-0 transition-all duration-150 hover:brightness-125 disabled:opacity-60"
-                          style={{
-                            background: "rgba(168,85,247,0.18)",
-                            color: "#A855F7",
-                            border: "1px solid rgba(168,85,247,0.4)",
-                          }}
-                        >
-                          {savingAge ? t.saving : t.save_btn}
-                        </button>
-                      </div>
-                    </div>
-                  ) : brainAge.status === "calibrating" ? (
-                    <div className="mt-4 flex flex-col gap-3">
-                      <div className="text-xs text-slate-400 leading-relaxed">
-                        {t.brain_age_calibrating(
-                          brainAge.roundsPlayed,
-                          brainAge.roundsNeeded,
-                        )}
-                      </div>
-                      <div
-                        className="h-2 rounded-full overflow-hidden"
-                        style={{ background: "rgba(255,255,255,0.05)" }}
-                      >
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${(brainAge.roundsPlayed / brainAge.roundsNeeded) * 100}%`,
-                            background:
-                              "linear-gradient(90deg, #A855F7, #00D4FF)",
-                            transition: "width 0.6s ease",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-5 mt-4">
-                      <div className="relative shrink-0">
-                        <svg width="88" height="88" viewBox="0 0 88 88">
-                          <defs>
-                            <linearGradient
-                              id="ageGrad"
-                              x1="0%"
-                              y1="0%"
-                              x2="100%"
-                              y2="0%"
-                            >
-                              <stop offset="0%" stopColor="#A855F7" />
-                              <stop offset="100%" stopColor="#00D4FF" />
-                            </linearGradient>
-                          </defs>
-                          <circle
-                            cx="44"
-                            cy="44"
-                            r="36"
-                            fill="none"
-                            stroke="rgba(168,85,247,0.12)"
-                            strokeWidth="7"
-                          />
-                          <circle
-                            cx="44"
-                            cy="44"
-                            r="36"
-                            fill="none"
-                            stroke="url(#ageGrad)"
-                            strokeWidth="7"
-                            strokeLinecap="round"
-                            strokeDasharray={`${2 * Math.PI * 36 * brainAge.ringPct} ${2 * Math.PI * 36 * (1 - brainAge.ringPct)}`}
-                            strokeDashoffset={2 * Math.PI * 36 * 0.25}
-                            style={{
-                              filter:
-                                "drop-shadow(0 0 8px rgba(168,85,247,0.7))",
-                              transition: "stroke-dasharray 0.8s ease",
-                            }}
-                          />
-                          <text
-                            x="44"
-                            y="49"
-                            textAnchor="middle"
-                            fill="white"
-                            fontSize="20"
-                            fontWeight="700"
-                            className="font-mono"
-                          >
-                            {brainAge.age}
-                          </text>
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="text-4xl font-bold text-white">
-                          {brainAge.age} {t.yrs_unit}
-                        </div>
-                        <div className="text-xs text-slate-400 mt-1.5">
-                          {t.brain_age_percentile(
-                            Math.round(brainAge.percentile * 100),
-                            brainAge.realAge,
-                          )}
-                        </div>
-                        <div
-                          className="text-xs mt-1 font-semibold"
-                          style={{
-                            color:
-                              brainAge.delta === 0
-                                ? "#94A3B8"
-                                : brainAge.delta > 0
-                                  ? "#10B981"
-                                  : "#F43F5E",
-                          }}
-                        >
-                          {/* delta === 0 truoc day roi vao nhanh ">= 0" va hien
-                              "Tre hon 0 tuoi" — vo nghia. Tach nhanh rieng. */}
-                          {brainAge.delta === 0
-                            ? t.yrs_same
-                            : brainAge.delta > 0
-                              ? t.yrs_younger(brainAge.delta)
-                              : t.yrs_older(Math.abs(brainAge.delta))}
-                        </div>
-                        {brainAge.provisional && (
-                          <div className="text-xs text-slate-500 mt-1.5 leading-snug">
-                            {t.brain_age_provisional}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </GlassCard>
+                <BrainAgeCard
+                  brainAge={brainAge}
+                  birthYearInput={birthYearInput}
+                  onBirthYearChange={(v) =>
+                    setBirthYearInput(v.replace(/\D/g, "").slice(0, 4))
+                  }
+                  onSubmit={submitBirthYear}
+                  saving={savingAge}
+                />
               </div>
 
-              <GlassCard accent="#00D4FF" className="lg:col-span-2 p-6">
-                <div className="flex items-start justify-between mb-1">
-                  <div>
-                    <Label color="#00D4FF">{t.cog_matrix}</Label>
-                    <div className="text-sm text-slate-400 mt-1">
-                      {t.cog_matrix_sub(totalRounds(profile))}
-                    </div>
-                  </div>
-                  <div
-                    className="text-xs px-3 py-1.5 rounded-lg shrink-0"
-                    style={{
-                      background: "rgba(168,85,247,0.1)",
-                      color: "#A855F7",
-                      border: "1px solid rgba(168,85,247,0.2)",
-                    }}
-                  >
-                    {t.live}
-                  </div>
-                </div>
-                <div className="h-[270px] mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart
-                      data={cognitiveData}
-                      margin={{ top: 10, right: 30, bottom: 10, left: 30 }}
-                    >
-                      <PolarGrid
-                        key="polar-grid"
-                        stroke="rgba(0,212,255,0.09)"
-                      />
-                      <PolarAngleAxis
-                        key="polar-angle"
-                        dataKey="subject"
-                        tick={{
-                          fill: "#94a3b8",
-                          fontSize: 11,
-                        }}
-                      />
-                      <PolarRadiusAxis
-                        key="polar-radius"
-                        domain={[0, 100]}
-                        tick={false}
-                        axisLine={false}
-                      />
-                      <Radar
-                        key="radar-cognition"
-                        name="Cognition"
-                        dataKey="value"
-                        stroke="#00D4FF"
-                        fill="#00D4FF"
-                        fillOpacity={0.12}
-                        strokeWidth={2}
-                        isAnimationActive={false}
-                        dot={false}
-                        style={{
-                          filter: "drop-shadow(0 0 8px rgba(0,212,255,0.5))",
-                        }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div
-                  className="grid grid-cols-5 gap-2 pt-2"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-                >
-                  {cognitiveData.map((d) => (
-                    <div key={d.subject} className="text-center">
-                      <div className="text-xs text-slate-500 mb-0.5">
-                        {d.subject.slice(0, 3).toUpperCase()}
-                      </div>
-                      <div className="text-sm font-bold text-white">
-                        {d.value}
-                      </div>
-                      <div
-                        className="h-1 rounded-full mt-1"
-                        style={{
-                          background:
-                            "linear-gradient(90deg, #00D4FF, #A855F7)",
-                          opacity: d.value / 100,
-                          boxShadow: "0 0 6px rgba(0,212,255,0.4)",
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </GlassCard>
+              <CognitiveMatrixCard
+                data={cognitiveData}
+                rounds={totalRounds(profile)}
+              />
             </div>
           </>
         )}
@@ -933,144 +656,20 @@ function AppInner() {
           <>
             {/* ROW 2.5: Level / XP */}
             <div className="grid grid-cols-1 gap-5">
-              <GlassCard accent={levelColor} className="p-6">
-                <div className="flex items-center gap-5">
-                  <div
-                    className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center shrink-0"
-                    style={{
-                      background: `linear-gradient(135deg, ${levelColor}, ${levelColor}88)`,
-                      boxShadow: `0 0 40px ${levelColor}44`,
-                    }}
-                  >
-                    <span className="text-3xl font-bold text-white leading-none">
-                      {levelProgress.level}
-                    </span>
-                    <span className="text-[8px] tracking-widest text-white/70 mt-0.5 font-mono">
-                      LV
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Label color={levelColor}>
-                      {getLevelTitle(levelProgress.level)}
-                    </Label>
-                    <div className="flex items-baseline gap-2 mt-1 mb-2">
-                      <span className="text-2xl font-bold text-white">
-                        {levelProgress.xpIntoLevel}
-                      </span>
-                      <span className="text-sm text-slate-500">
-                        / {levelProgress.xpNeeded} XP
-                      </span>
-                      <span className="ml-auto text-xs text-slate-500">
-                        {t.total_xp_label}:{" "}
-                        {(profile.total_xp ?? 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div
-                      className="h-2 rounded-full overflow-hidden"
-                      style={{ background: "rgba(255,255,255,0.06)" }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.min(100, levelProgress.progress * 100)}%`,
-                          background: `linear-gradient(90deg, ${levelColor}, ${levelColor}aa)`,
-                          boxShadow: `0 0 10px ${levelColor}66`,
-                          transition: "width 0.6s ease",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </GlassCard>
+              <LevelCard
+                levelProgress={levelProgress}
+                levelColor={levelColor}
+                totalXp={profile.total_xp ?? 0}
+              />
             </div>
 
             {/* ROW 3: Streak */}
             <div className="grid grid-cols-1 gap-5">
-              <GlassCard accent="#F59E0B" className="p-6">
-                <Label color="#F59E0B">{t.synapse_streak}</Label>
-                <div className="flex items-center gap-5 mt-4">
-                  <div className="relative shrink-0">
-                    <div
-                      className="w-20 h-20 rounded-2xl flex items-center justify-center streak-glow"
-                      style={{
-                        background: "linear-gradient(135deg, #F59E0B, #EF4444)",
-                      }}
-                    >
-                      <Brain size={34} className="text-white" />
-                    </div>
-                    <div
-                      className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "#EF4444",
-                        boxShadow: "0 0 12px rgba(239,68,68,0.5)",
-                      }}
-                    >
-                      <Flame size={13} className="text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <div
-                      className="text-6xl font-bold text-white leading-none"
-                      style={{
-                        textShadow: "0 0 24px rgba(245,158,11,0.5)",
-                      }}
-                    >
-                      {profile.synapse_streak}
-                    </div>
-                    <div className="text-sm text-slate-400 mt-1.5">
-                      {t.day_streak}
-                    </div>
-                    <div className="flex gap-1.5 mt-3">
-                      {Array.from({ length: 7 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-6 h-2 rounded-full"
-                          style={
-                            i <
-                            (profile.synapse_streak > 0
-                              ? ((profile.synapse_streak - 1) % 7) + 1
-                              : 0)
-                              ? {
-                                  background:
-                                    "linear-gradient(90deg, #F59E0B, #EF4444)",
-                                  boxShadow: "0 0 6px rgba(245,158,11,0.5)",
-                                }
-                              : { background: "rgba(255,255,255,0.07)" }
-                          }
-                        />
-                      ))}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      {t.streak_week_label}
-                      {" · "}
-                      {t.streak_tz_note}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  className="grid grid-cols-3 gap-3 mt-5 pt-4"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-                >
-                  <StatMini
-                    label={t.synapse_streak}
-                    value={String(profile.synapse_streak)}
-                    unit={t.days}
-                    color="#F59E0B"
-                  />
-                  <StatMini
-                    label={t.this_month}
-                    value={String(activity.sessionsThisMonth)}
-                    unit={t.sessions}
-                    color="#A855F7"
-                  />
-                  <StatMini
-                    label={t.xp_today}
-                    value={String(activity.xpToday)}
-                    unit={t.pts}
-                    color="#00D4FF"
-                  />
-                </div>
-              </GlassCard>
+              <StreakCard
+                streak={profile.synapse_streak}
+                sessionsThisMonth={activity.sessionsThisMonth}
+                xpToday={activity.xpToday}
+              />
             </div>
 
             <QuestsPanel
