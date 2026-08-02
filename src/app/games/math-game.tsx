@@ -11,7 +11,7 @@ const TOTAL = 20;
 const ACCENT = "#38BDF8";
 
 const mono: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', monospace",
+  
 };
 
 const panelStyle: React.CSSProperties = {
@@ -359,22 +359,21 @@ export function MathSprintGame({
       <div className="flex items-center gap-2 mb-1">
         <Calculator size={16} style={{ color: ACCENT }} />
         <span
-          className="text-[11px] tracking-[0.25em] uppercase"
-          style={{ ...mono, color: ACCENT }}
+          className="text-xs tracking-[0.25em] uppercase font-mono"
+          style={{ color: ACCENT }}
         >
           {s.tag}
         </span>
       </div>
       <div className="text-white text-lg mb-1">Math Sprint</div>
-      <p className="text-[11px] text-white/50 mb-4" style={mono}>
+      <p className="text-xs text-white/50 mb-4">
         {s.desc}
       </p>
 
       {phase === "idle" && (
         <>
           <div
-            className="text-[11px] text-white/40 mb-2 tracking-widest uppercase"
-            style={mono}
+            className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono"
           >
             {s.level}
           </div>
@@ -385,7 +384,6 @@ export function MathSprintGame({
                 onClick={() => setDiff(lv.id)}
                 className="flex-1 py-2 rounded-xl text-xs transition-all"
                 style={{
-                  ...mono,
                   background:
                     diff === lv.id
                       ? "rgba(56,189,248,0.18)"
@@ -395,8 +393,7 @@ export function MathSprintGame({
                       ? "rgba(56,189,248,0.5)"
                       : "rgba(255,255,255,0.08)"
                   }`,
-                  color: diff === lv.id ? ACCENT : "rgba(255,255,255,0.55)",
-                }}
+                  color: diff === lv.id ? ACCENT : "rgba(255,255,255,0.55)"}}
               >
                 {lv.label}
               </button>
@@ -404,13 +401,11 @@ export function MathSprintGame({
           </div>
           <button
             onClick={start}
-            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 font-mono"
             style={{
-              ...mono,
               background: "rgba(56,189,248,0.15)",
               border: "1px solid rgba(56,189,248,0.45)",
-              color: ACCENT,
-            }}
+              color: ACCENT}}
           >
             <Play size={13} /> {s.start}
           </button>
@@ -420,8 +415,8 @@ export function MathSprintGame({
       {phase === "playing" && problem && (
         <>
           <div
-            className="flex items-center justify-between text-[11px] mb-3"
-            style={{ ...mono, color: "rgba(255,255,255,0.45)" }}
+            className="flex items-center justify-between text-xs mb-3"
+            style={{ color: "rgba(255,255,255,0.45)" }}
           >
             <span>
               {s.q} {idx + 1}/{TOTAL}
@@ -438,7 +433,6 @@ export function MathSprintGame({
           <div
             className="rounded-2xl py-8 mb-4 text-center text-3xl font-semibold text-white tracking-wide transition-colors"
             style={{
-              ...mono,
               background:
                 flash === "ok"
                   ? "rgba(16,185,129,0.12)"
@@ -451,8 +445,7 @@ export function MathSprintGame({
                   : flash === "bad"
                     ? "rgba(244,63,94,0.45)"
                     : "rgba(255,255,255,0.08)"
-              }`,
-            }}
+              }`}}
           >
             <span className="inline-flex items-center justify-center gap-3">
               {/* Icon dung/sai: khong chi dua vao mau cho nguoi mu mau. */}
@@ -477,21 +470,19 @@ export function MathSprintGame({
                 onClick={() => answer(c)}
                 className="py-3 rounded-xl text-sm transition-all"
                 style={{
-                  ...mono,
                   background: "rgba(56,189,248,0.08)",
                   border: "1px solid rgba(56,189,248,0.28)",
-                  color: "#E2F6FF",
-                }}
+                  color: "#E2F6FF"}}
               >
-                <span className="text-white/35 text-[11px] mr-2">{i + 1}</span>
+                <span className="text-white/35 text-xs mr-2">{i + 1}</span>
                 {c}
               </button>
             ))}
           </div>
 
           <div
-            className="flex justify-between text-[11px] mt-3"
-            style={{ ...mono, color: "rgba(255,255,255,0.4)" }}
+            className="flex justify-between text-xs mt-3"
+            style={{ color: "rgba(255,255,255,0.4)" }}
           >
             <span style={{ color: "#10B981" }}>
               {s.correct} {stats.correct}

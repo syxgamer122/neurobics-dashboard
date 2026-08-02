@@ -27,7 +27,7 @@ import {
 } from "../lib/xp";
 
 const mono: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', monospace",
+  
 };
 
 const cardStyle = (accent: string): React.CSSProperties => ({
@@ -50,8 +50,8 @@ function SectionTitle({
     <div className="flex items-center gap-2 mb-4">
       <span style={{ color }}>{icon}</span>
       <span
-        className="text-[11px] font-bold tracking-[0.18em] uppercase"
-        style={{ ...mono, color }}
+        className="text-xs font-bold tracking-[0.18em] uppercase font-mono"
+        style={{ color }}
       >
         {children}
       </span>
@@ -203,8 +203,7 @@ export function SettingsPanel({
                 ? "#0B1228"
                 : "linear-gradient(135deg, #A855F7, #7C3AED)",
               boxShadow: "0 0 40px rgba(168,85,247,0.45)",
-              ...mono,
-            }}
+              ...mono}}
           >
             {profile.avatar_url ? (
               <img
@@ -224,8 +223,7 @@ export function SettingsPanel({
             style={{
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
               border: "2px solid #050A18",
-              color: "#fff",
-            }}
+              color: "#fff"}}
             title={t.settings_avatar_change}
           >
             {avatarBusy ? (
@@ -244,18 +242,16 @@ export function SettingsPanel({
         </div>
 
         <div className="text-xl font-bold text-white mt-5">{profile.username}</div>
-        <div className="text-[11px] text-slate-500 mt-1" style={mono}>
+        <div className="text-xs text-slate-500 mt-1">
           {isAdmin ? t.omega_label : t.operator_label}
         </div>
 
         <div
-          className="mt-4 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wider"
+          className="mt-4 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider"
           style={{
-            ...mono,
             color: levelColor,
             background: `${levelColor}18`,
-            border: `1px solid ${levelColor}44`,
-          }}
+            border: `1px solid ${levelColor}44`}}
         >
           {t.level_label} {level.level} · {getLevelTitle(level.level)}
         </div>
@@ -266,11 +262,10 @@ export function SettingsPanel({
             style={{
               width: `${Math.round(level.progress * 100)}%`,
               background: levelColor,
-              boxShadow: `0 0 12px ${levelColor}88`,
-            }}
+              boxShadow: `0 0 12px ${levelColor}88`}}
           />
         </div>
-        <div className="text-[11px] text-slate-500 mt-1.5" style={mono}>
+        <div className="text-xs text-slate-500 mt-1.5">
           {level.xpIntoLevel} / {level.xpNeeded} XP
         </div>
 
@@ -279,14 +274,14 @@ export function SettingsPanel({
             type="button"
             disabled={avatarBusy}
             onClick={() => void onRemoveAvatar()}
-            className="mt-4 text-[11px] flex items-center gap-1.5 transition-colors hover:text-rose-300 disabled:opacity-50"
-            style={{ ...mono, color: "#F43F5E" }}
+            className="mt-4 text-xs flex items-center gap-1.5 transition-colors hover:text-rose-300 disabled:opacity-50"
+            style={{ color: "#F43F5E" }}
           >
             <Trash2 size={12} /> {t.settings_avatar_remove}
           </button>
         )}
 
-        <p className="text-[11px] text-slate-600 mt-4 leading-relaxed" style={mono}>
+        <p className="text-xs text-slate-400 mt-4 leading-relaxed">
           {t.settings_avatar_hint}
         </p>
       </div>
@@ -301,7 +296,7 @@ export function SettingsPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
                 {t.birth_year_placeholder}
               </label>
               <div className="flex gap-2">
@@ -322,24 +317,22 @@ export function SettingsPanel({
                   onClick={() => void onSaveBirth()}
                   className="h-10 px-4 rounded-xl text-xs font-bold tracking-wider disabled:opacity-50"
                   style={{
-                    ...mono,
                     background: "rgba(0,212,255,0.12)",
                     color: "#00D4FF",
-                    border: "1px solid rgba(0,212,255,0.35)",
-                  }}
+                    border: "1px solid rgba(0,212,255,0.35)"}}
                 >
                   {birthBusy ? <Loader2 size={14} className="animate-spin" /> : t.save_btn}
                 </button>
               </div>
               {profile.birth_year && (
-                <p className="text-[11px] text-slate-500 mt-1.5" style={mono}>
+                <p className="text-xs text-slate-500 mt-1.5">
                   {t.settings_birth_current}: {profile.birth_year}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
                 <span className="inline-flex items-center gap-1">
                   <Languages size={11} /> {t.settings_language}
                 </span>
@@ -354,15 +347,13 @@ export function SettingsPanel({
                       onClick={() => setLang(code)}
                       className="flex-1 h-10 rounded-xl text-xs font-bold tracking-wider transition-all"
                       style={{
-                        ...mono,
                         background: active
                           ? "rgba(0,212,255,0.18)"
                           : "rgba(5,10,24,0.7)",
                         color: active ? "#00D4FF" : "#94A3B8",
                         border: active
                           ? "1px solid rgba(0,212,255,0.45)"
-                          : "1px solid rgba(0,212,255,0.12)",
-                      }}
+                          : "1px solid rgba(0,212,255,0.12)"}}
                     >
                       {code === "vi" ? t.settings_lang_vi : t.settings_lang_en}
                     </button>
@@ -381,7 +372,7 @@ export function SettingsPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
                 {t.settings_pw_current}
               </label>
               <input
@@ -394,7 +385,7 @@ export function SettingsPanel({
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
                 {t.settings_pw_new}
               </label>
               <input
@@ -407,7 +398,7 @@ export function SettingsPanel({
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+              <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
                 {t.settings_pw_confirm}
               </label>
               <input
@@ -427,11 +418,9 @@ export function SettingsPanel({
             onClick={() => void onChangePassword()}
             className="mt-4 h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center gap-2 disabled:opacity-40"
             style={{
-              ...mono,
               background: "rgba(168,85,247,0.15)",
               color: "#C084FC",
-              border: "1px solid rgba(168,85,247,0.4)",
-            }}
+              border: "1px solid rgba(168,85,247,0.4)"}}
           >
             {pwBusy ? (
               <Loader2 size={14} className="animate-spin" />
@@ -440,7 +429,7 @@ export function SettingsPanel({
             )}
             {t.settings_pw_submit}
           </button>
-          <p className="text-[11px] text-slate-600 mt-2" style={mono}>
+          <p className="text-xs text-slate-400 mt-2">
             {t.settings_pw_hint}
           </p>
         </div>
@@ -455,8 +444,7 @@ export function SettingsPanel({
             className="flex gap-3 p-3 rounded-xl mb-4"
             style={{
               background: "rgba(244,63,94,0.08)",
-              border: "1px solid rgba(244,63,94,0.22)",
-            }}
+              border: "1px solid rgba(244,63,94,0.22)"}}
           >
             <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
             <p className="text-[12px] text-rose-200/80 leading-relaxed">
@@ -464,7 +452,7 @@ export function SettingsPanel({
             </p>
           </div>
 
-          <label className="text-[11px] text-slate-500 tracking-wider uppercase mb-1.5 block" style={mono}>
+          <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
             {t.settings_delete_type_username.replace("{u}", profile.username)}
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -485,11 +473,9 @@ export function SettingsPanel({
               onClick={() => void onDelete()}
               className="h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center justify-center gap-2 disabled:opacity-40"
               style={{
-                ...mono,
                 background: "rgba(244,63,94,0.18)",
                 color: "#FB7185",
-                border: "1px solid rgba(244,63,94,0.45)",
-              }}
+                border: "1px solid rgba(244,63,94,0.45)"}}
             >
               {deleteBusy ? (
                 <Loader2 size={14} className="animate-spin" />

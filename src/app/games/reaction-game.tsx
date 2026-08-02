@@ -165,17 +165,15 @@ export function ReactionTimeGame({
         border: "1px solid rgba(16,185,129,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
-      }}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
     >
       <div className="flex items-start justify-between">
         <div>
           <div
-            className="text-[11px] tracking-[0.2em] mb-1.5"
+            className="text-xs tracking-[0.2em] mb-1.5 font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: "#10B981",
-            }}
+              
+              color: "#10B981"}}
           >
             {t.rx_tag}
           </div>
@@ -188,8 +186,7 @@ export function ReactionTimeGame({
           style={{
             background: "rgba(16,185,129,0.18)",
             color: "#10B981",
-            border: "1px solid rgba(16,185,129,0.28)",
-          }}
+            border: "1px solid rgba(16,185,129,0.28)"}}
         >
           <Activity size={17} />
         </div>
@@ -197,26 +194,26 @@ export function ReactionTimeGame({
 
       <div className="grid grid-cols-3 gap-3 mt-5">
         <div className="text-center">
-          <div className="text-[11px] text-slate-500">{t.rx_trial}</div>
+          <div className="text-xs text-slate-500">{t.rx_trial}</div>
           <div className="text-lg font-bold text-white">
             {Math.min(rts.length + 1, TOTAL_TRIALS)}/{TOTAL_TRIALS}
           </div>
         </div>
 
         <div className="text-center">
-          <div className="text-[11px] text-slate-500">{t.rx_average}</div>
-          <div className="text-lg font-bold text-[#10B981]">
+          <div className="text-xs text-slate-500">{t.rx_average}</div>
+          <div className="text-lg font-bold text-neuro-green">
             {average || "--"} ms
           </div>
         </div>
 
         <div className="text-center">
-          <div className="text-[11px] text-slate-500">{t.rx_too_soon}</div>
+          <div className="text-xs text-slate-500">{t.rx_too_soon}</div>
           <div className="text-lg font-bold text-[#F43F5E]">{falseStarts}</div>
         </div>
       </div>
 
-      <div className="mt-2 text-[11px] text-slate-500 text-center">
+      <div className="mt-2 text-xs text-slate-500 text-center">
         {t.rx_false_start_note}
       </div>
 
@@ -225,7 +222,7 @@ export function ReactionTimeGame({
           className="mt-6 flex flex-col items-center justify-center"
           style={{ minHeight: 280 }}
         >
-          <Clock size={46} className="text-[#10B981] mb-5" />
+          <Clock size={46} className="text-neuro-green mb-5" />
 
           <p className="text-sm text-slate-400 text-center leading-relaxed">
             {t.rx_intro_1}
@@ -235,12 +232,11 @@ export function ReactionTimeGame({
 
           <button
             onClick={startGame}
-            className="mt-6 px-8 py-3 rounded-xl text-sm font-bold tracking-widest hover:scale-105 transition-all"
+            className="mt-6 px-8 py-3 rounded-xl text-sm font-bold tracking-widest hover:scale-105 transition-all font-mono"
             style={{
               background: "rgba(16,185,129,0.15)",
               color: "#10B981",
-              border: "1px solid rgba(16,185,129,0.4)",
-            }}
+              border: "1px solid rgba(16,185,129,0.4)"}}
           >
             {t.rx_start}
           </button>
@@ -254,7 +250,7 @@ export function ReactionTimeGame({
 
           <div className="text-lg font-bold text-white">{t.rx_complete}</div>
 
-          <div className="mt-2 text-4xl font-bold text-[#10B981]">
+          <div className="mt-2 text-4xl font-bold text-neuro-green">
             {average} ms
           </div>
 
@@ -272,12 +268,10 @@ export function ReactionTimeGame({
             background: padBackground,
             border: padBorder,
             boxShadow:
-              phase === "ready" ? "0 0 40px rgba(16,185,129,0.45)" : "none",
-          }}
+              phase === "ready" ? "0 0 40px rgba(16,185,129,0.45)" : "none"}}
         >
           <div
             className="text-2xl font-bold text-white"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {message}
           </div>
@@ -305,8 +299,7 @@ export function ReactionTimeGame({
           style={{
             background: "rgba(16,185,129,0.1)",
             color: "#10B981",
-            border: "1px solid rgba(16,185,129,0.25)",
-          }}
+            border: "1px solid rgba(16,185,129,0.25)"}}
         >
           <RefreshCw size={12} />
           {t.rx_restart}

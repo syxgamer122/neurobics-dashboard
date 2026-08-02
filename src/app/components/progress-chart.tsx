@@ -43,7 +43,7 @@ const panelStyle: React.CSSProperties = {
 };
 
 const mono: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', monospace",
+  
 };
 
 const fmtDay = (iso: string): string => {
@@ -124,8 +124,8 @@ export function ProgressChart() {
       {/* ── Tiêu đề và chọn khoảng thời gian ── */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3
-          className="text-[12px] tracking-[0.3em]"
-          style={{ ...mono, color: "#00D4FF" }}
+          className="text-[12px] tracking-[0.3em] font-mono"
+          style={{ color: "#00D4FF" }}
         >
           TIẾN TRÌNH
         </h3>
@@ -135,13 +135,11 @@ export function ProgressChart() {
               key={r.days}
               type="button"
               onClick={() => setDays(r.days)}
-              className="rounded-full px-3 py-1 text-[11px] tracking-wider transition"
+              className="rounded-full px-3 py-1 text-xs tracking-wider transition"
               style={{
-                ...mono,
                 color: days === r.days ? "#020617" : "#94a3b8",
                 background:
-                  days === r.days ? "#00D4FF" : "rgba(148,163,184,0.1)",
-              }}
+                  days === r.days ? "#00D4FF" : "rgba(148,163,184,0.1)"}}
             >
               {r.label}
             </button>
@@ -180,8 +178,8 @@ export function ProgressChart() {
       {/* ── XP và số ván mỗi ngày ── */}
       <div className="mb-3 rounded-2xl p-4" style={panelStyle}>
         <p
-          className="mb-3 text-[11px] tracking-[0.2em]"
-          style={{ ...mono, color: "#64748b" }}
+          className="mb-3 text-xs tracking-[0.2em] font-mono"
+          style={{ color: "#64748b" }}
         >
           XP VÀ SỐ VÁN MỖI NGÀY
         </p>
@@ -249,8 +247,8 @@ export function ProgressChart() {
       <div className="rounded-2xl p-4" style={panelStyle}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p
-            className="text-[11px] tracking-[0.2em]"
-            style={{ ...mono, color: "#64748b" }}
+            className="text-xs tracking-[0.2em] font-mono"
+            style={{ color: "#64748b" }}
           >
             DIỄN BIẾN 5 TRỤC
           </p>
@@ -265,15 +263,13 @@ export function ProgressChart() {
                   aria-pressed={!off}
                   aria-label={`${a.name} (${a.short})`}
                   title={a.name}
-                  className="rounded-full px-2.5 py-1 text-[11px] tracking-wider transition"
+                  className="rounded-full px-2.5 py-1 text-xs tracking-wider transition"
                   style={{
-                    ...mono,
                     color: off ? "#475569" : a.color,
                     background: off ? "rgba(148,163,184,0.06)" : `${a.color}1f`,
                     border: `1px solid ${
                       off ? "rgba(148,163,184,0.12)" : `${a.color}55`
-                    }`,
-                  }}
+                    }`}}
                 >
                   <svg
                     width="14"
@@ -344,8 +340,8 @@ export function ProgressChart() {
           </ResponsiveContainer>
         )}
         <p
-          className="mt-3 text-[11px] leading-relaxed"
-          style={{ ...mono, color: "#475569" }}
+          className="mt-3 text-xs leading-relaxed"
+          style={{ color: "#475569" }}
         >
           Mỗi điểm là trung bình của trục đó trong ngày. Ngày không chơi game
           liên quan sẽ bị bỏ trống và đường biểu diễn nối thẳng qua. Bấm nhãn
@@ -373,19 +369,19 @@ function SummaryCard({
   return (
     <div className="rounded-xl px-3 py-2.5" style={panelStyle}>
       <p
-        className="text-[11px] tracking-[0.18em]"
-        style={{ ...mono, color: "#475569" }}
+        className="text-xs tracking-[0.18em] font-mono"
+        style={{ color: "#475569" }}
       >
         {label}
       </p>
       <div className="mt-1 flex items-baseline gap-1.5">
-        <span className="text-[18px]" style={{ ...mono, color }}>
+        <span className="text-[18px]" style={{ color }}>
           {value}
         </span>
         {hint ? (
           <span
-            className="text-[11px]"
-            style={{ ...mono, color: hintColor ?? "#64748b" }}
+            className="text-xs"
+            style={{ color: hintColor ?? "#64748b" }}
           >
             {hint}
           </span>
@@ -398,8 +394,8 @@ function SummaryCard({
 function Empty({ text }: { text: string }) {
   return (
     <div
-      className="flex h-[180px] items-center justify-center text-[11px]"
-      style={{ ...mono, color: "#475569" }}
+      className="flex h-[180px] items-center justify-center text-xs"
+      style={{ color: "#475569" }}
     >
       {text}
     </div>

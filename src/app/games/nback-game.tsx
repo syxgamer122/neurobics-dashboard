@@ -22,7 +22,7 @@ const TARGET_RATE = 0.3;
 const LEVELS = [2, 3, 4] as const;
 
 const mono: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', monospace",
+  
 };
 
 const panelStyle: React.CSSProperties = {
@@ -198,22 +198,21 @@ export function NBackGame({
       <div className="flex items-center gap-2 mb-1">
         <Brain size={16} style={{ color: "#A855F7" }} />
         <span
-          className="text-[11px] tracking-[0.25em] uppercase"
-          style={{ ...mono, color: "#A855F7" }}
+          className="text-xs tracking-[0.25em] uppercase font-mono"
+          style={{ color: "#A855F7" }}
         >
           {s.tag}
         </span>
       </div>
       <div className="text-white text-lg mb-1">N-Back</div>
-      <p className="text-[11px] text-white/50 mb-4" style={mono}>
+      <p className="text-xs text-white/50 mb-4">
         {s.desc}
       </p>
 
       {phase === "idle" && (
         <>
           <div
-            className="text-[11px] text-white/40 mb-2 tracking-widest uppercase"
-            style={mono}
+            className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono"
           >
             {s.level}
           </div>
@@ -224,14 +223,12 @@ export function NBackGame({
                 onClick={() => setN(lv)}
                 className="flex-1 py-2 rounded-xl text-xs transition-all"
                 style={{
-                  ...mono,
                   background:
                     n === lv ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.04)",
                   border: `1px solid ${
                     n === lv ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.08)"
                   }`,
-                  color: n === lv ? "#A855F7" : "rgba(255,255,255,0.55)",
-                }}
+                  color: n === lv ? "#A855F7" : "rgba(255,255,255,0.55)"}}
               >
                 {lv}-Back
               </button>
@@ -239,13 +236,11 @@ export function NBackGame({
           </div>
           <button
             onClick={start}
-            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 font-mono"
             style={{
-              ...mono,
               background: "rgba(168,85,247,0.15)",
               border: "1px solid rgba(168,85,247,0.45)",
-              color: "#A855F7",
-            }}
+              color: "#A855F7"}}
           >
             <Play size={13} /> {s.start}
           </button>
@@ -255,8 +250,8 @@ export function NBackGame({
       {phase === "playing" && (
         <>
           <div
-            className="flex items-center justify-between text-[11px] mb-3"
-            style={{ ...mono, color: "rgba(255,255,255,0.45)" }}
+            className="flex items-center justify-between text-xs mb-3"
+            style={{ color: "rgba(255,255,255,0.45)" }}
           >
             <span>
               {s.trial} {Math.min(trial + 1, TRIALS)}/{TRIALS}
@@ -278,8 +273,7 @@ export function NBackGame({
                     border: `1px solid ${
                       on ? "rgba(168,85,247,0.9)" : "rgba(255,255,255,0.07)"
                     }`,
-                    boxShadow: on ? "0 0 22px rgba(168,85,247,0.5)" : "none",
-                  }}
+                    boxShadow: on ? "0 0 22px rgba(168,85,247,0.5)" : "none"}}
                 />
               );
             })}
@@ -288,9 +282,8 @@ export function NBackGame({
           <button
             onClick={press}
             disabled={warmup}
-            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 transition-all"
+            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 transition-all font-mono"
             style={{
-              ...mono,
               opacity: warmup ? 0.4 : 1,
               background:
                 flash === "ok"
@@ -310,15 +303,14 @@ export function NBackGame({
                   ? "#10B981"
                   : flash === "bad"
                     ? "#F43F5E"
-                    : "#A855F7",
-            }}
+                    : "#A855F7"}}
           >
             <Target size={13} /> {warmup ? s.watch : s.match}
           </button>
 
           <div
-            className="flex justify-between text-[11px] mt-3"
-            style={{ ...mono, color: "rgba(255,255,255,0.4)" }}
+            className="flex justify-between text-xs mt-3"
+            style={{ color: "rgba(255,255,255,0.4)" }}
           >
             <span style={{ color: "#10B981" }}>
               {s.hit} {stats.hits}

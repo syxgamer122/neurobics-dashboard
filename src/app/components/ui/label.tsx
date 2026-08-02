@@ -9,12 +9,10 @@ export function Label({
 }) {
   return (
     <div
-      className="text-[11px] tracking-[0.2em] uppercase"
-      style={{ fontFamily: "'JetBrains Mono', monospace", color }}
+      className="text-xs tracking-[0.2em] uppercase font-mono"
+      style={{ color }}
     >
       {children}
     </div>
   );
 }
-
-

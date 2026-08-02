@@ -69,7 +69,7 @@ const CATALOG: Badge[] = [
 ];
 
 const mono: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', monospace",
+  
 };
 
 const panelStyle: React.CSSProperties = {
@@ -131,22 +131,21 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
         <div className="flex items-center gap-2">
           <Award size={16} style={{ color: "#F59E0B" }} />
           <span
-            className="text-[11px] tracking-[0.25em] uppercase text-white"
-            style={mono}
+            className="text-xs tracking-[0.25em] uppercase text-white font-mono"
           >
             {s.title}
           </span>
         </div>
-        <span className="text-[11px]" style={{ ...mono, color: "#F59E0B" }}>
+        <span className="text-xs" style={{ color: "#F59E0B" }}>
           {unlocked.size}/{CATALOG.length} {s.unlocked}
         </span>
       </div>
-      <p className="text-[11px] text-white/40 mb-4" style={mono}>
+      <p className="text-xs text-white/40 mb-4">
         {s.sub}
       </p>
 
       {rows === null ? (
-        <div className="text-[11px] text-white/40 py-6 text-center" style={mono}>
+        <div className="text-xs text-white/40 py-6 text-center">
           {s.loading}
         </div>
       ) : (
@@ -163,8 +162,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                     ? `${b.accent}14`
                     : "rgba(255,255,255,0.025)",
                   border: `1px solid ${got ? `${b.accent}55` : "rgba(255,255,255,0.06)"}`,
-                  opacity: got ? 1 : 0.55,
-                }}
+                  opacity: got ? 1 : 0.55}}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xl" style={{ filter: got ? "none" : "grayscale(1)" }}>
@@ -172,8 +170,8 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   </span>
                   {got ? (
                     <span
-                      className="text-[11px]"
-                      style={{ ...mono, color: b.accent }}
+                      className="text-xs"
+                      style={{ color: b.accent }}
                     >
                       +{b.xp} XP
                     </span>
@@ -182,12 +180,12 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   )}
                 </div>
                 <div
-                  className="text-[11px] mb-0.5"
+                  className="text-xs mb-0.5"
                   style={{ color: got ? "#fff" : "rgba(255,255,255,0.6)" }}
                 >
                   {name}
                 </div>
-                <div className="text-[11px] text-white/35 leading-snug" style={mono}>
+                <div className="text-xs text-white/35 leading-snug">
                   {desc}
                 </div>
               </div>

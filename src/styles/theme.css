@@ -2,6 +2,8 @@
 
 :root {
   --font-size: 16px;
+  --font-sans: "Exo 2", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   /* Do mo cua cac panel kinh. Ha xuong o may yeu / man nho vi
      backdrop-filter la mot trong nhung thuoc tinh dat nhat khi cuon. */
   --glass-blur: 18px;
@@ -16,7 +18,8 @@
   --secondary: #1A2240;
   --secondary-foreground: #E2E8F4;
   --muted: #111830;
-  --muted-foreground: #64748B;
+  /* WCAG: slate-400-ish on #050A18 instead of slate-600/700 */
+  --muted-foreground: #94A3B8;
   --accent: #A855F7;
   --accent-foreground: #ffffff;
   --destructive: #EF4444;
@@ -42,6 +45,16 @@
   --sidebar-accent-foreground: #E2E8F4;
   --sidebar-border: rgba(0, 212, 255, 0.1);
   --sidebar-ring: #00D4FF;
+  /* Neuro brand tokens */
+  --neuro-cyan: #00D4FF;
+  --neuro-purple: #A855F7;
+  --neuro-green: #10B981;
+  --neuro-amber: #F59E0B;
+  --neuro-red: #F43F5E;
+  --neuro-ink: #050A18;
+  --neuro-panel: #0D1430;
+  --neuro-muted: #94A3B8;
+  --neuro-subtle: #64748B;
 }
 
 .dark {
@@ -82,6 +95,8 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -108,6 +123,15 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-neuro-cyan: var(--neuro-cyan);
+  --color-neuro-purple: var(--neuro-purple);
+  --color-neuro-green: var(--neuro-green);
+  --color-neuro-amber: var(--neuro-amber);
+  --color-neuro-red: var(--neuro-red);
+  --color-neuro-ink: var(--neuro-ink);
+  --color-neuro-panel: var(--neuro-panel);
+  --color-neuro-muted: var(--neuro-muted);
+  --color-neuro-subtle: var(--neuro-subtle);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -128,13 +152,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
-
-  /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
-  */
 
   html {
     font-size: var(--font-size);

@@ -164,8 +164,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             : success
             ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(16,185,129,0.2)"
             : "0 8px 60px rgba(0,0,0,0.5)",
-          transition: "box-shadow 0.4s ease, border-color 0.4s ease",
-        }}
+          transition: "box-shadow 0.4s ease, border-color 0.4s ease"}}
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-7">
@@ -175,10 +174,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
           >
             <Brain size={22} className="text-white" />
           </div>
-          <div className="text-lg font-bold tracking-[0.22em] text-white" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          <div className="text-lg font-bold tracking-[0.22em] text-white font-mono">
             NEUROBICS
           </div>
-          <div className="text-xs text-slate-500 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          <div className="text-xs text-slate-500 mt-1">
             {t.auth_tagline}
           </div>
         </div>
@@ -190,10 +189,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)", boxShadow: "0 0 20px rgba(16,185,129,0.15)" }}
           >
             <CheckCircle2 size={22} className="text-emerald-400" />
-            <div className="text-xs font-bold tracking-wider text-emerald-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <div className="text-xs font-bold tracking-wider text-emerald-400">
               ACCOUNT CREATED
             </div>
-            <div className="text-[11px] text-emerald-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <div className="text-xs text-emerald-600">
               Welcome, {username}. Initializing neural profile…
             </div>
           </div>
@@ -206,8 +205,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             style={{
               background: usernameError ? "rgba(239,68,68,0.08)" : "rgba(0,0,0,0.3)",
               border: usernameError ? "1px solid rgba(239,68,68,0.6)" : "1px solid rgba(0,212,255,0.14)",
-              boxShadow: usernameError ? "0 0 16px rgba(239,68,68,0.25), inset 0 0 8px rgba(239,68,68,0.05)" : "none",
-            }}
+              boxShadow: usernameError ? "0 0 16px rgba(239,68,68,0.25), inset 0 0 8px rgba(239,68,68,0.05)" : "none"}}
           >
             <span style={{ color: usernameError ? "#F87171" : "#64748b" }}>
               <User size={15} />
@@ -218,11 +216,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               value={username}
               onChange={(e) => handleUsernameChange(e.target.value)}
               autoComplete="username"
-              className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-600"
+              className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: usernameError ? "#F87171" : "white",
-              }}
+                
+                color: usernameError ? "#F87171" : "white"}}
             />
             {usernameError && (
               <AlertTriangle size={14} className="text-red-400 shrink-0" style={{ filter: "drop-shadow(0 0 4px rgba(239,68,68,0.8))" }} />
@@ -236,14 +233,14 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", boxShadow: "0 0 12px rgba(239,68,68,0.1)" }}
             >
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#F43F5E" }}>
+                <span className="text-xs font-bold tracking-widest font-mono" style={{  color: "#F43F5E" }}>
                   ✕ DB_CONSTRAINT_VIOLATION
                 </span>
               </div>
-              <div className="text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "#FCA5A5" }}>
+              <div className="text-xs" style={{  color: "#FCA5A5" }}>
                 ERROR: Username already taken. Please choose another.
               </div>
-              <div className="text-[11px] text-red-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <div className="text-xs text-red-800">
                 UNIQUE constraint failed: profiles.username
               </div>
             </div>
@@ -261,20 +258,17 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-400"
             />
           </div>
 
           {mode === "signup" && (
             <div
-              className="text-[11px] leading-relaxed px-3 py-2 rounded-lg"
+              className="text-xs leading-relaxed px-3 py-2 rounded-lg"
               style={{
                 background: "rgba(245,158,11,0.08)",
                 border: "1px solid rgba(245,158,11,0.28)",
-                color: "#FBBF24",
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
+                color: "#FBBF24"}}
             >
               {t.signup_no_email_warning ??
                 "No real email is stored. If you forget this password, only the recovery code shown after sign-up can restore the account. Save it offline."}
@@ -286,8 +280,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
               style={{
                 background: "rgba(0,0,0,0.3)",
-                border: "1px solid rgba(0,212,255,0.14)",
-              }}
+                border: "1px solid rgba(0,212,255,0.14)"}}
             >
               <input
                 type="text"
@@ -295,8 +288,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
                 value={recoveryCode}
                 onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
                 autoComplete="one-time-code"
-                className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-600 tracking-widest"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-400 tracking-widest font-mono"
               />
             </div>
           )}
@@ -312,7 +304,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
           {error && !usernameError && (
             <div
               className="text-xs px-3 py-2 rounded-lg"
-              style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.25)", fontFamily: "'JetBrains Mono', monospace" }}
+              style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.25)"}}
             >
               {error}
             </div>
@@ -323,11 +315,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             disabled={busy || success || ((mode === "signup" || mode === "recover") && !captchaToken)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
               color: "white",
-              boxShadow: "0 0 22px rgba(0,212,255,0.3)",
-            }}
+              boxShadow: "0 0 22px rgba(0,212,255,0.3)"}}
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
             {mode === "login"
@@ -344,8 +335,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               {mode === "login" ? t.no_account : t.have_account}{" "}
               <button
                 onClick={switchMode}
-                className="text-[#00D4FF] hover:underline"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                className="text-neuro-cyan hover:underline"
               >
                 {mode === "login" ? t.sign_up : t.sign_in}
               </button>
@@ -361,8 +351,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
                   setCaptchaToken("");
                   setCaptchaResetKey((k) => k + 1);
                 }}
-                className="text-slate-400 hover:text-[#00D4FF] hover:underline"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                className="text-slate-400 hover:text-neuro-cyan hover:underline"
               >
                 {t.forgot_password ?? "Forgot password?"}
               </button>
@@ -378,8 +367,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
                   setCaptchaToken("");
                   setCaptchaResetKey((k) => k + 1);
                 }}
-                className="text-[#00D4FF] hover:underline"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                className="text-neuro-cyan hover:underline"
               >
                 {t.back_to_sign_in ?? "Back to sign in"}
               </button>
@@ -392,9 +380,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             className="mt-4 p-3 rounded-xl text-xs space-y-2"
             style={{
               background: "rgba(16,185,129,0.1)",
-              border: "1px solid rgba(16,185,129,0.35)",
-              fontFamily: "'JetBrains Mono', monospace",
-            }}
+              border: "1px solid rgba(16,185,129,0.35)"}}
           >
             <div className="text-emerald-300 font-semibold">
               {t.recovery_code_title ?? "Save your recovery code"}
@@ -403,7 +389,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
               {t.recovery_code_body ??
                 "This is the only way to reset your password. It will not be shown again."}
             </div>
-            <div className="text-lg tracking-[0.2em] text-emerald-200 text-center py-2">
+            <div className="text-lg tracking-[0.2em] text-emerald-200 text-center py-2 font-mono">
               {issuedRecoveryCode}
             </div>
             <button
@@ -416,12 +402,11 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
                   setCopied(false);
                 }
               }}
-              className="w-full py-2 rounded-lg text-[11px]"
+              className="w-full py-2 rounded-lg text-xs"
               style={{
                 background: "rgba(16,185,129,0.15)",
                 border: "1px solid rgba(16,185,129,0.4)",
-                color: "#6EE7B7",
-              }}
+                color: "#6EE7B7"}}
             >
               {copied
                 ? (t.copied ?? "Copied")

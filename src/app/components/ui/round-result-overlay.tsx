@@ -69,18 +69,16 @@ export function RoundResultOverlay({
         style={{
           background: "rgba(13,20,45,0.95)",
           border: `1px solid ${accent}33`,
-          boxShadow: `0 0 60px ${accent}22, 0 8px 48px rgba(0,0,0,0.6)`,
-        }}
+          boxShadow: `0 0 60px ${accent}22, 0 8px 48px rgba(0,0,0,0.6)`}}
       >
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <div
-              className="text-[11px] tracking-[0.25em] mb-1"
+              className="text-xs tracking-[0.25em] mb-1 font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: accent,
-              }}
+                
+                color: accent}}
             >
               {meta.title} · {t.round_complete}
             </div>
@@ -90,26 +88,23 @@ export function RoundResultOverlay({
             className="flex flex-col items-end gap-0.5 px-2.5 py-1.5 rounded-lg shrink-0"
             style={{
               background: "rgba(245,158,11,0.12)",
-              border: "1px solid rgba(245,158,11,0.25)",
-            }}
+              border: "1px solid rgba(245,158,11,0.25)"}}
           >
             <span
-              className="text-[8px] tracking-[0.15em]"
+              className="text-[8px] tracking-[0.15em] font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: "rgba(245,158,11,0.7)",
-              }}
+                
+                color: "rgba(245,158,11,0.7)"}}
             >
               {t.round_score_label}
             </span>
             <div className="flex items-center gap-1.5">
               <Star size={11} style={{ color: "#F59E0B" }} />
               <span
-                className="text-[11px] font-bold"
+                className="text-xs font-bold"
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  color: "#F59E0B",
-                }}
+                  
+                  color: "#F59E0B"}}
               >
                 {result.headline} / {RATING_MAX}
               </span>
@@ -122,19 +117,17 @@ export function RoundResultOverlay({
           className="flex items-center gap-3 px-4 py-3 rounded-xl"
           style={{
             background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
+            border: "1px solid rgba(255,255,255,0.06)"}}
         >
           <Clock size={14} style={{ color: accent }} />
           <span
-            className="text-[11px] text-slate-500"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-xs text-slate-500"
           >
             TIME
           </span>
           <span
-            className="ml-auto text-xl font-bold tabular-nums"
-            style={{ fontFamily: "'JetBrains Mono', monospace", color: accent }}
+            className="ml-auto text-xl font-bold tabular-nums font-mono"
+            style={{  color: accent }}
           >
             {fmtTime(result.timeMs)}
           </span>
@@ -143,8 +136,7 @@ export function RoundResultOverlay({
         {/* Domain scores */}
         <div className="flex flex-col gap-3">
           <div
-            className="text-[11px] text-slate-600 tracking-widest"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-xs text-slate-400 tracking-widest font-mono"
           >
             {t.current_rating_label} · {t.domains_this_round}
           </div>
@@ -154,17 +146,15 @@ export function RoundResultOverlay({
             <div key={s.label} className="flex flex-col gap-1">
               <div className="flex justify-between items-baseline">
                 <span
-                  className="text-[11px] font-bold"
+                  className="text-xs font-bold"
                   style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    color: s.color,
-                  }}
+                    
+                    color: s.color}}
                 >
                   {s.label.toUpperCase()}
                 </span>
                 <span
-                  className="text-sm font-bold tabular-nums text-white"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  className="text-sm font-bold tabular-nums text-white font-mono"
                 >
                   {s.next} / {RATING_MAX}
                 </span>
@@ -179,13 +169,11 @@ export function RoundResultOverlay({
                     width: `${(s.next / RATING_MAX) * 100}%`,
                     background: s.color,
                     boxShadow: `0 0 8px ${s.color}88`,
-                    transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)",
-                  }}
+                    transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)"}}
                 />
               </div>
               <div
-                className="text-[11px] text-slate-600"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                className="text-xs text-slate-400"
               >
                 {t.round_axis_detail(
                   s.round,
@@ -204,36 +192,32 @@ export function RoundResultOverlay({
               background: result.leveledUp
                 ? "rgba(245,158,11,0.12)"
                 : "rgba(16,185,129,0.10)",
-              border: `1px solid ${result.leveledUp ? "rgba(245,158,11,0.35)" : "rgba(16,185,129,0.25)"}`,
-            }}
+              border: `1px solid ${result.leveledUp ? "rgba(245,158,11,0.35)" : "rgba(16,185,129,0.25)"}`}}
           >
             <Zap
               size={14}
               style={{ color: result.leveledUp ? "#F59E0B" : "#10B981" }}
             />
             <span
-              className="text-[11px] text-slate-400"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              className="text-xs text-slate-400"
             >
               {result.leveledUp ? t.level_up : t.xp_earned}
             </span>
             <span
-              className="ml-auto text-lg font-bold tabular-nums"
+              className="ml-auto text-lg font-bold tabular-nums font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: result.leveledUp ? "#F59E0B" : "#10B981",
-              }}
+                
+                color: result.leveledUp ? "#F59E0B" : "#10B981"}}
             >
               +{result.xpAwarded} XP
             </span>
             {result.xpLevel != null && (
               <span
-                className="text-[11px] px-2 py-1 rounded-md"
+                className="text-xs px-2 py-1 rounded-md"
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
+                  
                   background: "rgba(255,255,255,0.06)",
-                  color: "#94A3B8",
-                }}
+                  color: "#94A3B8"}}
               >
                 Lv.{result.xpLevel}
               </span>
@@ -243,22 +227,20 @@ export function RoundResultOverlay({
 
         {/* Note */}
         <div
-          className="text-[11px] text-slate-600 text-center"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          className="text-xs text-slate-400 text-center"
         >
           {t.score_note}
         </div>
 
         <button
           onClick={onClose}
-          className="w-full py-3 rounded-xl text-sm font-bold tracking-widest transition-all duration-150 hover:brightness-125"
+          className="w-full py-3 rounded-xl text-sm font-bold tracking-widest transition-all duration-150 hover:brightness-125 font-mono"
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            
             background: `${accent}20`,
             color: accent,
             border: `1px solid ${accent}44`,
-            boxShadow: `0 0 20px ${accent}18`,
-          }}
+            boxShadow: `0 0 20px ${accent}18`}}
         >
           {t.continue_btn}
         </button>

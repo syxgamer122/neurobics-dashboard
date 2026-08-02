@@ -437,18 +437,16 @@ export function SudokuGame({
         border: "1px solid rgba(0,212,255,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
-      }}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <div
-            className="text-[11px] tracking-[0.2em] mb-2"
+            className="text-xs tracking-[0.2em] mb-2 font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: "#00D4FF",
-            }}
+              
+              color: "#00D4FF"}}
           >
             {t.logic_training}
           </div>
@@ -456,11 +454,10 @@ export function SudokuGame({
         </div>
         <div className="flex items-center gap-3">
           <div
-            className="text-2xl font-bold tabular-nums"
+            className="text-2xl font-bold tabular-nums font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: status === "done" ? "#10B981" : "#00D4FF",
-            }}
+              
+              color: status === "done" ? "#10B981" : "#00D4FF"}}
           >
             {fmtTime(elapsed)}
           </div>
@@ -469,8 +466,7 @@ export function SudokuGame({
             style={{
               background: "rgba(0,212,255,0.18)",
               color: "#00D4FF",
-              border: "1px solid rgba(0,212,255,0.28)",
-            }}
+              border: "1px solid rgba(0,212,255,0.28)"}}
           >
             <Grid3X3 size={16} />
           </div>
@@ -479,22 +475,20 @@ export function SudokuGame({
 
       <div className="flex items-center gap-2.5 mt-2 flex-wrap">
         <span
-          className="text-[11px] px-2 py-0.5 rounded"
+          className="text-xs px-2 py-0.5 rounded"
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            
             background: `${level.accent}22`,
             color: level.accent,
-            border: `1px solid ${level.accent}44`,
-          }}
+            border: `1px solid ${level.accent}44`}}
         >
           {level.clues} {t.clues}
         </span>
         <span
-          className="text-[11px] flex items-center gap-1"
+          className="text-xs flex items-center gap-1"
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            color: level.accent,
-          }}
+            
+            color: level.accent}}
         >
           <Star size={10} />+{level.points} LOGIC
         </span>
@@ -512,8 +506,7 @@ export function SudokuGame({
               style={{
                 fontSize: 12,
                 opacity: i < mistakes ? 0.25 : 1,
-                transition: "opacity 0.3s",
-              }}
+                transition: "opacity 0.3s"}}
             >
               <span aria-hidden="true">❤️</span>
             </span>
@@ -521,8 +514,7 @@ export function SudokuGame({
         </div>
         {status === "done" && (
           <span
-            className="text-[11px] text-emerald-400 ml-auto flex items-center gap-1"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-xs text-emerald-400 ml-auto flex items-center gap-1"
           >
             <CheckCircle size={10} /> {t.solved}
           </span>
@@ -538,9 +530,9 @@ export function SudokuGame({
               key={l.id}
               onClick={() => changeDifficulty(l.id)}
               disabled={saving || generating}
-              className="rounded-lg py-1.5 text-[11px] font-bold tracking-wide transition-all duration-150 disabled:opacity-50"
+              className="rounded-lg py-1.5 text-xs font-bold tracking-wide transition-all duration-150 disabled:opacity-50"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                
                 background: isActive
                   ? `${l.accent}22`
                   : "rgba(255,255,255,0.03)",
@@ -548,8 +540,7 @@ export function SudokuGame({
                 border: isActive
                   ? `1px solid ${l.accent}66`
                   : "1px solid rgba(255,255,255,0.06)",
-                boxShadow: isActive ? `0 0 14px ${l.accent}33` : "none",
-              }}
+                boxShadow: isActive ? `0 0 14px ${l.accent}33` : "none"}}
             >
               {(t[l.id as keyof typeof t] as string) ?? l.id}
             </button>
@@ -559,11 +550,10 @@ export function SudokuGame({
 
       {generating && (
         <div
-          className="mt-3 flex items-center justify-center gap-2 text-[11px]"
+          className="mt-3 flex items-center justify-center gap-2 text-xs"
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            color: "#00D4FF",
-          }}
+            
+            color: "#00D4FF"}}
         >
           <Loader2 size={11} className="animate-spin" /> {t.sudoku_generating}
         </div>
@@ -585,8 +575,7 @@ export function SudokuGame({
           borderRadius: 12,
           border: "1px solid rgba(0,212,255,0.6)",
           boxShadow:
-            "0 0 26px rgba(0,212,255,0.28), inset 0 0 18px rgba(0,212,255,0.12)",
-        }}
+            "0 0 26px rgba(0,212,255,0.28), inset 0 0 18px rgba(0,212,255,0.12)"}}
       >
         {([0, 1, 2] as const).map((boxRow) =>
           ([0, 1, 2] as const).map((boxCol) => (
@@ -598,8 +587,7 @@ export function SudokuGame({
                 gap: 2,
                 background: "rgba(0,212,255,0.14)",
                 borderRadius: 4,
-                overflow: "hidden",
-              }}
+                overflow: "hidden"}}
             >
               {([0, 1, 2] as const).map((cr) =>
                 ([0, 1, 2] as const).map((cc) => {
@@ -639,7 +627,7 @@ export function SudokuGame({
                         aspectRatio: "1",
                         background: bg,
                         color: textColor,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        
                         fontWeight: isGiven ? 800 : 600,
                         fontSize: 15,
                         cursor: isGiven ? "default" : "pointer",
@@ -659,8 +647,7 @@ export function SudokuGame({
                           !isGiven && val
                             ? "0 0 8px rgba(56,225,255,0.5)"
                             : "none",
-                        padding: 0,
-                      }}
+                        padding: 0}}
                     >
                       {val ?? ""}
                     </button>
@@ -686,15 +673,14 @@ export function SudokuGame({
               disabled={status === "done" || done}
               className="rounded-xl flex flex-col items-center justify-center py-2 transition-all duration-100 hover:brightness-125 disabled:opacity-25 disabled:hover:brightness-100"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                
                 background: "rgba(0,212,255,0.1)",
                 color: "#38E1FF",
                 border: "1px solid rgba(0,212,255,0.25)",
                 fontSize: 16,
                 fontWeight: 700,
                 lineHeight: 1,
-                gap: 3,
-              }}
+                gap: 3}}
             >
               {n}
               <span style={{ fontSize: 11, opacity: 0.55, lineHeight: 1 }}>
@@ -711,13 +697,12 @@ export function SudokuGame({
         disabled={saving || generating}
         className="mt-2.5 mx-auto w-full max-w-[420px] rounded-xl flex items-center justify-center gap-2 py-2.5 transition-all duration-100 hover:brightness-125 disabled:opacity-40"
         style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          
           background: "rgba(0,212,255,0.08)",
           color: "#00D4FF",
           border: "1px solid rgba(0,212,255,0.22)",
           fontSize: 11,
-          letterSpacing: "0.15em",
-        }}
+          letterSpacing: "0.15em"}}
       >
         {saving ? (
           <Loader2 size={14} className="animate-spin" />

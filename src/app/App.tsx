@@ -64,25 +64,20 @@ import {
   fetchPopulationStats,
   cognitiveIndex,
   fetchActivityStats,
-  startRound,
-  submitRound,
   type RoundGame,
-  type RoundTicket,
   type ActivityStats,
   type Profile,
 } from "./lib/api";
+import { useRoundSubmission } from "./hooks/use-round-submission";
 import {
   RATING_MAX,
-  sanitizeRating,
-  pullUpRating,
   calcBrainAge,
   DEFAULT_POPULATION,
-  type AxisRatings,
   type PopulationStats,
 } from "./lib/scoring";
 import { getLevelProgress, getLevelTitle, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
-import { AXIS_META, type AxisKey } from "./lib/axes";
+import { type AxisKey } from "./lib/axes";
 
 // ─── Cognitive data ────────────────────────────────────────────────────────────
 
@@ -128,46 +123,6 @@ function buildCognitiveData(
     { subject: L.spatial, value: toPct(p.cfop_spatial_record) },
     { subject: L.speed, value: toPct(p.speed_score) },
   ];
-}
-
-/**
- * Converts a round's per-axis ratings into the columns to persist and the rows
- * to display. Axes a game does not measure come back `null` from the scorer and
- * are skipped entirely — Sudoku never writes Focus, Stroop never writes Logic.
- * This is what keeps the five axes genuinely independent.
- */
-function applyAxes(
-  profile: Profile,
-  axes: AxisRatings,
-  serverProfile: Profile | null | undefined,
-  labels: Record<AxisKey, string>,
-) {
-  const rows: RoundAxisRow[] = [];
-
-  (Object.keys(AXIS_META) as AxisKey[]).forEach((key) => {
-    const round = axes[key];
-    if (round === null) return;
-    const meta = AXIS_META[key];
-    const prev = sanitizeRating(
-      profile[meta.column as keyof Profile] as number | null,
-    );
-    // Server đã tính và ghi giá trị chính thức vào DB rồi, nên lấy thẳng từ đó
-    // thay vì chạy lại công thức ở client. Chỉ tự tính khi không có hồ sơ server.
-    const next = serverProfile
-      ? sanitizeRating(
-          serverProfile[meta.column as keyof Profile] as number | null,
-        )
-      : pullUpRating(prev, round);
-    rows.push({
-      label: labels[key],
-      color: meta.color,
-      round,
-      prev,
-      next,
-    });
-  });
-
-  return { rows };
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -271,88 +226,6 @@ function AppInner() {
     }
   };
 
-  // Called after a game round has saved its scores. `saved` is the confirmed row
-  // returned by the write (.update().select().single()), so we render it
-  // immediately — no round-trip that could read stale/replicated data. Then we
-  // update the VN-timezone streak (which returns the latest row too) and, as a
-  // final safety net, re-fetch from Supabase so the dashboard always reflects
-  // exactly what's persisted.
-  const roundTicketsRef = useRef<Partial<Record<RoundGame, RoundTicket>>>({});
-
-  const prepareRound = useCallback(
-    async (
-      game: RoundGame,
-      opts?: { force?: boolean },
-    ): Promise<RoundTicket> => {
-      // Reuse a still-valid ticket unless the caller forces a fresh mint
-      // (idle→playing) so server startedAt matches real play time.
-      if (!opts?.force) {
-        const existing = roundTicketsRef.current[game];
-        if (existing && Date.parse(existing.expiresAt) > Date.now())
-          return existing;
-      }
-      const ticket = await startRound(game);
-      roundTicketsRef.current[game] = ticket;
-      return ticket;
-    },
-    [],
-  );
-
-  // Warm mot ticket khi mo game. onPlayStart se DUNG LAI ticket nay thay vi
-  // mint them ticket thu hai; telemetry time van do rieng trong game.
-  useEffect(() => {
-    if (!selectedGame) return;
-    prepareRound(selectedGame).catch((err) =>
-      console.error("Prepare round failed:", err),
-    );
-  }, [selectedGame, prepareRound]);
-
-  const beginPlay = useCallback(
-    (game: RoundGame) => {
-      // Reuse ticket da warm. Truoc day force=true moi lan bam Choi tao ticket
-      // moi, de ticket cu mo 3 gio va nhanh chong cham tran 429.
-      void prepareRound(game).catch((err) =>
-        console.error("Play-start ticket prepare failed:", err),
-      );
-    },
-    [prepareRound],
-  );
-
-  const completeRound = useCallback(
-    async (game: RoundGame, telemetry: unknown) => {
-      // CRITICAL: do NOT mint inside the submit path before the request.
-      // A fresh ticket here would reset startedAt and break elapsed checks.
-      const ticket = roundTicketsRef.current[game];
-      if (!ticket) {
-        // Best-effort re-mint so the next attempt is not stuck forever.
-        void prepareRound(game, { force: true }).catch(() => {});
-        throw new Error("Round ticket missing. Start the game again.");
-      }
-      if (Date.parse(ticket.expiresAt) <= Date.now()) {
-        delete roundTicketsRef.current[game];
-        void prepareRound(game, { force: true }).catch(() => {});
-        throw new Error("Round ticket expired. Start the game again.");
-      }
-      try {
-        const result = await submitRound(ticket.roundId, game, telemetry);
-        setProfile(result.profile);
-        // Submit thanh cong: ticket da bi transaction dot.
-        delete roundTicketsRef.current[game];
-        return result;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        // Chi xoa khi server khang dinh ticket khong con dung duoc. Loi mang
-        // khong ro ket qua thi giu ticket de nut "Gui lai" co the thu that.
-        if (
-          /already submitted|expired|ticket not found|round rejected/i.test(msg)
-        )
-          delete roundTicketsRef.current[game];
-        throw err;
-      }
-    },
-    [prepareRound],
-  );
-
   const axisLabels = useCallback(
     (): Record<AxisKey, string> => ({
       memory: t.axis_memory,
@@ -364,79 +237,16 @@ function AppInner() {
     [t.axis_memory, t.axis_focus, t.axis_logic, t.axis_spatial, t.axis_speed],
   );
 
-  /**
-   * Gui telemetry cua mot van len server.
-   *
-   * Truoc day loi mang = mat trang ca van: catch -> toast -> het, khong con
-   * duong nao lay lai. Gio payload duoc closure cua nut "Gui lai" giu trong
-   * phien hien tai. Khong ghi localStorage vi ticket/ref khong song qua reload.
-   *
-   * Luu y: neu server DA nhan va burn ticket ("already submitted"/"expired")
-   * thi gui lai vo nghia — truong hop do khong stash va khong hien nut retry.
-   */
-  const submitTelemetry = useCallback(
-    async (game: RoundGame, tel: unknown): Promise<boolean> => {
-      // Capture baseline BEFORE await — profile state may change during submit.
-      const baseline = profileRef.current;
-      try {
-        const result = await completeRound(game, tel);
-        const { rows } = applyAxes(
-          baseline ?? result.profile,
-          result.axes,
-          result.profile,
-          axisLabels(),
-        );
-        setRoundResult({
-          game,
-          timeMs: result.timeMs,
-          label: result.label,
-          headline: result.headline,
-          rows,
-          xpAwarded: result.xpAwarded,
-          xpLevel: result.level,
-          leveledUp: result.leveledUp,
-        });
-        setGamificationKey((k) => k + 1);
-        return true;
-      } catch (err) {
-        console.error(`${game} submit failed:`, err);
-        const msg = err instanceof Error ? err.message : String(err);
-        const ticketGone = /already submitted|expired|ticket not found/i.test(
-          msg,
-        );
-
-        if (!ticketGone) {
-          toast.error(t.save_failed, {
-            action: {
-              label: t.retry_send,
-              onClick: () => {
-                void submitTelemetryRef.current?.(game, tel);
-              },
-            },
-            duration: 15000,
-          });
-        } else {
-          toast.error(/ticket/i.test(msg) ? msg : t.save_failed);
-        }
-        return false;
-      }
-    },
-    [completeRound, t.save_failed, t.retry_send, axisLabels],
-  );
-
-  // Ref de nut "Gui lai" trong toast luon goi ban moi nhat cua submitTelemetry
-  // ma khong tao vong phu thuoc trong useCallback.
-  const submitTelemetryRef = useRef(submitTelemetry);
-  useEffect(() => {
-    submitTelemetryRef.current = submitTelemetry;
-  }, [submitTelemetry]);
-
-  const makeGameHandler = useCallback(
-    (game: RoundGame) => async (tel: unknown) => {
-      await submitTelemetry(game, tel);
-    },
-    [submitTelemetry],
-  );
+  const { beginPlay, makeGameHandler } = useRoundSubmission({
+    selectedGame,
+    profileRef,
+    setProfile,
+    setRoundResult,
+    setGamificationKey,
+    axisLabels,
+    saveFailedLabel: t.save_failed,
+    retrySendLabel: t.retry_send,
+  });
 
   const onLogout = async () => {
     await handleLogout();
@@ -459,11 +269,8 @@ function AppInner() {
 
   if (!authChecked) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "#050A18" }}
-      >
-        <Loader2 size={28} className="animate-spin text-[#00D4FF]" />
+      <div className="min-h-screen flex items-center justify-center bg-neuro-ink">
+        <Loader2 size={28} className="animate-spin text-neuro-cyan" />
       </div>
     );
   }
@@ -581,30 +388,23 @@ function AppInner() {
           >
             <Brain size={17} className="text-white" />
           </div>
-          <span
-            className="text-lg font-bold tracking-[0.22em] text-white"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
+          <span className="text-lg font-bold tracking-[0.22em] text-white font-mono">
             NEUROBICS
           </span>
           <span
-            className="text-[11px] rounded px-2 py-0.5 tracking-widest ml-1"
+            className="text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
               background: "rgba(0,212,255,0.08)",
               color: "#00D4FF",
               border: "1px solid rgba(0,212,255,0.18)",
             }}
           >
-            v2.4.1
+            v2.5.0
           </span>
         </div>
         <div className="flex items-center gap-6">
-          <div
-            className="hidden md:flex items-center gap-2 text-xs text-slate-500"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            <Activity size={12} className="text-[#00D4FF]" />
+          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
+            <Activity size={12} className="text-neuro-cyan" />
             <span>{t.league}</span>
           </div>
           <div
@@ -615,7 +415,7 @@ function AppInner() {
             }}
           >
             <div
-              className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase"
+              className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
               style={{
                 background: profile.avatar_url
                   ? "#0B1228"
@@ -636,10 +436,7 @@ function AppInner() {
               <div className="text-xs font-semibold text-white">
                 {profile.username}
               </div>
-              <div
-                className="text-[11px] text-slate-500"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
+              <div className="text-xs text-slate-500">
                 {profile.synapse_streak} {t.day_streak}
               </div>
             </div>
@@ -649,7 +446,6 @@ function AppInner() {
             title="Switch language"
             className="h-9 px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
               background: "rgba(13,20,45,0.6)",
               border: "1px solid rgba(0,212,255,0.15)",
               color: "#00D4FF",
@@ -684,25 +480,18 @@ function AppInner() {
                     <span
                       className="text-7xl font-bold text-white"
                       style={{
-                        fontFamily: "'JetBrains Mono', monospace",
                         textShadow: "0 0 40px rgba(0,212,255,0.55)",
                       }}
                     >
                       {displayIndex(profile)}
                     </span>
-                    <span
-                      className="text-lg text-slate-500"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
+                    <span className="text-lg text-slate-500">
                       / {RATING_MAX}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp size={13} className="text-emerald-400" />
-                    <span
-                      className="text-sm text-emerald-400"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
+                    <span className="text-sm text-emerald-400">
                       {t.balanced_avg}
                     </span>
                   </div>
@@ -720,14 +509,11 @@ function AppInner() {
                       }}
                     />
                   </div>
-                  <div
-                    className="flex justify-between mt-1.5"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    <span className="text-[11px] text-slate-600">
+                  <div className="flex justify-between mt-1.5">
+                    <span className="text-xs text-slate-400">
                       {t.apprentice}
                     </span>
-                    <span className="text-[11px] text-slate-600">
+                    <span className="text-xs text-slate-400">
                       {t.mastermind}
                     </span>
                   </div>
@@ -756,7 +542,6 @@ function AppInner() {
                           placeholder={t.birth_year_placeholder}
                           className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm text-white outline-none"
                           style={{
-                            fontFamily: "'JetBrains Mono', monospace",
                             background: "rgba(255,255,255,0.04)",
                             border: "1px solid rgba(168,85,247,0.25)",
                           }}
@@ -766,7 +551,6 @@ function AppInner() {
                           disabled={savingAge}
                           className="px-4 py-2 rounded-xl text-xs font-bold tracking-wider shrink-0 transition-all duration-150 hover:brightness-125 disabled:opacity-60"
                           style={{
-                            fontFamily: "'JetBrains Mono', monospace",
                             background: "rgba(168,85,247,0.18)",
                             color: "#A855F7",
                             border: "1px solid rgba(168,85,247,0.4)",
@@ -846,17 +630,14 @@ function AppInner() {
                             fill="white"
                             fontSize="20"
                             fontWeight="700"
-                            fontFamily="JetBrains Mono, monospace"
+                            className="font-mono"
                           >
                             {brainAge.age}
                           </text>
                         </svg>
                       </div>
                       <div>
-                        <div
-                          className="text-4xl font-bold text-white"
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                        >
+                        <div className="text-4xl font-bold text-white">
                           {brainAge.age} {t.yrs_unit}
                         </div>
                         <div className="text-xs text-slate-400 mt-1.5">
@@ -868,7 +649,6 @@ function AppInner() {
                         <div
                           className="text-xs mt-1 font-semibold"
                           style={{
-                            fontFamily: "'JetBrains Mono', monospace",
                             color:
                               brainAge.delta === 0
                                 ? "#94A3B8"
@@ -886,7 +666,7 @@ function AppInner() {
                               : t.yrs_older(Math.abs(brainAge.delta))}
                         </div>
                         {brainAge.provisional && (
-                          <div className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                          <div className="text-xs text-slate-500 mt-1.5 leading-snug">
                             {t.brain_age_provisional}
                           </div>
                         )}
@@ -907,7 +687,6 @@ function AppInner() {
                   <div
                     className="text-xs px-3 py-1.5 rounded-lg shrink-0"
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
                       background: "rgba(168,85,247,0.1)",
                       color: "#A855F7",
                       border: "1px solid rgba(168,85,247,0.2)",
@@ -932,7 +711,6 @@ function AppInner() {
                         tick={{
                           fill: "#94a3b8",
                           fontSize: 11,
-                          fontFamily: "JetBrains Mono, monospace",
                         }}
                       />
                       <PolarRadiusAxis
@@ -964,16 +742,10 @@ function AppInner() {
                 >
                   {cognitiveData.map((d) => (
                     <div key={d.subject} className="text-center">
-                      <div
-                        className="text-[11px] text-slate-500 mb-0.5"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
+                      <div className="text-xs text-slate-500 mb-0.5">
                         {d.subject.slice(0, 3).toUpperCase()}
                       </div>
-                      <div
-                        className="text-sm font-bold text-white"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
+                      <div className="text-sm font-bold text-white">
                         {d.value}
                       </div>
                       <div
@@ -999,13 +771,10 @@ function AppInner() {
             <div className="flex items-center gap-4 pt-1">
               <Zap
                 size={14}
-                className="text-[#00D4FF] shrink-0"
+                className="text-neuro-cyan shrink-0"
                 style={{ filter: "drop-shadow(0 0 6px #00D4FF)" }}
               />
-              <span
-                className="text-[11px] text-white tracking-[0.25em] uppercase"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
+              <span className="text-xs text-white tracking-[0.25em] uppercase font-mono">
                 {t.arena}
               </span>
               <div
@@ -1020,7 +789,6 @@ function AppInner() {
                   onClick={() => setSelectedGame(null)}
                   className="flex items-center gap-1.5 text-xs transition-colors"
                   style={{
-                    fontFamily: "'JetBrains Mono', monospace",
                     color: "#00D4FF",
                   }}
                 >
@@ -1173,16 +941,10 @@ function AppInner() {
                       boxShadow: `0 0 40px ${levelColor}44`,
                     }}
                   >
-                    <span
-                      className="text-3xl font-bold text-white leading-none"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
+                    <span className="text-3xl font-bold text-white leading-none">
                       {levelProgress.level}
                     </span>
-                    <span
-                      className="text-[8px] tracking-widest text-white/70 mt-0.5"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
+                    <span className="text-[8px] tracking-widest text-white/70 mt-0.5 font-mono">
                       LV
                     </span>
                   </div>
@@ -1191,22 +953,13 @@ function AppInner() {
                       {getLevelTitle(levelProgress.level)}
                     </Label>
                     <div className="flex items-baseline gap-2 mt-1 mb-2">
-                      <span
-                        className="text-2xl font-bold text-white"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
+                      <span className="text-2xl font-bold text-white">
                         {levelProgress.xpIntoLevel}
                       </span>
-                      <span
-                        className="text-sm text-slate-500"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
+                      <span className="text-sm text-slate-500">
                         / {levelProgress.xpNeeded} XP
                       </span>
-                      <span
-                        className="ml-auto text-xs text-slate-500"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
+                      <span className="ml-auto text-xs text-slate-500">
                         {t.total_xp_label}:{" "}
                         {(profile.total_xp ?? 0).toLocaleString()}
                       </span>
@@ -1258,16 +1011,12 @@ function AppInner() {
                     <div
                       className="text-6xl font-bold text-white leading-none"
                       style={{
-                        fontFamily: "'JetBrains Mono', monospace",
                         textShadow: "0 0 24px rgba(245,158,11,0.5)",
                       }}
                     >
                       {profile.synapse_streak}
                     </div>
-                    <div
-                      className="text-sm text-slate-400 mt-1.5"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
+                    <div className="text-sm text-slate-400 mt-1.5">
                       {t.day_streak}
                     </div>
                     <div className="flex gap-1.5 mt-3">
@@ -1290,10 +1039,7 @@ function AppInner() {
                         />
                       ))}
                     </div>
-                    <div
-                      className="text-[11px] text-slate-600 mt-1"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
+                    <div className="text-xs text-slate-400 mt-1">
                       {t.streak_week_label}
                       {" · "}
                       {t.streak_tz_note}
@@ -1390,7 +1136,6 @@ function AppInner() {
                 onClick={onLogout}
                 className="py-2.5 px-5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
                   background: "rgba(244,63,94,0.1)",
                   color: "#F43F5E",
                   border: "1px solid rgba(244,63,94,0.28)",
@@ -1486,19 +1231,15 @@ function AppInner() {
             {/* Text */}
             <div className="text-center space-y-2">
               <div
-                className="text-2xl font-bold tracking-[0.3em]"
+                className="text-2xl font-bold tracking-[0.3em] font-mono"
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
                   color: "#EF4444",
                   textShadow: "0 0 20px rgba(239,68,68,0.6)",
                 }}
               >
                 {t.access_denied_title}
               </div>
-              <div
-                className="text-[11px] tracking-widest text-red-700"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
+              <div className="text-xs tracking-widest text-red-400 font-mono">
                 {t.auth_level_msg}
               </div>
             </div>
@@ -1529,18 +1270,14 @@ function AppInner() {
                   color: "#EF4444",
                 },
               ].map(({ label, value, color }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
+                <div key={label} className="flex items-center gap-2">
                   <span
-                    className="text-[11px] w-20 shrink-0"
+                    className="text-xs w-20 shrink-0"
                     style={{ color: "rgba(239,68,68,0.5)" }}
                   >
                     {label}
                   </span>
-                  <span className="text-[11px]" style={{ color }}>
+                  <span className="text-xs" style={{ color }}>
                     {">"} {value}
                   </span>
                 </div>
@@ -1549,9 +1286,8 @@ function AppInner() {
 
             <button
               onClick={() => setAccessDenied(false)}
-              className="w-full py-2 rounded-xl text-xs tracking-widest font-bold transition-all duration-200"
+              className="w-full py-2 rounded-xl text-xs tracking-widest font-bold transition-all duration-200 font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
                 background: "rgba(239,68,68,0.1)",
                 color: "#EF4444",
                 border: "1px solid rgba(239,68,68,0.3)",

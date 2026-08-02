@@ -267,18 +267,16 @@ export function StroopGame({
         border: "1px solid rgba(234,179,8,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
-      }}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-1">
         <div>
           <div
-            className="text-[11px] tracking-[0.2em] mb-1.5"
+            className="text-xs tracking-[0.2em] mb-1.5 font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: "#EAB308",
-            }}
+              
+              color: "#EAB308"}}
           >
             {t.stroop_tag}
           </div>
@@ -289,8 +287,7 @@ export function StroopGame({
           style={{
             background: "rgba(234,179,8,0.18)",
             color: "#EAB308",
-            border: "1px solid rgba(234,179,8,0.28)",
-          }}
+            border: "1px solid rgba(234,179,8,0.28)"}}
         >
           <Zap size={16} />
         </div>
@@ -302,16 +299,14 @@ export function StroopGame({
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
           style={{
             background: "rgba(234,179,8,0.12)",
-            border: "1px solid rgba(234,179,8,0.25)",
-          }}
+            border: "1px solid rgba(234,179,8,0.25)"}}
         >
           <Star size={11} style={{ color: "#EAB308" }} />
           <span
-            className="text-[11px] font-bold"
+            className="text-xs font-bold"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: "#EAB308",
-            }}
+              
+              color: "#EAB308"}}
           >
             +2 {t.stroop_inhibition.toUpperCase()}
           </span>
@@ -337,8 +332,7 @@ export function StroopGame({
                 filter:
                   i < hearts
                     ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))"
-                    : "none",
-              }}
+                    : "none"}}
             >
               <span aria-hidden="true">❤️</span>
             </span>
@@ -350,31 +344,28 @@ export function StroopGame({
       <div className="mt-4 flex items-center justify-between">
         <div className="flex flex-col">
           <span
-            className="text-[11px] text-slate-600 mb-0.5"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-xs text-slate-400 mb-0.5"
           >
             {t.time_label}
           </span>
           <div
-            className="text-3xl font-bold tabular-nums"
+            className="text-3xl font-bold tabular-nums font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              
               color: status === "done" ? "#10B981" : "#EAB308",
               textShadow:
                 status === "done"
                   ? "0 0 24px rgba(16,185,129,0.5)"
-                  : "0 0 18px rgba(234,179,8,0.4)",
-            }}
+                  : "0 0 18px rgba(234,179,8,0.4)"}}
           >
             {fmtTime(elapsed)}
           </div>
           {bestTime !== null && (
             <span
-              className="text-[11px] mt-0.5"
+              className="text-xs mt-0.5"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: "#475569",
-              }}
+                
+                color: "#475569"}}
             >
               {t.best_label} {fmtTime(bestTime)}
             </span>
@@ -382,18 +373,16 @@ export function StroopGame({
         </div>
         <div className="flex flex-col items-end">
           <span
-            className="text-[11px] text-slate-600 mb-0.5"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-xs text-slate-400 mb-0.5"
           >
             {t.stroop_trial}
           </span>
           <span
-            className="text-4xl font-bold tabular-nums"
+            className="text-4xl font-bold tabular-nums font-mono"
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              
               color: "#EAB308",
-              textShadow: "0 0 20px rgba(234,179,8,0.55)",
-            }}
+              textShadow: "0 0 20px rgba(234,179,8,0.55)"}}
           >
             {TOTAL - trialsLeft}/{TOTAL}
           </span>
@@ -410,22 +399,19 @@ export function StroopGame({
           style={{
             width: `${progress * 100}%`,
             background: "linear-gradient(90deg, #EAB308, #F97316)",
-            boxShadow: "0 0 8px rgba(234,179,8,0.5)",
-          }}
+            boxShadow: "0 0 8px rgba(234,179,8,0.5)"}}
         />
       </div>
 
       {/* Instruction label */}
       <div className="mt-4 flex items-center justify-between">
         <span
-          className="text-[11px] text-slate-500"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          className="text-xs text-slate-500"
         >
           {t.stroop_instruction}
         </span>
         <span
-          className="text-[11px] text-slate-600"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          className="text-xs text-slate-400"
         >
           {t.stroop_hint}
         </span>
@@ -448,13 +434,11 @@ export function StroopGame({
               : flash === "wrong"
                 ? "1px solid rgba(244,63,94,0.4)"
                 : "1px solid rgba(255,255,255,0.06)",
-          transition: "background 0.15s, border-color 0.15s",
-        }}
+          transition: "background 0.15s, border-color 0.15s"}}
       >
         {status === "done" ? (
           <div
             className="flex items-center gap-2 text-emerald-400 text-sm font-bold py-10"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             <CheckCircle size={16} /> {t.stroop_complete}
           </div>
@@ -463,14 +447,13 @@ export function StroopGame({
             <button
               type="button"
               onClick={beginRound}
-              className="rounded-xl px-8 py-3 font-black tracking-[0.15em] text-white transition-all duration-150 hover:brightness-110"
+              className="rounded-xl px-8 py-3 font-black tracking-[0.15em] text-white transition-all duration-150 hover:brightness-110 font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                
                 fontSize: 20,
                 background: "rgba(16,185,129,0.16)",
                 border: "1.5px solid rgba(16,185,129,0.55)",
-                boxShadow: "0 0 22px rgba(16,185,129,0.25)",
-              }}
+                boxShadow: "0 0 22px rgba(16,185,129,0.25)"}}
             >
               START
             </button>
@@ -478,11 +461,10 @@ export function StroopGame({
         ) : status === "countdown" ? (
           <div className="py-8 px-6 flex flex-col items-center gap-2">
             <span
-              className="font-black tracking-[0.15em] select-none text-white"
+              className="font-black tracking-[0.15em] select-none text-white font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 52,
-              }}
+                
+                fontSize: 52}}
             >
               {countdown > 0 ? countdown : "GO"}
             </span>
@@ -491,17 +473,16 @@ export function StroopGame({
           <div className="py-8 px-6 flex flex-col items-center gap-2">
             {/* The word, rendered in its INK color — always visible */}
             <span
-              className="font-black tracking-[0.15em] select-none"
+              className="font-black tracking-[0.15em] select-none font-mono"
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                
                 fontSize: 52,
                 color: colorHex(stimulus.inkId),
                 textShadow: `0 0 28px ${colorHex(stimulus.inkId)}99`,
                 transition: "color 0.12s",
                 filter: flash
                   ? `brightness(${flash === "correct" ? 1.6 : 0.8})`
-                  : "none",
-              }}
+                  : "none"}}
             >
               {colorLabel(stimulus.wordId)}
             </span>
@@ -534,8 +515,7 @@ export function StroopGame({
                     : `${hex}18`,
                 border: `1.5px solid ${hex}${isCorrect ? "cc" : "55"}`,
                 boxShadow: isCorrect ? `0 0 18px ${hex}66` : "none",
-                transform: isCorrect ? "scale(0.95)" : "scale(1)",
-              }}
+                transform: isCorrect ? "scale(0.95)" : "scale(1)"}}
             >
               <div
                 className="w-5 h-5 rounded-full"
@@ -552,15 +532,13 @@ export function StroopGame({
                   )
                     ? "6px 6px"
                     : undefined,
-                  boxShadow: `0 0 8px ${hex}88`,
-                }}
+                  boxShadow: `0 0 8px ${hex}88`}}
               />
               <span
-                className="text-[11px] font-bold tracking-wider"
+                className="text-xs font-bold tracking-wider"
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  color: hex,
-                }}
+                  
+                  color: hex}}
               >
                 {colorLabel(cid)}
               </span>
@@ -571,8 +549,7 @@ export function StroopGame({
 
       {saving && (
         <div
-          className="mt-2 flex items-center justify-center gap-2 text-[11px] text-slate-400"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-400"
         >
           <Loader2 size={11} className="animate-spin" /> {t.saving}
         </div>
@@ -585,11 +562,10 @@ export function StroopGame({
         aria-label={t.new_game}
         className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 hover:brightness-125"
         style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          
           background: "rgba(234,179,8,0.14)",
           color: "#EAB308",
-          border: "1px solid rgba(234,179,8,0.25)",
-        }}
+          border: "1px solid rgba(234,179,8,0.25)"}}
       >
         <RefreshCw size={12} /> {t.new_game}
       </button>

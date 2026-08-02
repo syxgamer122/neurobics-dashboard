@@ -45,8 +45,7 @@ export function FloatingDock({
           border: "1px solid rgba(0,212,255,0.14)",
           backdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
           WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
-          boxShadow: "0 10px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
-        }}
+          boxShadow: "0 10px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)"}}
       >
         {ITEMS.map((item) => {
           const Icon = item.icon;
@@ -56,17 +55,16 @@ export function FloatingDock({
             <div key={item.id} className="relative flex flex-col items-center">
               {/* Tooltip */}
               <div
-                className="absolute bottom-full mb-3 whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] tracking-wider transition-all duration-200"
+                className="absolute bottom-full mb-3 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs tracking-wider transition-all duration-200"
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
+                  
                   background: "rgba(5,10,24,0.95)",
                   color: `rgb(${item.accent})`,
                   border: `1px solid rgba(${item.accent},0.35)`,
                   boxShadow: `0 0 18px rgba(${item.accent},0.2)`,
                   opacity: isHovered ? 1 : 0,
                   transform: isHovered ? "translateY(0)" : "translateY(6px)",
-                  pointerEvents: "none",
-                }}
+                  pointerEvents: "none"}}
               >
                 {labels[item.id]}
                 <span
@@ -76,8 +74,7 @@ export function FloatingDock({
                     height: 0,
                     borderLeft: "5px solid transparent",
                     borderRight: "5px solid transparent",
-                    borderTop: `5px solid rgba(${item.accent},0.35)`,
-                  }}
+                    borderTop: `5px solid rgba(${item.accent},0.35)`}}
                 />
               </div>
 
@@ -97,16 +94,14 @@ export function FloatingDock({
                     ? `1px solid rgba(${item.accent},0.4)`
                     : "1px solid transparent",
                   boxShadow: isActive ? `0 0 22px rgba(${item.accent},0.35)` : "none",
-                  transform: isHovered ? "translateY(-3px)" : "translateY(0)",
-                }}
+                  transform: isHovered ? "translateY(-3px)" : "translateY(0)"}}
               >
                 <Icon
                   size={19}
                   style={{
                     color: isActive || isHovered ? `rgb(${item.accent})` : "#64748b",
                     filter: isActive ? `drop-shadow(0 0 6px rgb(${item.accent}))` : "none",
-                    transition: "color 0.2s, filter 0.2s",
-                  }}
+                    transition: "color 0.2s, filter 0.2s"}}
                 />
               </button>
 
@@ -117,8 +112,7 @@ export function FloatingDock({
                   background: `rgb(${item.accent})`,
                   boxShadow: `0 0 8px rgb(${item.accent})`,
                   opacity: isActive ? 1 : 0,
-                  transform: isActive ? "scale(1)" : "scale(0.3)",
-                }}
+                  transform: isActive ? "scale(1)" : "scale(0.3)"}}
               />
             </div>
           );

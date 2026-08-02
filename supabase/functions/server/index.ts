@@ -1,7 +1,7 @@
-import { Hono, type Context } from "npm:hono";
-import { cors } from "npm:hono/cors";
-import { logger } from "npm:hono/logger";
-import { createClient } from "npm:@supabase/supabase-js";
+import { Hono, type Context } from "npm:hono@4.12.27";
+import { cors } from "npm:hono@4.12.27/cors";
+import { logger } from "npm:hono@4.12.27/logger";
+import { createClient } from "npm:@supabase/supabase-js@2.110.9";
 import { scoreAndValidate, type Game } from "../_shared/round-scoring.ts";
 import { inspectRound, hasHardFlag, softFlags } from "../_shared/anticheat.ts";
 

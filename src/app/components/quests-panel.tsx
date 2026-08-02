@@ -9,7 +9,7 @@ import { claimQuest, fetchDailyQuests, type DailyQuest } from "../lib/api";
 // nên không thể tự khai báo hoàn thành từ trình duyệt.
 
 const mono: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', monospace",
+  
 };
 
 const panelStyle: React.CSSProperties = {
@@ -94,22 +94,21 @@ export function QuestsPanel({
         <div className="flex items-center gap-2">
           <Target size={16} style={{ color: "#10B981" }} />
           <span
-            className="text-[11px] tracking-[0.25em] uppercase text-white"
-            style={mono}
+            className="text-xs tracking-[0.25em] uppercase text-white font-mono"
           >
             {s.title}
           </span>
         </div>
-        <span className="text-[11px]" style={{ ...mono, color: "#10B981" }}>
+        <span className="text-xs" style={{ color: "#10B981" }}>
           {completed}/{(quests ?? []).length} {s.done}
         </span>
       </div>
-      <p className="text-[11px] text-white/40 mb-4" style={mono}>
+      <p className="text-xs text-white/40 mb-4">
         {s.sub}
       </p>
 
       {quests === null ? (
-        <div className="text-[11px] text-white/40 py-6 text-center" style={mono}>
+        <div className="text-xs text-white/40 py-6 text-center">
           {s.loading}
         </div>
       ) : (
@@ -132,14 +131,13 @@ export function QuestsPanel({
                       : q.claimed
                         ? "rgba(16,185,129,0.25)"
                         : "rgba(255,255,255,0.07)"
-                  }`,
-                }}
+                  }`}}
               >
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <span className="text-[11px] text-white/85">{label}</span>
+                  <span className="text-xs text-white/85">{label}</span>
                   <span
-                    className="text-[11px] shrink-0"
-                    style={{ ...mono, color: "#F59E0B" }}
+                    className="text-xs shrink-0"
+                    style={{ color: "#F59E0B" }}
                   >
                     +{q.xp_reward} XP
                   </span>
@@ -154,21 +152,20 @@ export function QuestsPanel({
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${pct}%`,
-                        background: "linear-gradient(90deg,#10B981,#00D4FF)",
-                      }}
+                        background: "linear-gradient(90deg,#10B981,#00D4FF)"}}
                     />
                   </div>
                   <span
-                    className="text-[11px] w-12 text-right"
-                    style={{ ...mono, color: "rgba(255,255,255,0.45)" }}
+                    className="text-xs w-12 text-right"
+                    style={{ color: "rgba(255,255,255,0.45)" }}
                   >
                     {q.progress}/{q.goal}
                   </span>
 
                   {q.claimed ? (
                     <span
-                      className="text-[11px] flex items-center gap-1 w-20 justify-end"
-                      style={{ ...mono, color: "#10B981" }}
+                      className="text-xs flex items-center gap-1 w-20 justify-end"
+                      style={{ color: "#10B981" }}
                     >
                       <CheckCircle2 size={11} /> {s.claimed}
                     </span>
@@ -176,15 +173,13 @@ export function QuestsPanel({
                     <button
                       disabled={!ready || busy === q.code}
                       onClick={() => claim(q.code)}
-                      className="text-[11px] py-1.5 px-2.5 rounded-lg flex items-center gap-1 w-20 justify-center transition-all"
+                      className="text-xs py-1.5 px-2.5 rounded-lg flex items-center gap-1 w-20 justify-center transition-all"
                       style={{
-                        ...mono,
                         opacity: ready ? 1 : 0.35,
                         cursor: ready ? "pointer" : "not-allowed",
                         background: "rgba(16,185,129,0.15)",
                         border: "1px solid rgba(16,185,129,0.45)",
-                        color: "#10B981",
-                      }}
+                        color: "#10B981"}}
                     >
                       <Gift size={11} /> {s.claim}
                     </button>
