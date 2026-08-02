@@ -244,15 +244,9 @@ function stripJsxText(src) {
     const end = src.indexOf("<", i + 1);
     if (end === -1) break;
     const seg = src.slice(i + 1, end);
-    // Boc phan text; neu doan co bieu thuc {..} thi chi boc phan NGOAI ngoac
-    // (vd: "+{level} MEMORY" — 'MEMORY' la text hien thi, khong phai hang so).
-    if (!/[();=]/.test(seg)) {
-      let depth = 0;
-      for (let k = i + 1; k < end; k++) {
-        if (src[k] === "{") depth++;
-        else if (src[k] === "}") depth--;
-        else if (depth === 0 && out[k] !== "\n") out[k] = " ";
-      }
+    // Chi boc khi doan giua khong chua ky tu cua code (tranh boc bieu thuc).
+    if (!/[{}();=]/.test(seg)) {
+      for (let k = i + 1; k < end; k++) if (out[k] !== "\n") out[k] = " ";
     }
     i = end - 1;
   }
@@ -280,8 +274,7 @@ for (const f of files) {
       new RegExp(`\\{[^{}]*\\b${c}\\b[^{}]*\\}\\s*[=:)]`).test(s) ||
       new RegExp(`\\b${c}\\s*[:=]`).test(s);
     const env =
-      // Ten truc + nhan hien thi trong JSX ("· FOCUS", "+{n} MEMORY").
-      /^(JSON|NaN|URL|URLS|API|GET|POST|PUT|HEAD|HTTP|HTTPS|UTC|GMT|CSS|HTML|SVG|DOM|RGB|RGBA|USD|VND|NULL|TRUE|FALSE|CSV|PDF|PNG|JPG|TODO|FIXME|NOTE|ERROR|WARN|INFO|DEBUG|MATH|DATE|NUMBER|STRING|BOOLEAN|OBJECT|ARRAY|PROMISE|WINDOW|DOCUMENT|CONSOLE|IMPORT|EXPORT|REACT|VITE|NODE|FOCUS|MEMORY|LOGIC|SPEED|SPATIAL|LEVEL|SCORE|BEST|TIME|XP)$/.test(
+      /^(JSON|NaN|URL|URLS|API|GET|POST|PUT|HEAD|HTTP|HTTPS|UTC|GMT|CSS|HTML|SVG|DOM|RGB|RGBA|USD|VND|NULL|TRUE|FALSE|CSV|PDF|PNG|JPG|TODO|FIXME|NOTE|ERROR|WARN|INFO|DEBUG|MATH|DATE|NUMBER|STRING|BOOLEAN|OBJECT|ARRAY|PROMISE|WINDOW|DOCUMENT|CONSOLE|IMPORT|EXPORT|REACT|VITE|NODE)$/.test(
         c,
       );
     if (!declared && !env) {
