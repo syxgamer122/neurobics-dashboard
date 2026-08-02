@@ -196,7 +196,7 @@ days: "ngày",
   username_invalid:
     "Tên 3–20 ký tự: chữ, số, _ . - (không dấu cách).",
   signup_no_email_warning:
-    "Không lưu email thật. Quên mật khẩu thì chỉ còn mã khôi phục hiện sau khi đăng ký — hãy chép ra ch��� an toàn.",
+    "Không lưu email thật. Quên mật khẩu thì chỉ còn mã khôi phục hiện sau khi đăng ký — hãy chép ra chỗ an toàn.",
   forgot_password: "Quên mật khẩu?",
   back_to_sign_in: "Quay lại đăng nhập",
   recovery_code_label: "Mã khôi phục",

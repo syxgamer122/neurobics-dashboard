@@ -74,6 +74,12 @@ export const PULL_UP_SNAP = 3;
 export function pullUpRating(prev: number | null | undefined, round: number): number {
   const o = sanitizeRating(prev);
   if (round <= o) return o;
+  // COLD START: chua co baseline nao (truc moi, hoac gia tri legacy vua bi doc
+  // ve 0) thi KHONG lam tron. EMA can mot gia tri truoc de lam muot; lay 40%
+  // cua khoang cach so voi 0 chi tao ra thien lech: van dau tien duoc 300 diem
+  // lai chi ghi 120, va nguoi choi phai lap lai gan 10 van moi tien tiem can
+  // dung nang luc that cua minh. Van dau tien chinh la baseline.
+  if (o <= 0) return clampRating(round);
   if (round - o <= PULL_UP_SNAP) return clampRating(round);
   return clampRating(Math.max(o + 1, o + EMA_ALPHA * (round - o)));
 }
