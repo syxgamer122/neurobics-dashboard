@@ -95,8 +95,11 @@ const lapseRate = (xs: number[]) => {
   const m = median(xs);
   return xs.filter((x) => x > m * 2.5).length / xs.length;
 };
+// Tran thuong toc do: truoc 1.4 qua rong — choi hon target 1 chut la bung max.
+// 1.15 = chi elite (nhanh hon target ~13%) moi cham tran ratio.
+const RATIO_CAP = 1.15;
 const ratio = (target: number, actual: number) =>
-  Math.min(target / Math.max(actual, 1), 1.4);
+  Math.min(target / Math.max(actual, 1), RATIO_CAP);
 const speed = (
   rts: number[],
   target: number,
@@ -106,34 +109,52 @@ const speed = (
   const m = rts.length ? median(rts) : (fallback ?? 0);
   return m > 0 ? clamp(MAX * diff * ratio(target, m)) : 0;
 };
+// Focus: phat CV som hon (0.18 thay 0.25) va nang hon (0.75 thay 0.6).
+// He so 0.92 de choi "deu + dung" van kho full 1000 neu diff < 1.
+const FOCUS_CV_OK = 0.18;
+const FOCUS_CV_BAD = 1.05;
+const FOCUS_SCALE = 0.92;
 const focus = (rts: number[], accuracy: number, diff: number) => {
-  const penalty = clamp01((cv(rts) - 0.25) / (1.2 - 0.25));
+  const penalty = clamp01(
+    (cv(rts) - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK),
+  );
   return clamp(
-    MAX * diff * (1 - penalty * 0.6) * (1 - lapseRate(rts)) * accuracy,
+    MAX *
+      diff *
+      FOCUS_SCALE *
+      (1 - penalty * 0.75) *
+      (1 - lapseRate(rts) * 1.15) *
+      Math.pow(accuracy, 1.15),
   );
 };
-const headline = (axes: AxisRatings) =>
-  Math.max(0, ...Object.values(axes).filter((v): v is number => v !== null));
+// Headline = trung binh cac truc active (khong con lay max) de 1 truc full
+// khong keo ca van len 1000.
+const headline = (axes: AxisRatings) => {
+  const vals = Object.values(axes).filter((v): v is number => v !== null);
+  if (!vals.length) return 0;
+  return clamp(vals.reduce((a, b) => a + b, 0) / vals.length);
+};
 
 const SCHULTE_DIFF: Record<number, number> = {
-  9: 0.55,
-  16: 0.72,
-  25: 0.86,
-  36: 1,
+  9: 0.48,
+  16: 0.64,
+  25: 0.78,
+  36: 0.92,
 };
+// Target chat hon: choi "kha" nam ~650-800, elite moi ~900+.
 const SCHULTE_TARGET: Record<number, number> = {
-  9: 20000,
-  16: 45000,
-  25: 90000,
-  36: 160000,
+  9: 14000,
+  16: 32000,
+  25: 65000,
+  36: 120000,
 };
 const SUDOKU_DIFF: Record<string, number> = {
-  Easy: 0.5,
-  Medium: 0.6,
-  Hard: 0.7,
-  Expert: 0.8,
-  Master: 0.9,
-  Extreme: 1,
+  Easy: 0.42,
+  Medium: 0.54,
+  Hard: 0.66,
+  Expert: 0.78,
+  Master: 0.88,
+  Extreme: 0.96,
 };
 // So clue chuan cua tung muc do kho (khop SUDOKU_LEVELS ben client).
 // Neu de that co NHIEU clue hon muc chuan => generator het budget, de de hon.
@@ -173,13 +194,14 @@ function effectiveSudokuDiff(
   return best;
 }
 
+// Target thap hon = de kho dat full Speed hon (phai choi nhanh that).
 const SUDOKU_TARGET: Record<string, number> = {
-  Easy: 240000,
-  Medium: 360000,
-  Hard: 480000,
-  Expert: 720000,
-  Master: 960000,
-  Extreme: 1500000,
+  Easy: 180000,
+  Medium: 280000,
+  Hard: 400000,
+  Expert: 600000,
+  Master: 820000,
+  Extreme: 1200000,
 };
 
 function scoreSchulte(t: any): ScoredRound {
@@ -202,8 +224,11 @@ function scoreSchulte(t: any): ScoredRound {
   const accuracy = found + wrong > 0 ? found / (found + wrong) : 0;
   const statRts = statSamples(rts);
   const late = statRts.slice(Math.floor((statRts.length * 2) / 3));
+  // 1.25 (truoc 1.6): late-phase khong con de "an" spatial bang nhip som.
   const spatial = late.length
-    ? clamp(MAX * diff * ratio(per * 1.6, median(late)) * accuracy * completion)
+    ? clamp(
+        MAX * diff * ratio(per * 1.25, median(late)) * accuracy * completion,
+      )
     : 0;
   const axes = {
     ...NO_AXES,
@@ -260,9 +285,12 @@ function scoreSudoku(t: any): ScoredRound {
   );
   const per = SUDOKU_TARGET[difficulty] / expected;
   const completion = clamp01(placements / expected);
-  const logic = clamp(MAX * diff * (1 - clamp01(mistakes / 3)));
+  // Logic: sai 1 nuoc phat nang hon; perfect van bi diff gioi han.
+  const logic = clamp(
+    MAX * diff * Math.pow(1 - clamp01(mistakes / 3), 1.35),
+  );
   const retention =
-    1 - clamp01((reEntries + repeat * 1.5) / Math.max(4, placements * 0.25));
+    1 - clamp01((reEntries + repeat * 1.75) / Math.max(3, placements * 0.2));
   const axes = {
     ...NO_AXES,
     // placements=0 (thua som): khong co RT hop le → speed null, chi logic/memory.
@@ -310,10 +338,12 @@ function scoreStroop(t: any): ScoredRound {
   const statRts = statSamples(rts);
   const axes = {
     ...NO_AXES,
+    // Target 1400ms (truoc 1800): choi kha ~1100 van chua full.
     speed: clamp(
-      speed(statRts, 1800, 0.82, timeMs / Math.max(1, rts.length)) * completion,
+      speed(statRts, 1400, 0.78, timeMs / Math.max(1, rts.length)) *
+        completion,
     ),
-    focus: clamp(focus(statRts, accuracy, 0.82) * completion),
+    focus: clamp(focus(statRts, accuracy, 0.78) * completion),
   };
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
 }
@@ -325,10 +355,12 @@ function scoreReaction(t: any): ScoredRound {
   // Bam anticipation ~100ms la co that o Reaction: mau do bi loai khoi thong ke
   // thay vi lam hong ca van (xem statSamples).
   const statRts = statSamples(rts);
+  // Target 280ms (truoc 350): RT binh thuong 300-400 khong con full 1000.
+  // diff 0.95: ke ca elite cung can ratio cap de cham tran.
   const axes = {
     ...NO_AXES,
-    speed: speed(statRts, 350, 1),
-    focus: focus(statRts, accuracy, 0.9),
+    speed: speed(statRts, 280, 0.95),
+    focus: focus(statRts, accuracy, 0.88),
   };
   return { axes, headline: headline(axes), label: "Reaction Time", timeMs };
 }
@@ -343,27 +375,29 @@ function scoreMemory(t: any): ScoredRound {
       ? int(t?.clearedLevels, "clearedLevels", 0, 100)
       : int(t?.maxLevel, "maxLevel", 1, 100);
   const wrong = int(t?.wrongClicks, "wrongClicks", 0, 100);
-  const progression = clamp01(level / 12),
+  // /16 (truoc /12): can len cao hon de full. He so memory/spatial ha nhe.
+  const progression = clamp01(level / 16),
     cells = Math.max(1, Math.round(level * 3)),
-    accuracy = level > 0 ? cells / (cells + wrong) : 0;
+    accuracy = level > 0 ? cells / (cells + wrong * 1.25) : 0;
   const axes = {
     ...NO_AXES,
-    memory: clamp(MAX * 0.9 * progression * accuracy),
-    spatial: clamp(MAX * 0.7 * progression * accuracy),
+    memory: clamp(MAX * 0.88 * Math.pow(progression, 1.1) * accuracy),
+    spatial: clamp(MAX * 0.68 * Math.pow(progression, 1.1) * accuracy),
   };
   return { axes, headline: headline(axes), label: `Level ${level}`, timeMs };
 }
 
 // Math Sprint: logic (dung/sai) + toc do (do tre tung cau).
 const MATH_DIFF: Record<string, number> = {
-  easy: 0.62,
-  medium: 0.82,
-  hard: 1.0,
+  easy: 0.55,
+  medium: 0.74,
+  hard: 0.92,
 };
+// Target thap hon = phai tra loi nhanh that de full speed.
 const MATH_TARGET_MS: Record<string, number> = {
-  easy: 3000,
-  medium: 4200,
-  hard: 5500,
+  easy: 2400,
+  medium: 3400,
+  hard: 4600,
 };
 const MATH_LABEL: Record<string, string> = {
   easy: "Math Easy",
@@ -423,18 +457,23 @@ function scoreNBack(t: any): ScoredRound {
   const targets = hits + misses;
   // d-prime rut gon: ti le bat dung tru ti le bao dong nham.
   const hitRate = targets > 0 ? hits / targets : 0;
+  // FA phat nang hon (0.95): bam nham nhieu ha diem ro.
   const faRate = clamp01(falseAlarms / Math.max(1, trials - targets));
-  const accuracy = clamp01(hitRate - faRate * 0.75);
-  // Moi muc n cao hon thi tran diem cao hon (n=2 la moc chuan).
-  const depth = clamp01((n + 1) / 5);
+  const accuracy = clamp01(hitRate - faRate * 0.95);
+  // n=2 chuan ~0.55 depth; n=4 moi gan day. Truoc (n+1)/5 qua de full o n=2.
+  const depth = clamp01(n / 5);
 
   const axes = {
     ...NO_AXES,
-    memory: clamp(MAX * accuracy * (0.62 + 0.38 * depth)),
+    memory: clamp(MAX * Math.pow(accuracy, 1.2) * (0.55 + 0.4 * depth)),
     focus: clamp(
-      MAX * accuracy * (0.55 + 0.45 * clamp01(1 - faRate)) * (0.7 + 0.3 * depth),
+      MAX *
+        Math.pow(accuracy, 1.15) *
+        (0.5 + 0.4 * clamp01(1 - faRate)) *
+        (0.65 + 0.3 * depth),
     ),
-    speed: rts.length >= 3 ? speed(rts, 700, 0.85) : null,
+    // Target 550ms (truoc 700), diff 0.8: RT thuong ~700-800 khong full.
+    speed: rts.length >= 3 ? speed(rts, 550, 0.8) : null,
   };
   return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
 }
