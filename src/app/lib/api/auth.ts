@@ -9,6 +9,8 @@ import {
   type Profile,
 } from "./internal";
 import { logError } from "../logger";
+// Signup/login goi thang REST nen van can anon key o day.
+import { publicAnonKey } from "../../../../utils/supabase/info";
 
 // Username -> spoofed email so users never provide a real email address.
 export const USERNAME_RE = /^[a-z0-9_.-]{3,20}$/i;

@@ -10,6 +10,9 @@ import {
   serverPost,
   type Profile,
 } from "./internal";
+// AxisKey song o ../axes, khong phai ./internal. Thieu import nay thi
+// AdminGrant khong bien dich duoc va ca admin-panel cung do theo.
+import { type AxisKey } from "../axes";
 
 // ─── Admin: operate on ANY user (requires admin RLS policy) ──────────────────
 
