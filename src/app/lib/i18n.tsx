@@ -16,36 +16,34 @@ const vi = {
   apprentice: "NGƯỜI MỚI",
   mastermind: "BẬC THẦY",
   brain_age: "Ước Tính Tuổi Não",
-yrs_younger: (n: number) => `Trẻ hơn ${n} tuổi`,
-yrs_older: (n: number) => `Già hơn ${n} tuổi`,
-yrs_same: "Bằng đúng tuổi thật",
-data_partial: "Dữ liệu một phần",
-data_partial_note: (scanned: number) =>
-  `Đang dùng nguồn dự phòng: chỉ quét ${scanned} người chơi đầu tiên nên thứ hạng có thể thiếu người.`,
-brain_age_needs_age:
-  "Tuổi não được tính bằng cách so tuổi thật của bạn với thứ hạng trong cộng đồng. Hãy nhập năm sinh để bắt đầu.",
-birth_year_placeholder: "Năm sinh",
-birth_year_invalid: "Năm sinh không hợp lệ.",
-save_btn: "LƯU",
-brain_age_calibrating: (played: number, needed: number) =>
-  `Đang hiệu chuẩn: ${played}/${needed} ván. Cần đủ dữ liệu trước khi đưa ra con số có ý nghĩa.`,
-brain_age_percentile: (pct: number, realAge: number) =>
-  `Vượt ${pct}% người chơi · tuổi thật ${realAge}`,
-brain_age_provisional: "Tạm tính: chưa đủ người chơi để lập phân phối thật.",
-round_axis_detail: (round: number, gain: number) =>
-  gain > 0 ? `Ván này: ${round} · +${gain}` : `Ván này: ${round} · chưa vượt kỷ lục`,
+  yrs_younger: (n: number) => `Trẻ hơn ${n} tuổi`,
+  yrs_older: (n: number) => `Già hơn ${n} tuổi`,
+  yrs_same: "Bằng đúng tuổi thật",
+  brain_age_needs_age:
+    "Tuổi não được tính bằng cách so tuổi thật của bạn với thứ hạng trong cộng đồng. Hãy nhập năm sinh để bắt đầu.",
+  birth_year_placeholder: "Năm sinh",
+  birth_year_invalid: "Năm sinh không hợp lệ.",
+  save_btn: "LƯU",
+  brain_age_calibrating: (played: number, needed: number) =>
+    `Đang hiệu chuẩn: ${played}/${needed} ván. Cần đủ dữ liệu trước khi đưa ra con số có ý nghĩa.`,
+  brain_age_percentile: (pct: number, realAge: number) =>
+    `Vượt ${pct}% người chơi · tuổi thật ${realAge}`,
+  brain_age_provisional: "Tạm tính: chưa đủ người chơi để lập phân phối thật.",
+  round_axis_detail: (round: number, gain: number) =>
+    gain > 0
+      ? `Ván này: ${round} · +${gain}`
+      : `Ván này: ${round} · chưa vượt kỷ lục`,
   cog_matrix: "Ma Trận Hiệu Suất Nhận Thức",
   cog_matrix_sub: (sessions: number) =>
     `Đánh giá 5 lĩnh vực thần kinh · ${sessions} phiên`,
   live: "TRỰC TIẾP",
   synapse_streak: "Chuỗi Ngày Luyện Não",
-  best_streak: "Chuỗi Tốt Nhất",
   this_month: "Tháng Này",
   xp_today: "XP Hôm Nay",
-level_label: "CẤP ĐỘ",
-xp_earned: "XP THU ĐƯỢC",
-level_up: "LÊN CẤP!",
-days: "ngày",
+  level_label: "CẤP ĐỘ",
+  xp_earned: "XP THU ĐƯỢC",
+  level_up: "LÊN CẤP!",
+  days: "ngày",
   sessions: "phiên",
   pts: "điểm",
 
@@ -54,8 +52,10 @@ days: "ngày",
   back_to_arena: "QUAY LẠI",
   focus_training: "LUYỆN TẬP TẬP TRUNG",
   logic_training: "LUYỆN TẬP TƯ DUY",
-  schulte_desc: "Click 1 → 25 theo thứ tự càng nhanh càng tốt. Cải thiện tầm nhìn ngoại vi và sự tập trung.",
-  sudoku_desc: "Giải ô 9×9. 3 mạng, câu đố ngẫu nhiên mỗi ván. Rèn luyện tư duy suy diễn.",
+  schulte_desc:
+    "Click 1 → 25 theo thứ tự càng nhanh càng tốt. Cải thiện tầm nhìn ngoại vi và sự tập trung.",
+  sudoku_desc:
+    "Giải ô 9×9. 3 mạng, câu đố ngẫu nhiên mỗi ván. Rèn luyện tư duy suy diễn.",
   play_now: "CHƠI NGAY",
 
   // Schulte game
@@ -128,24 +128,16 @@ days: "ngày",
   new_puzzle: "CÂU ĐỐ MỚI",
   solved: "Đã giải!",
   clues: "gợi ý",
-  Easy: "Dễ",
-  Medium: "Trung Bình",
-  Hard: "Khó",
-  Expert: "Chuyên Gia",
-  Master: "Bậc Thầy",
-  Extreme: "Cực Khó",
-
   // Round result overlay
   round_complete: "HOÀN THÀNH VÁN",
   domains_this_round: "CÁC LĨNH VỰC NHẬN THỨC VÁN NÀY",
   score_note:
-  "Mỗi trục có công thức riêng và chỉ tăng khi bạn vượt kỷ lục của chính trục đó. Nghỉ quá 7 ngày, rating sẽ giảm dần.",
+    "Mỗi trục có công thức riêng và chỉ tăng khi bạn vượt kỷ lục của chính trục đó. Nghỉ quá 7 ngày, rating sẽ giảm dần.",
   round_score_label: "ĐIỂM VÁN NÀY",
   current_rating_label: "RATING HIỆN TẠI",
   continue_btn: "TIẾP TỤC",
 
   // Profile
-  operator_stats: "Thông Số Người Dùng",
   clearance: "Cấp Độ",
   operator_label: "NGƯỜI DÙNG",
   omega_label: "CẤP ĐỘ OMEGA-1",
@@ -193,8 +185,7 @@ days: "ngày",
   total_xp_label: "Tổng",
   yrs_unit: "tuổi",
   password_min_length: "Mật khẩu phải có ít nhất 8 ký tự.",
-  username_invalid:
-    "Tên 3–20 ký tự: chữ, số, _ . - (không dấu cách).",
+  username_invalid: "Tên 3–20 ký tự: chữ, số, _ . - (không dấu cách).",
   signup_no_email_warning:
     "Không lưu email thật. Quên mật khẩu thì chỉ còn mã khôi phục hiện sau khi đăng ký — hãy chép ra chỗ an toàn.",
   forgot_password: "Quên mật khẩu?",
@@ -237,25 +228,16 @@ days: "ngày",
   settings_delete_confirm_err: "Tên xác nhận không khớp.",
   settings_delete_btn: "XOÁ TÀI KHOẢN",
   settings_delete_ok: "Tài khoản đã được xoá.",
-  settings_sign_out: "Đăng xuất",
-
   // Stroop Test
   stroop_tag: "LUYỆN TẬP ỨC CHẾ",
-  stroop_desc: "Nhận diện màu MỰC, không phải nghĩa từ · 20 kích thích · Rèn luyện kiểm soát ức chế nhận thức.",
+  stroop_desc:
+    "Nhận diện màu MỰC, không phải nghĩa từ · 20 kích thích · Rèn luyện kiểm soát ức chế nhận thức.",
   stroop_instruction: "Click MÀU MỰC",
   stroop_hint: "Bỏ qua nghĩa từ — click MÀU của chữ",
   stroop_trial: "Lần",
   stroop_inhibition: "Ức Chế",
-  stroop_correct: "ĐÚNG",
-  stroop_wrong: "SAI",
   stroop_complete: "HOÀN THÀNH",
   // Color names (Vietnamese)
-  color_red: "ĐỎ",
-  color_blue: "XANH",
-  color_green: "LÁ",
-  color_yellow: "VÀNG",
-  color_purple: "TÍM",
-  color_orange: "CAM",
   // Math Sprint — chuoi trong man choi (gom tu TXT cuc bo)
   math_hint: "Hai mươi phép tính, bốn lựa chọn. Không làm lại câu sai.",
   math_level: "Chọn độ khó",
@@ -290,35 +272,34 @@ const en: typeof vi = {
   mastermind: "MASTERMIND",
   brain_age: "Brain Age Estimate",
   yrs_younger: (n) => `${n} yrs younger`,
-yrs_older: (n) => `${n} yrs older`,
-yrs_same: "Exactly your real age",
-data_partial: "Partial data",
-data_partial_note: (scanned) =>
-  `Fallback source: only the first ${scanned} players were scanned, so the ranking may be missing people.`,
-brain_age_needs_age:
-  "Brain age compares your real age against how you rank among other players. Enter your birth year to begin.",
-birth_year_placeholder: "Birth year",
-birth_year_invalid: "That birth year isn't valid.",
-save_btn: "SAVE",
-brain_age_calibrating: (played, needed) =>
-  `Calibrating: ${played}/${needed} rounds. We need enough data before the number means anything.`,
-brain_age_percentile: (pct, realAge) =>
-  `Ahead of ${pct}% of players · real age ${realAge}`,
-brain_age_provisional: "Provisional: not enough players yet for a real distribution.",
-round_axis_detail: (round, gain) =>
-  gain > 0 ? `This round: ${round} · +${gain}` : `This round: ${round} · no new record`,
+  yrs_older: (n) => `${n} yrs older`,
+  yrs_same: "Exactly your real age",
+  brain_age_needs_age:
+    "Brain age compares your real age against how you rank among other players. Enter your birth year to begin.",
+  birth_year_placeholder: "Birth year",
+  birth_year_invalid: "That birth year isn't valid.",
+  save_btn: "SAVE",
+  brain_age_calibrating: (played, needed) =>
+    `Calibrating: ${played}/${needed} rounds. We need enough data before the number means anything.`,
+  brain_age_percentile: (pct, realAge) =>
+    `Ahead of ${pct}% of players · real age ${realAge}`,
+  brain_age_provisional:
+    "Provisional: not enough players yet for a real distribution.",
+  round_axis_detail: (round, gain) =>
+    gain > 0
+      ? `This round: ${round} · +${gain}`
+      : `This round: ${round} · no new record`,
   cog_matrix: "Cognitive Performance Matrix",
   cog_matrix_sub: (sessions: number) =>
     `5-domain neural assessment · ${sessions} sessions`,
   live: "LIVE",
   synapse_streak: "Synapse Streak",
-  best_streak: "Best Streak",
   this_month: "This Month",
   xp_today: "XP Today",
-level_label: "LEVEL",
-xp_earned: "XP EARNED",
-level_up: "LEVEL UP!",
-days: "days",
+  level_label: "LEVEL",
+  xp_earned: "XP EARNED",
+  level_up: "LEVEL UP!",
+  days: "days",
   sessions: "sessions",
   pts: "pts",
 
@@ -326,8 +307,10 @@ days: "days",
   back_to_arena: "BACK TO ARENA",
   focus_training: "FOCUS TRAINING",
   logic_training: "LOGIC TRAINING",
-  schulte_desc: "Click 1 → 25 in order as fast as you can. Sharpens peripheral vision & focus.",
-  sudoku_desc: "Solve the 9×9 grid. 3 hearts, random puzzle every round. Trains deductive logic.",
+  schulte_desc:
+    "Click 1 → 25 in order as fast as you can. Sharpens peripheral vision & focus.",
+  sudoku_desc:
+    "Solve the 9×9 grid. 3 hearts, random puzzle every round. Trains deductive logic.",
   play_now: "PLAY NOW",
 
   size_label: "SIZE",
@@ -383,7 +366,8 @@ days: "days",
   rx_intro_2: "then click as fast as you can.",
   rx_dont_press: "Do not click before the screen turns green",
   rx_saving: "Saving result...",
-  rx_false_start_note: "Every early click lowers the Focus score for this round.",
+  rx_false_start_note:
+    "Every early click lowers the Focus score for this round.",
   rx_start: "START TEST",
   rx_restart: "RESTART TEST",
   rx_complete: "TEST COMPLETE",
@@ -398,22 +382,14 @@ days: "days",
   new_puzzle: "NEW PUZZLE",
   solved: "Solved!",
   clues: "clues",
-  Easy: "Easy",
-  Medium: "Medium",
-  Hard: "Hard",
-  Expert: "Expert",
-  Master: "Master",
-  Extreme: "Extreme",
-
   round_complete: "ROUND COMPLETE",
   domains_this_round: "COGNITIVE DOMAINS THIS ROUND",
   score_note:
-  "Each axis has its own formula and only rises when you beat that axis's own record. Rest more than 7 days and ratings decay.",
+    "Each axis has its own formula and only rises when you beat that axis's own record. Rest more than 7 days and ratings decay.",
   round_score_label: "ROUND SCORE",
   current_rating_label: "CURRENT RATING",
   continue_btn: "CONTINUE",
 
-  operator_stats: "Operator Stats",
   clearance: "Clearance",
   operator_label: "OPERATOR",
   omega_label: "OMEGA-1 CLEARANCE",
@@ -458,8 +434,7 @@ days: "days",
   total_xp_label: "Total",
   yrs_unit: "yrs",
   password_min_length: "Password must be at least 8 characters.",
-  username_invalid:
-    "Username 3–20 chars: letters, numbers, _ . - only.",
+  username_invalid: "Username 3–20 chars: letters, numbers, _ . - only.",
   signup_no_email_warning:
     "No real email is stored. If you forget this password, only the recovery code shown after sign-up can restore the account. Save it offline.",
   forgot_password: "Forgot password?",
@@ -502,25 +477,16 @@ days: "days",
   settings_delete_confirm_err: "Confirmation username does not match.",
   settings_delete_btn: "DELETE ACCOUNT",
   settings_delete_ok: "Account deleted.",
-  settings_sign_out: "Sign out",
-
   // Stroop Test
   stroop_tag: "INHIBITION TRAINING",
-  stroop_desc: "Identify the INK color, not the word meaning · 20 stimuli · Trains inhibitory control & cognitive flexibility.",
+  stroop_desc:
+    "Identify the INK color, not the word meaning · 20 stimuli · Trains inhibitory control & cognitive flexibility.",
   stroop_instruction: "Click the INK COLOR",
   stroop_hint: "Ignore the word — click the COLOR of the text",
   stroop_trial: "Trial",
   stroop_inhibition: "Inhibition",
-  stroop_correct: "CORRECT",
-  stroop_wrong: "WRONG",
   stroop_complete: "COMPLETE",
   // Color names (English)
-  color_red: "RED",
-  color_blue: "BLUE",
-  color_green: "GREEN",
-  color_yellow: "YELLOW",
-  color_purple: "PURPLE",
-  color_orange: "ORANGE",
   // Math Sprint — in-round strings
   math_hint: "Twenty problems, four choices. No second try on misses.",
   math_level: "Choose difficulty",
@@ -533,7 +499,8 @@ days: "days",
   math_hard: "Hard",
 
   // N-Back — in-round strings
-  nback_hint: "Press MATCH when the lit cell repeats the one from N steps back.",
+  nback_hint:
+    "Press MATCH when the lit cell repeats the one from N steps back.",
   nback_level: "Choose depth",
   nback_start: "START",
   nback_match: "MATCH",
@@ -574,7 +541,9 @@ export function LangProvider({ children }: { children: ReactNode }) {
         ? navigator.languages
         : [navigator.language];
       for (const tag of tags) {
-        const base = String(tag ?? "").toLowerCase().split("-")[0];
+        const base = String(tag ?? "")
+          .toLowerCase()
+          .split("-")[0];
         if (base === "vi") return "vi";
         if (base === "en") return "en";
       }
@@ -592,11 +561,17 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const toggle = () =>
     setLang((l) => {
       const next: Lang = l === "vi" ? "en" : "vi";
-      try { localStorage.setItem("nb_lang", next); } catch {}
+      try {
+        localStorage.setItem("nb_lang", next);
+      } catch {}
       return next;
     });
 
-  return <Ctx.Provider value={{ lang, toggle, t: translations[lang] }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ lang, toggle, t: translations[lang] }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useLang() {

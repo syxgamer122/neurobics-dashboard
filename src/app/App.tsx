@@ -78,6 +78,7 @@ import {
 import { getLevelProgress, getLevelTitle, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
+import { APP_VERSION_LABEL } from "./lib/version";
 
 // ─── Cognitive data ────────────────────────────────────────────────────────────
 
@@ -399,7 +400,7 @@ function AppInner() {
               border: "1px solid rgba(0,212,255,0.18)",
             }}
           >
-            v2.5.0
+            {APP_VERSION_LABEL}
           </span>
         </div>
         <div className="flex items-center gap-6">
