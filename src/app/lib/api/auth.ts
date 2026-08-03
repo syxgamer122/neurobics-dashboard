@@ -30,8 +30,16 @@ export function assertValidUsername(username: string): string {
   return n;
 }
 
-const toEmail = (username: string) =>
-  `${assertValidUsername(username)}@neurobics.local`;
+/** Domain email giả cho tài khoản mới (brand Mindgem). */
+export const AUTH_EMAIL_DOMAIN = "mindgem.local";
+/** Domain cũ — user đã signup trước khi rebrand vẫn dùng domain này trong auth.users. */
+export const LEGACY_AUTH_EMAIL_DOMAIN = "neurobics.local";
+
+function authEmailCandidates(username: string): string[] {
+  const name = assertValidUsername(username);
+  // Mindgem trước, legacy sau — signup mới luôn trúng candidate đầu.
+  return [`${name}@${AUTH_EMAIL_DOMAIN}`, `${name}@${LEGACY_AUTH_EMAIL_DOMAIN}`];
+}
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -109,16 +117,27 @@ export async function handleLogin(
   password: string,
 ): Promise<string> {
   const supabase = getSupabase();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: toEmail(username),
-    password,
-  });
-  if (error || !data.session) {
+  const emails = authEmailCandidates(username);
+  let data: Awaited<
+    ReturnType<typeof supabase.auth.signInWithPassword>
+  >["data"] | null = null;
+  let error: Awaited<
+    ReturnType<typeof supabase.auth.signInWithPassword>
+  >["error"] | null = null;
+
+  for (const email of emails) {
+    const res = await supabase.auth.signInWithPassword({ email, password });
+    data = res.data;
+    error = res.error;
+    if (!error && res.data.session) break;
+  }
+
+  if (error || !data?.session) {
     logError(
       "Login failed during signInWithPassword:",
       error?.message,
-      "(email:",
-      toEmail(username),
+      "(emails:",
+      emails.join(", "),
       ")",
     );
     // Supabase returns the same generic message whether the account doesn't
