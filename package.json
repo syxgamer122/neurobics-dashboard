@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
+    "build": "pnpm run typecheck && vite build",
+    "build:only": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:sim": "node --experimental-strip-types tests/sim-client.ts && node --experimental-strip-types tests/sim-games.ts",
+    "test:sim": "node --experimental-strip-types tests/sim-client.ts && node --experimental-strip-types tests/sim-games.ts && node --experimental-strip-types tests/sim-audit.ts",
     "scan": "node tests/scan.mjs",
-    "check": "node tests/scan.mjs && vitest run && node --experimental-strip-types tests/sim-games.ts"
+    "check": "pnpm run typecheck && node tests/scan.mjs && vitest run && pnpm run test:sim"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.9",

@@ -1,0 +1,22 @@
+// Cau hinh RIENG cho Web Worker.
+//
+// Tai sao phai tach ra: sudoku-worker.ts dung `self` va kieu
+// `DedicatedWorkerGlobalScope`, chi co trong lib "WebWorker".
+// Ma lib "WebWorker" va lib "DOM" khai bao trung rat nhieu ten toan cuc
+// (Event, MessageEvent, fetch...) -> de chung mot cho se sinh hang loat loi
+// "Duplicate identifier". Vi vay worker phai co project rieng.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": false
+  },
+  "include": ["src/app/lib/sudoku-worker.ts", "src/app/lib/sudoku-gen.ts"]
+}

@@ -1,0 +1,71 @@
+// Cau hinh kiem tra kieu cho APP + TESTS.
+//
+// Muc dich: chan cac loi kieu "Cannot find name 'RefreshCw'" NGAY TAI MAY BAN,
+// thay vi de lot len production roi moi phat hien khi bam vao panel.
+// Vite/esbuild chi DUC BO kieu chu khong kiem tra, nen neu khong co buoc
+// `tsc --noEmit` thi khong co luoi an toan nao ca.
+//
+// Khong bao gom:
+//  - src/app/lib/sudoku-worker.ts      -> xem tsconfig.worker.json (lib WebWorker)
+//  - supabase/functions/**             -> chay tren Deno, co global rieng
+//  - vite.config.ts / vitest.config.ts -> can @types/node (chua cai)
+//
+// NANG DAN DO NGHIEM NGAT (lam sau, tung buoc mot):
+// Dung bat het cung luc, se ra hang tram loi va ban se nan. Thu tu de -> kho:
+//   1. "noUnusedLocals": true    -> bat import/bien thua (chinh la loai loi
+//                                   lam vo admin panel hom truoc)
+//   2. "noImplicitAny": true     -> bat tham so quen khai kieu
+//   3. "strictNullChecks": true  -> nang nhat, nhung bat duoc nhieu bug that
+//   4. "strict": true            -> bat tat ca
+// Sau moi buoc: chay `pnpm run typecheck`, sua het loi, commit, roi moi sang
+// buoc tiep theo.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+
+    // Chi kiem tra, khong xuat file. Vite lo phan build.
+    "noEmit": true,
+    // tests/ import kem duoi ".ts" (chay bang node --experimental-strip-types).
+    "allowImportingTsExtensions": true,
+
+    // Vite bien dich tung file rieng le, nen bat cai nay de TS canh bao
+    // nhung thu khong the dich theo tung file.
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    // Quan trong tren Windows: bat loi khi import sai hoa/thuong. Linux o
+    // Vercel phan biet hoa thuong, may ban thi khong -> de vo luc deploy.
+    "forceConsistentCasingInFileNames": true,
+
+    // Bo qua kiem tra file .d.ts cua thu vien -> nhanh hon nhieu.
+    "skipLibCheck": true,
+
+    // BAT DAU O MUC DE THO. Xem ghi chu "nang dan" o dau file.
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    // Bat san may cai re tien, hau nhu khong bao gio bao nham.
+    "noFallthroughCasesInSwitch": true,
+    "allowUnreachableCode": false,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "tests"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "supabase",
+    "src/app/lib/sudoku-worker.ts"
+  ]
+}

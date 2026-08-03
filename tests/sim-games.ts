@@ -1,4 +1,12 @@
 // Bo gia lap: chay THAT scoreAndValidate + inspectRound tren nhieu kich ban.
+
+// File nay chi dung `await import()` dong, khong co import/export tinh nao.
+// Voi ES module spec, file nhu vay bi coi la SCRIPT chay o pham vi toan cuc
+// chu khong phai module => top-level await bi cam, va cac bien `pass`/`fails`
+// se va cham voi file sim khac. Dong `export {}` duoi day bien no thanh
+// module that su. Khong doi hanh vi luc chay, chi de tsc hieu dung.
+export {};
+
 const BASE =
   "../supabase/functions/_shared/";
 

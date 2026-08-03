@@ -1,5 +1,13 @@
 // Gia lap thu vien cham diem PHIA CLIENT: sanitizeRating, pullUpRating,
 // decayRating, daysSince, calcBrainAge, percentileOf.
+
+// File nay chi dung `await import()` dong, khong co import/export tinh nao.
+// Voi ES module spec, file nhu vay bi coi la SCRIPT chay o pham vi toan cuc
+// chu khong phai module => top-level await bi cam, va cac bien `pass`/`fails`
+// se va cham voi file sim khac. Dong `export {}` duoi day bien no thanh
+// module that su. Khong doi hanh vi luc chay, chi de tsc hieu dung.
+export {};
+
 const M = await import(
   "../src/app/lib/scoring.ts"
 );
