@@ -18,6 +18,11 @@ import { toast, Toaster } from "sonner";
 import { AdminPanel } from "./components/admin-panel";
 import { HistoryPanel } from "./components/history-panel";
 import { SettingsPanel } from "./components/settings-panel";
+import {
+  CALIBRATION_TARGET,
+  CalibrationBanner,
+  OnboardingOverlay,
+} from "./components/onboarding";
 import { NBackGame } from "./games/nback-game";
 import { MathSprintGame } from "./games/math-game";
 import { AchievementsPanel } from "./components/achievements-panel";
@@ -158,6 +163,34 @@ function AppInner() {
   const [popStats, setPopStats] = useState<PopulationStats>(DEFAULT_POPULATION);
   const [birthYearInput, setBirthYearInput] = useState("");
   const [savingAge, setSavingAge] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [showCalibrationComplete, setShowCalibrationComplete] = useState(false);
+  const previousRoundsRef = useRef<number | null>(null);
+  // Hooks/effects chay truoc nhanh `if (!profile)`, nen thu hep null tai day.
+  // Tai khoan chua nap ho so co 0 van; khong dung `profile!` de che loi that.
+  const roundsPlayed = profile ? totalRounds(profile) : 0;
+
+  const onboardingStorageKey = (profileId: string) =>
+    `nb_onboarding_seen_${profileId}`;
+
+  const markOnboardingSeen = useCallback(() => {
+    if (profile?.id) {
+      try {
+        localStorage.setItem(onboardingStorageKey(profile.id), "1");
+      } catch {
+        // Private mode/storage bi chan: dong modal van phai hoat dong.
+      }
+    }
+    setOnboardingDismissed(true);
+    setOnboardingOpen(false);
+  }, [profile?.id]);
+
+  const goToCalibration = useCallback(() => {
+    markOnboardingSeen();
+    setSelectedGame(null);
+    setActivePage("play");
+  }, [markOnboardingSeen]);
 
   useEffect(() => {
     (async () => {
@@ -258,6 +291,37 @@ function AppInner() {
       .then(setActivity)
       .catch((err) => logError("Activity stats failed:", err));
   }, [profile?.id, profile?.total_xp]);
+
+  // Ho so la nguon su that: localStorage chi nho da xem huong dan, khong quyet
+  // dinh trang thai hieu chuan. Tai khoan duoi 5 van luon thay thanh tien do.
+  useEffect(() => {
+    if (!profile?.id) {
+      previousRoundsRef.current = null;
+      setOnboardingDismissed(false);
+      setOnboardingOpen(false);
+      return;
+    }
+
+    const previous = previousRoundsRef.current;
+    if (
+      previous !== null &&
+      previous < CALIBRATION_TARGET &&
+      roundsPlayed >= CALIBRATION_TARGET
+    ) {
+      setShowCalibrationComplete(true);
+    }
+    previousRoundsRef.current = roundsPlayed;
+
+    if (roundsPlayed >= CALIBRATION_TARGET || onboardingDismissed) return;
+    try {
+      if (localStorage.getItem(onboardingStorageKey(profile.id)) !== "1") {
+        setOnboardingOpen(true);
+      }
+    } catch {
+      // Khong doc duoc storage: hien onboarding, nguoi dung van co the dong.
+      setOnboardingOpen(true);
+    }
+  }, [profile?.id, roundsPlayed, onboardingDismissed]);
 
   if (!authChecked) {
     return (
@@ -463,6 +527,15 @@ function AppInner() {
       <main className="relative z-10 max-w-[1380px] mx-auto px-5 py-7 pb-32 space-y-6">
         {activePage === "dashboard" && (
           <>
+            {(roundsPlayed < CALIBRATION_TARGET || showCalibrationComplete) && (
+              <CalibrationBanner
+                played={roundsPlayed}
+                completed={roundsPlayed >= CALIBRATION_TARGET}
+                onStart={goToCalibration}
+                onDismiss={() => setShowCalibrationComplete(false)}
+              />
+            )}
+
             {/* ROW 1: Scores + Radar */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="flex flex-col gap-5">
@@ -731,6 +804,21 @@ function AppInner() {
               }}
             />
 
+            <div className="flex justify-start">
+              <button
+                type="button"
+                onClick={() => setOnboardingOpen(true)}
+                className="rounded-xl px-4 py-2.5 text-xs font-semibold tracking-wider transition-all hover:brightness-125"
+                style={{
+                  color: "#00D4FF",
+                  background: "rgba(0,212,255,0.08)",
+                  border: "1px solid rgba(0,212,255,0.22)",
+                }}
+              >
+                {t.onboarding_reopen}
+              </button>
+            </div>
+
             <div className="flex justify-end">
               <button
                 onClick={onLogout}
@@ -752,6 +840,15 @@ function AppInner() {
         <RoundResultOverlay
           result={roundResult}
           onClose={() => setRoundResult(null)}
+        />
+      )}
+
+      {onboardingOpen && (
+        <OnboardingOverlay
+          username={profile.username}
+          played={roundsPlayed}
+          onClose={markOnboardingSeen}
+          onStart={goToCalibration}
         />
       )}
 

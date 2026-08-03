@@ -212,6 +212,39 @@ const vi = {
   settings_language: "Ngôn ngữ",
   settings_lang_vi: "Tiếng Việt",
   settings_lang_en: "English",
+  // Onboarding + calibration
+  onboarding_step: "BƯỚC {n}/3",
+  onboarding_welcome_title: "Chào mừng {u}",
+  onboarding_welcome_body:
+    "Neurobics giúp bạn luyện trí nhớ, tập trung, tốc độ, logic và không gian qua các ván ngắn; kết quả được tổng hợp thành hồ sơ nhận thức cá nhân.",
+  onboarding_disclaimer:
+    "Các chỉ số dùng để theo dõi luyện tập và tiến bộ, không phải kết quả chẩn đoán y tế.",
+  onboarding_calibration_title: "Hoàn thành 5 ván hiệu chuẩn",
+  onboarding_calibration_body:
+    "Năm ván đầu tạo đường cơ sở cho Cognitive Index và năm trục nhận thức. Điểm trước mốc này chỉ là tạm tính.",
+  onboarding_calibration_hint:
+    "Bạn có thể chơi bất kỳ game nào; nên thử nhiều nhóm để hồ sơ cân bằng hơn.",
+  onboarding_routine_title: "Bắt đầu nhịp luyện tập",
+  onboarding_routine_body:
+    "Chơi 2–3 ván ngắn mỗi ngày. Điểm từng ván phản ánh lần chơi đó, còn điểm hồ sơ sẽ tăng hoặc giảm dần theo kết quả thực tế.",
+  onboarding_quests_note:
+    "Mục Nhiệm vụ hằng ngày đã có sẵn trên Dashboard để hướng dẫn và trao XP — không tạo thêm hệ thử thách trùng lặp.",
+  onboarding_back: "QUAY LẠI",
+  onboarding_next: "TIẾP TỤC",
+  onboarding_skip: "Bỏ qua",
+  onboarding_start: "BẮT ĐẦU VÁN ĐẦU",
+  onboarding_continue: "TIẾP TỤC HIỆU CHUẨN",
+  onboarding_reopen: "XEM LẠI HƯỚNG DẪN",
+  calibration_label: "TIẾN ĐỘ HIỆU CHUẨN",
+  calibration_title: "Đang hiệu chuẩn hồ sơ",
+  calibration_remaining: (remaining: number) =>
+    `Còn ${remaining} ván để mở khóa chỉ số nhận thức có ý nghĩa.`,
+  calibration_play: "CHƠI TIẾP",
+  calibration_complete_title: "Hiệu chuẩn hoàn tất",
+  calibration_complete_body:
+    "Đã đủ 5/5 ván. Cognitive Index và các trục giờ có đường cơ sở để theo dõi tiến bộ.",
+  calibration_dismiss: "ĐÃ HIỂU",
+  // PWA install (giu tu ban A1/A2 da deploy)
   settings_install_section: "Cài đặt ứng dụng",
   settings_install_desc:
     "Thêm Neurobics vào màn hình chính để mở nhanh, chạy toàn màn hình và dùng như một ứng dụng độc lập.",
@@ -222,7 +255,8 @@ const vi = {
   settings_install_manual:
     "Nếu nút cài đặt chưa xuất hiện, mở menu của trình duyệt và chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”.",
   settings_install_success: "Đã cài Neurobics.",
-  settings_install_failed: "Không thể mở trình cài đặt. Vui lòng thử lại từ menu trình duyệt.",
+  settings_install_failed:
+    "Không thể mở trình cài đặt. Vui lòng thử lại từ menu trình duyệt.",
   settings_pw_current: "Mật khẩu hiện tại",
   settings_pw_new: "Mật khẩu mới",
   settings_pw_confirm: "Xác nhận mật khẩu mới",
@@ -469,6 +503,39 @@ const en: typeof vi = {
   settings_language: "Language",
   settings_lang_vi: "Tiếng Việt",
   settings_lang_en: "English",
+  // Onboarding + calibration
+  onboarding_step: "STEP {n}/3",
+  onboarding_welcome_title: "Welcome, {u}",
+  onboarding_welcome_body:
+    "Neurobics trains memory, focus, speed, logic, and spatial skill through short rounds, then combines the results into your cognitive profile.",
+  onboarding_disclaimer:
+    "These metrics track training and progress; they are not a medical diagnosis.",
+  onboarding_calibration_title: "Complete 5 calibration rounds",
+  onboarding_calibration_body:
+    "Your first five rounds establish a baseline for Cognitive Index and the five cognitive axes. Scores before that point are provisional.",
+  onboarding_calibration_hint:
+    "You may play any game; trying different categories creates a more balanced profile.",
+  onboarding_routine_title: "Build your training rhythm",
+  onboarding_routine_body:
+    "Play 2–3 short rounds each day. A round score describes that attempt, while profile ratings gradually rise or fall with real performance.",
+  onboarding_quests_note:
+    "Daily Quests already guide training and award XP on the Dashboard, so there is no duplicate daily-challenge system.",
+  onboarding_back: "BACK",
+  onboarding_next: "CONTINUE",
+  onboarding_skip: "Skip",
+  onboarding_start: "START FIRST ROUND",
+  onboarding_continue: "CONTINUE CALIBRATION",
+  onboarding_reopen: "VIEW GUIDE AGAIN",
+  calibration_label: "CALIBRATION PROGRESS",
+  calibration_title: "Calibrating your profile",
+  calibration_remaining: (remaining) =>
+    `${remaining} rounds remaining before your cognitive metrics have a meaningful baseline.`,
+  calibration_play: "PLAY NEXT",
+  calibration_complete_title: "Calibration complete",
+  calibration_complete_body:
+    "All 5/5 rounds are complete. Cognitive Index and the five axes now have a baseline for tracking progress.",
+  calibration_dismiss: "GOT IT",
+  // PWA install (kept from the deployed A1/A2 release)
   settings_install_section: "Install application",
   settings_install_desc:
     "Add Neurobics to your home screen for quick access, full-screen mode, and an app-like experience.",
@@ -479,7 +546,8 @@ const en: typeof vi = {
   settings_install_manual:
     "If the install button is unavailable, open your browser menu and choose “Install app” or “Add to Home screen”.",
   settings_install_success: "Neurobics installed.",
-  settings_install_failed: "Could not open the installer. Please use your browser menu.",
+  settings_install_failed:
+    "Could not open the installer. Please use your browser menu.",
   settings_pw_current: "Current password",
   settings_pw_new: "New password",
   settings_pw_confirm: "Confirm new password",
