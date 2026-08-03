@@ -50,6 +50,7 @@ export function createGuestProfile(username = "Khách"): GuestProfile {
     memory_sessions: 0,
     nback_sessions: 0,
     math_sessions: 0,
+    gonogo_sessions: 0,
     total_xp: 0,
     last_active_date: null,
     birth_year: null,
@@ -67,6 +68,7 @@ const SESSION_COL: Record<RoundGame, keyof Profile> = {
   memory: "memory_sessions",
   nback: "nback_sessions",
   math: "math_sessions",
+  gonogo: "gonogo_sessions",
 };
 
 function readAxis(profile: Profile, key: AxisKey): number {

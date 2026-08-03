@@ -52,6 +52,7 @@ export function RoundResultOverlay({
     memory: { title: "MEMORY MATRIX", accent: "#F43F5E" },
     nback: { title: "N-BACK", accent: "#8B5CF6" },
     math: { title: "MATH SPRINT", accent: "#38BDF8" },
+    gonogo: { title: "GO / NO-GO", accent: "#F97316" },
   };
   const meta = GAME_META[result.game] ?? GAME_META.sudoku;
   const accent = meta.accent;

@@ -6,7 +6,8 @@ export type Game =
   | "reaction"
   | "memory"
   | "nback"
-  | "math";
+  | "math"
+  | "gonogo";
 export type AxisRatings = {
   speed: number | null;
   focus: number | null;
@@ -505,6 +506,57 @@ function scoreNBack(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
 }
 
+// Go/No-Go: ức chế phản xạ. Focus là trục chính; Speed từ RT hit GO.
+// Client chuẩn: 40 trial, ~30% NOGO. Cho 30–48 để tương thích tinh chỉnh sau.
+const GONOGO_TRIALS_MIN = 30;
+const GONOGO_TRIALS_MAX = 48;
+
+function scoreGoNoGo(t: any): ScoredRound {
+  const timeMs = finite(t?.timeMs, "timeMs", 8_000, 600_000);
+  const trials = int(t?.trials, "trials", GONOGO_TRIALS_MIN, GONOGO_TRIALS_MAX);
+  const goTrials = int(t?.goTrials, "goTrials", 1, GONOGO_TRIALS_MAX);
+  const nogoTrials = int(t?.nogoTrials, "nogoTrials", 1, GONOGO_TRIALS_MAX);
+  const hits = int(t?.hits, "hits", 0, GONOGO_TRIALS_MAX);
+  const misses = int(t?.misses, "misses", 0, GONOGO_TRIALS_MAX);
+  const falseAlarms = int(t?.falseAlarms, "falseAlarms", 0, GONOGO_TRIALS_MAX);
+  const correctRejections = int(
+    t?.correctRejections,
+    "correctRejections",
+    0,
+    GONOGO_TRIALS_MAX,
+  );
+  const rts = numberArray(t?.rts, "rts", 0, GONOGO_TRIALS_MAX);
+
+  if (goTrials + nogoTrials !== trials)
+    throw new Error("Go/No-Go trial counts inconsistent");
+  if (hits + misses !== goTrials)
+    throw new Error("Go/No-Go GO outcomes inconsistent");
+  if (falseAlarms + correctRejections !== nogoTrials)
+    throw new Error("Go/No-Go NOGO outcomes inconsistent");
+  if (rts.length > hits)
+    throw new Error("Go/No-Go more RTs than hits");
+
+  const hitRate = hits / Math.max(1, goTrials);
+  const faRate = falseAlarms / Math.max(1, nogoTrials);
+  // Ức chế nặng hơn tốc độ bắt GO: false alarm ăn sâu vào accuracy.
+  const accuracy = clamp01(hitRate * 0.4 + (1 - faRate) * 0.6);
+  const statRts = statSamples(rts, 80);
+
+  const axes = {
+    ...NO_AXES,
+    // diff 0.9: elite + gần 0 FA mới gần full Focus.
+    focus: clamp(
+      MAX *
+        0.9 *
+        Math.pow(accuracy, 1.25) *
+        (0.5 + 0.5 * clamp01(1 - faRate * 1.35)),
+    ),
+    // Target 420ms — phản xạ có lựa chọn chậm hơn simple RT (~280).
+    speed: statRts.length >= 3 ? speed(statRts, 420, 0.88) : null,
+  };
+  return { axes, headline: headline(axes), label: "Go / No-Go", timeMs };
+}
+
 // ---- Rang buoc bien cho telemetry tho (chong gia mao tu DevTools) ----
 // Khong the chung minh tuyet doi, nhung chan duoc cac gia tri phi ly.
 // San THONG KE: mau nhanh hon nguong nay bi loai khoi median/CV (statSamples),
@@ -561,6 +613,9 @@ function assertCountBounds(game: Game, telemetry: unknown): void {
     "trials",
     "targets",
     "maxLevel",
+    "goTrials",
+    "nogoTrials",
+    "correctRejections",
   ])
     nonNeg(k);
 
@@ -599,6 +654,27 @@ function assertCountBounds(game: Game, telemetry: unknown): void {
     if (totalStimuli !== null && rtsLen !== null && rtsLen > totalStimuli)
       throw new Error("stroop: more reaction times than stimuli");
   }
+
+  if (game === "gonogo") {
+    const trials = num("trials");
+    const goTrials = num("goTrials");
+    const nogoTrials = num("nogoTrials");
+    const hits = num("hits");
+    const fa = num("falseAlarms");
+    if (
+      trials !== null &&
+      goTrials !== null &&
+      nogoTrials !== null &&
+      goTrials + nogoTrials !== trials
+    )
+      throw new Error("gonogo: go+nogo must equal trials");
+    if (goTrials !== null && hits !== null && hits > goTrials)
+      throw new Error("gonogo: hits exceed go trials");
+    if (nogoTrials !== null && fa !== null && fa > nogoTrials)
+      throw new Error("gonogo: false alarms exceed nogo trials");
+    if (goTrials !== null && rtsLen !== null && rtsLen > goTrials)
+      throw new Error("gonogo: more reaction times than go trials");
+  }
 }
 
 export function scoreAndValidate(
@@ -634,7 +710,9 @@ export function scoreAndValidate(
               ? scoreNBack(telemetry)
               : game === "math"
                 ? scoreMath(telemetry)
-                : scoreMemory(telemetry);
+                : game === "gonogo"
+                  ? scoreGoNoGo(telemetry)
+                  : scoreMemory(telemetry);
   // Client time may exclude fixed animations/wait periods. It may not exceed server elapsed by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000)
     throw new Error("Telemetry time exceeds server round time");

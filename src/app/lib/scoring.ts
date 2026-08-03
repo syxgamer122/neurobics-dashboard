@@ -336,6 +336,29 @@ export type NBackTelemetry = {
   rts: number[];
 };
 
+// ─── Go / No-Go → Focus, Speed ───────────────────────────────────────────
+// GO (vòng xanh) → phải bấm; NOGO (vuông đỏ) → không được bấm.
+// Focus đo ức chế phản xạ (false alarm phạt nặng). Speed lấy median RT hit GO.
+// Logic / Memory / Spatial = null.
+
+export type GoNoGoTelemetry = {
+  timeMs: number;
+  /** Tổng số trial (GO + NOGO). */
+  trials: number;
+  goTrials: number;
+  nogoTrials: number;
+  /** Bấm đúng trên GO. */
+  hits: number;
+  /** Bỏ lỡ GO (hết cửa sổ không bấm). */
+  misses: number;
+  /** Bấm nhầm trên NOGO. */
+  falseAlarms: number;
+  /** Đúng khi không bấm trên NOGO. */
+  correctRejections: number;
+  /** RT (ms) của các lần hit trên GO. */
+  rts: number[];
+};
+
 /** Headline number shown on the round overlay: the best axis earned this round. */
 
 // ─── Server is the only scorer ─────────────────────────────────────────

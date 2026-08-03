@@ -10,6 +10,7 @@ import {
   Focus,
   Sparkles,
   Calculator,
+  ShieldAlert,
   LogOut,
   Loader2,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { SudokuGame } from "./games/sudoku-game";
 import { StroopGame } from "./games/stroop-game";
 import { MemoryMatrixGame } from "./games/memory-game";
 import { ReactionTimeGame } from "./games/reaction-game";
+import { GoNoGoGame } from "./games/go-nogo-game";
 
 import { GlassCard } from "./components/ui/glass-card";
 import { GameTile } from "./components/ui/game-tile";
@@ -154,6 +156,7 @@ function AppInner() {
     | "reaction"
     | "nback"
     | "math"
+    | "gonogo"
     | null
   >(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
@@ -722,6 +725,15 @@ function AppInner() {
                   playLabel={t.play_now}
                   onPlay={() => setSelectedGame("math")}
                 />
+                <GameTile
+                  accent="#F97316"
+                  icon={<ShieldAlert size={22} />}
+                  tag={t.gonogo_tag}
+                  title="Go / No-Go"
+                  desc={t.gonogo_desc}
+                  playLabel={t.play_now}
+                  onPlay={() => setSelectedGame("gonogo")}
+                />
               </div>
             )}
 
@@ -780,6 +792,14 @@ function AppInner() {
                 <MathSprintGame
                   onComplete={makeGameHandler("math")}
                   onPlayStart={() => beginPlay("math")}
+                />
+              </div>
+            )}
+            {selectedGame === "gonogo" && (
+              <div className="max-w-sm">
+                <GoNoGoGame
+                  onComplete={makeGameHandler("gonogo")}
+                  onPlayStart={() => beginPlay("gonogo")}
                 />
               </div>
             )}

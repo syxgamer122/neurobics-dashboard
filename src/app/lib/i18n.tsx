@@ -179,6 +179,10 @@ const vi = {
   math_desc:
     "Hai mươi bốn phép tính, bốn lựa chọn. Có chế độ Thích ứng tăng dần độ khó.",
 
+  gonogo_tag: "ỨC CHẾ PHẢN XẠ",
+  gonogo_desc:
+    "Vòng xanh = bấm, vuông đỏ = không bấm. Luyện kiểm soát xung động và tập trung chọn lọc.",
+
   axis_memory: "Trí nhớ",
   axis_focus: "Tập trung",
   axis_logic: "Tư duy",
@@ -311,6 +315,27 @@ const vi = {
   nback_miss: "Bỏ lỡ",
   nback_false: "Bấm nhầm",
   nback_watch: "Ghi nhớ vị trí…",
+
+  // Go / No-Go
+  gonogo_hint:
+    "Bấm khi thấy vòng xanh (GO). Giữ yên khi thấy vuông đỏ (NO-GO). Phím cách cũng được.",
+  gonogo_start: "BẮT ĐẦU",
+  gonogo_restart: "CHƠI LẠI",
+  gonogo_complete: "HOÀN THÀNH",
+  gonogo_trial: "LƯỢT",
+  gonogo_hit: "Đúng GO",
+  gonogo_miss: "Bỏ lỡ",
+  gonogo_false: "Bấm nhầm",
+  gonogo_reject: "Đúng NOGO",
+  gonogo_go_label: "GO · BẤM",
+  gonogo_nogo_label: "NO-GO · GIỮ",
+  gonogo_intro_1: "Vòng xanh → bấm nhanh.",
+  gonogo_intro_2: "Vuông đỏ → tuyệt đối không bấm.",
+  gonogo_get_ready: "CHUẨN BỊ…",
+  gonogo_press_now: "BẤM NGAY",
+  gonogo_hold: "KHÔNG BẤM",
+  gonogo_wait: "CHỜ TÍN HIỆU…",
+  gonogo_accuracy: "Độ chính xác",
 };
 
 const en: typeof vi = {
@@ -480,6 +505,10 @@ const en: typeof vi = {
   math_desc:
     "Twenty-four problems, four choices. Includes Adaptive mode that ramps difficulty.",
 
+  gonogo_tag: "RESPONSE INHIBITION",
+  gonogo_desc:
+    "Green circle = tap, red square = hold still. Train impulse control and selective attention.",
+
   axis_memory: "Memory",
   axis_focus: "Focus",
   axis_logic: "Logic",
@@ -613,6 +642,27 @@ const en: typeof vi = {
   nback_miss: "Misses",
   nback_false: "False",
   nback_watch: "Memorise the positions…",
+
+  // Go / No-Go
+  gonogo_hint:
+    "Tap on the green circle (GO). Stay still on the red square (NO-GO). Spacebar works too.",
+  gonogo_start: "START",
+  gonogo_restart: "PLAY AGAIN",
+  gonogo_complete: "COMPLETE",
+  gonogo_trial: "TRIAL",
+  gonogo_hit: "GO hits",
+  gonogo_miss: "Misses",
+  gonogo_false: "False",
+  gonogo_reject: "NOGO OK",
+  gonogo_go_label: "GO · TAP",
+  gonogo_nogo_label: "NO-GO · HOLD",
+  gonogo_intro_1: "Green circle → tap fast.",
+  gonogo_intro_2: "Red square → do not tap.",
+  gonogo_get_ready: "GET READY…",
+  gonogo_press_now: "TAP NOW",
+  gonogo_hold: "DON'T TAP",
+  gonogo_wait: "WAIT…",
+  gonogo_accuracy: "Accuracy",
 };
 
 export const translations = { vi, en };

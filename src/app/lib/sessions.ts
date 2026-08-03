@@ -7,6 +7,7 @@ export const SESSION_COLUMNS = [
   "memory_sessions",
   "nback_sessions",
   "math_sessions",
+  "gonogo_sessions",
 ] as const;
 
 export type SessionColumn = (typeof SESSION_COLUMNS)[number];

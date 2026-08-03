@@ -960,7 +960,13 @@ export function AdminPanel({
                           </td>
                           <td className="px-4 py-2.5 text-xs text-slate-500">
                             {(r.schulte_sessions ?? 0) +
-                              (r.sudoku_sessions ?? 0)}
+                              (r.sudoku_sessions ?? 0) +
+                              (r.stroop_sessions ?? 0) +
+                              (r.reaction_sessions ?? 0) +
+                              (r.memory_sessions ?? 0) +
+                              (r.nback_sessions ?? 0) +
+                              (r.math_sessions ?? 0) +
+                              (r.gonogo_sessions ?? 0)}
                           </td>
                         </tr>
                       );

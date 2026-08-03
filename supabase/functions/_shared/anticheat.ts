@@ -210,6 +210,45 @@ function inspectMath(t: any): CheatFlag[] {
   return out;
 }
 
+function inspectGoNoGo(t: any): CheatFlag[] {
+  const rts = nums(t?.rts);
+  const out: CheatFlag[] = [];
+  if (rts.length >= 3) {
+    const med = median(rts);
+    // Choice RT chậm hơn simple RT; median < 160ms gần như không thể.
+    if (med < 160)
+      out.push(flag("Go/No-Go median impossibly low", "hard", { med }));
+    if (cv(rts) < ROBOT_CV)
+      out.push(flag("Go/No-Go timing too metronomic", "soft", { cv: cv(rts) }));
+  }
+  const fa = Number(t?.falseAlarms);
+  const hits = Number(t?.hits);
+  const goTrials = Number(t?.goTrials);
+  const nogoTrials = Number(t?.nogoTrials);
+  // 0 FA + 100% hit trên mẫu đủ lớn: có thể thật nhưng ghi soft để theo dõi.
+  if (
+    Number.isFinite(fa) &&
+    Number.isFinite(hits) &&
+    Number.isFinite(goTrials) &&
+    Number.isFinite(nogoTrials) &&
+    nogoTrials >= 8 &&
+    goTrials >= 16 &&
+    fa === 0 &&
+    hits === goTrials &&
+    rts.length >= 12 &&
+    median(rts) < 220
+  ) {
+    out.push(
+      flag("Perfect inhibition with very fast Go RTs", "soft", {
+        med: median(rts),
+        hits,
+        fa,
+      }),
+    );
+  }
+  return out;
+}
+
 export function inspectRound(
   game: string,
   telemetry: unknown,
@@ -233,7 +272,9 @@ export function inspectRound(
                 ? inspectMemory(t)
                 : game === "nback"
                   ? inspectNBack(t)
-                  : []),
+                  : game === "gonogo"
+                    ? inspectGoNoGo(t)
+                    : []),
   ];
   return { flags };
 }

@@ -129,7 +129,7 @@ check("level 50 -> Neuro Sage", getLevelTitle(50) === "Neuro Sage");
 
 // ------------------------------------------------------------------ SESSIONS
 section("sessions.ts");
-check("co du 7 cot game", SESSION_COLUMNS.length === 7, String(SESSION_COLUMNS.length));
+check("co du 8 cot game", SESSION_COLUMNS.length === 8, String(SESSION_COLUMNS.length));
 check("null profile -> 0", totalSessions(null) === 0);
 check("undefined -> 0", totalSessions(undefined) === 0);
 check("object rong -> 0", totalSessions({}) === 0);

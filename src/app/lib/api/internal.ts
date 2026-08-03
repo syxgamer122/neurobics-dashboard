@@ -55,6 +55,7 @@ export type Profile = {
   memory_sessions: number;
   nback_sessions: number;
   math_sessions: number;
+  gonogo_sessions: number;
   total_xp: number; // cumulative XP (drives Level)
   last_active_date: string | null; // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
@@ -117,7 +118,7 @@ export function describeError(err: unknown, context: string): string {
 // Select all columns so the app keeps working before/after the ALTER TABLE
 // migration adds memory_score, speed_score, focus_score, last_active_date.
 export const PROFILE_COLS =
-  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, created_at";
+  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, gonogo_sessions, created_at";
 
 // Danh sách rút gọn dùng cho bảng xếp hạng và thống kê quần thể. Hai truy vấn đó
 // đọc hồ sơ của MỌI người chơi, nên tuyệt đối không dùng "*" — làm thế là gửi
@@ -126,7 +127,7 @@ export const PROFILE_COLS =
 // tầng kiểu để suy ra kiểu của `data`. Dùng [...].join() sẽ cho kiểu `string`
 // chung chung, khiến TypeScript trả về GenericStringError\[\] và báo lỗi ép kiểu.
 export const LEADERBOARD_COLS =
-  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, created_at";
+  "id, username, avatar_url, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, gonogo_sessions, created_at";
 
 /** Sanitize every cognitive axis on a freshly-fetched profile. */
 export function sanitizeProfile(p: Profile): Profile {
@@ -137,6 +138,8 @@ export function sanitizeProfile(p: Profile): Profile {
     speed_score: sanitizeRating(p.speed_score),
     memory_score: sanitizeRating(p.memory_score),
     cfop_spatial_record: sanitizeRating(p.cfop_spatial_record),
+    // Cột mới có thể thiếu trên client cache trước khi migration chạy.
+    gonogo_sessions: Number(p.gonogo_sessions ?? 0) || 0,
   };
 }
 
