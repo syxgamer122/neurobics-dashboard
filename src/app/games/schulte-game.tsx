@@ -9,7 +9,11 @@ import {
   X,
 } from "lucide-react";
 import { useLang } from "../lib/i18n";
-import { fetchPersonalBests } from "../lib/api";
+import {
+  fetchSchulteConfigBests,
+  schulteBestMapKey,
+  type SchulteBestKey,
+} from "../lib/api";
 import { shuffleArray } from "../lib/sudoku-gen";
 import type { SchulteTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
@@ -95,18 +99,20 @@ export function SchulteTableGame({
   } | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [bestTime, setBestTime] = useState<number | null>(null);
   /**
-   * Ky luc TACH theo size x mode, luu localStorage (RPC server van chi co best
-   * gop theo game). Key: nb_schulte_best_<size>_<mode>. serverBestMs chi la
-   * moc tham khao chung khi chua co ky luc local cho cau hinh hien tai.
+   * Ky luc TACH theo size x mode.
+   * - Server (get_schulte_config_bests): nguon su that khi da dang nhap.
+   * - localStorage: cache + fallback offline/guest.
+   * Hien thi = min(server, local) cho cau hinh dang chon.
    */
-  const [serverBestMs, setServerBestMs] = useState<number | null>(null);
-  const schulteBestKey = (ns: SSize, nm: SMode) =>
+  const [bestByConfig, setBestByConfig] = useState<
+    Partial<Record<SchulteBestKey, number>>
+  >({});
+  const localStorageKey = (ns: SSize, nm: SMode) =>
     `nb_schulte_best_${ns}_${nm}`;
   const readLocalBest = (ns: SSize, nm: SMode): number | null => {
     try {
-      const raw = localStorage.getItem(schulteBestKey(ns, nm));
+      const raw = localStorage.getItem(localStorageKey(ns, nm));
       if (!raw) return null;
       const ms = Number(raw);
       return Number.isFinite(ms) && ms > 0 ? ms : null;
@@ -116,10 +122,19 @@ export function SchulteTableGame({
   };
   const writeLocalBest = (ns: SSize, nm: SMode, ms: number) => {
     try {
-      localStorage.setItem(schulteBestKey(ns, nm), String(ms));
+      localStorage.setItem(localStorageKey(ns, nm), String(ms));
     } catch {
       /* private mode */
     }
+  };
+  const mergeBest = (ns: SSize, nm: SMode, ms: number) => {
+    const key = schulteBestMapKey(ns, nm);
+    setBestByConfig((prev) => {
+      const cur = prev[key];
+      if (cur != null && cur <= ms) return prev;
+      return { ...prev, [key]: ms };
+    });
+    writeLocalBest(ns, nm, ms);
   };
   const [showCenter, setShowCenter] = useState(true);
   const [hearts, setHearts] = useState(3);
@@ -127,23 +142,40 @@ export function SchulteTableGame({
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wrongClicksRef = useRef(0);
-  // Hydrate ky luc tu server mot lan khi vao man. Loi mang thi bo qua: day chi
-  // la thong tin trang tri, khong duoc chan nguoi choi.
-  // Nap ky luc local dung cau hinh hien tai + best gop tu server (tham khao).
+  // Nap local cache cho moi size x mode (guest/offline) + server theo cau hinh.
   useEffect(() => {
-    setBestTime(readLocalBest(size, mode));
-  }, [size, mode]);
+    const local: Partial<Record<SchulteBestKey, number>> = {};
+    const sizes: SSize[] = [3, 4, 5, 6];
+    const modes: SMode[] = ["classic", "reverse", "dual"];
+    for (const ns of sizes) {
+      for (const nm of modes) {
+        const ms = readLocalBest(ns, nm);
+        if (ms != null) local[schulteBestMapKey(ns, nm)] = ms;
+      }
+    }
+    if (Object.keys(local).length) setBestByConfig((prev) => ({ ...local, ...prev }));
 
-  useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const bests = await fetchPersonalBests();
-        const schulte = bests.find((b) => b.game === "schulte");
-        const ms = schulte?.best_time_ms;
-        if (alive && typeof ms === "number" && ms > 0) setServerBestMs(ms);
+        const rows = await fetchSchulteConfigBests();
+        if (!alive) return;
+        setBestByConfig((prev) => {
+          const next = { ...prev };
+          for (const row of rows) {
+            if (row.best_time_ms == null || row.best_time_ms <= 0) continue;
+            const key = schulteBestMapKey(row.grid_size, row.mode);
+            const cur = next[key];
+            if (cur == null || row.best_time_ms < cur) {
+              next[key] = row.best_time_ms;
+              writeLocalBest(row.grid_size, row.mode, row.best_time_ms);
+            }
+          }
+          return next;
+        });
       } catch (err) {
-        logError("Schulte: personal best unavailable:", err);
+        // Guest / migration chua chay: van choi duoc bang local cache.
+        logError("Schulte: config bests unavailable:", err);
       }
     })();
     return () => {
@@ -180,9 +212,7 @@ export function SchulteTableGame({
         intervalRef.current = null;
       }
       clearTimers();
-      // Kỷ lục chỉ có nghĩa trong cùng một cấu hình: best của 3×3 không được
-      // phép đè lên best của 6×6. Doc lai local best cua cau hinh moi.
-      if (ns !== size || nm !== mode) setBestTime(readLocalBest(ns, nm));
+      // Doi size/mode: best hien thi lay tu map theo cau hinh (khong can setState rieng).
       setGrid(buildSchulteGrid(ns, nm));
       setSequence(buildSchulteSeq(ns, nm));
       setSeqIdx(0);
@@ -228,14 +258,9 @@ export function SchulteTableGame({
     const ms = Date.now() - (startRef.current ?? Date.now());
     setElapsed(ms);
     setStatus("done");
-    if (won) {
-      setBestTime((prev) => {
-        const next = prev === null || ms < prev ? ms : prev;
-        if (next === ms) writeLocalBest(size, mode, ms);
-        return next;
-      });
-    }
+    if (won) mergeBest(size, mode, ms);
     setSaving(true);
+    // Label chuan de RPC parse: "5×5 Classic" / "5×5 Reverse (failed)".
     const modeLabel = `${size}×${size} ${mode.charAt(0).toUpperCase() + mode.slice(1)}${
       lost ? " (failed)" : ""
     }`;
@@ -253,6 +278,27 @@ export function SchulteTableGame({
           failed: lost && !won,
           intendedCells: size * size,
         });
+        // Dong bo lai tu server sau khi training_sessions da ghi (user that).
+        if (won) {
+          try {
+            const rows = await fetchSchulteConfigBests();
+            setBestByConfig((prev) => {
+              const next = { ...prev };
+              for (const row of rows) {
+                if (row.best_time_ms == null || row.best_time_ms <= 0) continue;
+                const key = schulteBestMapKey(row.grid_size, row.mode);
+                const cur = next[key];
+                if (cur == null || row.best_time_ms < cur) {
+                  next[key] = row.best_time_ms;
+                  writeLocalBest(row.grid_size, row.mode, row.best_time_ms);
+                }
+              }
+              return next;
+            });
+          } catch {
+            /* offline / guest */
+          }
+        }
       } catch (err) {
         logError("Schulte completion: onComplete failed:", err);
       } finally {
@@ -333,8 +379,8 @@ export function SchulteTableGame({
 
   const target = sequence[seqIdx];
   const progress = seqIdx / sequence.length;
-  // Uu tien best dung size×mode; server chi dung khi chua co local cho cau hinh nay.
-  const displayedBestMs = bestTime ?? serverBestMs;
+  const displayedBestMs =
+    bestByConfig[schulteBestMapKey(size, mode)] ?? null;
   const SIZES: SSize[] = [3, 4, 5, 6];
   const MODES: { id: SMode; label: string; hint: string }[] = [
     { id: "classic", label: t.classic, hint: t.hint_classic(size * size) },
@@ -546,8 +592,6 @@ export function SchulteTableGame({
           >
             {fmtTime(elapsed)}
           </div>
-          {/* Guard cu la `bestTime !== null` nen nhanh `?? serverBestMs` khong
-              bao gio chay — ky luc fetch tu server chang bao gio hien ra. */}
           {displayedBestMs !== null && (
             <span
               className="text-xs mt-0.5"

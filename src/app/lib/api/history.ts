@@ -79,6 +79,66 @@ export async function fetchPersonalBests(): Promise<PersonalBest[]> {
   }));
 }
 
+/** Ky luc Schulte tach theo size (3-6) x mode (classic|reverse|dual). */
+export type SchulteConfigBest = {
+  grid_size: 3 | 4 | 5 | 6;
+  mode: "classic" | "reverse" | "dual";
+  best_time_ms: number | null;
+  best_score: number | null;
+  rounds: number;
+  last_played_at: string;
+};
+
+export type SchulteBestKey = `${SchulteConfigBest["grid_size"]}_${SchulteConfigBest["mode"]}`;
+
+export function schulteBestMapKey(
+  size: SchulteConfigBest["grid_size"],
+  mode: SchulteConfigBest["mode"],
+): SchulteBestKey {
+  return `${size}_${mode}`;
+}
+
+/**
+ * Doc ky luc Schulte theo tung cau hinh tu Postgres (auth.uid()).
+ * Can migration 20260822_schulte_config_bests.sql.
+ */
+export async function fetchSchulteConfigBests(): Promise<SchulteConfigBest[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("get_schulte_config_bests");
+  if (error) {
+    throw new Error(`Fetch Schulte config bests failed: ${error.message}`);
+  }
+
+  const allowedSize = new Set([3, 4, 5, 6]);
+  const allowedMode = new Set(["classic", "reverse", "dual"]);
+  const rows: unknown[] = Array.isArray(data) ? data : [];
+  const out: SchulteConfigBest[] = [];
+
+  for (const raw of rows) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Record<string, unknown>;
+    const grid = Number(row.grid_size);
+    const mode = String(row.mode ?? "").toLowerCase();
+    if (!allowedSize.has(grid) || !allowedMode.has(mode)) continue;
+
+    const bestTimeNum = Number(row.best_time_ms);
+    const bestScoreNum = Number(row.best_score);
+    out.push({
+      grid_size: grid as 3 | 4 | 5 | 6,
+      mode: mode as "classic" | "reverse" | "dual",
+      best_time_ms:
+        Number.isFinite(bestTimeNum) && bestTimeNum > 0 ? bestTimeNum : null,
+      best_score: Number.isFinite(bestScoreNum) ? bestScoreNum : null,
+      rounds: Number(row.rounds ?? 0),
+      last_played_at: String(row.last_played_at ?? ""),
+    });
+  }
+
+  return out;
+}
+
 // ─── Giai đoạn 3: chuỗi tiến trình theo ngày ───
 
 export type ProgressPoint = {
