@@ -19,7 +19,8 @@ const SHOW_MS = 850;
 /** Tỷ lệ lượt cố tình tạo trùng khớp. */
 const TARGET_RATE = 0.3;
 
-const LEVELS = [2, 3, 4] as const;
+// Them 5-back va 6-back: nguoi choi cao cap khong cham tran o n=4.
+const LEVELS = [2, 3, 4, 5, 6] as const;
 
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
@@ -212,19 +213,21 @@ export function NBackGame({
           >
             {s.level}
           </div>
-          <div className="flex gap-2 mb-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
             {LEVELS.map((lv) => (
               <button
                 key={lv}
+                type="button"
                 onClick={() => setN(lv)}
-                className="flex-1 py-2 rounded-xl text-xs transition-all"
+                className="py-2 rounded-xl text-xs transition-all"
                 style={{
                   background:
                     n === lv ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.04)",
                   border: `1px solid ${
                     n === lv ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.08)"
                   }`,
-                  color: n === lv ? "#A855F7" : "rgba(255,255,255,0.55)"}}
+                  color: n === lv ? "#A855F7" : "rgba(255,255,255,0.55)",
+                }}
               >
                 {lv}-Back
               </button>

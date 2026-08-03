@@ -97,12 +97,30 @@ export function SchulteTableGame({
   const [saving, setSaving] = useState(false);
   const [bestTime, setBestTime] = useState<number | null>(null);
   /**
-   * Ky luc luu tren server (RPC get_personal_bests). Truoc day bestTime chi nam
-   * trong state nen reload la mat trang. Luu y: RPC tra ve best THEO GAME, chua
-   * tach theo size x mode — nen day chi la moc tham khao chung cho Schulte, va
-   * chi hien khi nguoi choi chua lap ky luc moi trong phien nay.
+   * Ky luc TACH theo size x mode, luu localStorage (RPC server van chi co best
+   * gop theo game). Key: nb_schulte_best_<size>_<mode>. serverBestMs chi la
+   * moc tham khao chung khi chua co ky luc local cho cau hinh hien tai.
    */
   const [serverBestMs, setServerBestMs] = useState<number | null>(null);
+  const schulteBestKey = (ns: SSize, nm: SMode) =>
+    `nb_schulte_best_${ns}_${nm}`;
+  const readLocalBest = (ns: SSize, nm: SMode): number | null => {
+    try {
+      const raw = localStorage.getItem(schulteBestKey(ns, nm));
+      if (!raw) return null;
+      const ms = Number(raw);
+      return Number.isFinite(ms) && ms > 0 ? ms : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeLocalBest = (ns: SSize, nm: SMode, ms: number) => {
+    try {
+      localStorage.setItem(schulteBestKey(ns, nm), String(ms));
+    } catch {
+      /* private mode */
+    }
+  };
   const [showCenter, setShowCenter] = useState(true);
   const [hearts, setHearts] = useState(3);
   const MAX_HEARTS = 3;
@@ -111,6 +129,11 @@ export function SchulteTableGame({
   const wrongClicksRef = useRef(0);
   // Hydrate ky luc tu server mot lan khi vao man. Loi mang thi bo qua: day chi
   // la thong tin trang tri, khong duoc chan nguoi choi.
+  // Nap ky luc local dung cau hinh hien tai + best gop tu server (tham khao).
+  useEffect(() => {
+    setBestTime(readLocalBest(size, mode));
+  }, [size, mode]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -158,8 +181,8 @@ export function SchulteTableGame({
       }
       clearTimers();
       // Kỷ lục chỉ có nghĩa trong cùng một cấu hình: best của 3×3 không được
-      // phép đè lên best của 6×6.
-      if (ns !== size || nm !== mode) setBestTime(null);
+      // phép đè lên best của 6×6. Doc lai local best cua cau hinh moi.
+      if (ns !== size || nm !== mode) setBestTime(readLocalBest(ns, nm));
       setGrid(buildSchulteGrid(ns, nm));
       setSequence(buildSchulteSeq(ns, nm));
       setSeqIdx(0);
@@ -205,7 +228,13 @@ export function SchulteTableGame({
     const ms = Date.now() - (startRef.current ?? Date.now());
     setElapsed(ms);
     setStatus("done");
-    if (won) setBestTime((prev) => (prev === null || ms < prev ? ms : prev));
+    if (won) {
+      setBestTime((prev) => {
+        const next = prev === null || ms < prev ? ms : prev;
+        if (next === ms) writeLocalBest(size, mode, ms);
+        return next;
+      });
+    }
     setSaving(true);
     const modeLabel = `${size}×${size} ${mode.charAt(0).toUpperCase() + mode.slice(1)}${
       lost ? " (failed)" : ""
@@ -304,6 +333,7 @@ export function SchulteTableGame({
 
   const target = sequence[seqIdx];
   const progress = seqIdx / sequence.length;
+  // Uu tien best dung size×mode; server chi dung khi chua co local cho cau hinh nay.
   const displayedBestMs = bestTime ?? serverBestMs;
   const SIZES: SSize[] = [3, 4, 5, 6];
   const MODES: { id: SMode; label: string; hint: string }[] = [

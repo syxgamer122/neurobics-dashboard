@@ -108,13 +108,13 @@ const cases: Case[] = [];
   });
 }
 {
-  const r = rts(5, 320);
+  const r = rts(10, 320);
   cases.push({
     id: "A4",
-    desc: "Reaction 5 lan ~320ms",
+    desc: "Reaction 10 lan ~320ms",
     game: "reaction",
     tel: { rts: r, falseStarts: 0, timeMs: sum(r) },
-    elapsed: 20000,
+    elapsed: 40000,
     expect: {
       check: (s) => (s.axes.speed > 500 ? null : `speed=${s.axes.speed}`),
     },
@@ -262,13 +262,13 @@ cases.push({
 
 // ─────────── E. San RT: 80-120ms chi soft, duoi 80 moi tu choi ───────────
 {
-  const r = [100, 305, 340, 298, 361];
+  const r = [100, 305, 340, 298, 361, 312, 328, 301, 355, 318];
   cases.push({
     id: "E1",
     desc: "Reaction co 1 mau 100ms (bam du doan)",
     game: "reaction",
     tel: { rts: r, falseStarts: 0, timeMs: sum(r) },
-    elapsed: 20000,
+    elapsed: 40000,
     expect: {
       reject: false,
       hardFlag: false,
@@ -277,24 +277,24 @@ cases.push({
   });
 }
 {
-  const r = [95, 101, 88, 110, 99];
+  const r = [95, 101, 88, 110, 99, 102, 97, 105, 93, 108];
   cases.push({
     id: "E2",
     desc: "Reaction TAT CA mau trong 80-120ms (dang bot)",
     game: "reaction",
     tel: { rts: r, falseStarts: 0, timeMs: sum(r) },
-    elapsed: 20000,
+    elapsed: 40000,
     expect: { reject: false, softFlagContains: "120ms" },
   });
 }
 {
-  const r = [45, 310, 330, 300, 350];
+  const r = [45, 310, 330, 300, 350, 320, 315, 305, 340, 325];
   cases.push({
     id: "E3",
     desc: "Reaction co mau 45ms (duoi san cung 80ms)",
     game: "reaction",
     tel: { rts: r, falseStarts: 0, timeMs: sum(r) },
-    elapsed: 20000,
+    elapsed: 40000,
     expect: { reject: true },
   });
 }
@@ -443,7 +443,11 @@ cases.push({
   id: "G5",
   desc: "Tong RT vuot thoi gian van",
   game: "reaction",
-  tel: { rts: [9000, 9000, 9000, 9000, 9000], falseStarts: 0, timeMs: 45000 },
+  tel: {
+    rts: [9000, 9000, 9000, 9000, 9000, 9000, 9000, 9000, 9000, 9000],
+    falseStarts: 0,
+    timeMs: 90000,
+  },
   elapsed: 3000,
   expect: { reject: true },
 });
@@ -464,11 +468,11 @@ cases.push({
   desc: "Reaction bot deu tam tap (CV cuc thap) -> soft flag, KHONG hard",
   game: "reaction",
   tel: {
-    rts: [200, 201, 200, 199, 200],
+    rts: [200, 201, 200, 199, 200, 200, 201, 199, 200, 200],
     falseStarts: 0,
-    timeMs: 1000,
+    timeMs: 2000,
   },
-  elapsed: 20000,
+  elapsed: 40000,
   // Chu y: co y KHONG hard-flag. Nhip do qua deu chi la nghi ngo, nguoi that
   // luyen nhieu cung ra CV thap. Chinh sach da chot: "tha lot con hon bat oan"
   // => chi gan soft flag de review, khong tu dong chan van dau.

@@ -308,7 +308,7 @@ export type MemoryTelemetry = {
 // working memory kinh điển. Chỉ bấm đúng thôi chưa đủ: bấm bừa (false alarm) bị
 // trừ nặng, giống cách d-prime phạt đoán mò.
 // ─── Math Sprint ────────────────────────────────────────────────────────
-export type MathDifficulty = "easy" | "medium" | "hard";
+export type MathDifficulty = "easy" | "medium" | "hard" | "adaptive";
 
 export type MathTelemetry = {
   timeMs: number;

@@ -14,7 +14,8 @@ export function ReactionTimeGame({
   onPlayStart?: () => void;
 }) {
   const { t } = useLang();
-  const TOTAL_TRIALS = 5;
+  // 10 lan: median on dinh hon 5 lan, giam nhieu do 1 mau le.
+  const TOTAL_TRIALS = 10;
 
   type ReactionPhase = "idle" | "waiting" | "ready" | "result" | "done";
 

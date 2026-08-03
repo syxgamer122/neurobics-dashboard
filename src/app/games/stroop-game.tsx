@@ -58,7 +58,8 @@ export function StroopGame({
   onPlayStart?: () => void;
 }) {
   const { t } = useLang();
-  const TOTAL = 20;
+  // 30 cau: du dai de bat met / mat tap trung, van ngan hon 2 phut neu choi tot.
+  const TOTAL = 30;
   const MAX_HEARTS = 3;
 
   const colorLabel = (id: StroopColorId): string =>

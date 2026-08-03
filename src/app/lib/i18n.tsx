@@ -100,7 +100,7 @@ const vi = {
   // Reaction Time
   rx_tag: "LUYỆN TỐC ĐỘ",
   rx_desc:
-    "Chờ tín hiệu chuyển xanh rồi phản ứng nhanh nhất có thể. Bấm sớm sẽ bị phạt.",
+    "Chờ tín hiệu chuyển xanh rồi phản ứng nhanh nhất có thể · 10 lần đo. Bấm sớm sẽ bị phạt.",
   rx_wait: "Chờ tín hiệu chuyển xanh...",
   rx_now: "BẤM NGAY!",
   rx_too_soon_msg: "BẤM QUÁ SỚM!",
@@ -169,7 +169,7 @@ const vi = {
 
   math_tag: "TÍNH NHẨM",
   math_desc:
-    "Hai mươi phép tính, bốn lựa chọn. Vừa đo khả năng tính toán vừa đo tốc độ xử lý.",
+    "Hai mươi bốn phép tính, bốn lựa chọn. Có chế độ Thích ứng tăng dần độ khó.",
 
   axis_memory: "Trí nhớ",
   axis_focus: "Tập trung",
@@ -273,7 +273,7 @@ const vi = {
   // Stroop Test
   stroop_tag: "LUYỆN TẬP ỨC CHẾ",
   stroop_desc:
-    "Nhận diện màu MỰC, không phải nghĩa từ · 20 kích thích · Rèn luyện kiểm soát ức chế nhận thức.",
+    "Nhận diện màu MỰC, không phải nghĩa từ · 30 kích thích · Rèn luyện kiểm soát ức chế nhận thức.",
   stroop_instruction: "Click MÀU MỰC",
   stroop_hint: "Bỏ qua nghĩa từ — click MÀU của chữ",
   stroop_trial: "Lần",
@@ -281,7 +281,8 @@ const vi = {
   stroop_complete: "HOÀN THÀNH",
   // Color names (Vietnamese)
   // Math Sprint — chuoi trong man choi (gom tu TXT cuc bo)
-  math_hint: "Hai mươi phép tính, bốn lựa chọn. Không làm lại câu sai.",
+  math_hint:
+    "Hai mươi bốn phép tính, bốn lựa chọn. Chế độ Thích ứng tăng dần từ dễ đến khó.",
   math_level: "Chọn độ khó",
   math_start: "BẮT ĐẦU",
   math_q: "Câu",
@@ -290,6 +291,7 @@ const vi = {
   math_easy: "Dễ",
   math_medium: "Vừa",
   math_hard: "Khó",
+  math_adaptive: "Thích ứng",
 
   // N-Back — chuoi trong man choi (gom tu TXT cuc bo)
   nback_hint: "Bấm KHỚP khi ô đang sáng trùng với ô đã hiện N lượt trước.",
@@ -396,7 +398,7 @@ const en: typeof vi = {
   // Reaction Time
   rx_tag: "SPEED TRAINING",
   rx_desc:
-    "Wait for the signal to turn green, then react as fast as you can. Early clicks are penalised.",
+    "Wait for the signal to turn green, then react as fast as you can · 10 trials. Early clicks are penalised.",
   rx_wait: "Wait for the green signal...",
   rx_now: "CLICK NOW!",
   rx_too_soon_msg: "TOO SOON!",
@@ -460,7 +462,7 @@ const en: typeof vi = {
 
   math_tag: "MENTAL MATH",
   math_desc:
-    "Twenty problems, four choices. Measures both calculation and processing speed.",
+    "Twenty-four problems, four choices. Includes Adaptive mode that ramps difficulty.",
 
   axis_memory: "Memory",
   axis_focus: "Focus",
@@ -564,7 +566,7 @@ const en: typeof vi = {
   // Stroop Test
   stroop_tag: "INHIBITION TRAINING",
   stroop_desc:
-    "Identify the INK color, not the word meaning · 20 stimuli · Trains inhibitory control & cognitive flexibility.",
+    "Identify the INK color, not the word meaning · 30 stimuli · Trains inhibitory control & cognitive flexibility.",
   stroop_instruction: "Click the INK COLOR",
   stroop_hint: "Ignore the word — click the COLOR of the text",
   stroop_trial: "Trial",
@@ -572,7 +574,8 @@ const en: typeof vi = {
   stroop_complete: "COMPLETE",
   // Color names (English)
   // Math Sprint — in-round strings
-  math_hint: "Twenty problems, four choices. No second try on misses.",
+  math_hint:
+    "Twenty-four problems, four choices. Adaptive mode ramps from easy to hard.",
   math_level: "Choose difficulty",
   math_start: "START",
   math_q: "Q",
@@ -581,6 +584,7 @@ const en: typeof vi = {
   math_easy: "Easy",
   math_medium: "Medium",
   math_hard: "Hard",
+  math_adaptive: "Adaptive",
 
   // N-Back — in-round strings
   nback_hint:

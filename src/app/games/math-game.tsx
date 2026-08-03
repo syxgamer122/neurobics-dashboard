@@ -4,10 +4,11 @@ import { useLang } from "../lib/i18n";
 import type { MathDifficulty, MathTelemetry } from "../lib/scoring";
 
 // ─── Math Sprint ──────────────────────────────────────────────────────────
-// 20 phép tính, mỗi câu 4 đáp án. Đo logic (đúng/sai) + tốc độ (độ trễ từng câu).
+// 24 phép tính, mỗi câu 4 đáp án. Đo logic (đúng/sai) + tốc độ (độ trễ từng câu).
+// Che do adaptive: 8 de + 8 vua + 8 kho trong cung mot van.
 // Toàn bộ điểm được chấm lại ở server; client chỉ thu thập số liệu thô.
 
-const TOTAL = 20;
+const TOTAL = 24;
 const ACCENT = "#38BDF8";
 
 const panelStyle: React.CSSProperties = {
@@ -194,7 +195,18 @@ function makeProblem(diff: MathDifficulty): Problem {
 }
 
 function buildSet(diff: MathDifficulty): Problem[] {
-  return Array.from({ length: TOTAL }, () => makeProblem(diff));
+  if (diff !== "adaptive") {
+    return Array.from({ length: TOTAL }, () => makeProblem(diff));
+  }
+  // Ramp de -> vua -> kho (8 cau moi tang). Khong doi do kho giua cau theo
+  // streak thoi gian thuc de diem van so sanh duoc giua cac van adaptive.
+  const out: Problem[] = [];
+  for (let i = 0; i < TOTAL; i++) {
+    const tier: MathDifficulty =
+      i < 8 ? "easy" : i < 16 ? "medium" : "hard";
+    out.push(makeProblem(tier));
+  }
+  return out;
 }
 
 export function MathSprintGame({
@@ -217,6 +229,7 @@ export function MathSprintGame({
     easy: t.math_easy,
     medium: t.math_medium,
     hard: t.math_hard,
+    adaptive: t.math_adaptive,
   };
 
   // Khớp MIN_RT_MS trong supabase/functions/_shared/round-scoring.ts.
@@ -348,6 +361,7 @@ export function MathSprintGame({
     { id: "easy", label: s.easy },
     { id: "medium", label: s.medium },
     { id: "hard", label: s.hard },
+    { id: "adaptive", label: s.adaptive },
   ];
 
   return (
@@ -373,12 +387,13 @@ export function MathSprintGame({
           >
             {s.level}
           </div>
-          <div className="flex gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
             {levels.map((lv) => (
               <button
                 key={lv.id}
+                type="button"
                 onClick={() => setDiff(lv.id)}
-                className="flex-1 py-2 rounded-xl text-xs transition-all"
+                className="py-2 rounded-xl text-xs transition-all"
                 style={{
                   background:
                     diff === lv.id
@@ -389,7 +404,8 @@ export function MathSprintGame({
                       ? "rgba(56,189,248,0.5)"
                       : "rgba(255,255,255,0.08)"
                   }`,
-                  color: diff === lv.id ? ACCENT : "rgba(255,255,255,0.55)"}}
+                  color: diff === lv.id ? ACCENT : "rgba(255,255,255,0.55)",
+                }}
               >
                 {lv.label}
               </button>
@@ -422,7 +438,9 @@ export function MathSprintGame({
                 ? s.easy
                 : diff === "medium"
                   ? s.medium
-                  : s.hard}
+                  : diff === "hard"
+                    ? s.hard
+                    : s.adaptive}
             </span>
           </div>
 

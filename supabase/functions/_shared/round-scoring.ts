@@ -338,7 +338,7 @@ function scoreSudoku(t: any): ScoredRound {
   };
 }
 /** So cau chuan de hoan thanh mot van Stroop (khop TOTAL ben stroop-game.tsx). */
-const STROOP_TRIALS = 20;
+const STROOP_TRIALS = 30;
 
 function scoreStroop(t: any): ScoredRound {
   // totalStimuli = so lan stimulus da hien (dung + sai), khong con hardcode 20.
@@ -370,9 +370,10 @@ function scoreStroop(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
 }
 function scoreReaction(t: any): ScoredRound {
-  const rts = numberArray(t?.rts, "rts", 5, 5);
+  // Client hien tai gui dung 10 mau. Cho 8-12 de tuong thich ban cu/moi.
+  const rts = numberArray(t?.rts, "rts", 8, 12);
   const falseStarts = int(t?.falseStarts, "falseStarts", 0, 50);
-  const timeMs = finite(t?.timeMs, "timeMs", 5, 60_000);
+  const timeMs = finite(t?.timeMs, "timeMs", 5, 120_000);
   const accuracy = rts.length / (rts.length + falseStarts);
   // Bam anticipation ~100ms la co that o Reaction: mau do bi loai khoi thong ke
   // thay vi lam hong ca van (xem statSamples).
@@ -414,17 +415,21 @@ const MATH_DIFF: Record<string, number> = {
   easy: 0.55,
   medium: 0.74,
   hard: 0.92,
+  // Adaptive: de -> vua -> kho trong 1 van; he so nam giua medium va hard.
+  adaptive: 0.84,
 };
 // Target thap hon = phai tra loi nhanh that de full speed.
 const MATH_TARGET_MS: Record<string, number> = {
   easy: 2400,
   medium: 3400,
   hard: 4600,
+  adaptive: 3800,
 };
 const MATH_LABEL: Record<string, string> = {
   easy: "Math Easy",
   medium: "Math Medium",
   hard: "Math Hard",
+  adaptive: "Math Adaptive",
 };
 function scoreMath(t: any): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
@@ -482,8 +487,8 @@ function scoreNBack(t: any): ScoredRound {
   // FA phat nang hon (0.95): bam nham nhieu ha diem ro.
   const faRate = clamp01(falseAlarms / Math.max(1, trials - targets));
   const accuracy = clamp01(hitRate - faRate * 0.95);
-  // n=2 chuan ~0.55 depth; n=4 moi gan day. Truoc (n+1)/5 qua de full o n=2.
-  const depth = clamp01(n / 5);
+  // n=2 ~0.33, n=3 ~0.5, n=4 ~0.67, n=5 ~0.83, n=6 = day. Truoc /5 de full o n=5.
+  const depth = clamp01(n / 6);
 
   const axes = {
     ...NO_AXES,
