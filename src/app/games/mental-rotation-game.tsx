@@ -5,21 +5,23 @@ import type { MentalRotationTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
 // ─── Mental Rotation (2D) ───────────────────────────────────────────────────
-// Hai hình đa giác: hình phải là bản xoay (SAME) hoặc bản gương + xoay (MIRROR).
-// Spatial chính; Speed phụ từ RT. Server chấm lại toàn bộ.
+// Hai hình polyomino: hình phải = xoay (SAME) hoặc gương + xoay (MIRROR).
+// Xoay/gương dùng SVG transform (không tự nhân ma trận từng điểm) → T/L/F
+// không bị "méo" cảm giác khi quay.
+// Spatial chính; Speed phụ. Server chấm lại toàn bộ.
 
 const TOTAL = 24;
 const ACCENT = "#22D3EE";
-const ANGLES = [0, 60, 120, 180, 240, 300] as const;
+/** Góc 45° bước — dễ đọc hơn 60° với hình block. */
+const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315] as const;
+const CELL = 18; // px / ô lưới trong viewBox local
+const VIEW = 140;
 
 type Phase = "idle" | "playing" | "done";
 
 type Trial = {
-  /** Góc xoay hình phải (độ). */
   angle: number;
-  /** true = hình gương (khác), false = cùng hình xoay. */
   mirror: boolean;
-  /** Chỉ số hình gốc trong SHAPES. */
   shapeId: number;
 };
 
@@ -31,73 +33,186 @@ const panelStyle: React.CSSProperties = {
   boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
 };
 
-/** Các đa giác 2D đơn giản (tọa độ -1..1), vẽ bằng SVG polygon. */
-const SHAPES: number[][][] = [
-  // Mũi tên / chevron
+/**
+ * Mỗi shape = danh sách ô [col, row] trên lưới (polyomino).
+ * Gốc (0,0) góc trên-trái bounding box; sẽ được căn giữa khi vẽ.
+ * Chỉ dùng hình BẤT ĐỐI XỨNG qua trục dọc — nếu gương trùng gốc thì trial vô nghĩa.
+ */
+type Cell = readonly [number, number];
+
+const SHAPE_CELLS: Cell[][] = [
+  // T tetromino (4 ô) — ngang trên, chân giữa
   [
-    [0, -0.9],
-    [0.7, 0.1],
-    [0.25, 0.1],
-    [0.25, 0.9],
-    [-0.25, 0.9],
-    [-0.25, 0.1],
-    [-0.7, 0.1],
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [1, 1],
+    [1, 2],
   ],
-  // Chữ L
+  // L
   [
-    [-0.7, -0.9],
-    [0.1, -0.9],
-    [0.1, 0.3],
-    [0.7, 0.3],
-    [0.7, 0.9],
-    [-0.7, 0.9],
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [1, 2],
+    [2, 2],
   ],
-  // Z / sét
+  // J (gương L — khác shapeId, vẫn asymmetric)
   [
-    [-0.8, -0.85],
-    [0.5, -0.85],
-    [0.5, -0.25],
-    [0.85, -0.25],
-    [-0.4, 0.85],
-    [-0.85, 0.85],
-    [-0.85, 0.25],
-    [-0.5, 0.25],
+    [2, 0],
+    [2, 1],
+    [0, 2],
+    [1, 2],
+    [2, 2],
   ],
-  // T
+  // S
   [
-    [-0.85, -0.9],
-    [0.85, -0.9],
-    [0.85, -0.35],
-    [0.25, -0.35],
-    [0.25, 0.9],
-    [-0.25, 0.9],
-    [-0.25, -0.35],
-    [-0.85, -0.35],
+    [1, 0],
+    [2, 0],
+    [0, 1],
+    [1, 1],
+    [0, 2],
   ],
-  // F
+  // Z
   [
-    [-0.7, -0.9],
-    [0.75, -0.9],
-    [0.75, -0.45],
-    [-0.15, -0.45],
-    [-0.15, -0.1],
-    [0.55, -0.1],
-    [0.55, 0.3],
-    [-0.15, 0.3],
-    [-0.15, 0.9],
-    [-0.7, 0.9],
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [2, 1],
+    [2, 2],
   ],
-  // Cờ / P lệch
+  // F pentomino
   [
-    [-0.65, -0.9],
-    [0.35, -0.9],
-    [0.75, -0.45],
-    [0.35, 0.05],
-    [-0.15, 0.05],
-    [-0.15, 0.9],
-    [-0.65, 0.9],
+    [1, 0],
+    [2, 0],
+    [0, 1],
+    [1, 1],
+    [1, 2],
+  ],
+  // P / F ngắn
+  [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [0, 2],
+  ],
+  // N / skewed
+  [
+    [1, 0],
+    [2, 0],
+    [0, 1],
+    [1, 1],
+    [0, 2],
+    [0, 3],
+  ],
+  // Y / branch
+  [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [1, 2],
+    [1, 3],
+  ],
+  // U
+  [
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [1, 2],
+    [2, 2],
+    [2, 0],
+    [2, 1],
+  ],
+  // Arrow up (chevron block)
+  [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [1, 2],
+    [1, 3],
+  ],
+  // Plus lệch (không đối xứng)
+  [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [1, 2],
+    [1, 3],
+    [2, 3],
+  ],
+  // Stairs 4
+  [
+    [0, 0],
+    [0, 1],
+    [1, 1],
+    [1, 2],
+    [2, 2],
+    [2, 3],
+  ],
+  // Hook
+  [
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+    [1, 2],
+  ],
+  // Gun / P long
+  [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [0, 2],
+    [0, 3],
+  ],
+  // Corner thick
+  [
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [0, 1],
+    [0, 2],
+    [1, 2],
   ],
 ];
+
+function cellsToPath(cells: Cell[]): {
+  d: string;
+  width: number;
+  height: number;
+} {
+  const set = new Set(cells.map(([c, r]) => `${c},${r}`));
+  let maxC = 0;
+  let maxR = 0;
+  for (const [c, r] of cells) {
+    if (c > maxC) maxC = c;
+    if (r > maxR) maxR = r;
+  }
+  const w = maxC + 1;
+  const h = maxR + 1;
+
+  // Vẽ từng ô vuông (union visual). Dùng path M/L/Z cho mỗi ô — đơn giản, rõ block.
+  const parts: string[] = [];
+  const s = CELL;
+  const pad = 1; // khe mỏng giữa ô → nhìn polyomino rõ khi xoay
+  for (const [c, r] of cells) {
+    if (!set.has(`${c},${r}`)) continue;
+    const x = c * s + pad;
+    const y = r * s + pad;
+    const ew = s - pad * 2;
+    const eh = s - pad * 2;
+    parts.push(`M${x} ${y}h${ew}v${eh}h${-ew}z`);
+  }
+  return { d: parts.join(""), width: w * s, height: h * s };
+}
+
+const SHAPE_PATHS = SHAPE_CELLS.map(cellsToPath);
 
 function shuffleInPlace<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -109,39 +224,14 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 
 function buildTrials(total: number): Trial[] {
   const out: Trial[] = [];
-  // ~50% mirror
   for (let i = 0; i < total; i++) {
     out.push({
       angle: ANGLES[i % ANGLES.length],
       mirror: i % 2 === 1,
-      shapeId: i % SHAPES.length,
+      shapeId: i % SHAPE_PATHS.length,
     });
   }
-  // Xáo nhưng giữ phân bố góc khá đều
   return shuffleInPlace(out);
-}
-
-function pointsToSvg(
-  pts: number[][],
-  opts: { mirror?: boolean; angle?: number; size?: number },
-): string {
-  const size = opts.size ?? 120;
-  const cx = size / 2;
-  const cy = size / 2;
-  const scale = size * 0.38;
-  const rad = ((opts.angle ?? 0) * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const mirror = opts.mirror ? -1 : 1;
-
-  return pts
-    .map(([x, y]) => {
-      const mx = x * mirror;
-      const rx = mx * cos - y * sin;
-      const ry = mx * sin + y * cos;
-      return `${cx + rx * scale},${cy + ry * scale}`;
-    })
-    .join(" ");
 }
 
 function ShapeView({
@@ -155,8 +245,16 @@ function ShapeView({
   mirror: boolean;
   label: string;
 }) {
-  const pts = SHAPES[shapeId] ?? SHAPES[0];
-  const poly = pointsToSvg(pts, { angle, mirror, size: 140 });
+  const shape = SHAPE_PATHS[shapeId] ?? SHAPE_PATHS[0];
+  const cx = VIEW / 2;
+  const cy = VIEW / 2;
+  // Căn giữa shape trong viewBox, rồi scale X = -1 nếu gương, rồi rotate.
+  // Thứ tự SVG (phải→trái): translate → rotate → scale → translate về tâm shape.
+  const ox = shape.width / 2;
+  const oy = shape.height / 2;
+  const sx = mirror ? -1 : 1;
+  const transform = `translate(${cx} ${cy}) rotate(${angle}) scale(${sx} 1) translate(${-ox} ${-oy})`;
+
   return (
     <div className="flex flex-col items-center gap-2">
       <div
@@ -169,14 +267,24 @@ function ShapeView({
           boxShadow: `inset 0 0 24px ${ACCENT}14`,
         }}
       >
-        <svg width={140} height={140} viewBox="0 0 140 140" aria-hidden>
-          <polygon
-            points={poly}
-            fill={`${ACCENT}33`}
-            stroke={ACCENT}
-            strokeWidth={3}
-            strokeLinejoin="round"
-          />
+        <svg
+          width={VIEW}
+          height={VIEW}
+          viewBox={`0 0 ${VIEW} ${VIEW}`}
+          aria-hidden
+        >
+          {/* Chấm tâm nhẹ — neo định hướng khi xoay */}
+          <circle cx={cx} cy={cy} r={1.5} fill="rgba(148,163,184,0.35)" />
+          <g transform={transform}>
+            <path
+              d={shape.d}
+              fill={`${ACCENT}55`}
+              stroke={ACCENT}
+              strokeWidth={2}
+              strokeLinejoin="miter"
+              strokeLinecap="square"
+            />
+          </g>
         </svg>
       </div>
       <span className="text-[10px] tracking-[0.2em] text-slate-500 font-mono">
@@ -314,9 +422,9 @@ export function MentalRotationGame({
   const progress = phase === "playing" ? idx / TOTAL : phase === "done" ? 1 : 0;
 
   const accuracyPct = useMemo(() => {
-    const t = stats.correct + stats.wrong;
-    if (!t) return 0;
-    return Math.round((stats.correct / t) * 100);
+    const n = stats.correct + stats.wrong;
+    if (!n) return 0;
+    return Math.round((stats.correct / n) * 100);
   }, [stats]);
 
   return (
@@ -425,7 +533,7 @@ export function MentalRotationGame({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              disabled={lockRef.current || flash != null}
+              disabled={!!flash}
               onClick={() => answer(true)}
               className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
@@ -438,7 +546,7 @@ export function MentalRotationGame({
             </button>
             <button
               type="button"
-              disabled={lockRef.current || flash != null}
+              disabled={!!flash}
               onClick={() => answer(false)}
               className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
