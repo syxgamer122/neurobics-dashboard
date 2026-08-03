@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 20260811_decay_recovery.sql
 -- 1) Decay điểm theo idle days NGAY TRONG SQL (leaderboard + pop stats khớp UI)
--- 2) Cột recovery_code_hash cho khôi phục mật khẩu (email giả @neurobics.local)
+-- 2) Cột recovery_code_hash cho khôi phục mật khẩu (email giả @mindgem.local)
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ─── Recovery code ──────────────────────────────────────────────────────────

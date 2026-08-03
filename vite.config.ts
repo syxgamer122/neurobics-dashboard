@@ -54,7 +54,7 @@ function swVersionStamp() {
       const stamp = `${pkg.version}-${buildId}`
 
       fs.writeFileSync(swPath, src.split('__APP_VERSION__').join(stamp))
-      console.log(`[sw-version-stamp] sw.js VERSION -> neurobics-${stamp}`)
+      console.log(`[sw-version-stamp] sw.js VERSION -> mindgem-${stamp}`)
     },
   }
 }

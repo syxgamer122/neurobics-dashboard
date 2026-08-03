@@ -44,7 +44,7 @@ const vi = {
   pts: "điểm",
 
   // Arena
-  arena: "Đấu Trường Neurobics",
+  arena: "Đấu Trường Mindgem",
   back_to_arena: "QUAY LẠI",
   focus_training: "LUYỆN TẬP TẬP TRUNG",
   logic_training: "LUYỆN TẬP TƯ DUY",
@@ -228,7 +228,7 @@ const vi = {
   onboarding_step: "BƯỚC {n}/3",
   onboarding_welcome_title: "Chào mừng {u}",
   onboarding_welcome_body:
-    "Neurobics giúp bạn luyện trí nhớ, tập trung, tốc độ, logic và không gian qua các ván ngắn; kết quả được tổng hợp thành hồ sơ nhận thức cá nhân.",
+    "Mindgem giúp bạn luyện trí nhớ, tập trung, tốc độ, logic và không gian qua các ván ngắn; kết quả được tổng hợp thành hồ sơ nhận thức cá nhân.",
   onboarding_disclaimer:
     "Các chỉ số dùng để theo dõi luyện tập và tiến bộ, không phải kết quả chẩn đoán y tế.",
   onboarding_calibration_title: "Hoàn thành 5 ván hiệu chuẩn",
@@ -259,14 +259,14 @@ const vi = {
   // PWA install (giu tu ban A1/A2 da deploy)
   settings_install_section: "Cài đặt ứng dụng",
   settings_install_desc:
-    "Thêm Neurobics vào màn hình chính để mở nhanh, chạy toàn màn hình và dùng như một ứng dụng độc lập.",
-  settings_install_btn: "CÀI ĐẶT NEUROBICS",
-  settings_install_done: "Neurobics đã được cài trên thiết bị này.",
+    "Thêm Mindgem vào màn hình chính để mở nhanh, chạy toàn màn hình và dùng như một ứng dụng độc lập.",
+  settings_install_btn: "CÀI ĐẶT MINDGEM",
+  settings_install_done: "Mindgem đã được cài trên thiết bị này.",
   settings_install_ios:
     "Trên iPhone/iPad: nhấn nút Chia sẻ trong Safari, sau đó chọn “Thêm vào Màn hình chính”.",
   settings_install_manual:
     "Nếu nút cài đặt chưa xuất hiện, mở menu của trình duyệt và chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”.",
-  settings_install_success: "Đã cài Neurobics.",
+  settings_install_success: "Đã cài Mindgem.",
   settings_install_failed:
     "Không thể mở trình cài đặt. Vui lòng thử lại từ menu trình duyệt.",
   settings_pw_current: "Mật khẩu hiện tại",
@@ -395,7 +395,7 @@ const en: typeof vi = {
   sessions: "sessions",
   pts: "pts",
 
-  arena: "Neurobics Arena",
+  arena: "Mindgem Arena",
   back_to_arena: "BACK TO ARENA",
   focus_training: "FOCUS TRAINING",
   logic_training: "LOGIC TRAINING",
@@ -512,7 +512,7 @@ const en: typeof vi = {
 
   dock_history: "History",
   dock_dashboard: "Neural Dashboard",
-  dock_arena: "Neurobics Arena",
+  dock_arena: "Mindgem Arena",
   dock_profile: "Master Control",
   dock_admin: "Admin Panel",
 
@@ -573,7 +573,7 @@ const en: typeof vi = {
   onboarding_step: "STEP {n}/3",
   onboarding_welcome_title: "Welcome, {u}",
   onboarding_welcome_body:
-    "Neurobics trains memory, focus, speed, logic, and spatial skill through short rounds, then combines the results into your cognitive profile.",
+    "Mindgem trains memory, focus, speed, logic, and spatial skill through short rounds, then combines the results into your cognitive profile.",
   onboarding_disclaimer:
     "These metrics track training and progress; they are not a medical diagnosis.",
   onboarding_calibration_title: "Complete 5 calibration rounds",
@@ -604,14 +604,14 @@ const en: typeof vi = {
   // PWA install (kept from the deployed A1/A2 release)
   settings_install_section: "Install application",
   settings_install_desc:
-    "Add Neurobics to your home screen for quick access, full-screen mode, and an app-like experience.",
-  settings_install_btn: "INSTALL NEUROBICS",
-  settings_install_done: "Neurobics is installed on this device.",
+    "Add Mindgem to your home screen for quick access, full-screen mode, and an app-like experience.",
+  settings_install_btn: "INSTALL MINDGEM",
+  settings_install_done: "Mindgem is installed on this device.",
   settings_install_ios:
     "On iPhone/iPad: tap Share in Safari, then choose “Add to Home Screen”.",
   settings_install_manual:
     "If the install button is unavailable, open your browser menu and choose “Install app” or “Add to Home screen”.",
-  settings_install_success: "Neurobics installed.",
+  settings_install_success: "Mindgem installed.",
   settings_install_failed:
     "Could not open the installer. Please use your browser menu.",
   settings_pw_current: "Current password",

@@ -474,7 +474,7 @@ function AppInner() {
             <Brain size={17} className="text-white" />
           </div>
           <span className="hidden sm:inline text-lg font-bold tracking-[0.22em] text-white font-mono">
-            NEUROBICS
+            MINDGEM
           </span>
           <span className="inline text-sm font-bold tracking-[0.14em] text-white font-mono sm:hidden">
             NB

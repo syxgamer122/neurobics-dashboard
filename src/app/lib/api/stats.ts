@@ -94,7 +94,7 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
     ? ((data ?? []) as Profile[])
     : await (async () => {
         logWarn(
-          "[neurobics] get_leaderboard RPC unavailable — using the client-side",
+          "[mindgem] get_leaderboard RPC unavailable — using the client-side",
           "fallback (fetches up to 200 rows and sorts in the browser).",
           MIGRATION_HINT,
           error.message,
@@ -149,7 +149,7 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
   }
 
   logWarn(
-    "[neurobics] get_population_stats RPC unavailable — using the client-side",
+    "[mindgem] get_population_stats RPC unavailable — using the client-side",
     "fallback (fetches up to 1000 rows and aggregates in the browser).",
     MIGRATION_HINT,
     error.message,

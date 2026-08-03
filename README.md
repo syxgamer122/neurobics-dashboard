@@ -1,7 +1,7 @@
 
-  # Neurobics Dashboard Design
+  # Mindgem Dashboard
 
-  This is a code bundle for Neurobics Dashboard Design. The original project is available at https://www.figma.com/design/NSYKJfLbfgaY5fIuyfmlIG/Neurobics-Dashboard-Design.
+  This is a code bundle for Mindgem Dashboard. The original project is available at https://www.figma.com/design/NSYKJfLbfgaY5fIuyfmlIG/Mindgem-Dashboard.
 
   ## Running the code
 

@@ -100,7 +100,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
         setSuccess(true);
         setTimeout(() => onAuthed(profile), 1200);
       } else {
-        // 1. Authenticate (username -> username@neurobics.local under the hood).
+        // 1. Authenticate (username -> username@mindgem.local under the hood).
         await handleLogin(username.trim(), password);
         // 2. Load the profile row. If auth succeeds but no profile exists,
         //    surface a clear error instead of silently bouncing to login.
@@ -177,7 +177,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
             <Brain size={22} className="text-white" />
           </div>
           <div className="text-lg font-bold tracking-[0.22em] text-white font-mono">
-            NEUROBICS
+            MINDGEM
           </div>
           <div className="text-xs text-slate-500 mt-1">
             {t.auth_tagline}

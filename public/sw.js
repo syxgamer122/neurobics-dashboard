@@ -1,4 +1,4 @@
-/* Neurobics service worker — Giai đoạn 5 (PWA)
+/* Mindgem service worker — Giai đoạn 5 (PWA)
  *
  * Nguyên tắc an toàn:
  *  - CHỈ cache tài nguyên tĩnh của chính trang (same-origin GET).
@@ -11,13 +11,13 @@
 // swVersionStamp() trong vite.config.ts.
 //
 // Tai sao can: VERSION quyet dinh viec DON cache cu trong su kien "activate".
-// Truoc day no bi ghim cung o "neurobics-v1" va khong bao gio doi, nen sau
+// Truoc day no bi ghim cung o "mindgem-v1" va khong bao gio doi, nen sau
 // moi lan deploy, cache cu KHONG bi xoa -> nguoi dung cu co the ket lai o ban
 // JS cu. Gan phien ban vao day thi moi ban deploy tu dong don cache cu.
 //
 // Trong dev server chuoi nay giu nguyen, khong sao: main.tsx chi dang ky
 // service worker khi import.meta.env.PROD.
-const VERSION = "neurobics-__APP_VERSION__";
+const VERSION = "mindgem-__APP_VERSION__";
 const STATIC_CACHE = `${VERSION}-static`;
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 

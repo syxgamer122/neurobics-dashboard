@@ -1,5 +1,5 @@
 /**
- * Neurobics scoring model — single source of truth.
+ * Mindgem scoring model — single source of truth.
  *
  * Two design rules drive this file:
  *

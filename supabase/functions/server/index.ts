@@ -15,7 +15,7 @@ app.use(
     // production + localhost de deploy cu khong bi mat truy cap.
     origin: (
       Deno.env.get("ALLOWED_ORIGINS") ??
-      "https://nguyenhuumanh.vercel.app,https://neurobics-dashboard-pfl3.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
+      "https://nguyenhuumanh.vercel.app,https://mindgem-dashboard-pfl3.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
     )
       .split(",")
       .map((origin) => origin.trim())
@@ -174,7 +174,7 @@ app.get("/server/health", (c) => c.json({ status: "ok" }));
 app.post("/server/signup", async (c) => {
   try {
     const ip = clientIp(c);
-    const ipHash = await sha256(`neurobics-signup:${ip}`);
+    const ipHash = await sha256(`mindgem-signup:${ip}`);
     // Chi HOI xem con luot khong, khong tru luot o day. Viec tru duoc doi
     // den luc tai khoan that su duoc tao, o cuoi ham nay.
     const { data: allowed, error: rateError } = await adminClient.rpc(
@@ -282,7 +282,7 @@ app.post("/server/signup", async (c) => {
     }
 
     // Email-spoofing trick so users only need a username.
-    const email = `${normalized}@neurobics.local`;
+    const email = `${normalized}@mindgem.local`;
 
     const { data, error } = await adminClient.auth.admin.createUser({
       email,
@@ -341,7 +341,8 @@ app.post("/server/signup", async (c) => {
   }
 });
 // ─── Password recovery (no real email) ─────────────────────────────────────
-// Tài khoản dùng email giả @neurobics.local nên không reset qua hộp thư được.
+// Tài khoản dùng email giả @mindgem.local (hoặc legacy @neurobics.local)
+// nên không reset qua hộp thư được.
 // Người dùng phải giữ mã khôi phục cấp lúc đăng ký.
 app.post("/server/recover-password", async (c) => {
   try {
@@ -361,12 +362,12 @@ app.post("/server/recover-password", async (c) => {
     // nhieu IP. Chi luu hash, khong luu IP/username tho.
     const [ipAllowed, userAllowed] = await Promise.all([
       consumeRateLimit(
-        await sha256(`neurobics-recovery-ip:${ip}`),
+        await sha256(`mindgem-recovery-ip:${ip}`),
         RECOVERY_LIMIT,
         RECOVERY_WINDOW_SECONDS,
       ),
       consumeRateLimit(
-        await sha256(`neurobics-recovery-user:${normalized}`),
+        await sha256(`mindgem-recovery-user:${normalized}`),
         RECOVERY_LIMIT,
         RECOVERY_WINDOW_SECONDS,
       ),
@@ -424,17 +425,26 @@ app.post("/server/recover-password", async (c) => {
     const candidate = await recoveryHmac(normalized, codeUpper);
     const candidateRaw = await recoveryHmac(normalized, codeRaw);
     // Tuong thich ma cu da cap truoc 20260820 (SHA-256 co prefix).
-    const legacy = await sha256(
+    // Brand cu: neurobics-recovery — brand moi: mindgem-recovery.
+    const legacyMindgem = await sha256(
+      `mindgem-recovery:${normalized}:${codeUpper}`,
+    );
+    const legacyMindgemRaw = await sha256(
+      `mindgem-recovery:${normalized}:${codeRaw}`,
+    );
+    const legacyNeuro = await sha256(
       `neurobics-recovery:${normalized}:${codeUpper}`,
     );
-    const legacyRaw = await sha256(
+    const legacyNeuroRaw = await sha256(
       `neurobics-recovery:${normalized}:${codeRaw}`,
     );
     if (
       candidate !== rec.code_hash &&
       candidateRaw !== rec.code_hash &&
-      legacy !== rec.code_hash &&
-      legacyRaw !== rec.code_hash
+      legacyMindgem !== rec.code_hash &&
+      legacyMindgemRaw !== rec.code_hash &&
+      legacyNeuro !== rec.code_hash &&
+      legacyNeuroRaw !== rec.code_hash
     ) {
       return c.json(
         { error: "Invalid recovery code or username.", code: "bad_recovery" },

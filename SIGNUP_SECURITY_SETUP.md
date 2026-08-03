@@ -1,4 +1,4 @@
-# Thiết lập bảo mật đăng ký Neurobics
+# Thiết lập bảo mật đăng ký Mindgem
 
 ## 1. Tạo Cloudflare Turnstile
 

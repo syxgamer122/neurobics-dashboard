@@ -15,7 +15,7 @@ export const ADMIN_COLORS = {
 } as const;
 
 export const consoleBoot = [
-  `[sys] neurobics-db admin control-plane ${APP_VERSION_LABEL}`,
+  `[sys] mindgem-db admin control-plane ${APP_VERSION_LABEL}`,
   "[auth] super_admin session verified :: Hữu Mạnh",
   "[pg] connection pool established (max=100)",
   "[rls] row-level-security policies loaded",

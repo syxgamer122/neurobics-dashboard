@@ -62,7 +62,7 @@ insert into public.reserved_usernames (username) values
   ('administrator'),
   ('root'),
   ('system'),
-  ('neurobics')
+  ('mindgem')
 on conflict do nothing;
 
 alter table public.reserved_usernames enable row level security;

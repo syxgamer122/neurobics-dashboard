@@ -17,7 +17,7 @@ import {
 // (e.g. imported via two different specifiers by the bundler), only ONE
 // GoTrueClient is ever created — avoiding the "Multiple GoTrueClient instances"
 // warning and the split-session bugs it causes.
-const CLIENT_KEY = "__neurobics_supabase_client__";
+const CLIENT_KEY = "__mindgem_supabase_client__";
 type GlobalWithClient = typeof globalThis & { [CLIENT_KEY]?: SupabaseClient };
 
 export function getSupabase(): SupabaseClient {
@@ -222,7 +222,7 @@ export async function serverPost<T>(path: string, payload: unknown): Promise<T> 
   return body as T;
 }
 
-export const DEVICE_KEY = "neurobics.device";
+export const DEVICE_KEY = "mindgem.device";
 
 /** Dấu vân thô phía client — chỉ tín hiệu tham khảo (localStorage xoá là mất). Chống lạm dụng thật dựa rate-limit IP + captcha phía server. */
 export function deviceFingerprint(): string {
