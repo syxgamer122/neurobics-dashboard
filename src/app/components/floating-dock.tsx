@@ -40,15 +40,16 @@ export function FloatingDock({
     <div
       className="fixed bottom-0 left-1/2 z-40 w-full max-w-[100vw] -translate-x-1/2 pointer-events-none"
       style={{
-        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+        // Desktop: nhac dock len nhe de khong dinh sat thanh taskbar/trinh duyet.
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
         paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
         paddingRight: "max(0.5rem, env(safe-area-inset-right))",
       }}
     >
       <div
-        className="mx-auto flex w-fit max-w-full items-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-3 py-2 sm:py-2.5 pointer-events-auto"
+        className="mx-auto mb-1 sm:mb-2 flex w-fit max-w-full items-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-3 py-2 sm:py-2.5 pointer-events-auto"
         style={{
-          background: "rgba(10,16,36,0.72)",
+          background: "rgba(10,16,36,0.88)",
           border: "1px solid rgba(0,212,255,0.14)",
           backdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
           WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",

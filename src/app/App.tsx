@@ -556,7 +556,11 @@ function AppInner() {
       {/* Main — pb du de khong bi dock + home indicator che */}
       <main
         className="relative z-10 max-w-[1380px] mx-auto px-3 sm:px-5 py-5 sm:py-7 space-y-5 sm:space-y-6"
-        style={{ paddingBottom: "max(8.5rem, calc(6.5rem + env(safe-area-inset-bottom)))" }}
+        style={{
+          // Du cho floating dock (~72px) + khoang thoang nut day game (NEW GAME...).
+          paddingBottom:
+            "max(10rem, calc(7.5rem + env(safe-area-inset-bottom)))",
+        }}
       >
         {isGuest && (
           <div
@@ -962,18 +966,21 @@ function AppInner() {
         />
       )}
 
-      <FloatingDock
-        active={activePage}
-        onSelect={(page) => {
-          if (page === "god") {
-            if (isAdmin) setAdminPanelOpen(true);
-            else setAccessDenied(true);
-          } else {
-            if (page !== "play") setSelectedGame(null);
-            setActivePage(page);
-          }
-        }}
-      />
+      {/* An dock khi overlay ket qua / onboarding mo — tranh che nut CONTINUEva CTA. */}
+      {!roundResult && !onboardingOpen && (
+        <FloatingDock
+          active={activePage}
+          onSelect={(page) => {
+            if (page === "god") {
+              if (isAdmin) setAdminPanelOpen(true);
+              else setAccessDenied(true);
+            } else {
+              if (page !== "play") setSelectedGame(null);
+              setActivePage(page);
+            }
+          }}
+        />
+      )}
 
       {/* ── ACCESS DENIED overlay ── */}
       {accessDenied && (
