@@ -632,7 +632,9 @@ function AppInner() {
         {activePage === "play" && (
           <>
             {/* Section divider */}
-            <div className="flex items-center gap-4 pt-1">
+            <div
+              className={`flex items-center gap-4 pt-1 ${selectedGame ? "max-w-lg mx-auto w-full" : ""}`}
+            >
               <Zap
                 size={14}
                 className="text-neuro-cyan shrink-0"
@@ -664,7 +666,7 @@ function AppInner() {
 
             {/* Game hub: pick a game */}
             {!selectedGame && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto w-full">
                 <GameTile
                   accent="#A855F7"
                   icon={<Focus size={22} />}
@@ -749,78 +751,73 @@ function AppInner() {
               </div>
             )}
 
-            {selectedGame === "schulte" && (
-              <div className="max-w-lg">
-                <SchulteTableGame
-                  onComplete={makeGameHandler("schulte")}
-                  onPlayStart={() => beginPlay("schulte")}
-                />
-              </div>
-            )}
-
-            {selectedGame === "sudoku" && (
-              <div className="max-w-md">
-                <SudokuGame
-                  onComplete={makeGameHandler("sudoku")}
-                  onPlayStart={() => beginPlay("sudoku")}
-                />
-              </div>
-            )}
-
-            {selectedGame === "stroop" && (
-              <div className="max-w-sm">
-                <StroopGame
-                  onComplete={makeGameHandler("stroop")}
-                  onPlayStart={() => beginPlay("stroop")}
-                />
-              </div>
-            )}
-            {selectedGame === "reaction" && (
-              <div className="max-w-sm">
-                <ReactionTimeGame
-                  onComplete={makeGameHandler("reaction")}
-                  onPlayStart={() => beginPlay("reaction")}
-                />
-              </div>
-            )}
-            {selectedGame === "memory" && (
-              <div className="max-w-sm">
-                <MemoryMatrixGame
-                  onComplete={makeGameHandler("memory")}
-                  onPlayStart={() => beginPlay("memory")}
-                />
-              </div>
-            )}
-            {selectedGame === "nback" && (
-              <div className="max-w-sm">
-                <NBackGame
-                  onComplete={makeGameHandler("nback")}
-                  onPlayStart={() => beginPlay("nback")}
-                />
-              </div>
-            )}
-            {selectedGame === "math" && (
-              <div className="max-w-sm">
-                <MathSprintGame
-                  onComplete={makeGameHandler("math")}
-                  onPlayStart={() => beginPlay("math")}
-                />
-              </div>
-            )}
-            {selectedGame === "gonogo" && (
-              <div className="max-w-sm">
-                <GoNoGoGame
-                  onComplete={makeGameHandler("gonogo")}
-                  onPlayStart={() => beginPlay("gonogo")}
-                />
-              </div>
-            )}
-            {selectedGame === "mental" && (
-              <div className="max-w-md">
-                <MentalRotationGame
-                  onComplete={makeGameHandler("mental")}
-                  onPlayStart={() => beginPlay("mental")}
-                />
+            {/* Minigame stage: can giua man hinh de de choi / dep hon tren desktop */}
+            {selectedGame && (
+              <div className="w-full flex justify-center px-1 sm:px-0">
+                <div
+                  className={
+                    selectedGame === "schulte"
+                      ? "w-full max-w-lg"
+                      : selectedGame === "sudoku" || selectedGame === "mental"
+                        ? "w-full max-w-md"
+                        : "w-full max-w-sm"
+                  }
+                >
+                  {selectedGame === "schulte" && (
+                    <SchulteTableGame
+                      onComplete={makeGameHandler("schulte")}
+                      onPlayStart={() => beginPlay("schulte")}
+                    />
+                  )}
+                  {selectedGame === "sudoku" && (
+                    <SudokuGame
+                      onComplete={makeGameHandler("sudoku")}
+                      onPlayStart={() => beginPlay("sudoku")}
+                    />
+                  )}
+                  {selectedGame === "stroop" && (
+                    <StroopGame
+                      onComplete={makeGameHandler("stroop")}
+                      onPlayStart={() => beginPlay("stroop")}
+                    />
+                  )}
+                  {selectedGame === "reaction" && (
+                    <ReactionTimeGame
+                      onComplete={makeGameHandler("reaction")}
+                      onPlayStart={() => beginPlay("reaction")}
+                    />
+                  )}
+                  {selectedGame === "memory" && (
+                    <MemoryMatrixGame
+                      onComplete={makeGameHandler("memory")}
+                      onPlayStart={() => beginPlay("memory")}
+                    />
+                  )}
+                  {selectedGame === "nback" && (
+                    <NBackGame
+                      onComplete={makeGameHandler("nback")}
+                      onPlayStart={() => beginPlay("nback")}
+                    />
+                  )}
+                  {selectedGame === "math" && (
+                    <MathSprintGame
+                      onComplete={makeGameHandler("math")}
+                      onPlayStart={() => beginPlay("math")}
+                    />
+                  )}
+                  {selectedGame === "gonogo" && (
+                    <GoNoGoGame
+                      onComplete={makeGameHandler("gonogo")}
+                      onPlayStart={() => beginPlay("gonogo")}
+                    />
+                  )}
+                  {selectedGame === "mental" && (
+                    <MentalRotationGame
+                      onComplete={makeGameHandler("mental")}
+                      onPlayStart={() => beginPlay("mental")}
+                    />
+                  )}
+                </div>
               </div>
             )}
           </>
