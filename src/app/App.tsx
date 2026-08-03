@@ -75,6 +75,7 @@ import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
 import { APP_VERSION_LABEL } from "./lib/version";
 import { logError } from "./lib/logger";
+import { isGuestProfile } from "./lib/guest";
 
 // ─── Cognitive data ────────────────────────────────────────────────────────────
 
@@ -217,9 +218,9 @@ function AppInner() {
   };
 
   // Load the population baseline once a session is active. Failure is silent:
-  // the seed distribution keeps the dial rendering.
+  // the seed distribution keeps the dial rendering. Khach: bo qua (khong co token).
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || isGuestProfile(profile)) return;
     (async () => {
       try {
         setPopStats(await fetchPopulationStats());
@@ -274,9 +275,24 @@ function AppInner() {
   });
 
   const onLogout = async () => {
-    await handleLogout();
+    // Khach khong co session Supabase — chi xoa ho so ao.
+    if (!isGuestProfile(profile)) {
+      await handleLogout();
+    }
     setProfile(null);
     setAdminPanelOpen(false);
+    setSelectedGame(null);
+    setActivePage("dashboard");
+    setOnboardingOpen(false);
+    setOnboardingDismissed(false);
+  };
+
+  const exitGuestToAuth = () => {
+    setProfile(null);
+    setSelectedGame(null);
+    setActivePage("dashboard");
+    setOnboardingOpen(false);
+    setOnboardingDismissed(false);
   };
 
   const [activity, setActivity] = useState<ActivityStats>({
@@ -285,7 +301,10 @@ function AppInner() {
   });
 
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!profile?.id || isGuestProfile(profile)) {
+      setActivity({ xpToday: 0, sessionsThisMonth: 0 });
+      return;
+    }
 
     fetchActivityStats()
       .then(setActivity)
@@ -339,7 +358,8 @@ function AppInner() {
     );
   }
 
-  const isAdmin = profile.role === "admin";
+  const isGuest = isGuestProfile(profile);
+  const isAdmin = !isGuest && profile.role === "admin";
 
   const cognitiveData = buildCognitiveData(profile, {
     memory: t.axis_memory,
@@ -538,6 +558,32 @@ function AppInner() {
         className="relative z-10 max-w-[1380px] mx-auto px-3 sm:px-5 py-5 sm:py-7 space-y-5 sm:space-y-6"
         style={{ paddingBottom: "max(8.5rem, calc(6.5rem + env(safe-area-inset-bottom)))" }}
       >
+        {isGuest && (
+          <div
+            className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between"
+            style={{
+              background: "rgba(16,185,129,0.1)",
+              border: "1px solid rgba(16,185,129,0.28)",
+            }}
+          >
+            <p className="text-sm leading-relaxed text-emerald-100/90">
+              {t.guest_banner}
+            </p>
+            <button
+              type="button"
+              onClick={exitGuestToAuth}
+              className="h-10 shrink-0 rounded-xl px-4 text-xs font-bold tracking-wider transition-all hover:brightness-125"
+              style={{
+                background: "rgba(16,185,129,0.18)",
+                color: "#34D399",
+                border: "1px solid rgba(16,185,129,0.4)",
+              }}
+            >
+              {t.guest_register}
+            </button>
+          </div>
+        )}
+
         {activePage === "dashboard" && (
           <>
             {(roundsPlayed < CALIBRATION_TARGET || showCalibrationComplete) && (
@@ -756,25 +802,52 @@ function AppInner() {
               />
             </div>
 
-            <QuestsPanel
-              refreshKey={gamificationKey}
-              onClaimed={() => {
-                // XP thuong duoc cong o server, keo ho so moi ve de hien dung.
-                void fetchProfile()
-                  .then((fresh) => {
-                    if (fresh) setProfile(fresh);
-                  })
-                  // Than ham rong -> tra ve void. Neu viet `() => undefined`
-                  // thi tsc phai tu suy kieu tra ve va bao TS7011.
-                  .catch(() => {});
-              }}
-            />
+            {!isGuest && (
+              <QuestsPanel
+                refreshKey={gamificationKey}
+                onClaimed={() => {
+                  // XP thuong duoc cong o server, keo ho so moi ve de hien dung.
+                  void fetchProfile()
+                    .then((fresh) => {
+                      if (fresh) setProfile(fresh);
+                    })
+                    // Than ham rong -> tra ve void. Neu viet `() => undefined`
+                    // thi tsc phai tu suy kieu tra ve va bao TS7011.
+                    .catch(() => {});
+                }}
+              />
+            )}
 
-            <AchievementsPanel refreshKey={gamificationKey} />
+            {!isGuest && <AchievementsPanel refreshKey={gamificationKey} />}
           </>
         )}
 
-        {activePage === "history" && <HistoryPanel />}
+        {activePage === "history" &&
+          (isGuest ? (
+            <div
+              className="rounded-2xl p-6 text-sm text-slate-300"
+              style={{
+                background: "rgba(13,20,45,0.62)",
+                border: "1px solid rgba(0,212,255,0.14)",
+              }}
+            >
+              {t.guest_locked}
+              <button
+                type="button"
+                onClick={exitGuestToAuth}
+                className="mt-4 block h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
+                style={{
+                  background: "rgba(0,212,255,0.12)",
+                  color: "#00D4FF",
+                  border: "1px solid rgba(0,212,255,0.3)",
+                }}
+              >
+                {t.guest_register}
+              </button>
+            </div>
+          ) : (
+            <HistoryPanel />
+          ))}
         {activePage === "profile" && (
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -797,25 +870,49 @@ function AppInner() {
               <GlassCard accent="#A855F7" className="p-5">
                 <StatMini
                   label={t.clearance}
-                  value={isAdmin ? "Ω-1" : "STD"}
-                  unit={isAdmin ? "admin" : "user"}
+                  value={isGuest ? "GUEST" : isAdmin ? "Ω-1" : "STD"}
+                  unit={isGuest ? "trial" : isAdmin ? "admin" : "user"}
                   color="#A855F7"
                 />
               </GlassCard>
             </div>
 
-            <FriendsPanel />
+            {!isGuest && <FriendsPanel />}
 
-            <SettingsPanel
-              profile={profile}
-              isAdmin={isAdmin}
-              onProfileChange={setProfile}
-              onDeleted={() => {
-                setProfile(null);
-                setAdminPanelOpen(false);
-                setActivePage("dashboard");
-              }}
-            />
+            {!isGuest ? (
+              <SettingsPanel
+                profile={profile}
+                isAdmin={isAdmin}
+                onProfileChange={setProfile}
+                onDeleted={() => {
+                  setProfile(null);
+                  setAdminPanelOpen(false);
+                  setActivePage("dashboard");
+                }}
+              />
+            ) : (
+              <div
+                className="rounded-2xl p-6 text-sm leading-relaxed text-slate-300"
+                style={{
+                  background: "rgba(13,20,45,0.62)",
+                  border: "1px solid rgba(16,185,129,0.22)",
+                }}
+              >
+                {t.guest_banner}
+                <button
+                  type="button"
+                  onClick={exitGuestToAuth}
+                  className="mt-4 h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
+                  style={{
+                    background: "rgba(16,185,129,0.15)",
+                    color: "#34D399",
+                    border: "1px solid rgba(16,185,129,0.35)",
+                  }}
+                >
+                  {t.guest_register}
+                </button>
+              </div>
+            )}
 
             <div className="flex justify-start">
               <button

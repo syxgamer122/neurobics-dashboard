@@ -149,6 +149,14 @@ const vi = {
 
   // Auth screen
   sign_in: "Đăng Nhập",
+  guest_play: "CHƠI THỬ KHÔNG CẦN TÀI KHOẢN",
+  guest_hint:
+    "Chơi đầy đủ các game ngay. Điểm chỉ lưu trên máy này cho đến khi bạn đăng ký.",
+  guest_username: "Khách",
+  guest_banner:
+    "Bạn đang chơi thử — tiến độ chỉ lưu tạm trên máy này. Đăng ký để lưu hồ sơ, nhiệm vụ và xếp hạng.",
+  guest_register: "ĐĂNG KÝ ĐỂ LƯU",
+  guest_locked: "Cần đăng nhập để dùng tính năng này.",
   sign_up: "Đăng Ký",
   username_label: "Tên người dùng",
   password_label: "Mật khẩu",
@@ -443,6 +451,14 @@ const en: typeof vi = {
   dismiss: "DISMISS",
 
   sign_in: "Sign In",
+  guest_play: "TRY WITHOUT AN ACCOUNT",
+  guest_hint:
+    "Play every game right away. Scores stay on this device until you sign up.",
+  guest_username: "Guest",
+  guest_banner:
+    "You are in guest mode — progress is temporary on this device. Sign up to save your profile, quests, and ranking.",
+  guest_register: "SIGN UP TO SAVE",
+  guest_locked: "Sign in to use this feature.",
   sign_up: "Sign Up",
   username_label: "Username",
   password_label: "Password",

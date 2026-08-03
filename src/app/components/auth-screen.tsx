@@ -11,6 +11,7 @@ import {
 import { useLang } from "../lib/i18n";
 import { TurnstileWidget } from "./turnstile-widget";
 import { logError } from "../lib/logger";
+import { createGuestProfile } from "../lib/guest";
 
 export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) => void }) {
   const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
@@ -329,6 +330,29 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
                 : t.sign_up.toUpperCase()}
           </button>
         </form>
+
+        {mode === "login" && (
+          <div className="mt-4">
+            <button
+              type="button"
+              disabled={busy || success}
+              onClick={() => {
+                onAuthed(createGuestProfile(t.guest_username));
+              }}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wider transition-all duration-200 disabled:opacity-60"
+              style={{
+                background: "rgba(16,185,129,0.12)",
+                color: "#34D399",
+                border: "1px solid rgba(16,185,129,0.35)",
+              }}
+            >
+              {t.guest_play}
+            </button>
+            <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-500">
+              {t.guest_hint}
+            </p>
+          </div>
+        )}
 
         <div className="text-center mt-5 text-xs text-slate-500 space-y-2">
           {mode !== "recover" && (
