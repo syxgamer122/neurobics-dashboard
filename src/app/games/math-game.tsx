@@ -10,10 +10,6 @@ import type { MathDifficulty, MathTelemetry } from "../lib/scoring";
 const TOTAL = 20;
 const ACCENT = "#38BDF8";
 
-const mono: React.CSSProperties = {
-  
-};
-
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
   border: `1px solid ${ACCENT}2E`,

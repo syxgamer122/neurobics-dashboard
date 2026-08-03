@@ -9,10 +9,6 @@ import { logError } from "../lib/logger";
 // Tiến độ do Postgres tính từ training_sessions trong ngày (giờ Việt Nam),
 // nên không thể tự khai báo hoàn thành từ trình duyệt.
 
-const mono: React.CSSProperties = {
-  
-};
-
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
   border: "1px solid rgba(16,185,129,0.16)",

@@ -247,14 +247,6 @@ export type AxisRatings = {
   memory: number | null;
 };
 
-const NO_AXES: AxisRatings = {
-  speed: null,
-  focus: null,
-  spatial: null,
-  logic: null,
-  memory: null,
-};
-
 // ─── Shared axis kernels ───────────────────────────────────────────────
 
 /**

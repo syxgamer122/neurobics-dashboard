@@ -12,7 +12,7 @@
 //
 // NANG DAN DO NGHIEM NGAT (lam sau, tung buoc mot):
 // Dung bat het cung luc, se ra hang tram loi va ban se nan. Thu tu de -> kho:
-//   1. "noUnusedLocals": true    -> bat import/bien thua (chinh la loai loi
+//   1. [DA XONG] "noUnusedLocals": true -> bat import/bien thua (chinh la loai loi
 //                                   lam vo admin panel hom truoc)
 //   2. "noImplicitAny": true     -> bat tham so quen khai kieu
 //   3. "strictNullChecks": true  -> nang nhat, nhung bat duoc nhieu bug that
@@ -49,7 +49,14 @@
 
     // BAT DAU O MUC DE THO. Xem ghi chu "nang dan" o dau file.
     "strict": false,
-    "noUnusedLocals": false,
+
+    // BUOC 1 DA BAT. Bat moi import/bien cuc bo khai bao ma khong dung.
+    // Day chinh la loai loi da lam vo admin panel o v15: script don import
+    // xoa nham `RefreshCw` va `Loader2` vi chi khop JSX mot dong. Gio tsc
+    // chan truoc khi build, nen su co do khong tai dien duoc.
+    // Luu y: cai nay KHONG bat tham so ham thua — do la noUnusedParameters,
+    // van de false vi nhieu handler buoc phai nhan du tham so theo chu ky.
+    "noUnusedLocals": true,
     "noUnusedParameters": false,
 
     // Bat san may cai re tien, hau nhu khong bao gio bao nham.

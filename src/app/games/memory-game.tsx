@@ -28,7 +28,9 @@ export function MemoryMatrixGame({
   const [selected, setSelected] = useState<number[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [wrongClicks, setWrongClicks] = useState(0);
+  // Khong giu wrongClicks trong state: khong cho nao render doc no, va so lieu
+  // gui len server lay tu wrongClicksRef (chuan hon vi khong tre mot nhip).
+  // Giu ca hai chi tao them render thua va nguy co lech so lieu.
 
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -105,7 +107,6 @@ export function MemoryMatrixGame({
     setHearts(MAX_HEARTS);
     setStatus("idle");
     setElapsed(0);
-    setWrongClicks(0);
     startRef.current = null;
   };
 
@@ -118,7 +119,6 @@ export function MemoryMatrixGame({
     if (!targets.includes(idx)) {
       // Dung ref: hai click sai trong cung frame khong doc trung gia tri cu.
       wrongClicksRef.current += 1;
-      setWrongClicks(wrongClicksRef.current);
       heartsRef.current = Math.max(0, heartsRef.current - 1);
       const newHearts = heartsRef.current;
       setHearts(newHearts);

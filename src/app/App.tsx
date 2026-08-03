@@ -41,12 +41,10 @@ import { ReactionTimeGame } from "./games/reaction-game";
 
 import { GlassCard } from "./components/ui/glass-card";
 import { GameTile } from "./components/ui/game-tile";
-import { Label } from "./components/ui/label";
 import { StatMini } from "./components/ui/stat-mini";
 import {
   RoundResultOverlay,
   type RoundResult,
-  type RoundAxisRow,
 } from "./components/ui/round-result-overlay";
 
 import {
@@ -57,7 +55,6 @@ import {
   fetchPopulationStats,
   cognitiveIndex,
   fetchActivityStats,
-  type RoundGame,
   type ActivityStats,
   type Profile,
 } from "./lib/api";

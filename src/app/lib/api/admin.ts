@@ -33,16 +33,6 @@ export type AdminGrant = {
   mode?: "add" | "set";
 };
 
-async function adminFetchRaw(targetId: string): Promise<Profile> {
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .select(PROFILE_COLS)
-    .eq("id", targetId)
-    .single();
-  if (error) throw new Error(describeError(error, "adminFetchRaw"));
-  return sanitizeProfile(data as Profile);
-}
-
 export async function adminApplyGrant(
   targetId: string,
   grant: AdminGrant,

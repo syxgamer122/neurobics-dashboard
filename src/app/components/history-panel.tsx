@@ -65,10 +65,6 @@ const panelStyle: React.CSSProperties = {
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
 
-const mono: React.CSSProperties = {
-  
-};
-
 export function HistoryPanel() {
   const [filter, setFilter] = useState<RoundGame | "all">("all");
   const [sessions, setSessions] = useState<TrainingSession[]>([]);

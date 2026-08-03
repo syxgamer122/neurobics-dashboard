@@ -21,10 +21,6 @@ const TARGET_RATE = 0.3;
 
 const LEVELS = [2, 3, 4] as const;
 
-const mono: React.CSSProperties = {
-  
-};
-
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
   border: "1px solid rgba(168,85,247,0.18)",
