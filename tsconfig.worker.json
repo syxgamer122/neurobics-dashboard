@@ -16,12 +16,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": false,
-
-    // Giu dong bo voi tsconfig.json (buoc 1 va 2 cua lo trinh nang nghiem ngat).
+    // Giu dong bo voi tsconfig.json: da hoan tat ca 4 buoc nang nghiem ngat.
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": false,
-    "noImplicitAny": true
+    "noImplicitAny": true,
+    "strictNullChecks": true
   },
   "include": ["src/app/lib/sudoku-worker.ts", "src/app/lib/sudoku-gen.ts"]
 }

@@ -15,8 +15,8 @@
 //   1. [DA XONG] "noUnusedLocals": true -> bat import/bien thua (chinh la loai loi
 //                                   lam vo admin panel hom truoc)
 //   2. [DA XONG] "noImplicitAny": true -> bat tham so quen khai kieu
-//   3. "strictNullChecks": true  -> nang nhat, nhung bat duoc nhieu bug that
-//   4. "strict": true            -> bat tat ca
+//   3. [DA XONG] "strictNullChecks": true -> qua sach, 0 loi
+//   4. [DA XONG] "strict": true -> bat tat ca. LO TRINH DA HOAN TAT.
 // Sau moi buoc: chay `pnpm run typecheck`, sua het loi, commit, roi moi sang
 // buoc tiep theo.
 {
@@ -47,8 +47,15 @@
     // Bo qua kiem tra file .d.ts cua thu vien -> nhanh hon nhieu.
     "skipLibCheck": true,
 
-    // BAT DAU O MUC DE THO. Xem ghi chu "nang dan" o dau file.
-    "strict": false,
+    // DA BAT TOAN BO. Bon buoc cua lo trinh nang do nghiem ngat deu da qua.
+    // `strict` bao gom san noImplicitAny + strictNullChecks (van de tuong minh
+    // ben duoi cho de doc), va bat them:
+    //   - useUnknownInCatchVariables: bien catch la `unknown` thay vi `any`.
+    //     An toan o day vi moi cho deu hoac thu hep bang `err instanceof Error`,
+    //     hoac day vao logError(...args: unknown[]).
+    //   - noImplicitThis, strictFunctionTypes, strictBindCallApply,
+    //     strictPropertyInitialization, alwaysStrict.
+    "strict": true,
 
     // BUOC 1 DA BAT. Bat moi import/bien cuc bo khai bao ma khong dung.
     // Day chinh la loai loi da lam vo admin panel o v15: script don import
@@ -64,6 +71,18 @@
     //   - tham so co gia tri mac dinh: function f(days = 30)  -> suy ra number
     //   - callback co ngu canh san:    arr.map(x => ...)      -> suy tu mang
     "noImplicitAny": true,
+
+    // BUOC 3. Day la buoc NANG NHAT nhung cung dang gia nhat: no bat cac cho
+    // doc gia tri co the null/undefined ma chua kiem tra. App nay day du lieu
+    // nullable (speed/focus/... = number | null khi chua hieu chuan, ky luc
+    // chua co, ho so moi tao) nen day la noi de sinh bug that su.
+    //
+    // Ba cach sua, uu tien tu tren xuong:
+    //   1. Kiem tra tuong minh:  if (x == null) return;   <- tot nhat
+    //   2. Gia tri thay the:     x ?? 0
+    //   3. Toan tu `!`:          x!   <- CHI dung khi chac chan 100%, vi no
+    //      chi tat canh bao chu khong lam gia tri het null luc chay.
+    "strictNullChecks": true,
 
     // Bat san may cai re tien, hau nhu khong bao gio bao nham.
     "noFallthroughCasesInSwitch": true,
