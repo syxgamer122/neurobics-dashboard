@@ -18,9 +18,10 @@
     "forceConsistentCasingInFileNames": true,
     "strict": false,
 
-    // Giu dong bo voi tsconfig.json (buoc 1 cua lo trinh nang do nghiem ngat).
+    // Giu dong bo voi tsconfig.json (buoc 1 va 2 cua lo trinh nang nghiem ngat).
     "noUnusedLocals": true,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "noImplicitAny": true
   },
   "include": ["src/app/lib/sudoku-worker.ts", "src/app/lib/sudoku-gen.ts"]
 }

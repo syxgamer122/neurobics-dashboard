@@ -14,7 +14,7 @@
 // Dung bat het cung luc, se ra hang tram loi va ban se nan. Thu tu de -> kho:
 //   1. [DA XONG] "noUnusedLocals": true -> bat import/bien thua (chinh la loai loi
 //                                   lam vo admin panel hom truoc)
-//   2. "noImplicitAny": true     -> bat tham so quen khai kieu
+//   2. [DA XONG] "noImplicitAny": true -> bat tham so quen khai kieu
 //   3. "strictNullChecks": true  -> nang nhat, nhung bat duoc nhieu bug that
 //   4. "strict": true            -> bat tat ca
 // Sau moi buoc: chay `pnpm run typecheck`, sua het loi, commit, roi moi sang
@@ -58,6 +58,12 @@
     // van de false vi nhieu handler buoc phai nhan du tham so theo chu ky.
     "noUnusedLocals": true,
     "noUnusedParameters": false,
+
+    // BUOC 2 DA BAT. Bao loi khi TypeScript khong suy duoc kieu va phai lang
+    // le dung `any`. Luu y hai truong hop VAN HOP LE, khong bi bat:
+    //   - tham so co gia tri mac dinh: function f(days = 30)  -> suy ra number
+    //   - callback co ngu canh san:    arr.map(x => ...)      -> suy tu mang
+    "noImplicitAny": true,
 
     // Bat san may cai re tien, hau nhu khong bao gio bao nham.
     "noFallthroughCasesInSwitch": true,

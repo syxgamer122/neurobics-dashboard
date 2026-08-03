@@ -678,7 +678,9 @@ function AppInner() {
                   .then((fresh) => {
                     if (fresh) setProfile(fresh);
                   })
-                  .catch(() => undefined);
+                  // Than ham rong -> tra ve void. Neu viet `() => undefined`
+                  // thi tsc phai tu suy kieu tra ve va bao TS7011.
+                  .catch(() => {});
               }}
             />
 
