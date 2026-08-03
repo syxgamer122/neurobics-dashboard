@@ -90,6 +90,7 @@ export async function resetActiveUserScores(): Promise<Profile> {
       nback_sessions: 0,
       math_sessions: 0,
       gonogo_sessions: 0,
+      mental_sessions: 0,
       total_xp: 0,
       last_active_date: null,
     })

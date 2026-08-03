@@ -11,6 +11,7 @@ import {
   Sparkles,
   Calculator,
   ShieldAlert,
+  RotateCcw,
   LogOut,
   Loader2,
 } from "lucide-react";
@@ -45,6 +46,7 @@ import { StroopGame } from "./games/stroop-game";
 import { MemoryMatrixGame } from "./games/memory-game";
 import { ReactionTimeGame } from "./games/reaction-game";
 import { GoNoGoGame } from "./games/go-nogo-game";
+import { MentalRotationGame } from "./games/mental-rotation-game";
 
 import { GlassCard } from "./components/ui/glass-card";
 import { GameTile } from "./components/ui/game-tile";
@@ -157,6 +159,7 @@ function AppInner() {
     | "nback"
     | "math"
     | "gonogo"
+    | "mental"
     | null
   >(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
@@ -734,6 +737,15 @@ function AppInner() {
                   playLabel={t.play_now}
                   onPlay={() => setSelectedGame("gonogo")}
                 />
+                <GameTile
+                  accent="#22D3EE"
+                  icon={<RotateCcw size={22} />}
+                  tag={t.mr_tag}
+                  title="Mental Rotation"
+                  desc={t.mr_desc}
+                  playLabel={t.play_now}
+                  onPlay={() => setSelectedGame("mental")}
+                />
               </div>
             )}
 
@@ -800,6 +812,14 @@ function AppInner() {
                 <GoNoGoGame
                   onComplete={makeGameHandler("gonogo")}
                   onPlayStart={() => beginPlay("gonogo")}
+                />
+              </div>
+            )}
+            {selectedGame === "mental" && (
+              <div className="max-w-md">
+                <MentalRotationGame
+                  onComplete={makeGameHandler("mental")}
+                  onPlayStart={() => beginPlay("mental")}
                 />
               </div>
             )}

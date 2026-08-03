@@ -966,7 +966,8 @@ export function AdminPanel({
                               (r.memory_sessions ?? 0) +
                               (r.nback_sessions ?? 0) +
                               (r.math_sessions ?? 0) +
-                              (r.gonogo_sessions ?? 0)}
+                              (r.gonogo_sessions ?? 0) +
+                              (r.mental_sessions ?? 0)}
                           </td>
                         </tr>
                       );

@@ -7,7 +7,8 @@ export type Game =
   | "memory"
   | "nback"
   | "math"
-  | "gonogo";
+  | "gonogo"
+  | "mental";
 export type AxisRatings = {
   speed: number | null;
   focus: number | null;
@@ -557,6 +558,77 @@ function scoreGoNoGo(t: any): ScoredRound {
   return { axes, headline: headline(axes), label: "Go / No-Go", timeMs };
 }
 
+// Mental Rotation 2D: Spatial chính, Speed phụ. Client chuẩn 24 trial.
+const MENTAL_TRIALS_MIN = 20;
+const MENTAL_TRIALS_MAX = 32;
+
+function scoreMentalRotation(t: any): ScoredRound {
+  const timeMs = finite(t?.timeMs, "timeMs", 8_000, 600_000);
+  const trials = int(t?.trials, "trials", MENTAL_TRIALS_MIN, MENTAL_TRIALS_MAX);
+  const correct = int(t?.correct, "correct", 0, MENTAL_TRIALS_MAX);
+  const wrong = int(t?.wrong, "wrong", 0, MENTAL_TRIALS_MAX);
+  const rts = numberArray(t?.rts, "rts", 0, MENTAL_TRIALS_MAX);
+  const angles = numberArray(t?.angles, "angles", 0, MENTAL_TRIALS_MAX);
+
+  if (correct + wrong !== trials)
+    throw new Error("Mental Rotation: correct+wrong must equal trials");
+  if (rts.length !== trials)
+    throw new Error("Mental Rotation: rts length must equal trials");
+  if (angles.length !== trials)
+    throw new Error("Mental Rotation: angles length must equal trials");
+
+  // mirrors / correctFlags: optional consistency checks
+  const mirrors = Array.isArray(t?.mirrors) ? t.mirrors : null;
+  const flags = Array.isArray(t?.correctFlags) ? t.correctFlags : null;
+  if (mirrors && mirrors.length !== trials)
+    throw new Error("Mental Rotation: mirrors length must equal trials");
+  if (flags && flags.length !== trials)
+    throw new Error("Mental Rotation: correctFlags length must equal trials");
+  if (flags) {
+    let flagCorrect = 0;
+    for (const f of flags) if (f === true) flagCorrect += 1;
+    if (flagCorrect !== correct)
+      throw new Error("Mental Rotation: correctFlags disagree with correct");
+  }
+
+  const accuracy = clamp01(correct / Math.max(1, trials));
+
+  // Độ khó góc: 0° dễ, 180° khó hơn. Trung bình |sin(θ/2)| ~ độ lệch định hướng.
+  let angleLoad = 0;
+  let angleN = 0;
+  for (let i = 0; i < angles.length; i++) {
+    const a = Math.abs(Number(angles[i]) % 360);
+    if (!Number.isFinite(a)) continue;
+    // 0→0, 180→1
+    const load = Math.min(1, Math.abs(((a > 180 ? 360 - a : a) / 180)));
+    // Chỉ cộng load cho trial đúng — sai không "ăn" bonus khó.
+    const ok = flags ? flags[i] === true : true;
+    if (ok) {
+      angleLoad += load;
+      angleN += 1;
+    }
+  }
+  const meanAngleLoad = angleN > 0 ? angleLoad / angleN : 0.5;
+  // baseline 0.72 + up to 0.28 from hard angles answered correctly
+  const angleFactor = 0.72 + 0.28 * meanAngleLoad;
+
+  const statRts = statSamples(rts, 120);
+
+  const axes = {
+    ...NO_AXES,
+    // Spatial thuần: accuracy^1.15 * angle factor, cap soft 0.95
+    spatial: clamp(MAX * 0.95 * Math.pow(accuracy, 1.15) * angleFactor),
+    // Choice RT cho so khớp hình — target ~1400ms (chậm hơn simple RT nhiều).
+    speed: statRts.length >= 4 ? speed(statRts, 1400, 0.72) : null,
+  };
+  return {
+    axes,
+    headline: headline(axes),
+    label: "Mental Rotation",
+    timeMs,
+  };
+}
+
 // ---- Rang buoc bien cho telemetry tho (chong gia mao tu DevTools) ----
 // Khong the chung minh tuyet doi, nhung chan duoc cac gia tri phi ly.
 // San THONG KE: mau nhanh hon nguong nay bi loai khoi median/CV (statSamples),
@@ -675,6 +747,21 @@ function assertCountBounds(game: Game, telemetry: unknown): void {
     if (goTrials !== null && rtsLen !== null && rtsLen > goTrials)
       throw new Error("gonogo: more reaction times than go trials");
   }
+
+  if (game === "mental") {
+    const trials = num("trials");
+    const correct = num("correct");
+    const wrong = num("wrong");
+    if (
+      trials !== null &&
+      correct !== null &&
+      wrong !== null &&
+      correct + wrong !== trials
+    )
+      throw new Error("mental: correct+wrong must equal trials");
+    if (trials !== null && rtsLen !== null && rtsLen > trials)
+      throw new Error("mental: more reaction times than trials");
+  }
 }
 
 export function scoreAndValidate(
@@ -712,7 +799,9 @@ export function scoreAndValidate(
                 ? scoreMath(telemetry)
                 : game === "gonogo"
                   ? scoreGoNoGo(telemetry)
-                  : scoreMemory(telemetry);
+                  : game === "mental"
+                    ? scoreMentalRotation(telemetry)
+                    : scoreMemory(telemetry);
   // Client time may exclude fixed animations/wait periods. It may not exceed server elapsed by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000)
     throw new Error("Telemetry time exceeds server round time");

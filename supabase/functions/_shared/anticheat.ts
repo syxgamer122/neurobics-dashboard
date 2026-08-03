@@ -249,6 +249,40 @@ function inspectGoNoGo(t: any): CheatFlag[] {
   return out;
 }
 
+function inspectMental(t: any): CheatFlag[] {
+  const rts = nums(t?.rts);
+  const out: CheatFlag[] = [];
+  if (rts.length >= 4) {
+    const med = median(rts);
+    // So khớp hình 2D: median < 250ms gần như không đọc được hình.
+    if (med < 250)
+      out.push(flag("Mental Rotation median impossibly low", "hard", { med }));
+    if (cv(rts) < ROBOT_CV)
+      out.push(
+        flag("Mental Rotation timing too metronomic", "soft", { cv: cv(rts) }),
+      );
+  }
+  const correct = Number(t?.correct);
+  const trials = Number(t?.trials);
+  if (
+    Number.isFinite(correct) &&
+    Number.isFinite(trials) &&
+    trials >= 16 &&
+    correct === trials &&
+    rts.length >= 12 &&
+    median(rts) < 450
+  ) {
+    out.push(
+      flag("Perfect mental rotation finished too fast", "soft", {
+        med: median(rts),
+        correct,
+        trials,
+      }),
+    );
+  }
+  return out;
+}
+
 export function inspectRound(
   game: string,
   telemetry: unknown,
@@ -274,7 +308,9 @@ export function inspectRound(
                   ? inspectNBack(t)
                   : game === "gonogo"
                     ? inspectGoNoGo(t)
-                    : []),
+                    : game === "mental"
+                      ? inspectMental(t)
+                      : []),
   ];
   return { flags };
 }

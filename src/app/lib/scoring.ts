@@ -359,6 +359,24 @@ export type GoNoGoTelemetry = {
   rts: number[];
 };
 
+// ─── Mental Rotation → Spatial (chính), Speed (phụ) ─────────────────────────
+// Same vs mirror, góc xoay 0–300°. Spatial thuần; Speed từ RT có kiểm soát.
+
+export type MentalRotationTelemetry = {
+  timeMs: number;
+  trials: number;
+  correct: number;
+  wrong: number;
+  /** Góc xoay từng trial (độ). */
+  angles: number[];
+  /** true = hình phải là bản gương. */
+  mirrors: boolean[];
+  /** Đúng/sai từng trial (cùng thứ tự rts). */
+  correctFlags: boolean[];
+  /** RT (ms) từng trial. */
+  rts: number[];
+};
+
 /** Headline number shown on the round overlay: the best axis earned this round. */
 
 // ─── Server is the only scorer ─────────────────────────────────────────

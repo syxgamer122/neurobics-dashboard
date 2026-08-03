@@ -336,6 +336,25 @@ const vi = {
   gonogo_hold: "KHÔNG BẤM",
   gonogo_wait: "CHỜ TÍN HIỆU…",
   gonogo_accuracy: "Độ chính xác",
+
+  // Mental Rotation
+  mr_tag: "XOAY TÂM TRÍ",
+  mr_desc:
+    "Hai hình: cùng một hình đã xoay, hay bản gương? Luyện tư duy không gian thuần.",
+  mr_hint:
+    "Hình trái là gốc. Hình phải là bản xoay hoặc bản gương. Chọn GIỐNG hoặc GƯƠNG.",
+  mr_start: "BẮT ĐẦU",
+  mr_restart: "CHƠI LẠI",
+  mr_complete: "HOÀN THÀNH",
+  mr_trial: "LƯỢT",
+  mr_same: "GIỐNG",
+  mr_mirror: "GƯƠNG",
+  mr_left: "GỐC",
+  mr_right: "SO SÁNH",
+  mr_intro_1: "Hình phải chỉ xoay → chọn GIỐNG.",
+  mr_intro_2: "Hình phải là bản lật gương → chọn GƯƠNG.",
+  mr_correct: "Đúng",
+  mr_wrong: "Sai",
 };
 
 const en: typeof vi = {
@@ -663,6 +682,25 @@ const en: typeof vi = {
   gonogo_hold: "DON'T TAP",
   gonogo_wait: "WAIT…",
   gonogo_accuracy: "Accuracy",
+
+  // Mental Rotation
+  mr_tag: "MENTAL ROTATION",
+  mr_desc:
+    "Two shapes: same figure rotated, or a mirror image? Pure spatial reasoning.",
+  mr_hint:
+    "Left is the original. Right is rotated or mirrored. Choose SAME or MIRROR.",
+  mr_start: "START",
+  mr_restart: "PLAY AGAIN",
+  mr_complete: "COMPLETE",
+  mr_trial: "TRIAL",
+  mr_same: "SAME",
+  mr_mirror: "MIRROR",
+  mr_left: "BASE",
+  mr_right: "COMPARE",
+  mr_intro_1: "Right is only rotated → SAME.",
+  mr_intro_2: "Right is a mirror flip → MIRROR.",
+  mr_correct: "Correct",
+  mr_wrong: "Wrong",
 };
 
 export const translations = { vi, en };

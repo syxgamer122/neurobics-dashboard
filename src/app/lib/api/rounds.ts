@@ -19,7 +19,8 @@ export type RoundGame =
   | "memory"
   | "nback"
   | "math"
-  | "gonogo";
+  | "gonogo"
+  | "mental";
 export type RoundTicket = {
   roundId: string;
   game: RoundGame;

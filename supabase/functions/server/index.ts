@@ -34,7 +34,7 @@ const adminClient = createClient(
 );
 
 const PROFILE_COLS =
-  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, gonogo_sessions, created_at";
+  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, gonogo_sessions, mental_sessions, created_at";
 // Ca nha thuong dung chung mot duong mang, nen mot dia chi phai du cho
 // vai nguoi cung dang ky.
 const SIGNUP_LIMIT = 10;
@@ -470,6 +470,7 @@ const GAMES = new Set([
   "nback",
   "math",
   "gonogo",
+  "mental",
 ]);
 
 async function authenticatedUser(c: Context) {
@@ -761,6 +762,7 @@ app.post("/server/admin-reset", async (c) => {
       nback_sessions: 0,
       math_sessions: 0,
       gonogo_sessions: 0,
+      mental_sessions: 0,
       total_xp: 0,
       last_active_date: null,
     };
