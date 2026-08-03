@@ -163,7 +163,7 @@ export function SudokuGame({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
   // Working-memory signals. Overwriting a cell you already solved, or getting
-  // the SAME cell wrong twice, means you lost track of your own deductions —
+  // the SAME cell wrong twice, means you lost track of your own deductions. 
   // that is what the Memory axis measures here, independent of the clock.
   const placementsRef = useRef(0);
   const moveRtsRef = useRef<number[]>([]);
@@ -660,8 +660,8 @@ export function SudokuGame({
         )}
       </div>
 
-      {/* ── Number pad ── */}
-      <div className="mt-5 mx-auto w-full max-w-[420px] grid grid-cols-9 gap-1.5">
+      {/* ── Number pad: 3x3 tren mobile (o cham ~48px), 1 hang 9 o tren man rong ── */}
+      <div className="mt-5 mx-auto w-full max-w-[420px] grid grid-cols-3 sm:grid-cols-9 gap-2 sm:gap-1.5">
         {Array.from({ length: 9 }, (_, i) => {
           const n = i + 1;
           const cnt = counts[i];
@@ -670,18 +670,20 @@ export function SudokuGame({
           return (
             <button
               key={n}
+              type="button"
               onClick={() => inputNumber(n)}
               disabled={status === "done" || done}
-              className="rounded-xl flex flex-col items-center justify-center py-2 transition-all duration-100 hover:brightness-125 disabled:opacity-25 disabled:hover:brightness-100"
+              aria-label={`${n}`}
+              className="rounded-xl flex flex-col items-center justify-center min-h-12 sm:min-h-0 py-3 sm:py-2 transition-all duration-100 hover:brightness-125 disabled:opacity-25 disabled:hover:brightness-100"
               style={{
-                
                 background: "rgba(0,212,255,0.1)",
                 color: "#38E1FF",
                 border: "1px solid rgba(0,212,255,0.25)",
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: 700,
                 lineHeight: 1,
-                gap: 3}}
+                gap: 3,
+              }}
             >
               {n}
               <span style={{ fontSize: 11, opacity: 0.55, lineHeight: 1 }}>

@@ -429,14 +429,17 @@ function AppInner() {
         />
       </div>
 
-      {/* Nav */}
+      {/* Nav — tren mobile thu gon de khong tran ngang */}
       <nav
-        className="relative z-10 flex items-center justify-between px-8 py-4"
-        style={{ borderBottom: "1px solid rgba(0,212,255,0.08)" }}
+        className="relative z-10 flex items-center justify-between gap-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4"
+        style={{
+          borderBottom: "1px solid rgba(0,212,255,0.08)",
+          paddingTop: "max(0.75rem, env(safe-area-inset-top))",
+        }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
             style={{
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
               boxShadow: "0 0 20px rgba(0,212,255,0.4)",
@@ -444,11 +447,14 @@ function AppInner() {
           >
             <Brain size={17} className="text-white" />
           </div>
-          <span className="text-lg font-bold tracking-[0.22em] text-white font-mono">
+          <span className="hidden sm:inline text-lg font-bold tracking-[0.22em] text-white font-mono">
             NEUROBICS
           </span>
+          <span className="inline text-sm font-bold tracking-[0.14em] text-white font-mono sm:hidden">
+            NB
+          </span>
           <span
-            className="text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono"
+            className="hidden sm:inline text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono"
             style={{
               background: "rgba(0,212,255,0.08)",
               color: "#00D4FF",
@@ -458,20 +464,20 @@ function AppInner() {
             {APP_VERSION_LABEL}
           </span>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 md:gap-6">
           <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
             <Activity size={12} className="text-neuro-cyan" />
             <span>{t.league}</span>
           </div>
           <div
-            className="flex items-center gap-2 px-3 py-2 rounded-xl"
+            className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl"
             style={{
               background: "rgba(13,20,45,0.6)",
               border: "1px solid rgba(0,212,255,0.1)",
             }}
           >
             <div
-              className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
+              className="w-8 h-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
               style={{
                 background: profile.avatar_url
                   ? "#0B1228"
@@ -488,8 +494,8 @@ function AppInner() {
                 profile.username.slice(0, 2)
               )}
             </div>
-            <div>
-              <div className="text-xs font-semibold text-white">
+            <div className="hidden sm:block min-w-0">
+              <div className="text-xs font-semibold text-white truncate max-w-[9rem]">
                 {profile.username}
               </div>
               <div className="text-xs text-slate-500">
@@ -498,9 +504,11 @@ function AppInner() {
             </div>
           </div>
           <button
+            type="button"
             onClick={toggle}
             title="Switch language"
-            className="h-9 px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125"
+            aria-label="Switch language"
+            className="h-10 min-w-10 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125"
             style={{
               background: "rgba(13,20,45,0.6)",
               border: "1px solid rgba(0,212,255,0.15)",
@@ -510,9 +518,11 @@ function AppInner() {
             {lang === "vi" ? "EN" : "VI"}
           </button>
           <button
+            type="button"
             onClick={onLogout}
             title="Sign out"
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-colors"
+            aria-label={t.sign_out}
+            className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-colors"
             style={{
               background: "rgba(13,20,45,0.6)",
               border: "1px solid rgba(0,212,255,0.1)",
@@ -523,8 +533,11 @@ function AppInner() {
         </div>
       </nav>
 
-      {/* Main */}
-      <main className="relative z-10 max-w-[1380px] mx-auto px-5 py-7 pb-32 space-y-6">
+      {/* Main — pb du de khong bi dock + home indicator che */}
+      <main
+        className="relative z-10 max-w-[1380px] mx-auto px-3 sm:px-5 py-5 sm:py-7 space-y-5 sm:space-y-6"
+        style={{ paddingBottom: "max(8.5rem, calc(6.5rem + env(safe-area-inset-bottom)))" }}
+      >
         {activePage === "dashboard" && (
           <>
             {(roundsPlayed < CALIBRATION_TARGET || showCalibrationComplete) && (

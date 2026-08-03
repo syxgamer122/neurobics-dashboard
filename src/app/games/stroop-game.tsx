@@ -492,7 +492,7 @@ export function StroopGame({
       </div>
 
       {/* ── Color choice buttons ── */}
-      <div className="mt-4 grid grid-cols-4 gap-2.5">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {stimulus.options.map((cid) => {
           const hex = colorHex(cid);
           const isCorrect = flash === "correct" && cid === stimulus.inkId;
@@ -506,9 +506,9 @@ export function StroopGame({
               }}
               disabled={flash !== null || status !== "playing"}
               aria-label={colorLabel(cid)}
-              className="rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-150 disabled:opacity-60"
+              className="rounded-xl flex flex-col items-center justify-center gap-1.5 min-h-14 sm:min-h-0 transition-all duration-150 disabled:opacity-60"
               style={{
-                padding: "10px 6px",
+                padding: "12px 8px",
                 background: isCorrect
                   ? `${hex}44`
                   : isWrong && cid === stimulus?.inkId

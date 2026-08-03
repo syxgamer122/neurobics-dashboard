@@ -84,15 +84,15 @@ export function CognitiveMatrixCard({ data, rounds }: CognitiveMatrixCardProps) 
         </ResponsiveContainer>
       </div>
       <div
-        className="grid grid-cols-5 gap-2 pt-2"
+        className="grid grid-cols-5 gap-1 sm:gap-2 pt-2"
         style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
       >
         {data.map((d) => (
-          <div key={d.subject} className="text-center">
-            <div className="text-xs text-slate-500 mb-0.5">
+          <div key={d.subject} className="text-center min-w-0">
+            <div className="text-[10px] sm:text-xs text-slate-500 mb-0.5 truncate">
               {d.subject.slice(0, 3).toUpperCase()}
             </div>
-            <div className="text-sm font-bold text-white">
+            <div className="text-xs sm:text-sm font-bold text-white tabular-nums">
               {d.value}
             </div>
             <div

@@ -399,27 +399,25 @@ export function SchulteTableGame({
         </div>
       </div>
 
-      {/* Mode selector */}
-      <div className="flex items-center gap-2.5 mt-2">
-        <span
-          className="text-xs text-slate-400 w-10 shrink-0"
-        >
+      {/* Mode selector — wrap tren man hep, hint an tren mobile de nut khong vo hang */}
+      <div className="flex items-start gap-2.5 mt-2">
+        <span className="text-xs text-slate-400 w-10 shrink-0 pt-2">
           {t.mode_label}
         </span>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5 min-w-0">
           {MODES.map((m) => {
             const active = mode === m.id;
             return (
               <button
                 key={m.id}
+                type="button"
                 onClick={() => {
                   setMode(m.id);
                   reset(size, m.id);
                 }}
                 disabled={status === "playing"}
-                className="rounded-lg text-xs font-bold px-2.5 py-1 transition-all duration-150 disabled:opacity-40 flex items-center gap-1"
+                className="rounded-lg text-xs font-bold px-2.5 py-2 min-h-9 transition-all duration-150 disabled:opacity-40 flex items-center gap-1"
                 style={{
-                  
                   background: active
                     ? "rgba(168,85,247,0.22)"
                     : "rgba(255,255,255,0.04)",
@@ -427,11 +425,16 @@ export function SchulteTableGame({
                   border: active
                     ? "1px solid rgba(168,85,247,0.5)"
                     : "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: active ? "0 0 12px rgba(168,85,247,0.28)" : "none"}}
+                  boxShadow: active
+                    ? "0 0 12px rgba(168,85,247,0.28)"
+                    : "none",
+                }}
               >
                 {m.label}
                 {active && (
-                  <span style={{ fontSize: 11, opacity: 0.7 }}>{m.hint}</span>
+                  <span className="hidden sm:inline" style={{ fontSize: 11, opacity: 0.7 }}>
+                    {m.hint}
+                  </span>
                 )}
               </button>
             );
