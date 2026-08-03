@@ -212,6 +212,17 @@ const vi = {
   settings_language: "Ngôn ngữ",
   settings_lang_vi: "Tiếng Việt",
   settings_lang_en: "English",
+  settings_install_section: "Cài đặt ứng dụng",
+  settings_install_desc:
+    "Thêm Neurobics vào màn hình chính để mở nhanh, chạy toàn màn hình và dùng như một ứng dụng độc lập.",
+  settings_install_btn: "CÀI ĐẶT NEUROBICS",
+  settings_install_done: "Neurobics đã được cài trên thiết bị này.",
+  settings_install_ios:
+    "Trên iPhone/iPad: nhấn nút Chia sẻ trong Safari, sau đó chọn “Thêm vào Màn hình chính”.",
+  settings_install_manual:
+    "Nếu nút cài đặt chưa xuất hiện, mở menu của trình duyệt và chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”.",
+  settings_install_success: "Đã cài Neurobics.",
+  settings_install_failed: "Không thể mở trình cài đặt. Vui lòng thử lại từ menu trình duyệt.",
   settings_pw_current: "Mật khẩu hiện tại",
   settings_pw_new: "Mật khẩu mới",
   settings_pw_confirm: "Xác nhận mật khẩu mới",
@@ -458,6 +469,17 @@ const en: typeof vi = {
   settings_language: "Language",
   settings_lang_vi: "Tiếng Việt",
   settings_lang_en: "English",
+  settings_install_section: "Install application",
+  settings_install_desc:
+    "Add Neurobics to your home screen for quick access, full-screen mode, and an app-like experience.",
+  settings_install_btn: "INSTALL NEUROBICS",
+  settings_install_done: "Neurobics is installed on this device.",
+  settings_install_ios:
+    "On iPhone/iPad: tap Share in Safari, then choose “Add to Home Screen”.",
+  settings_install_manual:
+    "If the install button is unavailable, open your browser menu and choose “Install app” or “Add to Home screen”.",
+  settings_install_success: "Neurobics installed.",
+  settings_install_failed: "Could not open the installer. Please use your browser menu.",
   settings_pw_current: "Current password",
   settings_pw_new: "New password",
   settings_pw_confirm: "Confirm new password",

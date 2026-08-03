@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   ShieldAlert,
   CheckCircle2,
+  Download,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,6 +28,7 @@ import {
   getLevelTitle,
 } from "../lib/xp";
 import { logError } from "../lib/logger";
+import { usePwaInstall } from "../hooks/use-pwa-install";
 
 const mono: React.CSSProperties = {
   
@@ -96,6 +99,7 @@ export function SettingsPanel({
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const { canInstall, isInstalled, isIos, install } = usePwaInstall();
 
   const level = getLevelProgress(profile.total_xp ?? 0);
   const levelColor = getLevelColor(level.level);
@@ -190,6 +194,16 @@ export function SettingsPanel({
 
   const setLang = (next: Lang) => {
     if (lang !== next) toggle();
+  };
+
+  const onInstall = async () => {
+    try {
+      const outcome = await install();
+      if (outcome === "accepted") toast.success(t.settings_install_success);
+    } catch (err) {
+      logError("PWA install failed:", err);
+      toast.error(t.settings_install_failed);
+    }
   };
 
   return (
@@ -363,6 +377,62 @@ export function SettingsPanel({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Install app */}
+        <div className="rounded-2xl p-6" style={cardStyle("#10B981")}>
+          <SectionTitle color="#10B981" icon={<Smartphone size={14} />}>
+            {t.settings_install_section}
+          </SectionTitle>
+
+          {isInstalled ? (
+            <div
+              className="flex items-center gap-3 rounded-xl p-3"
+              style={{
+                background: "rgba(16,185,129,0.09)",
+                border: "1px solid rgba(16,185,129,0.25)",
+              }}
+            >
+              <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
+              <p className="text-sm text-emerald-200/90">
+                {t.settings_install_done}
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                {t.settings_install_desc}
+              </p>
+
+              {canInstall ? (
+                <button
+                  type="button"
+                  onClick={() => void onInstall()}
+                  className="mt-4 h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center gap-2 transition-all hover:brightness-125"
+                  style={{
+                    background: "rgba(16,185,129,0.15)",
+                    color: "#34D399",
+                    border: "1px solid rgba(16,185,129,0.4)",
+                  }}
+                >
+                  <Download size={15} />
+                  {t.settings_install_btn}
+                </button>
+              ) : (
+                <div
+                  className="mt-4 rounded-xl p-3 text-xs leading-relaxed text-slate-300"
+                  style={{
+                    background: "rgba(5,10,24,0.55)",
+                    border: "1px solid rgba(16,185,129,0.18)",
+                  }}
+                >
+                  {isIos
+                    ? t.settings_install_ios
+                    : t.settings_install_manual}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Password */}
