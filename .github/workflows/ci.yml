@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Push lien tiep vao cung nhanh: huy run cu, chi giu run moi nhat.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Turnstile TEST site key (cong khai, luon pass) - chi de buoc build khong thieu bien.
+  VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+
+jobs:
+  quality:
+    name: Typecheck / scan / test / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24: tests/sim-*.ts chay bang --experimental-strip-types.
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (app + worker)
+        run: pnpm run typecheck
+
+      - name: Static scan (i18n / hang so / localStorage)
+        run: pnpm run scan
+
+      - name: Unit tests (vitest)
+        run: pnpm run test
+
+      - name: Simulation suite (client / games / audit)
+        run: pnpm run test:sim
+
+      - name: Build
+        run: pnpm run build:only
+
+      - name: Upload build output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+          if-no-files-found: ignore
+
+  edge-functions:
+    name: Edge Function typecheck (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Advisory: Deno phai resolve npm:/jsr: qua mang nen co the flaky.
+    # Bao loi de biet, nhung khong chan merge.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: deno check supabase/functions/server
+        run: deno check supabase/functions/server/index.ts
