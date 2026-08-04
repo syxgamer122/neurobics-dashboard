@@ -181,6 +181,62 @@ cases.push({
   });
 }
 
+// Hai game moi: van that phai cham dung truc chinh va qua anticheat.
+{
+  const goRts = rts(27, 430);
+  cases.push({
+    id: "A8",
+    desc: "Go/No-Go 40 trial, uc che tot",
+    game: "gonogo",
+    tel: {
+      timeMs: 38000,
+      trials: 40,
+      goTrials: 28,
+      nogoTrials: 12,
+      hits: 27,
+      misses: 1,
+      falseAlarms: 1,
+      correctRejections: 11,
+      rts: goRts,
+    },
+    elapsed: 42000,
+    expect: {
+      hardFlag: false,
+      check: (s) =>
+        s.axes.focus > 500 && s.axes.speed > 500 && s.label === "Go / No-Go"
+          ? null
+          : `focus=${s.axes.focus} speed=${s.axes.speed} label=${s.label}`,
+    },
+  });
+}
+{
+  const mrRts = rts(24, 1450);
+  const flags = Array.from({ length: 24 }, (_, i) => i < 21);
+  cases.push({
+    id: "A9",
+    desc: "Mental Rotation 21/24 dung voi nhieu goc kho",
+    game: "mental",
+    tel: {
+      timeMs: sum(mrRts),
+      trials: 24,
+      correct: 21,
+      wrong: 3,
+      rts: mrRts,
+      angles: [180,135,90,225,180,135,90,270,180,135,90,225,180,135,90,270,180,135,90,225,45,45,0,0],
+      mirrors: Array.from({ length: 24 }, (_, i) => i % 2 === 0),
+      correctFlags: flags,
+    },
+    elapsed: sum(mrRts) + 5000,
+    expect: {
+      hardFlag: false,
+      check: (s) =>
+        s.axes.spatial > 600 && s.axes.speed > 500 && s.label === "Mental Rotation"
+          ? null
+          : `spatial=${s.axes.spatial} speed=${s.axes.speed} label=${s.label}`,
+    },
+  });
+}
+
 // ─────────── B. KHAI THAC: Sudoku farm Speed bang thua som ───────────
 {
   const r = rts(2, 3000);
@@ -481,6 +537,72 @@ cases.push({
     softFlagContains: "metronomic",
   },
 });
+
+// ─────────── H. Bien va gian lan cho 2 game moi ───────────
+cases.push({
+  id: "H1",
+  desc: "Go/No-Go khai bao go+nogo khong bang trials",
+  game: "gonogo",
+  tel: {
+    timeMs: 30000, trials: 40, goTrials: 29, nogoTrials: 10,
+    hits: 28, misses: 1, falseAlarms: 0, correctRejections: 10,
+    rts: rts(28, 430),
+  },
+  elapsed: 35000,
+  expect: { reject: true },
+});
+{
+  const bot = Array.from({ length: 28 }, () => 170);
+  cases.push({
+    id: "H2",
+    desc: "Go/No-Go hoan hao va qua deu: soft flag, khong hard",
+    game: "gonogo",
+    tel: {
+      timeMs: 30000, trials: 40, goTrials: 28, nogoTrials: 12,
+      hits: 28, misses: 0, falseAlarms: 0, correctRejections: 12, rts: bot,
+    },
+    elapsed: 35000,
+    expect: { hardFlag: false, softFlagContains: "Perfect inhibition" },
+  });
+}
+cases.push({
+  id: "H3",
+  desc: "Mental Rotation thieu mot RT bi tu choi",
+  game: "mental",
+  tel: {
+    timeMs: 30000, trials: 24, correct: 20, wrong: 4,
+    rts: rts(23, 1400), angles: Array.from({ length: 24 }, () => 90),
+  },
+  elapsed: 35000,
+  expect: { reject: true },
+});
+cases.push({
+  id: "H4",
+  desc: "Mental Rotation correctFlags khong khop correct bi tu choi",
+  game: "mental",
+  tel: {
+    timeMs: 30000, trials: 24, correct: 20, wrong: 4,
+    rts: rts(24, 1400), angles: Array.from({ length: 24 }, () => 90),
+    correctFlags: Array.from({ length: 24 }, (_, i) => i < 21),
+  },
+  elapsed: 35000,
+  expect: { reject: true },
+});
+{
+  const bot = Array.from({ length: 24 }, () => 300);
+  cases.push({
+    id: "H5",
+    desc: "Mental Rotation hoan hao 300ms: soft flag, khong hard",
+    game: "mental",
+    tel: {
+      timeMs: 10000, trials: 24, correct: 24, wrong: 0, rts: bot,
+      angles: Array.from({ length: 24 }, () => 180),
+      correctFlags: Array.from({ length: 24 }, () => true),
+    },
+    elapsed: 15000,
+    expect: { hardFlag: false, softFlagContains: "Perfect mental rotation" },
+  });
+}
 
 // ─────────── Chay ───────────
 let pass = 0;

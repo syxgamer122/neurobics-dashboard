@@ -15,6 +15,7 @@ import {
   type Profile,
 } from "./internal";
 import { logError } from "../logger";
+import { SESSION_COLUMNS, type SessionColumn } from "../game-registry";
 
 export async function fetchProfile(): Promise<Profile | null> {
   const userId = await currentUserId();
@@ -82,15 +83,9 @@ export async function resetActiveUserScores(): Promise<Profile> {
       focus_score: 0,
       cfop_spatial_record: 0,
       synapse_streak: 0,
-      schulte_sessions: 0,
-      sudoku_sessions: 0,
-      stroop_sessions: 0,
-      reaction_sessions: 0,
-      memory_sessions: 0,
-      nback_sessions: 0,
-      math_sessions: 0,
-      gonogo_sessions: 0,
-      mental_sessions: 0,
+      ...Object.fromEntries(
+        SESSION_COLUMNS.map((column) => [column, 0]),
+      ) as Record<SessionColumn, number>,
       total_xp: 0,
       last_active_date: null,
     })

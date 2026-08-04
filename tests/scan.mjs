@@ -104,9 +104,10 @@ function stripStringsAndComments(src) {
 }
 
 // ---------- 1. i18n: trich key theo DO SAU NGOAC ----------
-const i18nPath = path.join(SRC, "app/lib/i18n.tsx");
-const i18nRaw = fs.readFileSync(i18nPath, "utf8");
-const i18nCode = stripStringsAndComments(i18nRaw);
+const viPath = path.join(SRC, "app/lib/i18n/vi.ts");
+const enPath = path.join(SRC, "app/lib/i18n/en.ts");
+const viCode = stripStringsAndComments(fs.readFileSync(viPath, "utf8"));
+const enCode = stripStringsAndComments(fs.readFileSync(enPath, "utf8"));
 
 /** Lay cac key o tang ngoai cung cua object literal, bo qua thut le. */
 function extractDict(code, startRe) {
@@ -139,8 +140,8 @@ function extractDict(code, startRe) {
   return keys;
 }
 
-const viKeys = extractDict(i18nCode, /const vi\s*=\s*\{/);
-const enKeys = extractDict(i18nCode, /const en\s*:[^=]*=\s*\{/);
+const viKeys = extractDict(viCode, /(?:export\s+)?const vi\s*=\s*\{/);
+const enKeys = extractDict(enCode, /(?:export\s+)?const en\s*:[^=]*=\s*\{/);
 
 console.log("===== 1. i18n =====");
 let viSet = new Set();
@@ -180,6 +181,22 @@ for (const f of files) {
     used.get(m[1]).add(rel(f));
   }
 }
+
+// Game Registry tham chiếu i18n động qua t[game.tagKey] / t[descriptionKey].
+// Ghi nhận các key literal trong registry để không báo unused giả, đồng thời
+// phần kiểm tra `missing` bên dưới vẫn bắt được key registry không có trong từ điển.
+const gameRegistryPath = path.join(SRC, "app/lib/game-registry.ts");
+if (fs.existsSync(gameRegistryPath)) {
+  const registryRaw = fs.readFileSync(gameRegistryPath, "utf8");
+  const registryKeyRe = /(?:tagKey|descriptionKey):\s*"([A-Za-z_$][\w$]*)"/g;
+  let registryMatch;
+  while ((registryMatch = registryKeyRe.exec(registryRaw))) {
+    const key = registryMatch[1];
+    if (!used.has(key)) used.set(key, new Set());
+    used.get(key).add(rel(gameRegistryPath));
+  }
+}
+
 let missing = 0;
 for (const [k, where] of [...used].sort()) {
   if (viSet.size && !viSet.has(k)) {

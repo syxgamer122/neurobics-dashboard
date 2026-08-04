@@ -7,20 +7,7 @@ import {
   type TrainingSession,
   type PersonalBest,
 } from "../lib/api";
-
-const GAME_META: Record<RoundGame, { name: string; accent: string }> = {
-  schulte: { name: "Schulte Table", accent: "#F59E0B" },
-  sudoku: { name: "Sudoku", accent: "#00D4FF" },
-  stroop: { name: "Stroop Test", accent: "#A855F7" },
-  reaction: { name: "Reaction Time", accent: "#10B981" },
-  memory: { name: "Memory Matrix", accent: "#F43F5E" },
-  nback: { name: "N-Back", accent: "#8B5CF6" },
-  math: { name: "Math Sprint", accent: "#38BDF8" },
-  gonogo: { name: "Go / No-Go", accent: "#F97316" },
-  mental: { name: "Mental Rotation", accent: "#22D3EE" },
-};
-
-const GAMES = Object.keys(GAME_META) as RoundGame[];
+import { GAME_BY_ID, GAME_IDS } from "../lib/game-registry";
 
 const fmtTime = (ms: number): string => {
   const total = Math.max(0, Math.round(ms / 1000));
@@ -127,8 +114,8 @@ export function HistoryPanel() {
 
       {/* ── Kỷ lục cá nhân ── */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {GAMES.map((game) => {
-          const meta = GAME_META[game];
+        {GAME_IDS.map((game) => {
+          const meta = GAME_BY_ID[game];
           const pb = bestByGame[game];
           return (
             <div
@@ -143,7 +130,7 @@ export function HistoryPanel() {
                 className="mb-3 text-xs tracking-[0.2em] font-mono"
                 style={{ color: meta.accent }}
               >
-                {meta.name.toUpperCase()}
+                {meta.title.toUpperCase()}
               </div>
               {pb ? (
                 <div className="grid grid-cols-2 gap-y-2">
@@ -168,10 +155,10 @@ export function HistoryPanel() {
 
       {/* ── Bộ lọc ── */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {(["all", ...GAMES] as const).map((id) => {
+        {(["all", ...GAME_IDS] as const).map((id) => {
           const isActive = filter === id;
-          const accent = id === "all" ? "#00D4FF" : GAME_META[id].accent;
-          const label = id === "all" ? "TẤT CẢ" : GAME_META[id].name;
+          const accent = id === "all" ? "#00D4FF" : GAME_BY_ID[id].accent;
+          const label = id === "all" ? "TẤT CẢ" : GAME_BY_ID[id].title;
           return (
             <button
               key={id}
@@ -222,10 +209,7 @@ export function HistoryPanel() {
         {!loading &&
           !error &&
           sessions.map((s, i) => {
-            const meta = GAME_META[s.game] ?? {
-              name: s.game,
-              accent: "#64748b",
-            };
+            const meta = GAME_BY_ID[s.game];
             return (
               <div
                 key={s.id}
@@ -243,7 +227,7 @@ export function HistoryPanel() {
 
                 <div className="min-w-[140px] flex-1">
                   <div className="text-[12px]" style={{ color: "#e2e8f0" }}>
-                    {meta.name}
+                    {meta.title}
                   </div>
                   <div className="text-xs" style={{ color: "#64748b" }}>
                     {s.label || "—"} · {fmtWhen(s.created_at)}

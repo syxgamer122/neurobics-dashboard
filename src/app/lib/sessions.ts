@@ -1,24 +1,20 @@
-/** Single source: profile session counters for every game. */
-export const SESSION_COLUMNS = [
-  "schulte_sessions",
-  "sudoku_sessions",
-  "stroop_sessions",
-  "reaction_sessions",
-  "memory_sessions",
-  "nback_sessions",
-  "math_sessions",
-  "gonogo_sessions",
-  "mental_sessions",
-] as const;
+import {
+  SESSION_COLUMNS,
+  type SessionColumn,
+} from "./game-registry.ts";
 
-export type SessionColumn = (typeof SESSION_COLUMNS)[number];
+/** Session counters are derived from the canonical Game Registry. */
+export { SESSION_COLUMNS, type SessionColumn };
 
 /** Sum of all game session counters on a profile-like object. */
 export function totalSessions(
-  p: Partial<Record<SessionColumn, number | null | undefined>> | null | undefined,
+  profile:
+    | Partial<Record<SessionColumn, number | null | undefined>>
+    | null
+    | undefined,
 ): number {
-  if (!p) return 0;
-  let n = 0;
-  for (const col of SESSION_COLUMNS) n += p[col] ?? 0;
-  return n;
+  if (!profile) return 0;
+  let total = 0;
+  for (const column of SESSION_COLUMNS) total += profile[column] ?? 0;
+  return total;
 }

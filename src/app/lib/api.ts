@@ -18,3 +18,13 @@ export * from "./api/social";
 export { RATING_MAX, sanitizeRating } from "./scoring";
 export { AXIS_COLUMNS, AXIS_META, type AxisKey } from "./axes";
 export { SESSION_COLUMNS, totalSessions } from "./sessions";
+export {
+  GAME_REGISTRY,
+  GAME_IDS,
+  GAME_BY_ID,
+  isGameId,
+  gameStageClass,
+  type GameId,
+  type GameDefinition,
+  type SessionColumn,
+} from "./game-registry";

@@ -9,6 +9,7 @@ import {
 import { useLang } from "../../lib/i18n";
 import { RATING_MAX } from "../../lib/scoring";
 import type { RoundGame } from "../../lib/api";
+import { GAME_BY_ID } from "../../lib/game-registry";
 
 export type RoundAxisRow = {
   label: string;
@@ -41,21 +42,7 @@ export function RoundResultOverlay({
   onClose: () => void;
 }) {
   const { t } = useLang();
-  const GAME_META: Record<
-    RoundResult["game"],
-    { title: string; accent: string }
-  > = {
-    schulte: { title: "SCHULTE TABLE", accent: "#A855F7" },
-    sudoku: { title: "SUDOKU", accent: "#00D4FF" },
-    stroop: { title: "STROOP TEST", accent: "#EAB308" },
-    reaction: { title: "REACTION TIME", accent: "#10B981" },
-    memory: { title: "MEMORY MATRIX", accent: "#F43F5E" },
-    nback: { title: "N-BACK", accent: "#8B5CF6" },
-    math: { title: "MATH SPRINT", accent: "#38BDF8" },
-    gonogo: { title: "GO / NO-GO", accent: "#F97316" },
-    mental: { title: "MENTAL ROTATION", accent: "#22D3EE" },
-  };
-  const meta = GAME_META[result.game] ?? GAME_META.sudoku;
+  const meta = GAME_BY_ID[result.game];
   const accent = meta.accent;
   const fmtTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -97,7 +84,7 @@ export function RoundResultOverlay({
                 className="text-xs tracking-[0.25em] mb-1 font-mono"
                 style={{ color: accent }}
               >
-                {meta.title} · {t.round_complete}
+                {meta.title.toUpperCase()} · {t.round_complete}
               </div>
               <div className="text-xl font-bold text-white truncate">
                 {result.label}

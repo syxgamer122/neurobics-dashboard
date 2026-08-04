@@ -10,6 +10,18 @@ import {
   MAX_XP_PER_ROUND,
 } from "../src/app/lib/xp.ts";
 import { SESSION_COLUMNS, totalSessions } from "../src/app/lib/sessions.ts";
+import {
+  GAME_BY_ID,
+  GAME_IDS,
+  GAME_REGISTRY,
+  isGameId,
+} from "../src/app/lib/game-registry.ts";
+import {
+  GAME_IDS as SERVER_GAME_IDS,
+  isGame as isServerGame,
+} from "../supabase/functions/_shared/scoring/core.ts";
+import { vi } from "../src/app/lib/i18n/vi.ts";
+import { en } from "../src/app/lib/i18n/en.ts";
 import { AXIS_COLUMNS, AXIS_META } from "../src/app/lib/axes.ts";
 import { generateSudoku, countSolutions } from "../src/app/lib/sudoku-gen.ts";
 
@@ -127,9 +139,59 @@ check("level 1 -> Novice", getLevelTitle(1) === "Novice");
 check("level 5 -> Explorer", getLevelTitle(5) === "Explorer");
 check("level 50 -> Neuro Sage", getLevelTitle(50) === "Neuro Sage");
 
+// ------------------------------------------------------------ GAME REGISTRY
+section("game-registry.ts");
+check("registry co game", GAME_IDS.length > 0, String(GAME_IDS.length));
+check(
+  "game id khong trung",
+  new Set(GAME_IDS).size === GAME_IDS.length,
+  GAME_IDS.join(","),
+);
+check(
+  "session column phu dung tung game",
+  GAME_REGISTRY.every((game) => game.sessionColumn === `${game.id}_sessions`),
+);
+check(
+  "session column khong trung",
+  new Set(SESSION_COLUMNS).size === SESSION_COLUMNS.length,
+);
+check(
+  "GAME_BY_ID phu het registry",
+  GAME_REGISTRY.every((game) => GAME_BY_ID[game.id] === game),
+);
+check(
+  "primary/secondary axis hop le",
+  GAME_REGISTRY.every(
+    (game) => game.primaryAxis in AXIS_COLUMNS && game.secondaryAxis in AXIS_COLUMNS,
+  ),
+);
+check(
+  "tag/description ton tai o ca vi va en",
+  GAME_REGISTRY.every(
+    (game) =>
+      game.tagKey in vi &&
+      game.tagKey in en &&
+      game.descriptionKey in vi &&
+      game.descriptionKey in en,
+  ),
+);
+check("isGameId nhan game hop le", GAME_IDS.every(isGameId));
+check("isGameId tu choi game la", !isGameId("unknown-game"));
+check(
+  "client/server game ids khop tuyet doi",
+  JSON.stringify(GAME_IDS) === JSON.stringify(SERVER_GAME_IDS),
+  `client=${GAME_IDS.join(",")} server=${SERVER_GAME_IDS.join(",")}`,
+);
+check("server type guard nhan du game", SERVER_GAME_IDS.every(isServerGame));
+check("server type guard tu choi game la", !isServerGame("unknown-game"));
+
 // ------------------------------------------------------------------ SESSIONS
 section("sessions.ts");
-check("co du 9 cot game", SESSION_COLUMNS.length === 9, String(SESSION_COLUMNS.length));
+check(
+  "so session column khop registry",
+  SESSION_COLUMNS.length === GAME_IDS.length,
+  `${SESSION_COLUMNS.length}/${GAME_IDS.length}`,
+);
 check("null profile -> 0", totalSessions(null) === 0);
 check("undefined -> 0", totalSessions(undefined) === 0);
 check("object rong -> 0", totalSessions({}) === 0);

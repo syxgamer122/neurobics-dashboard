@@ -6,6 +6,7 @@
  */
 import type { Profile } from "./api";
 import { AXIS_META, type AxisKey } from "./axes";
+import { GAME_BY_ID, SESSION_COLUMNS, type SessionColumn } from "./game-registry";
 import {
   pullUpRating,
   sanitizeRating,
@@ -19,6 +20,12 @@ export const GUEST_PROFILE_ID = "guest-local" as const;
 
 /** Ho so khach = Profile + id co dinh. */
 export type GuestProfile = Profile & { id: typeof GUEST_PROFILE_ID };
+
+function emptySessionCounters(): Record<SessionColumn, number> {
+  return Object.fromEntries(
+    SESSION_COLUMNS.map((column) => [column, 0]),
+  ) as Record<SessionColumn, number>;
+}
 
 /**
  * PHAI la `p is GuestProfile`, KHONG phai `p is Profile`.
@@ -43,15 +50,7 @@ export function createGuestProfile(username = "Khách"): GuestProfile {
     memory_score: 0,
     speed_score: 0,
     focus_score: 0,
-    schulte_sessions: 0,
-    sudoku_sessions: 0,
-    stroop_sessions: 0,
-    reaction_sessions: 0,
-    memory_sessions: 0,
-    nback_sessions: 0,
-    math_sessions: 0,
-    gonogo_sessions: 0,
-    mental_sessions: 0,
+    ...emptySessionCounters(),
     total_xp: 0,
     last_active_date: null,
     birth_year: null,
@@ -60,18 +59,6 @@ export function createGuestProfile(username = "Khách"): GuestProfile {
     created_at: now,
   };
 }
-
-const SESSION_COL: Record<RoundGame, keyof Profile> = {
-  schulte: "schulte_sessions",
-  sudoku: "sudoku_sessions",
-  stroop: "stroop_sessions",
-  reaction: "reaction_sessions",
-  memory: "memory_sessions",
-  nback: "nback_sessions",
-  math: "math_sessions",
-  gonogo: "gonogo_sessions",
-  mental: "mental_sessions",
-};
 
 function readAxis(profile: Profile, key: AxisKey): number {
   const col = AXIS_META[key].column;
@@ -115,7 +102,7 @@ export function completeGuestRound(
     writeAxis(next, key, pullUpRating(readAxis(profile, key), round));
   });
 
-  const sessCol = SESSION_COL[game];
+  const sessCol = GAME_BY_ID[game].sessionColumn;
   const prevSess = Number(next[sessCol] ?? 0) || 0;
   (next as Record<string, unknown>)[sessCol] = prevSess + 1;
 

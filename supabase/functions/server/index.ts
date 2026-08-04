@@ -2,7 +2,7 @@ import { Hono, type Context } from "npm:hono@4.12.27";
 import { cors } from "npm:hono@4.12.27/cors";
 import { logger } from "npm:hono@4.12.27/logger";
 import { createClient } from "npm:@supabase/supabase-js@2.110.9";
-import { scoreAndValidate, type Game } from "../_shared/round-scoring.ts";
+import { GAME_IDS, isGame, scoreAndValidate } from "../_shared/round-scoring.ts";
 import { inspectRound, hasHardFlag, softFlags } from "../_shared/anticheat.ts";
 
 const app = new Hono();
@@ -33,8 +33,13 @@ const adminClient = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+const SESSION_COLUMNS = GAME_IDS.map((game) => `${game}_sessions` as const);
+const SESSION_SELECT = SESSION_COLUMNS.join(", ");
+const EMPTY_SESSION_PATCH = Object.fromEntries(
+  SESSION_COLUMNS.map((column) => [column, 0]),
+);
 const PROFILE_COLS =
-  "id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, schulte_sessions, sudoku_sessions, stroop_sessions, reaction_sessions, memory_sessions, nback_sessions, math_sessions, gonogo_sessions, mental_sessions, created_at";
+  `id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, ${SESSION_SELECT}, created_at`;
 // Ca nha thuong dung chung mot duong mang, nen mot dia chi phai du cho
 // vai nguoi cung dang ky.
 const SIGNUP_LIMIT = 10;
@@ -471,18 +476,6 @@ app.post("/server/recover-password", async (c) => {
 });
 
 // ─── Secure round lifecycle ──────────────────────────────────────────────────
-const GAMES = new Set([
-  "schulte",
-  "sudoku",
-  "stroop",
-  "reaction",
-  "memory",
-  "nback",
-  "math",
-  "gonogo",
-  "mental",
-]);
-
 async function authenticatedUser(c: Context) {
   const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer "))
@@ -498,7 +491,8 @@ app.post("/server/start-round", async (c) => {
   try {
     const user = await authenticatedUser(c);
     const { game } = await c.req.json();
-    if (!GAMES.has(String(game))) return c.json({ error: "Invalid game" }, 400);
+    const gameId = String(game);
+    if (!isGame(gameId)) return c.json({ error: "Invalid game" }, 400);
 
     // Mot user chi co the choi mot van tai mot thoi diem. Dong ticket cu truoc
     // khi mint ticket moi, tranh ticket warm/refresh bi tich trong 3 gio roi
@@ -528,7 +522,7 @@ app.post("/server/start-round", async (c) => {
 
     const { data, error } = await adminClient
       .from("round_tickets")
-      .insert({ user_id: user.id, game: String(game) })
+      .insert({ user_id: user.id, game: gameId })
       .select("id, game, started_at, expires_at")
       .single();
     if (error) throw error;
@@ -554,7 +548,8 @@ app.post("/server/submit-round", async (c) => {
     const user = await authenticatedUser(c);
     const body = await c.req.json();
     const { roundId, game, telemetry, fingerprint } = body ?? {};
-    if (!roundId || !GAMES.has(String(game)))
+    const gameId = String(game);
+    if (!roundId || !isGame(gameId))
       return c.json({ error: "roundId and valid game are required" }, 400);
 
     const { data: ticket, error: ticketError } = await adminClient
@@ -565,7 +560,7 @@ app.post("/server/submit-round", async (c) => {
       .single();
     if (ticketError || !ticket)
       return c.json({ error: "Round ticket not found" }, 404);
-    if (ticket.game !== game)
+    if (ticket.game !== gameId)
       return c.json({ error: "Round game mismatch" }, 400);
     if (ticket.submitted_at)
       return c.json({ error: "Round already submitted" }, 409);
@@ -575,7 +570,7 @@ app.post("/server/submit-round", async (c) => {
     const serverElapsedMs = Date.now() - Date.parse(ticket.started_at);
 
     // Lớp chống gian lận: hard flag từ chối ván, soft flag vẫn chấm nhưng ghi log.
-    const cheat = inspectRound(String(game), telemetry, serverElapsedMs);
+    const cheat = inspectRound(gameId, telemetry, serverElapsedMs);
     if (hasHardFlag(cheat)) {
       // Dot ticket TRUOC khi tra 422 de khong bien anti-cheat thanh oracle thu lai.
       const { error: burnError } = await adminClient
@@ -592,7 +587,7 @@ app.post("/server/submit-round", async (c) => {
       for (const f of hard) {
         const { error: hardErr } = await adminClient.rpc("record_cheat_flag", {
           p_user_id: user.id,
-          p_game: String(game),
+          p_game: gameId,
           p_reason: f.msg,
           p_severity: "hard",
           p_details: f.detail ?? {},
@@ -611,7 +606,7 @@ app.post("/server/submit-round", async (c) => {
     for (const f of softFlags(cheat)) {
       const { error: softErr } = await adminClient.rpc("record_cheat_flag", {
         p_user_id: user.id,
-        p_game: String(game),
+        p_game: gameId,
         p_reason: f.msg,
         p_severity: "soft",
         p_details: f.detail ?? {},
@@ -628,7 +623,7 @@ app.post("/server/submit-round", async (c) => {
       if (fpErr) console.log(`link_device failed: ${fpErr.message}`);
     }
 
-    const scored = scoreAndValidate(game as Game, telemetry, serverElapsedMs);
+    const scored = scoreAndValidate(gameId, telemetry, serverElapsedMs);
     const axisPayload = Object.fromEntries(
       Object.entries(scored.axes).filter(([, value]) => value !== null),
     );
@@ -636,7 +631,7 @@ app.post("/server/submit-round", async (c) => {
     const { data, error } = await adminClient.rpc("submit_round_transaction", {
       p_user_id: user.id,
       p_ticket_id: String(roundId),
-      p_game: String(game),
+      p_game: gameId,
       p_axes: axisPayload,
       p_round_score: scored.headline,
       p_label: scored.label,
@@ -764,15 +759,7 @@ app.post("/server/admin-reset", async (c) => {
       focus_score: 0,
       cfop_spatial_record: 0,
       synapse_streak: 0,
-      schulte_sessions: 0,
-      sudoku_sessions: 0,
-      stroop_sessions: 0,
-      reaction_sessions: 0,
-      memory_sessions: 0,
-      nback_sessions: 0,
-      math_sessions: 0,
-      gonogo_sessions: 0,
-      mental_sessions: 0,
+      ...EMPTY_SESSION_PATCH,
       total_xp: 0,
       last_active_date: null,
     };

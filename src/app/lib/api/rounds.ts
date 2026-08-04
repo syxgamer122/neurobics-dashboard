@@ -7,20 +7,13 @@ import {
   deviceFingerprint,
   type Profile,
 } from "./internal";
+import type { GameId } from "../game-registry";
 
 // ─── XP awarding (server-side, tamper-resistant) ──────────────────────────────
 
 
-export type RoundGame =
-  | "schulte"
-  | "sudoku"
-  | "stroop"
-  | "reaction"
-  | "memory"
-  | "nback"
-  | "math"
-  | "gonogo"
-  | "mental";
+/** Backward-compatible API name; canonical type comes from Game Registry. */
+export type RoundGame = GameId;
 export type RoundTicket = {
   roundId: string;
   game: RoundGame;

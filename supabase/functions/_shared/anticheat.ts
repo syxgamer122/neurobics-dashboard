@@ -1,6 +1,7 @@
 // Server-side anti-cheat inspectors.
 // Principle: better to miss a cheater than ban an innocent player ("tha lot con hon bat oan").
 // Hard flags reject the round. Soft flags still accept but record trust damage.
+import type { Game } from "./scoring/core.ts";
 
 export type CheatSeverity = "soft" | "hard";
 
@@ -283,36 +284,34 @@ function inspectMental(t: any): CheatFlag[] {
   return out;
 }
 
+type GameInspector = (telemetry: any) => CheatFlag[];
+
+/** Exhaustive registry: adding a Game without an inspector fails typecheck. */
+const GAME_INSPECTORS = {
+  schulte: inspectSchulte,
+  sudoku: inspectSudoku,
+  stroop: inspectStroop,
+  reaction: inspectReaction,
+  memory: inspectMemory,
+  nback: inspectNBack,
+  math: inspectMath,
+  gonogo: inspectGoNoGo,
+  mental: inspectMental,
+} satisfies Record<Game, GameInspector>;
+
 export function inspectRound(
-  game: string,
+  game: Game,
   telemetry: unknown,
   serverElapsedMs: number,
 ): CheatReport {
   const t = telemetry as any;
-  const flags: CheatFlag[] = [
-    ...inspectShared(t, serverElapsedMs),
-    ...inspectSubThreshold(t),
-    ...(game === "math"
-      ? inspectMath(t)
-      : game === "reaction"
-        ? inspectReaction(t)
-        : game === "schulte"
-          ? inspectSchulte(t)
-          : game === "stroop"
-            ? inspectStroop(t)
-            : game === "sudoku"
-              ? inspectSudoku(t)
-              : game === "memory"
-                ? inspectMemory(t)
-                : game === "nback"
-                  ? inspectNBack(t)
-                  : game === "gonogo"
-                    ? inspectGoNoGo(t)
-                    : game === "mental"
-                      ? inspectMental(t)
-                      : []),
-  ];
-  return { flags };
+  return {
+    flags: [
+      ...inspectShared(t, serverElapsedMs),
+      ...inspectSubThreshold(t),
+      ...GAME_INSPECTORS[game](t),
+    ],
+  };
 }
 
 export function hasHardFlag(report: CheatReport): boolean {

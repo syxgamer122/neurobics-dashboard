@@ -1,35 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LangProvider, useLang } from "./lib/i18n";
-import {
-  Brain,
-  ChevronRight,
-  Zap,
-  Activity,
-  Terminal,
-  Grid3X3,
-  Focus,
-  Sparkles,
-  Calculator,
-  ShieldAlert,
-  RotateCcw,
-  LogOut,
-  Loader2,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 import { AdminPanel } from "./components/admin-panel";
+import { AccessDeniedOverlay } from "./components/app/access-denied-overlay";
+import { AmbientBackground } from "./components/app/ambient-background";
+import { AppHeader } from "./components/app/app-header";
+import { PlayArena } from "./components/app/play-arena";
+import { ProfilePage } from "./components/app/profile-page";
 import { HistoryPanel } from "./components/history-panel";
-import { SettingsPanel } from "./components/settings-panel";
 import {
   CALIBRATION_TARGET,
   CalibrationBanner,
   OnboardingOverlay,
 } from "./components/onboarding";
-import { NBackGame } from "./games/nback-game";
-import { MathSprintGame } from "./games/math-game";
 import { AchievementsPanel } from "./components/achievements-panel";
 import { QuestsPanel } from "./components/quests-panel";
-import { FriendsPanel } from "./components/friends-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock, type DockPage } from "./components/floating-dock";
 import {
@@ -40,17 +27,6 @@ import {
   StreakCard,
 } from "./components/dashboard";
 
-import { SchulteTableGame } from "./games/schulte-game";
-import { SudokuGame } from "./games/sudoku-game";
-import { StroopGame } from "./games/stroop-game";
-import { MemoryMatrixGame } from "./games/memory-game";
-import { ReactionTimeGame } from "./games/reaction-game";
-import { GoNoGoGame } from "./games/go-nogo-game";
-import { MentalRotationGame } from "./games/mental-rotation-game";
-
-import { GlassCard } from "./components/ui/glass-card";
-import { GameTile } from "./components/ui/game-tile";
-import { StatMini } from "./components/ui/stat-mini";
 import {
   RoundResultOverlay,
   type RoundResult,
@@ -66,6 +42,7 @@ import {
   fetchActivityStats,
   type ActivityStats,
   type Profile,
+  type RoundGame,
 } from "./lib/api";
 import { useRoundSubmission } from "./hooks/use-round-submission";
 import {
@@ -77,7 +54,6 @@ import {
 import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
-import { APP_VERSION_LABEL } from "./lib/version";
 import { logError } from "./lib/logger";
 import { isGuestProfile } from "./lib/guest";
 
@@ -150,18 +126,7 @@ function AppInner() {
     profileRef.current = profile;
   }, [profile]);
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
-  const [selectedGame, setSelectedGame] = useState<
-    | "schulte"
-    | "sudoku"
-    | "stroop"
-    | "memory"
-    | "reaction"
-    | "nback"
-    | "math"
-    | "gonogo"
-    | "mental"
-    | null
-  >(null);
+  const [selectedGame, setSelectedGame] = useState<RoundGame | null>(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   // Tang len sau moi van de panel nhiem vu / thanh tuu tu tinh lai tien do.
   const [gamificationKey, setGamificationKey] = useState(0);
@@ -410,154 +375,15 @@ function AppInner() {
         }
         .streak-glow { animation: streakGlow 1.8s ease-in-out infinite; }
       `}</style>
-      {/* Ambient glows */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute rounded-full"
-          style={{
-            top: "-15%",
-            left: "-8%",
-            width: 700,
-            height: 700,
-            background:
-              "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            top: "25%",
-            right: "-12%",
-            width: 600,
-            height: 600,
-            background:
-              "radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            bottom: "-10%",
-            left: "35%",
-            width: 500,
-            height: 500,
-            background:
-              "radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-          }}
-        />
-      </div>
+      <AmbientBackground />
 
-      {/* Nav — tren mobile thu gon de khong tran ngang */}
-      <nav
-        className="relative z-10 flex items-center justify-between gap-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4"
-        style={{
-          borderBottom: "1px solid rgba(0,212,255,0.08)",
-          paddingTop: "max(0.75rem, env(safe-area-inset-top))",
-        }}
-      >
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <div
-            className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-              boxShadow: "0 0 20px rgba(0,212,255,0.4)",
-            }}
-          >
-            <Brain size={17} className="text-white" />
-          </div>
-          <span className="hidden sm:inline text-lg font-bold tracking-[0.22em] text-white font-mono">
-            MINDGEM
-          </span>
-          <span className="inline text-sm font-bold tracking-[0.14em] text-white font-mono sm:hidden">
-            NB
-          </span>
-          <span
-            className="hidden sm:inline text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono"
-            style={{
-              background: "rgba(0,212,255,0.08)",
-              color: "#00D4FF",
-              border: "1px solid rgba(0,212,255,0.18)",
-            }}
-          >
-            {APP_VERSION_LABEL}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 md:gap-6">
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
-            <Activity size={12} className="text-neuro-cyan" />
-            <span>{t.league}</span>
-          </div>
-          <div
-            className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl"
-            style={{
-              background: "rgba(13,20,45,0.6)",
-              border: "1px solid rgba(0,212,255,0.1)",
-            }}
-          >
-            <div
-              className="w-8 h-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
-              style={{
-                background: profile.avatar_url
-                  ? "#0B1228"
-                  : "linear-gradient(135deg, #A855F7, #7C3AED)",
-              }}
-            >
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                profile.username.slice(0, 2)
-              )}
-            </div>
-            <div className="hidden sm:block min-w-0">
-              <div className="text-xs font-semibold text-white truncate max-w-[9rem]">
-                {profile.username}
-              </div>
-              <div className="text-xs text-slate-500">
-                {profile.synapse_streak} {t.day_streak}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={toggle}
-            title="Switch language"
-            aria-label="Switch language"
-            className="h-10 min-w-10 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125"
-            style={{
-              background: "rgba(13,20,45,0.6)",
-              border: "1px solid rgba(0,212,255,0.15)",
-              color: "#00D4FF",
-            }}
-          >
-            {lang === "vi" ? "EN" : "VI"}
-          </button>
-          <button
-            type="button"
-            onClick={onLogout}
-            title="Sign out"
-            aria-label={t.sign_out}
-            className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-colors"
-            style={{
-              background: "rgba(13,20,45,0.6)",
-              border: "1px solid rgba(0,212,255,0.1)",
-            }}
-          >
-            <LogOut size={15} />
-          </button>
-        </div>
-      </nav>
+      <AppHeader
+        profile={profile}
+        lang={lang}
+        t={t}
+        onToggleLanguage={toggle}
+        onLogout={onLogout}
+      />
 
       {/* Main — pb du de khong bi dock + home indicator che */}
       <main
@@ -630,197 +456,13 @@ function AppInner() {
         )}
 
         {activePage === "play" && (
-          <>
-            {/* Section divider */}
-            <div
-              className={`flex items-center gap-4 pt-1 ${selectedGame ? "max-w-lg mx-auto w-full" : ""}`}
-            >
-              <Zap
-                size={14}
-                className="text-neuro-cyan shrink-0"
-                style={{ filter: "drop-shadow(0 0 6px #00D4FF)" }}
-              />
-              <span className="text-xs text-white tracking-[0.25em] uppercase font-mono">
-                {t.arena}
-              </span>
-              <div
-                className="flex-1 h-px"
-                style={{
-                  background:
-                    "linear-gradient(90deg, rgba(0,212,255,0.3), transparent)",
-                }}
-              />
-              {selectedGame ? (
-                <button
-                  onClick={() => setSelectedGame(null)}
-                  className="flex items-center gap-1.5 text-xs transition-colors"
-                  style={{
-                    color: "#00D4FF",
-                  }}
-                >
-                  <ChevronRight size={12} className="rotate-180" />{" "}
-                  {t.back_to_arena}
-                </button>
-              ) : null}
-            </div>
-
-            {/* Game hub: pick a game */}
-            {!selectedGame && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto w-full">
-                <GameTile
-                  accent="#A855F7"
-                  icon={<Focus size={22} />}
-                  tag={t.focus_training}
-                  title="Schulte Table"
-                  desc={t.schulte_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("schulte")}
-                />
-                <GameTile
-                  accent="#00D4FF"
-                  icon={<Grid3X3 size={22} />}
-                  tag={t.logic_training}
-                  title="Sudoku"
-                  desc={t.sudoku_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("sudoku")}
-                />
-                <GameTile
-                  accent="#EAB308"
-                  icon={<Zap size={22} />}
-                  tag={t.stroop_tag}
-                  title="Stroop Test"
-                  desc={t.stroop_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("stroop")}
-                />
-                <GameTile
-                  accent="#10B981"
-                  icon={<Activity size={22} />}
-                  tag={t.rx_tag}
-                  title="Reaction Time"
-                  desc={t.rx_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("reaction")}
-                />
-                <GameTile
-                  accent="#F43F5E"
-                  icon={<Brain size={22} />}
-                  tag={t.mem_tag}
-                  title="Memory Matrix"
-                  desc={t.mem_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("memory")}
-                />
-                <GameTile
-                  accent="#A855F7"
-                  icon={<Sparkles size={22} />}
-                  tag={t.nback_tag}
-                  title="N-Back"
-                  desc={t.nback_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("nback")}
-                />
-                <GameTile
-                  accent="#38BDF8"
-                  icon={<Calculator size={22} />}
-                  tag={t.math_tag}
-                  title="Math Sprint"
-                  desc={t.math_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("math")}
-                />
-                <GameTile
-                  accent="#F97316"
-                  icon={<ShieldAlert size={22} />}
-                  tag={t.gonogo_tag}
-                  title="Go / No-Go"
-                  desc={t.gonogo_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("gonogo")}
-                />
-                <GameTile
-                  accent="#22D3EE"
-                  icon={<RotateCcw size={22} />}
-                  tag={t.mr_tag}
-                  title="Mental Rotation"
-                  desc={t.mr_desc}
-                  playLabel={t.play_now}
-                  onPlay={() => setSelectedGame("mental")}
-                />
-              </div>
-            )}
-
-            {/* Minigame stage: can giua man hinh de de choi / dep hon tren desktop */}
-            {selectedGame && (
-              <div className="w-full flex justify-center px-1 sm:px-0">
-                <div
-                  className={
-                    selectedGame === "schulte"
-                      ? "w-full max-w-lg"
-                      : selectedGame === "sudoku" || selectedGame === "mental"
-                        ? "w-full max-w-md"
-                        : "w-full max-w-sm"
-                  }
-                >
-                  {selectedGame === "schulte" && (
-                    <SchulteTableGame
-                      onComplete={makeGameHandler("schulte")}
-                      onPlayStart={() => beginPlay("schulte")}
-                    />
-                  )}
-                  {selectedGame === "sudoku" && (
-                    <SudokuGame
-                      onComplete={makeGameHandler("sudoku")}
-                      onPlayStart={() => beginPlay("sudoku")}
-                    />
-                  )}
-                  {selectedGame === "stroop" && (
-                    <StroopGame
-                      onComplete={makeGameHandler("stroop")}
-                      onPlayStart={() => beginPlay("stroop")}
-                    />
-                  )}
-                  {selectedGame === "reaction" && (
-                    <ReactionTimeGame
-                      onComplete={makeGameHandler("reaction")}
-                      onPlayStart={() => beginPlay("reaction")}
-                    />
-                  )}
-                  {selectedGame === "memory" && (
-                    <MemoryMatrixGame
-                      onComplete={makeGameHandler("memory")}
-                      onPlayStart={() => beginPlay("memory")}
-                    />
-                  )}
-                  {selectedGame === "nback" && (
-                    <NBackGame
-                      onComplete={makeGameHandler("nback")}
-                      onPlayStart={() => beginPlay("nback")}
-                    />
-                  )}
-                  {selectedGame === "math" && (
-                    <MathSprintGame
-                      onComplete={makeGameHandler("math")}
-                      onPlayStart={() => beginPlay("math")}
-                    />
-                  )}
-                  {selectedGame === "gonogo" && (
-                    <GoNoGoGame
-                      onComplete={makeGameHandler("gonogo")}
-                      onPlayStart={() => beginPlay("gonogo")}
-                    />
-                  )}
-                  {selectedGame === "mental" && (
-                    <MentalRotationGame
-                      onComplete={makeGameHandler("mental")}
-                      onPlayStart={() => beginPlay("mental")}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-          </>
+          <PlayArena
+            selectedGame={selectedGame}
+            t={t}
+            onSelect={setSelectedGame}
+            beginPlay={beginPlay}
+            makeGameHandler={makeGameHandler}
+          />
         )}
 
         {activePage === "dashboard" && (
@@ -890,100 +532,22 @@ function AppInner() {
             <HistoryPanel />
           ))}
         {activePage === "profile" && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <GlassCard accent="#00D4FF" className="p-5">
-                <StatMini
-                  label={t.cognitive_index}
-                  value={String(displayIndex(profile))}
-                  unit={t.pts}
-                  color="#00D4FF"
-                />
-              </GlassCard>
-              <GlassCard accent="#F59E0B" className="p-5">
-                <StatMini
-                  label={t.synapse_streak}
-                  value={String(profile.synapse_streak)}
-                  unit={t.days}
-                  color="#F59E0B"
-                />
-              </GlassCard>
-              <GlassCard accent="#A855F7" className="p-5">
-                <StatMini
-                  label={t.clearance}
-                  value={isGuest ? "GUEST" : isAdmin ? "Ω-1" : "STD"}
-                  unit={isGuest ? "trial" : isAdmin ? "admin" : "user"}
-                  color="#A855F7"
-                />
-              </GlassCard>
-            </div>
-
-            {!isGuest && <FriendsPanel />}
-
-            {!isGuest ? (
-              <SettingsPanel
-                profile={profile}
-                isAdmin={isAdmin}
-                onProfileChange={setProfile}
-                onDeleted={() => {
-                  setProfile(null);
-                  setAdminPanelOpen(false);
-                  setActivePage("dashboard");
-                }}
-              />
-            ) : (
-              <div
-                className="rounded-2xl p-6 text-sm leading-relaxed text-slate-300"
-                style={{
-                  background: "rgba(13,20,45,0.62)",
-                  border: "1px solid rgba(16,185,129,0.22)",
-                }}
-              >
-                {t.guest_banner}
-                <button
-                  type="button"
-                  onClick={exitGuestToAuth}
-                  className="mt-4 h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
-                  style={{
-                    background: "rgba(16,185,129,0.15)",
-                    color: "#34D399",
-                    border: "1px solid rgba(16,185,129,0.35)",
-                  }}
-                >
-                  {t.guest_register}
-                </button>
-              </div>
-            )}
-
-            <div className="flex justify-start">
-              <button
-                type="button"
-                onClick={() => setOnboardingOpen(true)}
-                className="rounded-xl px-4 py-2.5 text-xs font-semibold tracking-wider transition-all hover:brightness-125"
-                style={{
-                  color: "#00D4FF",
-                  background: "rgba(0,212,255,0.08)",
-                  border: "1px solid rgba(0,212,255,0.22)",
-                }}
-              >
-                {t.onboarding_reopen}
-              </button>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                onClick={onLogout}
-                className="py-2.5 px-5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
-                style={{
-                  background: "rgba(244,63,94,0.1)",
-                  color: "#F43F5E",
-                  border: "1px solid rgba(244,63,94,0.28)",
-                }}
-              >
-                <LogOut size={13} /> {t.sign_out}
-              </button>
-            </div>
-          </div>
+          <ProfilePage
+            profile={profile}
+            t={t}
+            cognitiveIndex={displayIndex(profile)}
+            isGuest={isGuest}
+            isAdmin={isAdmin}
+            onProfileChange={setProfile}
+            onDeleted={() => {
+              setProfile(null);
+              setAdminPanelOpen(false);
+              setActivePage("dashboard");
+            }}
+            onRegister={exitGuestToAuth}
+            onOpenOnboarding={() => setOnboardingOpen(true)}
+            onLogout={onLogout}
+          />
         )}
       </main>
 
@@ -1019,137 +583,12 @@ function AppInner() {
         />
       )}
 
-      {/* ── ACCESS DENIED overlay ── */}
       {accessDenied && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{
-            background: "rgba(5,10,24,0.92)",
-            backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.3333))",
-          }}
-          onClick={() => setAccessDenied(false)}
-        >
-          {/* Red radial pulse */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(239,68,68,0.18) 0%, transparent 65%)",
-            }}
-          />
-
-          <div
-            className="relative flex flex-col items-center gap-5 p-10 rounded-2xl max-w-sm w-full mx-4"
-            style={{
-              background: "rgba(13,5,10,0.9)",
-              border: "1px solid rgba(239,68,68,0.5)",
-              boxShadow:
-                "0 0 80px rgba(239,68,68,0.25), inset 0 0 40px rgba(239,68,68,0.04)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Scan line animation */}
-            <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-              <div
-                className="absolute w-full h-px opacity-20"
-                style={{
-                  background:
-                    "linear-gradient(90deg, transparent, #EF4444, transparent)",
-                  animation: "scanline 2s linear infinite",
-                  top: 0,
-                }}
-              />
-            </div>
-
-            {/* Icon */}
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{
-                background: "rgba(239,68,68,0.1)",
-                border: "2px solid rgba(239,68,68,0.5)",
-                boxShadow: "0 0 30px rgba(239,68,68,0.3)",
-              }}
-            >
-              <Terminal
-                size={28}
-                style={{
-                  color: "#EF4444",
-                  filter: "drop-shadow(0 0 8px rgba(239,68,68,0.8))",
-                }}
-              />
-            </div>
-
-            {/* Text */}
-            <div className="text-center space-y-2">
-              <div
-                className="text-2xl font-bold tracking-[0.3em] font-mono"
-                style={{
-                  color: "#EF4444",
-                  textShadow: "0 0 20px rgba(239,68,68,0.6)",
-                }}
-              >
-                {t.access_denied_title}
-              </div>
-              <div className="text-xs tracking-widest text-red-400 font-mono">
-                {t.auth_level_msg}
-              </div>
-            </div>
-
-            {/* Log lines — never reveal the admin username here */}
-            <div
-              className="w-full rounded-lg p-4 space-y-1.5 text-left"
-              style={{
-                background: "rgba(0,0,0,0.5)",
-                border: "1px solid rgba(239,68,68,0.12)",
-              }}
-            >
-              {[
-                {
-                  label: "USER",
-                  value: profile?.username ?? "—",
-                  color: "#94a3b8",
-                },
-                {
-                  label: t.required_label,
-                  value: t.access_denied_role,
-                  color: "#EF4444",
-                },
-                { label: "CLEARANCE", value: "OMEGA-1", color: "#EF4444" },
-                {
-                  label: t.status_label,
-                  value: t.unauthorized_label,
-                  color: "#EF4444",
-                },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <span
-                    className="text-xs w-20 shrink-0"
-                    style={{ color: "rgba(239,68,68,0.5)" }}
-                  >
-                    {label}
-                  </span>
-                  <span className="text-xs" style={{ color }}>
-                    {">"} {value}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setAccessDenied(false)}
-              className="w-full py-2 rounded-xl text-xs tracking-widest font-bold transition-all duration-200 font-mono"
-              style={{
-                background: "rgba(239,68,68,0.1)",
-                color: "#EF4444",
-                border: "1px solid rgba(239,68,68,0.3)",
-              }}
-            >
-              {t.dismiss}
-            </button>
-          </div>
-
-          <style>{`@keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }`}</style>
-        </div>
+        <AccessDeniedOverlay
+          profile={profile}
+          t={t}
+          onClose={() => setAccessDenied(false)}
+        />
       )}
     </div>
   );
