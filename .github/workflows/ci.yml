@@ -6,13 +6,12 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Push lien tiep vao cung nhanh: huy run cu, chi giu run moi nhat.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Turnstile TEST site key (cong khai, luon pass) - chi de buoc build khong thieu bien.
+  # Turnstile test site key (public, luon pass) — chi de build khong canh bao.
   VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
 
 jobs:
@@ -29,21 +28,23 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Node 24: tests/sim-*.ts chay bang --experimental-strip-types.
           node-version: 24
           cache: pnpm
 
-      - name: Install (frozen lockfile)
+      - name: Install
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck (app + worker)
         run: pnpm run typecheck
 
-      - name: Static scan (i18n / hang so / localStorage)
+      - name: Static scan (i18n / constants / localStorage)
         run: pnpm run scan
 
-      - name: Unit tests (vitest)
-        run: pnpm run test
+      - name: Migration lint (ten file, thu tu, cau lenh pha huy)
+        run: pnpm run db:lint
+
+      - name: Unit tests + coverage gate
+        run: pnpm run test:coverage
 
       - name: Simulation suite (client / games / audit)
         run: pnpm run test:sim
@@ -51,28 +52,40 @@ jobs:
       - name: Build
         run: pnpm run build:only
 
-      - name: Upload build output
+      - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist
-          retention-days: 7
+          name: coverage
+          path: coverage
+          retention-days: 14
           if-no-files-found: ignore
 
   edge-functions:
     name: Edge Function typecheck (advisory)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Advisory: Deno phai resolve npm:/jsr: qua mang nen co the flaky.
-    # Bao loi de biet, nhung khong chan merge.
+    # Advisory: khong chan merge. Deno 2 doc npm: qua node_modules khi thay
+    # pnpm-workspace.yaml — can install truoc, neu khong se bao thieu @supabase/*.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (node_modules cho Deno npm:)
+        run: pnpm install --frozen-lockfile
 
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: deno check supabase/functions/server
-        run: deno check supabase/functions/server/index.ts
+      - name: deno check server function
+        run: deno check --node-modules-dir=auto supabase/functions/server/index.ts

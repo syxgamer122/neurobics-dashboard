@@ -142,8 +142,10 @@ describe("collector", () => {
     expect(event.message).toContain("is not a function");
     expect(event.route).toBe("/train/schulte");
     expect(event.userId).toBe("11111111-1111-4111-8111-111111111111");
-    expect(event.context).toBeDefined();
-    expect(String(event.context?.stack ?? "")).not.toContain("\n");
+    const ctx = event.context;
+    expect(ctx).toBeDefined();
+    // Gan ra bien cuc bo + optional chain: strictNullChecks khong hep kieu qua toBeDefined().
+    expect(String(ctx?.stack ?? "")).not.toContain("\n");
   });
 
   it("loi cua transport khong duoc lam vo app", () => {
