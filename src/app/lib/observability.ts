@@ -15,18 +15,22 @@
 import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 import { APP_VERSION } from "./version";
 
+// Dung `key: T | undefined` (khong phai `key?: T`) de tests/scan.mjs nhan ra
+// ten SCREAMING_CASE la da khai bao — regex cua scan chi khop `NAME:` / `NAME=`,
+// khong khop `NAME?:`.
 type MetaEnv = {
-  DEV?: boolean;
-  PROD?: boolean;
-  VITE_TELEMETRY_ENDPOINT?: string;
-  VITE_TELEMETRY_SAMPLE?: string;
-  VITE_TELEMETRY_OFF?: string;
+  DEV: boolean | undefined;
+  PROD: boolean | undefined;
+  VITE_TELEMETRY_ENDPOINT: string | undefined;
+  VITE_TELEMETRY_SAMPLE: string | undefined;
+  VITE_TELEMETRY_OFF: string | undefined;
 };
 
 // import.meta.env khong ton tai khi file duoc chay bang node thuan (tests),
 // nen doc phong thu thay vi truy cap truc tiep.
-const ENV: MetaEnv =
-  (import.meta as unknown as { env?: MetaEnv }).env ?? {};
+// Ep kieu MetaEnv: moi key deu `T | undefined`, doc thieu key van an toan.
+const ENV = ((import.meta as unknown as { env?: MetaEnv }).env ??
+  {}) as MetaEnv;
 
 export type Severity = "debug" | "info" | "warn" | "error" | "fatal";
 export type ObsContext = Record<string, unknown>;
