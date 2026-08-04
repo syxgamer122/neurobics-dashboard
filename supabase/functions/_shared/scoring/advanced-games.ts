@@ -1,10 +1,11 @@
-// N-Back, Go/No-Go and Mental Rotation.
+// N-Back, Go/No-Go, Mental Rotation, Corsi Block and Trail Making.
 import {
   MAX,
   NO_AXES,
   clamp,
   clamp01,
   finite,
+  focus,
   headline,
   int,
   numberArray,
@@ -167,6 +168,87 @@ export function scoreMentalRotation(t: any): ScoredRound {
     axes,
     headline: headline(axes),
     label: "Mental Rotation",
+    timeMs,
+  };
+}
+
+// Corsi Block: Memory chinh, Spatial phu. Khong cham Speed/Focus vi pha chieu
+// chuoi co thoi luong co dinh — dong ho khong phai nhip cua nguoi choi.
+const CORSI_MAX_SPAN = 9;
+
+export function scoreCorsi(t: any): ScoredRound {
+  // Thua ngay chuoi dau (2 o) chi mat ~1s, nen san duoi phai thap.
+  const timeMs = finite(t?.timeMs, "timeMs", 800, 7_200_000);
+  const span = int(t?.span, "span", 0, CORSI_MAX_SPAN);
+  const trials = int(t?.trials, "trials", 1, 40);
+  const correctTrials = int(t?.correctTrials, "correctTrials", 0, 40);
+  const taps = int(t?.taps, "taps", 0, 400);
+  const wrongClicks = int(t?.wrongClicks, "wrongClicks", 0, 80);
+  const rts = numberArray(t?.rts, "rts", 0, 400);
+
+  if (correctTrials > trials)
+    throw new Error("Corsi: correct trials exceed trials");
+  if (rts.length !== taps)
+    throw new Error("Corsi: rts length must equal taps");
+  // Moi luot chi ket thuc bang MOT cu cham sai, nen khong the sai hon so luot.
+  if (wrongClicks > trials)
+    throw new Error("Corsi: wrong clicks exceed trials");
+  // Chuoi ngan nhat dai 2 o, nen mot luot dung phai ton it nhat 2 lan cham.
+  if (taps < 2 * correctTrials)
+    throw new Error("Corsi: fewer taps than correct sequences require");
+  if (span > 0 && correctTrials === 0)
+    throw new Error("Corsi: span reported without any correct sequence");
+
+  // span 2 -> 0, span 5 (trung binh nguoi lon) -> 0.5, span 8 -> 1.
+  const spanNorm = clamp01((span - 2) / 6);
+  const accuracy = clamp01(correctTrials / Math.max(1, trials));
+  const errorRate = clamp01(wrongClicks / Math.max(1, taps));
+
+  const axes = {
+    ...NO_AXES,
+    memory: clamp(
+      MAX * 0.95 * Math.pow(spanNorm, 0.85) * (0.7 + 0.3 * accuracy),
+    ),
+    spatial: clamp(
+      MAX * 0.88 * Math.pow(spanNorm, 0.8) * Math.pow(1 - errorRate, 1.2),
+    ),
+  };
+  return { axes, headline: headline(axes), label: `Span ${span}`, timeMs };
+}
+
+// Trail Making: Speed chinh, Focus phu. Moi buoc la mot lan quet thi giac +
+// chuyen bo quy tac (so <-> chu), nen nhip giua cac buoc la tin hieu that.
+const TRAIL_MIN_NODES = 12;
+const TRAIL_MAX_NODES = 40;
+
+export function scoreTrail(t: any): ScoredRound {
+  const timeMs = finite(t?.timeMs, "timeMs", 3_000, 900_000);
+  const nodes = int(t?.nodes, "nodes", TRAIL_MIN_NODES, TRAIL_MAX_NODES);
+  const wrongClicks = int(t?.wrongClicks, "wrongClicks", 0, 500);
+  const rts = numberArray(t?.rts, "rts", 0, TRAIL_MAX_NODES);
+  const mode = t?.mode === "A" ? "A" : "B";
+
+  // Dong ho bat dau tu cu bam DUNG dau tien => dung nodes-1 buoc nhay.
+  const hops = nodes - 1;
+  if (rts.length !== hops)
+    throw new Error("Trail Making: rts length must equal node hops");
+
+  const accuracy = clamp01(1 - wrongClicks / Math.max(1, hops));
+  const statRts = statSamples(rts, 120);
+
+  // Mode B cham hon mode A mot cach he thong vi phai doi chieu hai chuoi.
+  const target = mode === "B" ? 1100 : 760;
+  const diff = mode === "B" ? 0.95 : 0.78;
+
+  const axes = {
+    ...NO_AXES,
+    speed: statRts.length >= 4 ? speed(statRts, target, diff) : null,
+    focus: focus(statRts, accuracy, diff, target),
+  };
+  return {
+    axes,
+    headline: headline(axes),
+    label: mode === "B" ? "Trail B" : "Trail A",
     timeMs,
   };
 }

@@ -119,6 +119,30 @@ export const GAME_REGISTRY = [
     sessionColumn: "mental_sessions",
     stageWidth: "md",
   },
+  {
+    id: "corsi",
+    title: "Corsi Block",
+    accent: "#14B8A6",
+    icon: "blocks",
+    tagKey: "corsi_tag",
+    descriptionKey: "corsi_desc",
+    primaryAxis: "memory",
+    secondaryAxis: "spatial",
+    sessionColumn: "corsi_sessions",
+    stageWidth: "sm",
+  },
+  {
+    id: "trail",
+    title: "Trail Making",
+    accent: "#84CC16",
+    icon: "route",
+    tagKey: "trail_tag",
+    descriptionKey: "trail_desc",
+    primaryAxis: "speed",
+    secondaryAxis: "focus",
+    sessionColumn: "trail_sessions",
+    stageWidth: "md",
+  },
 ] as const satisfies readonly {
   id: string;
   title: string;

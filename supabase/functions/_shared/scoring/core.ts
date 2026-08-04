@@ -10,6 +10,8 @@ export const GAME_IDS = [
   "math",
   "gonogo",
   "mental",
+  "corsi",
+  "trail",
 ] as const;
 
 export type Game = (typeof GAME_IDS)[number];

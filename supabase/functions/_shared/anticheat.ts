@@ -284,6 +284,71 @@ function inspectMental(t: any): CheatFlag[] {
   return out;
 }
 
+function inspectCorsi(t: any): CheatFlag[] {
+  const rts = nums(t?.rts);
+  const out: CheatFlag[] = [];
+  if (rts.length >= 4) {
+    const med = median(rts);
+    // Phai nho lai vi tri roi moi cham: median < 180ms gan nhu khong the.
+    if (med < 180)
+      out.push(flag("Corsi tap median impossibly low", "hard", { med }));
+    if (cv(rts) < ROBOT_CV)
+      out.push(flag("Corsi timing too metronomic", "soft", { cv: cv(rts) }));
+  }
+  const span = Number(t?.span);
+  const trials = Number(t?.trials);
+  // Span >= 8 la muc rat hiem. Dat duoc ma gan nhu khong truot luot nao thi
+  // ghi soft de theo doi (van chap nhan — "tha lot con hon bat oan").
+  if (
+    Number.isFinite(span) &&
+    Number.isFinite(trials) &&
+    span >= 8 &&
+    trials <= span
+  ) {
+    out.push(
+      flag("Corsi span very high with too few trials", "soft", {
+        span,
+        trials,
+      }),
+    );
+  }
+  return out;
+}
+
+function inspectTrail(t: any): CheatFlag[] {
+  const rts = nums(t?.rts);
+  const out: CheatFlag[] = [];
+  if (rts.length >= 5) {
+    const med = median(rts);
+    // Moi buoc phai QUET tim diem tiep theo tren ban do: < 200ms la phi thuc te.
+    if (med < 200)
+      out.push(flag("Trail Making hop median impossibly low", "hard", { med }));
+    if (cv(rts) < ROBOT_CV)
+      out.push(
+        flag("Trail Making timing too metronomic", "soft", { cv: cv(rts) }),
+      );
+  }
+  const wrong = Number(t?.wrongClicks);
+  const timeMs = Number(t?.timeMs);
+  const nodes = Number(t?.nodes);
+  if (
+    Number.isFinite(wrong) &&
+    Number.isFinite(timeMs) &&
+    Number.isFinite(nodes) &&
+    nodes >= 20 &&
+    wrong === 0 &&
+    timeMs < nodes * 260
+  ) {
+    out.push(
+      flag("Perfect trail finished implausibly fast", "soft", {
+        timeMs,
+        nodes,
+      }),
+    );
+  }
+  return out;
+}
+
 type GameInspector = (telemetry: any) => CheatFlag[];
 
 /** Exhaustive registry: adding a Game without an inspector fails typecheck. */
@@ -297,6 +362,8 @@ const GAME_INSPECTORS = {
   math: inspectMath,
   gonogo: inspectGoNoGo,
   mental: inspectMental,
+  corsi: inspectCorsi,
+  trail: inspectTrail,
 } satisfies Record<Game, GameInspector>;
 
 export function inspectRound(

@@ -604,6 +604,126 @@ cases.push({
   });
 }
 
+// ─────────── Corsi Block + Trail Making ───────────
+{
+  // 9 luot, dat span 6, 5 luot dung — muc kha cua nguoi lon.
+  const tapRts = rts(30, 700);
+  cases.push({
+    id: "A10",
+    desc: "Corsi Block dat span 6 sau 9 luot",
+    game: "corsi",
+    tel: {
+      timeMs: sum(tapRts),
+      span: 6,
+      trials: 9,
+      correctTrials: 5,
+      taps: 30,
+      wrongClicks: 4,
+      rts: tapRts,
+    },
+    elapsed: sum(tapRts) + 20000,
+    expect: {
+      hardFlag: false,
+      check: (s) =>
+        s.axes.memory > 450 &&
+        s.axes.spatial > 400 &&
+        s.axes.speed === null &&
+        s.axes.focus === null &&
+        s.label === "Span 6"
+          ? null
+          : `memory=${s.axes.memory} spatial=${s.axes.spatial} speed=${s.axes.speed} focus=${s.axes.focus} label=${s.label}`,
+    },
+  });
+}
+{
+  // 24 diem, 23 buoc nhay, bam nham 2 lan — van tot.
+  const hopRts = rts(23, 1150);
+  cases.push({
+    id: "A11",
+    desc: "Trail Making B 24 diem, nham 2 lan",
+    game: "trail",
+    tel: {
+      timeMs: sum(hopRts),
+      nodes: 24,
+      mode: "B",
+      wrongClicks: 2,
+      rts: hopRts,
+    },
+    elapsed: sum(hopRts) + 8000,
+    expect: {
+      hardFlag: false,
+      check: (s) =>
+        s.axes.speed > 400 && s.axes.focus > 400 && s.label === "Trail B"
+          ? null
+          : `speed=${s.axes.speed} focus=${s.axes.focus} label=${s.label}`,
+    },
+  });
+}
+cases.push({
+  id: "H6",
+  desc: "Corsi so rts khong khop so lan cham bi tu choi",
+  game: "corsi",
+  tel: {
+    timeMs: 20000, span: 5, trials: 7, correctTrials: 4,
+    taps: 24, wrongClicks: 3, rts: rts(20, 700),
+  },
+  elapsed: 30000,
+  expect: { reject: true },
+});
+cases.push({
+  id: "H7",
+  desc: "Corsi khai span nhung khong luot nao dung bi tu choi",
+  game: "corsi",
+  tel: {
+    timeMs: 12000, span: 5, trials: 3, correctTrials: 0,
+    taps: 12, wrongClicks: 3, rts: rts(12, 700),
+  },
+  elapsed: 20000,
+  expect: { reject: true },
+});
+cases.push({
+  id: "H8",
+  desc: "Trail thieu mot buoc nhay bi tu choi",
+  game: "trail",
+  tel: {
+    timeMs: 25000, nodes: 24, mode: "B", wrongClicks: 1, rts: rts(21, 1100),
+  },
+  elapsed: 32000,
+  expect: { reject: true },
+});
+{
+  // Macro cham deu 120ms: nhanh hon nguong sinh hoc cho viec nho lai vi tri.
+  const bot = Array.from({ length: 40 }, () => 120);
+  cases.push({
+    id: "H9",
+    desc: "Corsi cham deu 120ms dat span 9: hard flag",
+    game: "corsi",
+    tel: {
+      timeMs: sum(bot), span: 9, trials: 9, correctTrials: 8,
+      taps: 40, wrongClicks: 1, rts: bot,
+    },
+    elapsed: sum(bot) + 10000,
+    expect: { hardFlag: true },
+  });
+}
+{
+  // Khong nham cu nao va xong qua nhanh — dang de theo doi, chua chac gian lan.
+  const fast = Array.from({ length: 23 }, () => 250);
+  cases.push({
+    id: "H10",
+    desc: "Trail hoan hao 250ms/buoc: soft flag, khong hard",
+    game: "trail",
+    tel: {
+      timeMs: sum(fast), nodes: 24, mode: "B", wrongClicks: 0, rts: fast,
+    },
+    elapsed: sum(fast) + 5000,
+    expect: {
+      hardFlag: false,
+      softFlagContains: "Perfect trail finished implausibly fast",
+    },
+  });
+}
+
 // ─────────── Chay ───────────
 let pass = 0;
 const fails: string[] = [];

@@ -55,6 +55,8 @@ const QUEST_GAME_NAMES: Record<string, string> = {
   math: "Math Sprint",
   gonogo: "Go / No-Go",
   mental: "Mental Rotation",
+  corsi: "Corsi Block",
+  trail: "Trail Making",
 };
 
 /** Dịch mã nhiệm vụ thành câu đọc được từ cấu trúc mã. */

@@ -1,12 +1,14 @@
 import type { ComponentType } from "react";
 import {
   Activity,
+  Blocks,
   Brain,
   Calculator,
   ChevronRight,
   Focus,
   Grid3X3,
   RotateCcw,
+  Route,
   ShieldAlert,
   Sparkles,
   Zap,
@@ -21,6 +23,7 @@ import {
 } from "../../lib/game-registry";
 import type { Translation } from "../../lib/i18n";
 import { GameTile } from "../ui/game-tile";
+import { CorsiBlockGame } from "../../games/corsi-game";
 import { GoNoGoGame } from "../../games/go-nogo-game";
 import { MathSprintGame } from "../../games/math-game";
 import { MemoryMatrixGame } from "../../games/memory-game";
@@ -30,6 +33,7 @@ import { ReactionTimeGame } from "../../games/reaction-game";
 import { SchulteTableGame } from "../../games/schulte-game";
 import { StroopGame } from "../../games/stroop-game";
 import { SudokuGame } from "../../games/sudoku-game";
+import { TrailMakingGame } from "../../games/trail-game";
 
 const GAME_ICONS: Record<GameIconKey, LucideIcon> = {
   focus: Focus,
@@ -41,6 +45,8 @@ const GAME_ICONS: Record<GameIconKey, LucideIcon> = {
   calculator: Calculator,
   shield: ShieldAlert,
   rotate: RotateCcw,
+  blocks: Blocks,
+  route: Route,
 };
 
 type RegistryGameProps = {
@@ -79,6 +85,12 @@ const GAME_COMPONENTS: Record<RoundGame, ComponentType<RegistryGameProps>> = {
   ),
   mental: ({ onComplete, onPlayStart }) => (
     <MentalRotationGame onComplete={onComplete} onPlayStart={onPlayStart} />
+  ),
+  corsi: ({ onComplete, onPlayStart }) => (
+    <CorsiBlockGame onComplete={onComplete} onPlayStart={onPlayStart} />
+  ),
+  trail: ({ onComplete, onPlayStart }) => (
+    <TrailMakingGame onComplete={onComplete} onPlayStart={onPlayStart} />
   ),
 };
 

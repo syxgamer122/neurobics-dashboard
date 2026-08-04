@@ -351,4 +351,39 @@ export const vi = {
   mr_intro_2: "Hình phải là bản lật gương → chọn GƯƠNG.",
   mr_correct: "Đúng",
   mr_wrong: "Sai",
+
+  // Corsi Block
+  corsi_tag: "CHUỖI KHỐI CORSI",
+  corsi_desc:
+    "Chuỗi ô sáng lên rồi tắt. Bấm lại đúng thứ tự — chuỗi dài dần sau mỗi lần đúng.",
+  corsi_hint:
+    "Nhớ VỊ TRÍ và THỨ TỰ. Sai hai lần ở cùng độ dài thì kết thúc.",
+  corsi_start: "BẮT ĐẦU",
+  corsi_restart: "CHƠI LẠI",
+  corsi_complete: "HOÀN THÀNH",
+  corsi_level: "ĐỘ DÀI",
+  corsi_span: "KỶ LỤC",
+  corsi_watch: "NHÌN KỸ…",
+  corsi_recall: "BẤM LẠI",
+  corsi_mistakes: "LỖI",
+  corsi_intro_1: "Các ô sẽ sáng lần lượt. Hãy ghi nhớ trình tự.",
+  corsi_intro_2: "Sau đó bấm lại đúng thứ tự vừa xem.",
+  corsi_saving: "Đang lưu kết quả…",
+
+  // Trail Making
+  trail_tag: "NỐI ĐƯỜNG",
+  trail_desc:
+    "Nối 1 → A → 2 → B → 3 → C… nhanh nhất có thể. Quét thị giác và chuyển đổi quy tắc.",
+  trail_hint:
+    "Xen kẽ SỐ và CHỮ. Đồng hồ chỉ chạy từ cú bấm đúng đầu tiên.",
+  trail_start: "BẮT ĐẦU",
+  trail_restart: "CHƠI LẠI",
+  trail_complete: "HOÀN THÀNH",
+  trail_next: "TIẾP THEO",
+  trail_progress: "TIẾN ĐỘ",
+  trail_mistakes: "BẤM NHẦM",
+  trail_elapsed: "THỜI GIAN",
+  trail_intro_1: "Bắt đầu từ số 1, rồi đến chữ A.",
+  trail_intro_2: "Cứ thế xen kẽ cho đến điểm cuối cùng.",
+  trail_saving: "Đang lưu kết quả…",
 };

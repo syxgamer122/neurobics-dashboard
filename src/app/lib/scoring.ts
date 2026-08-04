@@ -377,6 +377,46 @@ export type MentalRotationTelemetry = {
   rts: number[];
 };
 
+// ─── Corsi Block → Memory (chính), Spatial (phụ) ──────────────────────────
+// Chuỗi ô sáng lên theo thứ tự, người chơi bấm lại đúng trình tự đó. Độ dài chuỗi
+// (span) tăng dần — đây là thước đo trí nhớ làm việc không gian kinh điển.
+// Speed/Focus = null có chủ đích: pha hiển thị có thời lượng CỐ ĐỊNH nên đồng hồ
+// không phản ánh nhịp chơi thật, giống Memory Matrix.
+
+export type CorsiTelemetry = {
+  /** Chỉ tính pha BẤM LẠI, đã trừ toàn bộ thời gian chiếu chuỗi. */
+  timeMs: number;
+  /** Chuỗi dài nhất tái hiện đúng hoàn toàn. 0 = trượt ngay chuỗi đầu. */
+  span: number;
+  /** Tổng số chuỗi đã thử. */
+  trials: number;
+  /** Số chuỗi tái hiện đúng tuyệt đối. */
+  correctTrials: number;
+  /** Tổng số lần chạm ô trong pha bấm lại. */
+  taps: number;
+  /** Số lần chạm sai thứ tự (mỗi lần làm hỏng một chuỗi). */
+  wrongClicks: number;
+  /** Độ trễ giữa hai lần chạm liên tiếp — chỉ dùng cho anti-cheat. */
+  rts: number[];
+};
+
+// ─── Trail Making B → Speed (chính), Focus (phụ) ────────────────────────
+// Nối 1 → A → 2 → B → 3 → C... Mỗi bước là một lần quét thị giác cộng chuyển bộ
+// quy tắc. Nhịp giữa các bước đo tốc độ xử lý; độ đều và số lần bấm nhầm đo chú ý.
+
+export type TrailTelemetry = {
+  /** Tính từ cú bấm ĐÚNG đầu tiên đến điểm cuối (giống Schulte). */
+  timeMs: number;
+  /** Tổng số điểm trên bản đồ. */
+  nodes: number;
+  /** "A" = chỉ số; "B" = xen kẽ số và chữ (khó hơn, có chuyển bộ quy tắc). */
+  mode: "A" | "B";
+  /** Số lần bấm sai thứ tự. */
+  wrongClicks: number;
+  /** Độ trễ của từng bước nhảy ĐÚNG, theo thứ tự. */
+  rts: number[];
+};
+
 /** Headline number shown on the round overlay: the best axis earned this round. */
 
 // ─── Server is the only scorer ─────────────────────────────────────────

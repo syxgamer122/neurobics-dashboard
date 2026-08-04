@@ -345,4 +345,39 @@ export const en: typeof vi = {
   mr_intro_2: "Right is a mirror flip → MIRROR.",
   mr_correct: "Correct",
   mr_wrong: "Wrong",
+
+  // Corsi Block
+  corsi_tag: "CORSI BLOCK",
+  corsi_desc:
+    "Blocks light up in order, then go dark. Tap them back — the sequence grows every time you get it right.",
+  corsi_hint:
+    "Remember POSITION and ORDER. Two misses at the same length ends the run.",
+  corsi_start: "START",
+  corsi_restart: "PLAY AGAIN",
+  corsi_complete: "COMPLETE",
+  corsi_level: "LENGTH",
+  corsi_span: "BEST SPAN",
+  corsi_watch: "WATCH…",
+  corsi_recall: "TAP IT BACK",
+  corsi_mistakes: "MISSES",
+  corsi_intro_1: "The blocks flash one by one. Memorise the order.",
+  corsi_intro_2: "Then tap them back in exactly that sequence.",
+  corsi_saving: "Saving result…",
+
+  // Trail Making
+  trail_tag: "TRAIL MAKING",
+  trail_desc:
+    "Connect 1 → A → 2 → B → 3 → C… as fast as you can. Visual scanning plus rule switching.",
+  trail_hint:
+    "Alternate NUMBER and LETTER. The clock only starts on your first correct tap.",
+  trail_start: "START",
+  trail_restart: "PLAY AGAIN",
+  trail_complete: "COMPLETE",
+  trail_next: "NEXT",
+  trail_progress: "PROGRESS",
+  trail_mistakes: "MISTAPS",
+  trail_elapsed: "TIME",
+  trail_intro_1: "Start at number 1, then jump to letter A.",
+  trail_intro_2: "Keep alternating all the way to the final node.",
+  trail_saving: "Saving result…",
 };

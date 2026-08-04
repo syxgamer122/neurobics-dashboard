@@ -9,9 +9,11 @@ import {
   scoreSudoku,
 } from "./scoring/standard-games.ts";
 import {
+  scoreCorsi,
   scoreGoNoGo,
   scoreMentalRotation,
   scoreNBack,
+  scoreTrail,
 } from "./scoring/advanced-games.ts";
 import { assertCountBounds, assertRtBounds } from "./scoring/validation.ts";
 
@@ -28,6 +30,8 @@ const SCORERS = {
   math: scoreMath,
   gonogo: scoreGoNoGo,
   mental: scoreMentalRotation,
+  corsi: scoreCorsi,
+  trail: scoreTrail,
 } satisfies Record<Game, (telemetry: any) => ScoredRound>;
 
 export function scoreAndValidate(

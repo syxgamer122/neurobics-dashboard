@@ -54,6 +54,10 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
     "goTrials",
     "nogoTrials",
     "correctRejections",
+    "span",
+    "correctTrials",
+    "taps",
+    "nodes",
   ])
     nonNeg(k);
 
@@ -127,6 +131,41 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
       throw new Error("mental: correct+wrong must equal trials");
     if (trials !== null && rtsLen !== null && rtsLen > trials)
       throw new Error("mental: more reaction times than trials");
+  }
+
+  if (game === "corsi") {
+    const trials = num("trials");
+    const correctTrials = num("correctTrials");
+    const taps = num("taps");
+    const span = num("span");
+    const wrongClicks = num("wrongClicks");
+    if (trials !== null && correctTrials !== null && correctTrials > trials)
+      throw new Error("corsi: correct trials exceed trials");
+    // Moi luot chi ket thuc bang dung mot cu cham sai.
+    if (trials !== null && wrongClicks !== null && wrongClicks > trials)
+      throw new Error("corsi: wrong clicks exceed trials");
+    if (taps !== null && rtsLen !== null && rtsLen > taps)
+      throw new Error("corsi: more reaction times than taps");
+    // Chuoi dai nhat khong the vuot so o cua luoi 3x3.
+    if (span !== null && span > 9)
+      throw new Error("corsi: span exceeds grid size");
+    if (span !== null && taps !== null && taps < span)
+      throw new Error("corsi: fewer taps than the reported span");
+  }
+
+  if (game === "trail") {
+    const nodes = num("nodes");
+    const wrongClicks = num("wrongClicks");
+    const mode = t.mode;
+    if (mode !== undefined && mode !== "A" && mode !== "B")
+      throw new Error("trail: mode must be A or B");
+    if (nodes !== null && nodes < 2)
+      throw new Error("trail: too few nodes");
+    // Dong ho bat dau tu cu bam dung dau tien => dung nodes-1 buoc nhay.
+    if (nodes !== null && rtsLen !== null && rtsLen > nodes)
+      throw new Error("trail: more reaction times than nodes");
+    if (nodes !== null && wrongClicks !== null && wrongClicks > nodes * 40)
+      throw new Error("trail: implausible number of wrong clicks");
   }
 }
 
