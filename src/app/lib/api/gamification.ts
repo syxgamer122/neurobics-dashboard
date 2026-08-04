@@ -6,7 +6,7 @@ import {
   currentUserId,
 } from "./internal";
 
-// ─── Giai đoạn 5: thành tựu, nhiệm vụ ngày, bạn bè ──────────────────────────
+// ─── Giai đoạn 5: thành tựu, nhiệm vụ ngày, bạn bè ────────────────────────
 // Mọi điều kiện mở khoá và phần thưởng XP đều được tính lại trong Postgres.
 // Trình duyệt chỉ đọc kết quả, không bao giờ tự khai báo đã hoàn thành.
 
@@ -32,6 +32,42 @@ export async function syncAchievements(): Promise<AchievementUnlock[]> {
     unlocked_at: String(row.unlocked_at ?? ""),
     newly_unlocked: Boolean(row.newly_unlocked),
   }));
+}
+
+export type AchievementProgress = {
+  code: string;
+  progress: number;
+  goal: number;
+  unlocked: boolean;
+};
+
+/**
+ * Tiến độ từng thành tựu để vẽ thanh progress.
+ * Server tính từ cùng một nguồn thống kê với sync_achievements, nên
+ * "progress đạt goal" luôn trùng với "đã mở khoá" sau lần đồng bộ gần nhất.
+ */
+export async function fetchAchievementProgress(): Promise<
+  AchievementProgress[]
+> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await getSupabase().rpc("get_achievement_progress");
+  if (error) throw new Error(`Fetch achievement progress failed: ${error.message}`);
+
+  const rows: unknown[] = Array.isArray(data) ? data : [];
+  const out: AchievementProgress[] = [];
+  for (const raw of rows) {
+    const row = (raw ?? {}) as Record<string, unknown>;
+    const goal = Number(row.goal ?? 1);
+    out.push({
+      code: String(row.code ?? ""),
+      progress: Number(row.progress ?? 0),
+      goal: goal > 0 ? goal : 1,
+      unlocked: Boolean(row.unlocked),
+    });
+  }
+  return out;
 }
 
 export type DailyQuest = {
