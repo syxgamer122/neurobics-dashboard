@@ -6,6 +6,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { projectId, publicAnonKey } from "../../../../utils/supabase/info";
+import { SESSION_COLUMNS, type SessionColumn } from "../game-registry";
 import {
   sanitizeRating,
   decayRating,
@@ -48,15 +49,6 @@ export type Profile = {
   memory_score: number; // memory proficiency rating
   speed_score: number; // speed proficiency rating
   focus_score: number; // focus proficiency rating
-  schulte_sessions: number;
-  sudoku_sessions: number;
-  stroop_sessions: number;
-  reaction_sessions: number;
-  memory_sessions: number;
-  nback_sessions: number;
-  math_sessions: number;
-  gonogo_sessions: number;
-  mental_sessions: number;
   total_xp: number; // cumulative XP (drives Level)
   last_active_date: string | null; // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
@@ -67,7 +59,7 @@ export type Profile = {
   // Server-controlled: 'user' | 'admin'. Never trust username for privilege.
   role: "user" | "admin";
   created_at: string;
-};
+} & Record<SessionColumn, number>;
 
 export async function getAccessToken(): Promise<string | null> {
   const { data } = await getSupabase().auth.getSession();
@@ -132,16 +124,17 @@ export const LEADERBOARD_COLS =
 
 /** Sanitize every cognitive axis on a freshly-fetched profile. */
 export function sanitizeProfile(p: Profile): Profile {
+  const sessionCounts = Object.fromEntries(
+    SESSION_COLUMNS.map((column) => [column, Number(p[column] ?? 0) || 0]),
+  ) as Record<SessionColumn, number>;
   return {
     ...p,
+    ...sessionCounts,
     algebraic_logic_score: sanitizeRating(p.algebraic_logic_score),
     focus_score: sanitizeRating(p.focus_score),
     speed_score: sanitizeRating(p.speed_score),
     memory_score: sanitizeRating(p.memory_score),
     cfop_spatial_record: sanitizeRating(p.cfop_spatial_record),
-    // Cột mới có thể thiếu trên client cache trước khi migration chạy.
-    gonogo_sessions: Number(p.gonogo_sessions ?? 0) || 0,
-    mental_sessions: Number(p.mental_sessions ?? 0) || 0,
   };
 }
 
