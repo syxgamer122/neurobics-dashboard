@@ -2,9 +2,19 @@ import { logWarn } from "./app/lib/logger";
 
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
+import { ErrorBoundary } from "./app/components/error-boundary.tsx";
+import { captureEvent, initObservability } from "./app/lib/observability.ts";
 import "./styles/index.css";
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Bat loi toan cuc TRUOC khi render: neu App vo ngay lan render dau, su kien
+// van kip vao telemetry.
+initObservability();
+
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary area="app">
+    <App />
+  </ErrorBoundary>,
+);
 
 // PWA: chi dang ky o ban build that. Trong dev server, service worker se
 // cache nham module cua Vite va gay loi kho hieu.
@@ -32,7 +42,14 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
           });
         });
       })
-      .catch((err) => logWarn("Service worker registration failed:", err));
+      .catch((err) => {
+        logWarn("Service worker registration failed:", err);
+        captureEvent({
+          event: "sw.register_failed",
+          level: "warn",
+          message: String(err),
+        });
+      });
 
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {

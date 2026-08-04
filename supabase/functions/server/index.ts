@@ -5,9 +5,51 @@ import { createClient } from "npm:@supabase/supabase-js@2.110.9";
 import { GAME_IDS, isGame, scoreAndValidate } from "../_shared/round-scoring.ts";
 import { inspectRound, hasHardFlag, softFlags } from "../_shared/anticheat.ts";
 
+import {
+  beginRequest,
+  createRateLimiter,
+  logRequest,
+  logServerEvent,
+  requestIdFor,
+  sanitizeClientEvents,
+  setEventSink,
+} from "../_shared/observability.ts";
+
 const app = new Hono();
 
-app.use("*", logger(console.log));
+// Observability: moi request co request id + mot dong log JSON (method, path,
+// status, thoi gian xu ly). Thay cho hono logger() vi log dang van ban khong
+// loc/dem duoc tren dashboard. 5xx/429/422 con duoc ghi vao observability_events.
+app.use("*", async (c, next) => {
+  const startedAt = Date.now();
+  const requestId = beginRequest(c.req.raw);
+  try {
+    await next();
+  } finally {
+    c.header("x-request-id", requestId);
+    logRequest({
+      requestId,
+      method: c.req.method,
+      path: new URL(c.req.url).pathname,
+      status: c.res.status,
+      durationMs: Date.now() - startedAt,
+    });
+  }
+});
+
+// Loi khong duoc bat o handler: tra 500 co request id thay vi stack tran ra.
+app.onError((err, c) => {
+  const requestId = requestIdFor(c.req.raw) ?? beginRequest(c.req.raw);
+  logServerEvent({
+    event: "http.unhandled_error",
+    level: "error",
+    message: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+    route: new URL(c.req.url).pathname,
+    requestId,
+    statusCode: 500,
+  });
+  return c.json({ error: "Internal error", requestId }, 500);
+});
 app.use(
   "/*",
   cors({
@@ -172,6 +214,58 @@ function turnstileMessage(codes: string[]): string {
 }
 
 app.get("/server/health", (c) => c.json({ status: "ok" }));
+
+// ─── Telemetry ingest ───────────────────────────────────────────────────
+// Trinh duyet gui loi/su kien da lam sach ve day. Khong can dang nhap: loi hay
+// xay ra TRUOC khi co session (man hinh trang, bundle cu, mang chet).
+// Ba lop chan lam dung: gioi han 60 lo/phut/IP, body <= 32KB, <= 20 su kien/lo.
+setEventSink((rows) => {
+  void adminClient
+    .from("observability_events")
+    .insert(rows)
+    .then(({ error }) => {
+      if (error) console.log(`observability insert failed: ${error.message}`);
+    });
+});
+
+const telemetryLimiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
+
+app.post("/server/telemetry", async (c) => {
+  const requestId = requestIdFor(c.req.raw) ?? beginRequest(c.req.raw);
+  const ip =
+    (c.req.header("x-forwarded-for") ?? "unknown").split(",")[0]?.trim() ??
+    "unknown";
+  if (!telemetryLimiter.allow(ip)) {
+    // Im lang bo qua thay vi 429: telemetry khong duoc lam on phia client.
+    return c.json({ ok: true, dropped: true }, 202);
+  }
+
+  const raw = await c.req.text();
+  if (raw.length > 32_000) return c.json({ error: "Payload too large" }, 413);
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+
+  // user_id luon null: client KHONG duoc tu khai danh tinh (de gia mao).
+  // Muon quy trach nhiem thi dung session_id de nhom, hoac doi chieu voi
+  // observability_events cua server o cung request_id.
+  const rows = sanitizeClientEvents(payload, { requestId }).map((row) => ({
+    ...row,
+    user_id: null,
+  }));
+  if (rows.length === 0) return c.json({ ok: true, accepted: 0 });
+
+  const { error } = await adminClient.from("observability_events").insert(rows);
+  if (error) {
+    console.log(`telemetry insert failed: ${error.message}`);
+    return c.json({ ok: false }, 200);
+  }
+  return c.json({ ok: true, accepted: rows.length });
+});
 
 // ─── Sign up (username + password via email-spoofing) ────────────────────────
 // Creating a confirmed auth user needs the service role, so this stays on the
@@ -594,6 +688,16 @@ app.post("/server/submit-round", async (c) => {
         });
         if (hardErr) console.log(`Hard cheat flag failed: ${hardErr.message}`);
       }
+      logServerEvent({
+        event: "anticheat.hard_reject",
+        level: "warn",
+        game: gameId,
+        userId: user.id,
+        requestId: requestIdFor(c.req.raw),
+        message: hard.map((f) => f.msg).join("; "),
+        statusCode: 422,
+      });
+
       return c.json(
         {
           error: "Round rejected: suspicious timing patterns.",
