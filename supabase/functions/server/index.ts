@@ -737,6 +737,19 @@ app.post("/server/admin-grant", async (c) => {
       .select(PROFILE_COLS)
       .single();
     if (error) throw error;
+    // Cong XP bang quyen admin thi phai danh gia lai badge NGAY. Truoc day
+    // badge chi duoc dong bo khi nguoi dung TU MO bang thanh tuu, nen tai
+    // khoan duoc admin keo len level 7 van trong tron badge cho den luc do.
+    // Loi dong bo KHONG duoc lam that bai ca lenh grant: XP da ghi xong roi,
+    // va badge se tu dong bo lai o lan mo bang thanh tuu ke tiep.
+    if (patch.total_xp !== undefined) {
+      const { error: syncError } = await adminClient.rpc(
+        "sync_achievements_for",
+        { p_user: targetId },
+      );
+      if (syncError)
+        console.log(`Admin grant badge sync failed: ${syncError.message}`);
+    }
     return c.json({ profile: data });
   } catch (err) {
     return c.json(
