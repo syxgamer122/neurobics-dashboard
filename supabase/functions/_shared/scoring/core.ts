@@ -114,8 +114,35 @@ const lapseRate = (xs: number[]) => {
 // Tran thuong toc do: truoc 1.4 qua rong — choi hon target 1 chut la bung max.
 // 1.15 = chi elite (nhanh hon target ~13%) moi cham tran ratio.
 const RATIO_CAP = 1.15;
+/**
+ * Ty le co tran cung. Chi con dung o nhung cho CAN mot he so <= 1.15 tuyet doi
+ * (Schulte spatial), khong dung cho truc Speed nua — xem `speed` ben duoi.
+ */
 export const ratio = (target: number, actual: number) =>
   Math.min(target / Math.max(actual, 1), RATIO_CAP);
+
+/**
+ * v54 — BO BAO HOA TRUC SPEED.
+ *
+ * Cong thuc cu: speed = MAX * diff * min(target / median, 1.15).
+ * Vi tran ratio la 1.15, MOI cau hinh co diff > 1 / 1.15 = 0.8696 deu bao hoa
+ * o dung 1000: Trail B (diff 0.95, target 1100) cham 1000 tu 957ms tro xuong,
+ * nen 950ms va 600ms duoc cham y nhu nhau; Reaction bao hoa tu 266ms; Go/No-Go
+ * tu 369ms. Sau moc do, choi nhanh hon KHONG con duoc ghi nhan.
+ *
+ * Cong thuc moi tach hai nhanh quanh moc target:
+ *  - Cham hon target: phat theo luy thua SPEED_SUB_EXP > 1, de phan giai ro
+ *    vung yeu. Cu la tuyen tinh nen 420ms o Reaction (ro rang cham) van 633.
+ *  - Nhanh hon target: lap dan khoang trong giua MAX * diff va MAX theo log,
+ *    va chi lap toi da SPEED_FILL_MAX. Nho vay diem LUON don dieu tang theo
+ *    toc do va khong bao gio phang, cung khong bao gio dat dung MAX.
+ */
+/** Do loi khi cham hon target. > 1 = phat nang hon tuyen tinh. */
+const SPEED_SUB_EXP = 1.3;
+/** Toc do lap khoang trong khi vuot target. Cang lon cang de tien gan MAX. */
+const SPEED_FILL_RATE = 1.6;
+/** Phan khoang trong toi da duoc lap. 0.85 => tran thuc te luon duoi MAX. */
+const SPEED_FILL_MAX = 0.85;
 export const speed = (
   rts: number[],
   target: number,
@@ -123,7 +150,12 @@ export const speed = (
   fallback?: number,
 ) => {
   const m = rts.length ? median(rts) : (fallback ?? 0);
-  return m > 0 ? clamp(MAX * diff * ratio(target, m)) : 0;
+  if (m <= 0) return 0;
+  const raw = target / Math.max(m, 1);
+  const base = MAX * diff;
+  if (raw <= 1) return clamp(base * Math.pow(raw, SPEED_SUB_EXP));
+  const fill = 1 - Math.exp(-Math.log(raw) * SPEED_FILL_RATE);
+  return clamp(base + (MAX - base) * fill * SPEED_FILL_MAX);
 };
 // Focus: phat CV som hon (0.18 thay 0.25) va nang hon (0.75 thay 0.6).
 // He so 0.92 de choi "deu + dung" van kho full 1000 neu diff < 1.

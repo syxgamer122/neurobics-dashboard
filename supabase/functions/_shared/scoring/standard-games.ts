@@ -5,12 +5,30 @@ import {
   type ScoredRound,
 } from "./core.ts";
 
+/**
+ * v54 — NEN DAI DO KHO.
+ *
+ * Dai cu 0.48 -> 0.92 (gap 1.92 lan) khien LUA CHON CAU HINH quan trong hon
+ * KY NANG: mot van Schulte 3x3 choi hoan hao chi duoc 515 diem, con 6x6 hoan
+ * hao duoc 949 — cach nhau 434 diem cho cung mot muc "khong the tot hon".
+ * Nguoi choi bi ep phai chon che do kho nhat thay vi che do phu hop.
+ * Dai moi 0.68 -> 0.94 (gap 1.38 lan): che do de van tra ve diem tu te,
+ * che do kho van cao hon ro rang.
+ */
 const SCHULTE_DIFF: Record<number, number> = {
-  9: 0.48,
-  16: 0.64,
-  25: 0.78,
-  36: 0.92,
+  9: 0.68,
+  16: 0.76,
+  25: 0.84,
+  36: 0.94,
 };
+/**
+ * Tran rieng cho truc spatial cua Schulte. Spatial o day chi la truc PHU
+ * (primaryAxis cua Schulte la focus), nhung cong thuc cu dung tron `diff` va
+ * `ratio` co the vuot 1 nen tran thuc te len tan 897 — CAO NHAT trong ca 4 game
+ * co truc spatial, vuot ca Mental Rotation (817) la game co spatial LA TRUC
+ * CHINH. He so nay keo tran ve ~820 va `ratio` bi kep <= 1 ben duoi.
+ */
+const SCHULTE_SPATIAL_W = 0.87;
 // Target chat hon: choi "kha" nam ~650-800, elite moi ~900+.
 const SCHULTE_TARGET: Record<number, number> = {
   9: 14000,
@@ -18,13 +36,17 @@ const SCHULTE_TARGET: Record<number, number> = {
   25: 65000,
   36: 120000,
 };
+// v54 — nen dai do kho (xem ghi chu o SCHULTE_DIFF).
+// Dai cu 0.42 -> 0.96 = gap 2.29 lan, la dai rong nhat trong toan he thong:
+// Sudoku Medium hoan hao chi 567 diem trong khi Extreme hoan hao 973.
+// Dai moi 0.66 -> 0.98 = gap 1.48 lan.
 const SUDOKU_DIFF: Record<string, number> = {
-  Easy: 0.42,
-  Medium: 0.54,
-  Hard: 0.66,
-  Expert: 0.78,
-  Master: 0.88,
-  Extreme: 0.96,
+  Easy: 0.66,
+  Medium: 0.72,
+  Hard: 0.79,
+  Expert: 0.86,
+  Master: 0.92,
+  Extreme: 0.98,
 };
 // So clue chuan cua tung muc do kho (khop SUDOKU_LEVELS ben client).
 // Neu de that co NHIEU clue hon muc chuan => generator het budget, de de hon.
@@ -95,9 +117,17 @@ export function scoreSchulte(t: any): ScoredRound {
   const statRts = statSamples(rts);
   const late = statRts.slice(Math.floor((statRts.length * 2) / 3));
   // 1.25 (truoc 1.6): late-phase khong con de "an" spatial bang nhip som.
+  // v54: kep ratio <= 1 va nhan SCHULTE_SPATIAL_W. Truoc day diff * ratio co
+  // the len 0.92 * 1.15 = 1.058 nen spatial cham tran 1000 — vua bao hoa vua
+  // cao hon ca game co spatial la truc chinh.
   const spatial = late.length
     ? clamp(
-        MAX * diff * ratio(per * 1.25, median(late)) * accuracy * completion,
+        MAX *
+          SCHULTE_SPATIAL_W *
+          diff *
+          Math.min(1, ratio(per * 1.25, median(late))) *
+          accuracy *
+          completion,
       )
     : 0;
   const axes = {
@@ -224,7 +254,10 @@ export function scoreReaction(t: any): ScoredRound {
   const rts = numberArray(t?.rts, "rts", 8, 12);
   const falseStarts = int(t?.falseStarts, "falseStarts", 0, 50);
   const timeMs = finite(t?.timeMs, "timeMs", 5, 120_000);
-  const accuracy = rts.length / (rts.length + falseStarts);
+  // v54: false start phat nang hon (x2.5). Truoc day 2 lan bam non tren 10 mau
+  // chi ha accuracy ve 0.833, gan nhu khong anh huong Focus — nen "muc yeu" cua
+  // Reaction van duoc Focus 490, cao gap 2.8 lan cung muc yeu cua N-Back (174).
+  const accuracy = rts.length / (rts.length + falseStarts * 2.5);
   // Bam anticipation ~100ms la co that o Reaction: mau do bi loai khoi thong ke
   // thay vi lam hong ca van (xem statSamples).
   const statRts = statSamples(rts);
@@ -252,21 +285,37 @@ export function scoreMemory(t: any): ScoredRound {
   const progression = clamp01(level / 16),
     cells = Math.max(1, Math.round(level * 3)),
     accuracy = level > 0 ? cells / (cells + wrong * 1.25) : 0;
+  // San tham gia: vuot duoc du chi mot vai cap cung phai duoc ghi nhan.
+  // Chi ap dung khi level > 0 — thua ngay cap 1 van phai la 0 diem.
+  const PROG_FLOOR = 0.24;
+  const progressionFactor =
+    level > 0 ? PROG_FLOOR + (1 - PROG_FLOOR) * Math.pow(progression, 0.75) : 0;
   const axes = {
     ...NO_AXES,
-    memory: clamp(MAX * 0.88 * Math.pow(progression, 1.1) * accuracy),
-    spatial: clamp(MAX * 0.68 * Math.pow(progression, 1.1) * accuracy),
+    // v54 — NANG SAN theo dang "san tham gia + duong cong".
+    // Cu: MAX * he_so * progression^1.1. Luy thua LOI keo nguoi choi yeu ve gan
+    // 0: vuot 3 cap => progression 0.1875 => 0.1875^1.1 = 0.156 => spatial chi
+    // 84 diem, trong khi cung muc "yeu" o Schulte duoc 487 tren CUNG truc.
+    // Moi: PROG_FLOOR + (1 - PROG_FLOOR) * progression^0.75. Tai progression = 1
+    // he so van bang dung 1 nen TRAN KHONG DOI, chi vung thap duoc keo len.
+    memory: clamp(MAX * 0.88 * progressionFactor * accuracy),
+    // v54: 0.68 -> 0.82. Tran spatial cu chi 680, THAP NHAT trong 4 game co
+    // truc spatial (Schulte 897, Corsi 880, Mental 817) — lech tran 217 diem
+    // nghia la cung mot nang luc khong gian cham diem rat khac nhau tuy game.
+    spatial: clamp(MAX * 0.82 * progressionFactor * accuracy),
   };
   return { axes, headline: headline(axes), label: `Level ${level}`, timeMs };
 }
 
 // Math Sprint: logic (dung/sai) + toc do (do tre tung cau).
+// v54 — nen dai do kho (xem ghi chu o SCHULTE_DIFF).
+// Cu 0.55 -> 0.92: Math easy hoan hao 592 vs hard hoan hao 960.
 const MATH_DIFF: Record<string, number> = {
-  easy: 0.55,
-  medium: 0.74,
+  easy: 0.7,
+  medium: 0.8,
   hard: 0.92,
   // Adaptive: de -> vua -> kho trong 1 van; he so nam giua medium va hard.
-  adaptive: 0.84,
+  adaptive: 0.86,
 };
 // Target thap hon = phai tra loi nhanh that de full speed.
 const MATH_TARGET_MS: Record<string, number> = {

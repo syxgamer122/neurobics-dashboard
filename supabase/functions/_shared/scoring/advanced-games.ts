@@ -35,17 +35,24 @@ export function scoreNBack(t: any): ScoredRound {
   // n=2 ~0.33, n=3 ~0.5, n=4 ~0.67, n=5 ~0.83, n=6 = day. Truoc /5 de full o n=5.
   const depth = clamp01(n / 6);
 
+  // v54: noi san N-Back. Truoc day focus nhan BA he so nho lien tiep
+  // (acc^1.15 * 0.5..0.9 * 0.65..0.95) nen nguoi choi yeu chi con 174 diem,
+  // trong khi cung muc "yeu" o Reaction duoc 490 — lech 316 tren cung 1 truc.
+  // Nang san hai he so phu, giu nguyen do nhay theo accuracy.
   const axes = {
     ...NO_AXES,
-    memory: clamp(MAX * Math.pow(accuracy, 1.2) * (0.55 + 0.4 * depth)),
+    memory: clamp(MAX * Math.pow(accuracy, 1.2) * (0.62 + 0.36 * depth)),
     focus: clamp(
       MAX *
         Math.pow(accuracy, 1.15) *
-        (0.5 + 0.4 * clamp01(1 - faRate)) *
-        (0.65 + 0.3 * depth),
+        (0.62 + 0.32 * clamp01(1 - faRate)) *
+        (0.72 + 0.26 * depth),
     ),
-    // Target 550ms (truoc 700), diff 0.8: RT thuong ~700-800 khong full.
-    speed: rts.length >= 3 ? speed(rts, 550, 0.8) : null,
+    // v54: target 550 -> 620, diff 0.8 -> 0.86. Voi target 550 thi nguoi choi
+    // muc trung binh (RT ~700ms) chi duoc Speed 515, trong khi cung muc trung
+    // binh o Trail duoc 883 — lech 368 diem tren cung truc Speed. N-Back doi
+    // hoi giu chuoi trong dau nen RT tu nhien cham hon, target phai phan anh do.
+    speed: rts.length >= 3 ? speed(rts, 620, 0.82) : null,
   };
   return { axes, headline: headline(axes), label: `${n}-Back`, timeMs };
 }
@@ -82,21 +89,44 @@ export function scoreGoNoGo(t: any): ScoredRound {
 
   const hitRate = hits / Math.max(1, goTrials);
   const faRate = falseAlarms / Math.max(1, nogoTrials);
-  // Ức chế nặng hơn tốc độ bắt GO: false alarm ăn sâu vào accuracy.
-  const accuracy = clamp01(hitRate * 0.4 + (1 - faRate) * 0.6);
+  /**
+   * v54 — VA HAI LO HONG.
+   *
+   * Cong thuc cu: accuracy = hitRate * 0.4 + (1 - faRate) * 0.6. Vi hai thanh
+   * phan CONG voi nhau, chi can lam tot mot ben la co diem:
+   *  1. BAM MOI O: hitRate = 1, faRate = 1 => accuracy = 0.4; Speed lai chi
+   *     dua tren median RT hit va KHONG nhan accuracy, nen bam that nhanh
+   *     (~330ms) cho Speed = 1000, Focus = 143 => headline 572, cao hon ca
+   *     mot van Sudoku Medium hoan hao (567).
+   *  2. KHONG BAM GI CA: hitRate = 0, faRate = 0 => accuracy = 0.6 =>
+   *     Focus = 475, Speed = null => headline 475 ma khong he choi.
+   * Anticheat chi gan soft flag, va soft flag KHONG ha diem truc.
+   *
+   * Cong thuc moi NHAN hai thanh phan: phai vua bat duoc GO vua nen duoc NOGO.
+   * Bam moi o => (1 - faRate) = 0 => accuracy = 0. Khong bam gi => hitRate = 0
+   * => accuracy = 0. Ca hai kieu gian lan ve 0 diem.
+   * Speed cung duoc gan cong uc che nen bam bua khong the "an" toc do.
+   */
+  const accuracy = clamp01(hitRate) * clamp01(1 - faRate);
+  const inhibition = Math.pow(clamp01(1 - faRate), 0.9);
   const statRts = statSamples(rts, 80);
 
   const axes = {
     ...NO_AXES,
-    // diff 0.9: elite + gần 0 FA mới gần full Focus.
+    // Luy thua ha 1.25 -> 1.15 va san he so FA nang len, de bu cho viec
+    // accuracy gio la phep NHAN (nghiem hon han cong thuc cong cu).
     focus: clamp(
       MAX *
         0.9 *
-        Math.pow(accuracy, 1.25) *
-        (0.5 + 0.5 * clamp01(1 - faRate * 1.35)),
+        Math.pow(accuracy, 1.15) *
+        (0.62 + 0.38 * clamp01(1 - faRate * 1.35)),
     ),
     // Target 420ms — phản xạ có lựa chọn chậm hơn simple RT (~280).
-    speed: statRts.length >= 3 ? speed(statRts, 420, 0.88) : null,
+    // Nhan `inhibition`: bam bua (faRate = 1) => Speed = 0.
+    speed:
+      statRts.length >= 3
+        ? clamp(speed(statRts, 420, 0.88) * inhibition)
+        : null,
   };
   return { axes, headline: headline(axes), label: "Go / No-Go", timeMs };
 }
@@ -152,8 +182,10 @@ export function scoreMentalRotation(t: any): ScoredRound {
     }
   }
   const meanAngleLoad = angleN > 0 ? angleLoad / angleN : 0.5;
-  // baseline 0.72 + up to 0.28 from hard angles answered correctly
-  const angleFactor = 0.72 + 0.28 * meanAngleLoad;
+  // baseline 0.78 + up to 0.24 from hard angles answered correctly.
+  // v54: nang san 0.72 -> 0.78. Mental Rotation co spatial la truc CHINH nhung
+  // tran thuc te chi 817, thap hon ca Schulte (spatial chi la truc PHU, 897).
+  const angleFactor = 0.78 + 0.24 * meanAngleLoad;
 
   const statRts = statSamples(rts, 120);
 
@@ -201,16 +233,23 @@ export function scoreCorsi(t: any): ScoredRound {
 
   // span 2 -> 0, span 5 (trung binh nguoi lon) -> 0.5, span 8 -> 1.
   const spanNorm = clamp01((span - 2) / 6);
+  // v54 — san tham gia, giong Memory game. Nho lai dung mot chuoi 3 o van la
+  // co tin hieu that; cong thuc cu cho spanNorm^0.8 = 0.238 nen chi 123 diem.
+  // Tai spanNorm = 1 he so van bang 1 => TRAN KHONG DOI.
+  const SPAN_FLOOR = 0.24;
+  const spanFactor = (exp: number) =>
+    span > 0 ? SPAN_FLOOR + (1 - SPAN_FLOOR) * Math.pow(spanNorm, exp) : 0;
   const accuracy = clamp01(correctTrials / Math.max(1, trials));
   const errorRate = clamp01(wrongClicks / Math.max(1, taps));
 
   const axes = {
     ...NO_AXES,
-    memory: clamp(
-      MAX * 0.95 * Math.pow(spanNorm, 0.85) * (0.7 + 0.3 * accuracy),
-    ),
+    // v54: luy thua 0.85 -> 0.65 va 0.8 -> 0.6, cong them san tham gia.
+    memory: clamp(MAX * 0.95 * spanFactor(0.65) * (0.7 + 0.3 * accuracy)),
+    // v54: 0.88 -> 0.84 de tran spatial cua Corsi (truc PHU) khong vuot
+    // Mental Rotation (truc CHINH), la game co spatial LA truc chinh.
     spatial: clamp(
-      MAX * 0.88 * Math.pow(spanNorm, 0.8) * Math.pow(1 - errorRate, 1.2),
+      MAX * 0.84 * spanFactor(0.6) * Math.pow(1 - errorRate, 1.2),
     ),
   };
   return { axes, headline: headline(axes), label: `Span ${span}`, timeMs };
@@ -238,7 +277,9 @@ export function scoreTrail(t: any): ScoredRound {
 
   // Mode B cham hon mode A mot cach he thong vi phai doi chieu hai chuoi.
   const target = mode === "B" ? 1100 : 760;
-  const diff = mode === "B" ? 0.95 : 0.78;
+  // v54: mode B 0.95 -> 0.90. Trail B la game moi nhat va vo tinh duoc dat he
+  // so cao nhat he thong, nen no chiem dinh CA hai truc Speed va Focus.
+  const diff = mode === "B" ? 0.9 : 0.78;
 
   const axes = {
     ...NO_AXES,

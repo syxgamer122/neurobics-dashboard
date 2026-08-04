@@ -448,9 +448,12 @@ cases.push({
   },
   elapsed: 305000,
   expect: {
-    // effectiveSudokuDiff phai ha he so ve muc Easy (0.5)
+    // effectiveSudokuDiff phai ha he so ve muc Easy.
+    // v54 nen dai do kho: Easy 0.42 -> 0.66 va Extreme 0.96 -> 0.98, nen nguong
+    // nay doi tu 520 sang 680. Y nghia khong doi: van phai bi ha han so voi
+    // nhan Extreme (logic 980 neu de that dung la Extreme).
     check: (s) =>
-      s.axes.logic <= 520
+      s.axes.logic <= 680
         ? null
         : `logic=${s.axes.logic} — he so kho chua bi ha`,
   },
@@ -725,6 +728,86 @@ cases.push({
 }
 
 // ─────────── Chay ───────────
+// ─────── v54: hoi quy hieu chuan ───────
+// Nhung ca nay khoa lai 5 khiem khuyet da phat hien o ban kiem toan v53.
+// Neu ai do noi long lai cac he so trong scoring/, chung se do ngay.
+cases.push({
+  id: "V1",
+  desc: "v54: Go/No-Go bam MOI o phai ~0 diem (truoc day 572)",
+  game: "gonogo",
+  tel: {
+    timeMs: 60000, trials: 40, goTrials: 28, nogoTrials: 12,
+    hits: 28, misses: 0, falseAlarms: 12, correctRejections: 0,
+    rts: rts(28, 330),
+  },
+  elapsed: 62000,
+  expect: {
+    check: (s) =>
+      s.headline <= 60
+        ? null
+        : `bam bua van duoc headline=${s.headline} (speed=${s.axes.speed})`,
+  },
+});
+cases.push({
+  id: "V2",
+  desc: "v54: Go/No-Go KHONG bam gi phai ~0 diem (truoc day 475)",
+  game: "gonogo",
+  tel: {
+    timeMs: 60000, trials: 40, goTrials: 28, nogoTrials: 12,
+    hits: 0, misses: 28, falseAlarms: 0, correctRejections: 12, rts: [],
+  },
+  elapsed: 62000,
+  expect: {
+    check: (s) =>
+      s.headline <= 30
+        ? null
+        : `khong choi gi van duoc headline=${s.headline}`,
+  },
+});
+cases.push({
+  id: "V3",
+  desc: "v54: Reaction 180ms khong duoc bao hoa dung 1000",
+  game: "reaction",
+  tel: { rts: rts(10, 180), falseStarts: 0, timeMs: 30000 },
+  elapsed: 40000,
+  expect: {
+    check: (s) =>
+      s.axes.speed < 1000 && s.axes.speed > 900
+        ? null
+        : `speed=${s.axes.speed} — phai nam trong (900, 1000)`,
+  },
+});
+cases.push({
+  id: "V4",
+  desc: "v54: Trail B 620ms/buoc khong duoc bao hoa dung 1000",
+  game: "trail",
+  tel: { timeMs: 40000, nodes: 24, mode: "B", wrongClicks: 0, rts: rts(23, 620) },
+  elapsed: 90000,
+  expect: {
+    check: (s) =>
+      s.axes.speed < 1000 && s.axes.speed > 850
+        ? null
+        : `speed=${s.axes.speed} — phai nam trong (850, 1000)`,
+  },
+});
+cases.push({
+  id: "V5",
+  desc: "v54: Sudoku Medium hoan hao khong duoc re (truoc day 567)",
+  game: "sudoku",
+  tel: {
+    difficulty: "Medium", placements: 45, moveRts: rts(45, 3500),
+    mistakes: 0, reEntries: 0, repeatMistakes: 0, actualClues: 36,
+    timeMs: 160000,
+  },
+  elapsed: 200000,
+  expect: {
+    check: (s) =>
+      s.headline >= 700
+        ? null
+        : `choi hoan hao chi duoc headline=${s.headline}, van con qua khat`,
+  },
+});
+
 let pass = 0;
 const fails: string[] = [];
 
