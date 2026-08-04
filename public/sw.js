@@ -31,6 +31,14 @@ self.addEventListener("install", (event) => {
   );
 });
 
+// Client co the goi postMessage({ type: "SKIP_WAITING" }) de ep ban moi
+// activate ngay, tranh ket o bundle cu sau deploy.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches

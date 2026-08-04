@@ -76,6 +76,10 @@ export type DailyQuest = {
   goal: number;
   xp_reward: number;
   claimed: boolean;
+  /** Nhãn tiếng Việt từ Postgres (migration 20260828+). Có thể rỗng nếu RPC cũ. */
+  title_vi?: string;
+  /** Nhãn English từ Postgres (migration 20260828+). Có thể rỗng nếu RPC cũ. */
+  title_en?: string;
 };
 
 /** Tiến độ nhiệm vụ hôm nay, mốc ngày theo giờ Việt Nam. */
@@ -92,6 +96,8 @@ export async function fetchDailyQuests(): Promise<DailyQuest[]> {
     goal: Number(row.goal ?? 1),
     xp_reward: Number(row.xp_reward ?? 0),
     claimed: Boolean(row.claimed),
+    title_vi: row.title_vi != null ? String(row.title_vi) : undefined,
+    title_en: row.title_en != null ? String(row.title_en) : undefined,
   }));
 }
 

@@ -3,10 +3,13 @@ import { CalendarDays, CheckCircle2, Gift, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "../lib/i18n";
 import { claimQuest, fetchDailyQuests, type DailyQuest } from "../lib/api";
+import { resolveQuestLabel } from "../lib/quest-labels";
 import { logError } from "../lib/logger";
 
 // Tiến độ do Postgres tính từ training_sessions theo giờ Việt Nam.
 // 3 daily xoay mỗi ngày + 3 weekly; client chỉ hiển thị và xin nhận thưởng.
+// Tên nhiệm vụ: resolveQuestLabel (server title → map local → humanize).
+// KHÔNG BAO GIỜ render quest.code thô lên UI.
 
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
@@ -14,93 +17,6 @@ const panelStyle: React.CSSProperties = {
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
-
-const QUEST_TXT: Record<string, { vi: string; en: string }> = {
-  q_rounds_3: { vi: "Khởi động: chơi 3 ván", en: "Warm up: play 3 rounds" },
-  q_rounds_5: { vi: "Chơi 5 ván hôm nay", en: "Play 5 rounds today" },
-  q_rounds_7: { vi: "Bền bỉ: chơi 7 ván", en: "Endurance: play 7 rounds" },
-  q_score_600: { vi: "Đạt 600+ trong một ván", en: "Score 600+ in one round" },
-  q_score_750_2: { vi: "Đạt 750+ trong 2 ván", en: "Score 750+ in 2 rounds" },
-  q_score_850: { vi: "Đạt 850+ trong một ván", en: "Score 850+ in one round" },
-  q_games_2: { vi: "Chơi 2 trò khác nhau", en: "Play 2 different games" },
-  q_games_3: { vi: "Chơi 3 trò khác nhau", en: "Play 3 different games" },
-  q_games_4: { vi: "Chơi 4 trò khác nhau", en: "Play 4 different games" },
-  q_play_schulte_2: { vi: "Chơi Schulte 2 ván", en: "Play 2 Schulte rounds" },
-  q_play_sudoku_2: { vi: "Chơi Sudoku 2 ván", en: "Play 2 Sudoku rounds" },
-  q_play_stroop_2: { vi: "Chơi Stroop 2 ván", en: "Play 2 Stroop rounds" },
-  q_play_reaction_2: { vi: "Chơi Reaction 2 ván", en: "Play 2 Reaction rounds" },
-  q_play_memory_2: { vi: "Chơi Memory 2 ván", en: "Play 2 Memory rounds" },
-  q_play_nback_2: { vi: "Chơi N-Back 2 ván", en: "Play 2 N-Back rounds" },
-  q_play_math_2: { vi: "Chơi Math Sprint 2 ván", en: "Play 2 Math Sprint rounds" },
-  q_play_gonogo_2: { vi: "Chơi Go / No-Go 2 ván", en: "Play 2 Go / No-Go rounds" },
-  q_play_mental_2: { vi: "Chơi Mental Rotation 2 ván", en: "Play 2 Mental Rotation rounds" },
-  w_rounds_25: { vi: "Tuần: hoàn thành 25 ván", en: "Weekly: finish 25 rounds" },
-  w_games_7: { vi: "Tuần: chơi 7 trò khác nhau", en: "Weekly: play 7 different games" },
-  w_score_800_5: { vi: "Tuần: 5 ván đạt 800+", en: "Weekly: 5 rounds at 800+" },
-  w_score_900_3: { vi: "Tuần elite: 3 ván đạt 900+", en: "Elite week: 3 rounds at 900+" },
-};
-
-// Tên game dùng cho nhãn dự phòng. Giữ tại chỗ để panel không bao giờ vỡ
-// nếu Postgres phát một mã nhiệm vụ mới trước khi bản dịch kịp lên.
-const QUEST_GAME_NAMES: Record<string, string> = {
-  schulte: "Schulte",
-  sudoku: "Sudoku",
-  stroop: "Stroop",
-  reaction: "Reaction",
-  memory: "Memory",
-  nback: "N-Back",
-  math: "Math Sprint",
-  gonogo: "Go / No-Go",
-  mental: "Mental Rotation",
-};
-
-/**
- * Nhãn dự phòng khi một mã nhiệm vụ chưa có trong QUEST_TXT.
- * Trước đây fallback là chính mã thô, nên người chơi nhìn thấy "q_rounds_5"
- * hay "w_games_7" ngay trên giao diện. Hàm này dịch mã thành câu đọc được
- * từ chính cấu trúc mã, nên UI vẫn tử tế với mọi nhiệm vụ thêm sau này.
- */
-export function humanizeQuestCode(code: string, lang: "vi" | "en"): string {
-  const weekly = code.startsWith("w_");
-  const body = code.replace(/^[qw]_/, "");
-  const prefix = weekly ? (lang === "vi" ? "Tuần: " : "Weekly: ") : "";
-
-  let text: string | null = null;
-  let m: RegExpMatchArray | null;
-
-  if ((m = body.match(/^rounds_(\d+)$/))) {
-    text = lang === "vi" ? `chơi ${m[1]} ván` : `play ${m[1]} rounds`;
-  } else if ((m = body.match(/^score_(\d+)_(\d+)$/))) {
-    text =
-      lang === "vi"
-        ? `đạt ${m[1]}+ trong ${m[2]} ván`
-        : `score ${m[1]}+ in ${m[2]} rounds`;
-  } else if ((m = body.match(/^score_(\d+)$/))) {
-    text =
-      lang === "vi"
-        ? `đạt ${m[1]}+ trong một ván`
-        : `score ${m[1]}+ in one round`;
-  } else if ((m = body.match(/^games_(\d+)$/))) {
-    text =
-      lang === "vi"
-        ? `chơi ${m[1]} trò khác nhau`
-        : `play ${m[1]} different games`;
-  } else if ((m = body.match(/^play_([a-z]+)_(\d+)$/))) {
-    const game = QUEST_GAME_NAMES[m[1]] ?? m[1];
-    text =
-      lang === "vi"
-        ? `chơi ${game} ${m[2]} ván`
-        : `play ${m[2]} ${game} rounds`;
-  }
-
-  if (!text) {
-    // Mã hoàn toàn lạ: ít nhất cũng bỏ gạch dưới thay vì phơi mã kỹ thuật.
-    text = body.replace(/_/g, " ");
-  }
-
-  const label = prefix + text;
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
 
 const TXT = {
   vi: {
@@ -141,14 +57,16 @@ function QuestRow({
   const s = TXT[lang];
   const pct = Math.min(100, (quest.progress / Math.max(1, quest.goal)) * 100);
   const ready = quest.progress >= quest.goal && !quest.claimed;
-  const label =
-    QUEST_TXT[quest.code]?.[lang] ?? humanizeQuestCode(quest.code, lang);
+  const serverTitle = lang === "vi" ? quest.title_vi : quest.title_en;
+  const label = resolveQuestLabel(quest.code, lang, serverTitle);
 
   return (
     <div
       className="rounded-xl p-3"
       style={{
-        background: quest.claimed ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)",
+        background: quest.claimed
+          ? "rgba(16,185,129,0.08)"
+          : "rgba(255,255,255,0.03)",
         border: `1px solid ${
           ready
             ? "rgba(16,185,129,0.5)"
@@ -165,17 +83,29 @@ function QuestRow({
         </span>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+        <div
+          className="flex-1 h-1.5 rounded-full overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.07)" }}
+        >
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, background: "linear-gradient(90deg,#10B981,#00D4FF)" }}
+            style={{
+              width: `${pct}%`,
+              background: "linear-gradient(90deg,#10B981,#00D4FF)",
+            }}
           />
         </div>
-        <span className="text-xs w-14 text-right" style={{ color: "rgba(255,255,255,0.45)" }}>
+        <span
+          className="text-xs w-14 text-right"
+          style={{ color: "rgba(255,255,255,0.45)" }}
+        >
           {quest.progress}/{quest.goal}
         </span>
         {quest.claimed ? (
-          <span className="text-xs flex items-center gap-1 w-20 justify-end" style={{ color: "#10B981" }}>
+          <span
+            className="text-xs flex items-center gap-1 w-20 justify-end"
+            style={{ color: "#10B981" }}
+          >
             <CheckCircle2 size={11} /> {s.claimed}
           </span>
         ) : (
@@ -248,7 +178,9 @@ export function QuestsPanel({
       <div className="flex items-center justify-between mb-1 gap-2">
         <div className="flex items-center gap-2">
           <Target size={16} style={{ color: "#10B981" }} />
-          <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">{s.title}</span>
+          <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">
+            {s.title}
+          </span>
         </div>
         <span className="text-xs whitespace-nowrap" style={{ color: "#10B981" }}>
           {completed}/{(quests ?? []).length} {s.done}
@@ -265,7 +197,15 @@ export function QuestsPanel({
               <Target size={12} /> {s.daily}
             </div>
             <div className="space-y-2.5">
-              {daily.map((q) => <QuestRow key={q.code} quest={q} lang={lang} busy={busy} onClaim={claim} />)}
+              {daily.map((q) => (
+                <QuestRow
+                  key={q.code}
+                  quest={q}
+                  lang={lang}
+                  busy={busy}
+                  onClaim={claim}
+                />
+              ))}
             </div>
           </section>
           <section>
@@ -273,7 +213,15 @@ export function QuestsPanel({
               <CalendarDays size={12} /> {s.weekly}
             </div>
             <div className="space-y-2.5">
-              {weekly.map((q) => <QuestRow key={q.code} quest={q} lang={lang} busy={busy} onClaim={claim} />)}
+              {weekly.map((q) => (
+                <QuestRow
+                  key={q.code}
+                  quest={q}
+                  lang={lang}
+                  busy={busy}
+                  onClaim={claim}
+                />
+              ))}
             </div>
           </section>
         </div>
