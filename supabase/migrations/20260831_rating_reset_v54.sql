@@ -59,38 +59,53 @@ where coalesce(p.algebraic_logic_score, 0) > 0
    or coalesce(p.cfop_spatial_record, 0) > 0
    or coalesce(p.cognitive_index, 0) > 0;
 
+-- CHU Y: KHONG dua cognitive_index vao cau update nay.
+-- Tren database that, profiles.cognitive_index la GENERATED COLUMN (tinh tu 5
+-- truc ben duoi). Postgres tu choi update truc tiep voi loi:
+--   428C9: column "cognitive_index" can only be updated to DEFAULT
+-- Vi no la cot tinh san, chi can reset 5 truc la cognitive_index tu ve 0 theo.
 update public.profiles set
   algebraic_logic_score = 0,
   memory_score          = 0,
   speed_score           = 0,
   focus_score           = 0,
-  cfop_spatial_record   = 0,
-  cognitive_index       = 0;
+  cfop_spatial_record   = 0;
 
 -- Tu kiem tra: khong con rating nao khac 0, va da luu tru du so ban ghi.
 do $$
 declare
   v_left     integer;
+  v_idx_left integer;
   v_archived integer;
 begin
+  -- Dieu kien CHAN: chi xet 5 truc, vi day la 5 cot thuc su duoc update.
   select count(*) into v_left
   from public.profiles
   where coalesce(algebraic_logic_score, 0) <> 0
      or coalesce(memory_score, 0) <> 0
      or coalesce(speed_score, 0) <> 0
      or coalesce(focus_score, 0) <> 0
-     or coalesce(cfop_spatial_record, 0) <> 0
-     or coalesce(cognitive_index, 0) <> 0;
+     or coalesce(cfop_spatial_record, 0) <> 0;
 
   if v_left > 0 then
     raise exception 'Reset that bai: con % ho so co rating khac 0', v_left;
+  end if;
+
+  -- cognitive_index la cot tinh san nen phai tu ve 0 theo. Chi bao cao, khong
+  -- chan, de tranh migration tu danh sap minh neu cong thuc generated co so hang.
+  select count(*) into v_idx_left
+  from public.profiles
+  where coalesce(cognitive_index, 0) <> 0;
+
+  if v_idx_left > 0 then
+    raise warning 'Canh bao: con % ho so co cognitive_index khac 0 du 5 truc da ve 0. Cot nay la generated — kiem tra lai bieu thuc tinh cua no.', v_idx_left;
   end if;
 
   select count(*) into v_archived
   from public.rating_reset_archive
   where reason = 'v54 scoring recalibration';
 
-  raise notice 'OK: da reset 5 truc + cognitive_index ve 0. Da luu tru % ho so co rating cu. XP, level, streak, badge va so van KHONG bi thay doi.', v_archived;
+  raise notice 'OK: da reset 5 truc ve 0 (cognitive_index tu tinh lai theo). Da luu tru % ho so co rating cu. XP, level, streak, badge va so van KHONG bi thay doi.', v_archived;
 end $$;
 
 commit;
