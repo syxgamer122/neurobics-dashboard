@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   Clock,
   Star,
@@ -53,6 +54,39 @@ export function RoundResultOverlay({
       : `${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
   };
 
+  // A11Y: day la overlay ket qua dung chung cho CA 11 game. Truoc day no mo ra
+  // ma trinh doc man hinh khong doc gi het: dialog khong co ten, khong co mo ta,
+  // va khong he nhan focus. Nguoi dung screen reader choi xong mot van nhung
+  // khong biet minh duoc bao nhieu diem.
+  const continueRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    continueRef.current?.focus();
+  }, []);
+
+  // Esc de dong — hanh vi tieu chuan cua dialog, truoc day thieu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Gom ket qua thanh MOT cau, thay vi de screen reader doc bo tung o mot.
+  const srSummary = [
+    `${meta.title} · ${t.round_complete}`,
+    `${t.round_score_label}: ${result.headline}/${RATING_MAX}`,
+    fmtTime(result.timeMs),
+    ...result.rows.map(
+      (s) => `${s.label}: ${s.round}/${RATING_MAX} (${s.prev} → ${s.next})`,
+    ),
+    result.xpAwarded != null && result.xpAwarded > 0
+      ? `${result.leveledUp ? t.level_up : t.xp_earned}: +${result.xpAwarded} XP`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-3 sm:p-4"
@@ -64,6 +98,8 @@ export function RoundResultOverlay({
       }}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="round-result-title"
+      aria-describedby="round-result-summary"
     >
       <div
         className="relative w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
@@ -81,11 +117,30 @@ export function RoundResultOverlay({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div
+                id="round-result-title"
                 className="text-xs tracking-[0.25em] mb-1 font-mono"
                 style={{ color: accent }}
               >
                 {meta.title.toUpperCase()} · {t.round_complete}
               </div>
+              {/* Chi danh cho trinh doc man hinh. Dung inline style thay vi class
+                  sr-only de khong phu thuoc cau hinh Tailwind. */}
+              <p
+                id="round-result-summary"
+                style={{
+                  position: "absolute",
+                  width: 1,
+                  height: 1,
+                  margin: -1,
+                  padding: 0,
+                  overflow: "hidden",
+                  clipPath: "inset(50%)",
+                  whiteSpace: "nowrap",
+                  border: 0,
+                }}
+              >
+                {srSummary}
+              </p>
               <div className="text-xl font-bold text-white truncate">
                 {result.label}
               </div>
@@ -256,6 +311,7 @@ export function RoundResultOverlay({
           }}
         >
           <button
+            ref={continueRef}
             type="button"
             onClick={onClose}
             className="w-full min-h-12 py-3 rounded-xl text-sm font-bold tracking-widest transition-all duration-150 hover:brightness-125 font-mono"

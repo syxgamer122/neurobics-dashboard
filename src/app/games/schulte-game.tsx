@@ -545,7 +545,9 @@ export function SchulteTableGame({
         </div>
         <div
           className="flex items-center gap-1"
-          role="group"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
           aria-label={`${hearts}/${MAX_HEARTS} ${t.heart_full ?? "lives"}`}
         >
           {Array.from({ length: MAX_HEARTS }).map((_, i) => (
