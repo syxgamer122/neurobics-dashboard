@@ -765,7 +765,8 @@ app.post("/server/submit-round", async (c) => {
           ? String((err as { message: unknown }).message)
           : JSON.stringify(err);
     const lower = message.toLowerCase();
-    let status = 400;
+    // Hono chi nhan ContentfulStatusCode, khong nhan number chung chung.
+    let status: 400 | 401 | 409 = 400;
     if (
       lower.includes("authorization") ||
       lower.includes("session") ||
@@ -807,6 +808,8 @@ app.post("/server/admin-grant", async (c) => {
       .eq("id", targetId)
       .single();
     if (readError || !target) throw readError ?? new Error("Target not found");
+    // supabase-js tra ve union co GenericStringError -> ep ve record de doc cot dong.
+    const targetRow = target as unknown as Record<string, unknown>;
     // Khop src/app/lib/axes.ts
     const columns: Record<string, string> = {
       logic: "algebraic_logic_score",
@@ -820,13 +823,15 @@ app.post("/server/admin-grant", async (c) => {
       if (axes[key] === undefined || !Number.isFinite(Number(axes[key])))
         continue;
       const amount = Number(axes[key]),
-        current = Number(target[column] ?? 0),
+        current = Number(targetRow[column] ?? 0),
         next = mode === "set" ? amount : current + amount;
       patch[column] = Math.max(0, Math.min(1000, Math.round(next)));
     }
     if (xp !== undefined && Number.isFinite(Number(xp))) {
       const next =
-        mode === "set" ? Number(xp) : Number(target.total_xp ?? 0) + Number(xp);
+        mode === "set"
+          ? Number(xp)
+          : Number(targetRow.total_xp ?? 0) + Number(xp);
       // Chan tren bat buoc: mot lan go nham so 0 tung day total_xp len 1e14,
       // keo level nhay len 1.414.214 va lam hong ca bang xep hang. XP_MAX ung
       // voi level ~2000, du cho moi muc choi that ma van khong tran float8.

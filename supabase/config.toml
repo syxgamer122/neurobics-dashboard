@@ -1,0 +1,8 @@
+# Cau hinh Supabase CLI. `supabase link` se bo sung phan con lai khi can.
+# project_id = project ref tren dashboard (Settings > General).
+project_id = "pujzeomddvquxeacblvr"
+
+[db]
+# Bo comment va dat dung phien ban Postgres cua project neu muon chay
+# `supabase start` (moi truong local bang Docker).
+# major_version = 17
