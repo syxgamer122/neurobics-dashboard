@@ -23,6 +23,7 @@ import {
   type GameIconKey,
 } from "../../lib/game-registry";
 import type { Translation } from "../../lib/i18n";
+import { ErrorBoundary } from "../error-boundary";
 import { GameTile } from "../ui/game-tile";
 // ─── Chunk rieng cho tung game ────────────────────────────────────
 // TRUOC DAY 11 game duoc import tinh, nen ca 11 nam trong bundle DAU TIEN:
@@ -206,12 +207,24 @@ export function PlayArena({
       {selectedGame && ActiveGame && (
         <div className="w-full flex justify-center px-1 sm:px-0">
           <div className={gameStageClass(selectedGame)}>
-            <Suspense fallback={<GameChunkFallback />}>
-              <ActiveGame
-                onComplete={makeGameHandler(selectedGame)}
-                onPlayStart={() => beginPlay(selectedGame)}
-              />
-            </Suspense>
+            {/* Boundary NAM NGOAI Suspense de bat duoc ca hai loai su co:
+                (1) game nem loi luc dang choi,
+                (2) chunk cua game tai that bai (rot mang, hoac file cu da bi
+                    xoa sau khi deploy ban moi).
+                `key` doi theo game -> doi sang game khac la boundary moi, khong
+                bi dinh trang thai loi cua game truoc. */}
+            <ErrorBoundary
+              key={selectedGame}
+              area={`game:${selectedGame}`}
+              variant="inline"
+            >
+              <Suspense fallback={<GameChunkFallback />}>
+                <ActiveGame
+                  onComplete={makeGameHandler(selectedGame)}
+                  onPlayStart={() => beginPlay(selectedGame)}
+                />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         </div>
       )}

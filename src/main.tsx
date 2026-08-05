@@ -51,9 +51,17 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
         });
       });
 
+    // TRUOC DAY: controllerchange -> reload() vo dieu kien. Nhung lan dau vao
+    // trang, `clients.claim()` cua service worker vua cai cung phat su kien
+    // nay, nen MOI NGUOI DUNG MOI bi reload mot lan vo ich ngay sau khi trang
+    // vua tai xong.
+    //
+    // GIO chi reload khi TRUOC DO da co controller — tuc dung truong hop "ban SW
+    // moi thay ban cu", la luc that su can reload de lay bundle moi.
+    const hadController = Boolean(navigator.serviceWorker.controller);
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
+      if (!hadController || refreshing) return;
       refreshing = true;
       window.location.reload();
     });

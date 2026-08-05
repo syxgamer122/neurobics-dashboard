@@ -15,6 +15,7 @@ import { AmbientBackground } from "./components/app/ambient-background";
 import { AppHeader } from "./components/app/app-header";
 import { PlayArena } from "./components/app/play-arena";
 import { ProfilePage } from "./components/app/profile-page";
+import { ErrorBoundary } from "./components/error-boundary";
 import { HistoryPanel } from "./components/history-panel";
 import {
   CALIBRATION_TARGET,
@@ -393,17 +394,19 @@ function AppInner() {
 
   if (adminPanelOpen)
     return (
-      <Suspense fallback={<FullScreenFallback />}>
-        <AdminPanel
-          onExit={() => setAdminPanelOpen(false)}
-          profile={profile}
-          onProfileChange={setProfile}
-          onAccountDeleted={() => {
-            setAdminPanelOpen(false);
-            setProfile(null);
-          }}
-        />
-      </Suspense>
+      <ErrorBoundary area="admin-panel">
+        <Suspense fallback={<FullScreenFallback />}>
+          <AdminPanel
+            onExit={() => setAdminPanelOpen(false)}
+            profile={profile}
+            onProfileChange={setProfile}
+            onAccountDeleted={() => {
+              setAdminPanelOpen(false);
+              setProfile(null);
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
 
   return (
@@ -490,12 +493,14 @@ function AppInner() {
                 />
               </div>
 
-              <Suspense fallback={<ChartCardFallback />}>
-                <CognitiveMatrixCard
-                  data={cognitiveData}
-                  rounds={totalRounds(profile)}
-                />
-              </Suspense>
+              <ErrorBoundary area="dashboard:cognitive-matrix" variant="inline">
+                <Suspense fallback={<ChartCardFallback />}>
+                  <CognitiveMatrixCard
+                    data={cognitiveData}
+                    rounds={totalRounds(profile)}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             </div>
           </>
         )}

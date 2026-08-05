@@ -7,16 +7,16 @@
  *  - HTML dùng network-first để bản deploy mới không bị kẹt ở bản cũ.
  */
 
-// __APP_VERSION__ duoc thay bang so phien ban that luc build, xem plugin
-// swVersionStamp() trong vite.config.ts.
+// __APP_VERSION__ duoc thay bang `<version>-<van tay noi dung dist/assets>` luc
+// build, xem plugin swVersionStamp() trong vite.config.ts. Neu chuoi nay bien
+// mat thi BUILD SE DO (truoc day chi canh bao roi bo qua).
 //
-// Tai sao can: VERSION quyet dinh viec DON cache cu trong su kien "activate".
-// Truoc day no bi ghim cung o "mindgem-v1" va khong bao gio doi, nen sau
-// moi lan deploy, cache cu KHONG bi xoa -> nguoi dung cu co the ket lai o ban
-// JS cu. Gan phien ban vao day thi moi ban deploy tu dong don cache cu.
+// VERSION quyet dinh viec DON cache cu trong su kien "activate": moi ban deploy
+// doi VERSION -> cache cu bi xoa -> khong con canh nguoi dung ket lai o ban JS
+// cu sau khi deploy.
 //
-// Trong dev server chuoi nay giu nguyen, khong sao: main.tsx chi dang ky
-// service worker khi import.meta.env.PROD.
+// Trong dev server chuoi nay giu nguyen, khong sao: main.tsx chi dang ky service
+// worker khi import.meta.env.PROD.
 const VERSION = "mindgem-__APP_VERSION__";
 const STATIC_CACHE = `${VERSION}-static`;
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest"];
@@ -31,8 +31,8 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Client co the goi postMessage({ type: "SKIP_WAITING" }) de ep ban moi
-// activate ngay, tranh ket o bundle cu sau deploy.
+// Client co the goi postMessage({ type: "SKIP_WAITING" }) de ep ban moi activate
+// ngay, tranh ket o bundle cu sau deploy.
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
@@ -54,10 +54,38 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-function isStaticAsset(url) {
-  return /\.(?:js|css|woff2?|ttf|otf|png|jpe?g|svg|webp|ico|json)$/i.test(
+/**
+ * File trong /assets/ do Vite sinh ra: TEN DA CHUA HASH NOI DUNG, va Vercel tra
+ * ve kem header `immutable`. Mot URL nhu vay khong bao gio doi noi dung, nen
+ * cache-first vua an toan tuyet doi vua nhanh nhat.
+ *
+ * Day cung la ly do code splitting an toan voi service worker: moi chunk game
+ * co ten rieng kem hash, deploy moi sinh ten moi, khong the lan voi ban cu.
+ */
+function isImmutableAsset(url) {
+  return url.pathname.startsWith("/assets/");
+}
+
+/**
+ * Cac file tinh KHONG co hash trong ten: manifest, icon, favicon...
+ *
+ * TRUOC DAY chung bi cache-first chung mot ro voi /assets/. Hau qua: doi icon
+ * hay sua manifest thi nguoi dung cu giu ban cu cho den khi VERSION doi.
+ * GIO dung network-first — co mang thi lay ban moi, mat mang moi dung ban luu.
+ */
+function isUnversionedStatic(url) {
+  return /\.(?:css|js|woff2?|ttf|otf|png|jpe?g|svg|webp|ico|json|webmanifest)$/i.test(
     url.pathname,
   );
+}
+
+function cachePut(key, response) {
+  if (!response.ok || response.type !== "basic") return;
+  const copy = response.clone();
+  caches
+    .open(STATIC_CACHE)
+    .then((cache) => cache.put(key, copy))
+    .catch(() => undefined);
 }
 
 self.addEventListener("fetch", (event) => {
@@ -69,50 +97,54 @@ self.addEventListener("fetch", (event) => {
   // Khác origin (Supabase, CDN font…) → để trình duyệt tự xử lý, không cache.
   if (url.origin !== self.location.origin) return;
 
+  // Có query string → thường là chủ ý phá cache, đừng lưu lại.
+  if (url.search) return;
+
   // Điều hướng trang: ưu tiên mạng, rớt mạng thì dùng bản đã lưu.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches
-            .open(STATIC_CACHE)
-            .then((cache) => cache.put("/index.html", copy))
-            .catch(() => undefined);
+          cachePut("/index.html", response);
           return response;
         })
         .catch(() =>
-          caches
-            .match("/index.html")
-            .then(
-              (cached) =>
-                cached ??
-                new Response("Offline", {
-                  status: 503,
-                  headers: { "Content-Type": "text/plain" },
-                }),
-            ),
+          caches.match("/index.html").then(
+            (cached) =>
+              cached ??
+              new Response("Offline", {
+                status: 503,
+                headers: { "Content-Type": "text/plain" },
+              }),
+          ),
         ),
     );
     return;
   }
 
-  // Tài nguyên tĩnh có vân tay trong tên file → cache-first cho nhanh.
-  if (isStaticAsset(url)) {
+  // /assets/ten-<hash>.js → cache-first.
+  if (isImmutableAsset(url)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
-          if (response.ok && response.type === "basic") {
-            const copy = response.clone();
-            caches
-              .open(STATIC_CACHE)
-              .then((cache) => cache.put(request, copy))
-              .catch(() => undefined);
-          }
+          cachePut(request, response);
           return response;
         });
       }),
+    );
+    return;
+  }
+
+  // manifest / icon / file tĩnh không có hash → network-first.
+  if (isUnversionedStatic(url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          cachePut(request, response);
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached ?? Response.error())),
     );
   }
 });

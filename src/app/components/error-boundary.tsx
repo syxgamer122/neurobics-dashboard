@@ -14,6 +14,12 @@ type Props = {
   children: ReactNode;
   /** Ten vung de biet cho nao vo: "app", "game:schulte", "admin-panel"… */
   area?: string;
+  /**
+   * "screen" (mac dinh): chiem toan man hinh — dung cho boundary goc o main.tsx.
+   * "inline": chi chiem cho cua khoi bi vo — dung cho boundary quanh tung game
+   * hoac tung the bieu do, de phan con lai cua app van dung duoc binh thuong.
+   */
+  variant?: "screen" | "inline";
 };
 
 type State = { error: Error | null };
@@ -50,8 +56,15 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
 
+    // Boundary long nhau: ban "inline" khong duoc chiem man hinh, neu khong mot
+    // the bieu do vo se day toan bo phan con lai cua trang xuong duoi.
+    const wrapperClass =
+      this.props.variant === "inline"
+        ? "flex min-h-[320px] w-full items-center justify-center p-4 text-slate-200"
+        : "min-h-screen flex items-center justify-center bg-[#0B1020] p-6 text-slate-200";
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B1020] p-6 text-slate-200">
+      <div className={wrapperClass}>
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
           <p className="text-3xl">⚠️</p>
           <h1 className="mt-2 text-lg font-semibold text-white">
