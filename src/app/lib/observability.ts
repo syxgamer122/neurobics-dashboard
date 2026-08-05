@@ -306,9 +306,16 @@ function httpTransport(events: ObsPayloadEvent[]): void {
     void fetch(ENDPOINT, {
       method: "POST",
       keepalive: true,
+      // Chi gui Content-Type + Authorization.
+      //
+      // TRUOC DAY co gui them header `apikey`. No THUA: gateway Supabase da
+      // chap nhan `Authorization: Bearer <anon key>` (cac route signup /
+      // recover-password deu tra 200 chi voi header nay). Nhung tu khi CORS
+      // duoc siet lai, `apikey` khong nam trong allowHeaders nen preflight bi
+      // tu choi: "Request header field apikey is not allowed by
+      // Access-Control-Allow-Headers" -> toan bo telemetry im lang that bai.
       headers: {
         "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body,
