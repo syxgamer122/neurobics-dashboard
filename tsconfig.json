@@ -86,12 +86,11 @@
 
     // Bat san may cai re tien, hau nhu khong bao gio bao nham.
     "noFallthroughCasesInSwitch": true,
-    "allowUnreachableCode": false,
+    "allowUnreachableCode": false
 
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    // Da bo "baseUrl" + "paths": alias "@/" khong duoc dung o dau trong src/
+    // hay tests/ (0 lan), va Vite da co resolve.alias rieng cho phan build.
+    // "baseUrl" bi deprecated va se ngung hoat dong tu TypeScript 7.0.
   },
   "include": ["src", "tests"],
   "exclude": [
