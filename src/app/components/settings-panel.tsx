@@ -22,17 +22,11 @@ import {
   type Profile,
 } from "../lib/api";
 import { useLang, type Lang } from "../lib/i18n";
-import {
-  getLevelColor,
-  getLevelProgress,
-  getLevelTitle,
-} from "../lib/xp";
+import { getLevelColor, getLevelProgress, getLevelTitle } from "../lib/xp";
 import { logError } from "../lib/logger";
 import { usePwaInstall } from "../hooks/use-pwa-install";
 
-const mono: React.CSSProperties = {
-  
-};
+const mono: React.CSSProperties = {};
 
 const cardStyle = (accent: string): React.CSSProperties => ({
   background: "rgba(10,16,36,0.55)",
@@ -209,7 +203,10 @@ export function SettingsPanel({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       {/* ── Identity card ── */}
-      <div className="rounded-2xl p-6 flex flex-col items-center text-center" style={cardStyle("#F59E0B")}>
+      <div
+        className="rounded-2xl p-6 flex flex-col items-center text-center"
+        style={cardStyle("#F59E0B")}
+      >
         <div className="relative">
           <div
             className="w-28 h-28 rounded-2xl overflow-hidden flex items-center justify-center text-3xl font-bold uppercase"
@@ -218,7 +215,8 @@ export function SettingsPanel({
                 ? "#0B1228"
                 : "linear-gradient(135deg, #A855F7, #7C3AED)",
               boxShadow: "0 0 40px rgba(168,85,247,0.45)",
-              ...mono}}
+              ...mono,
+            }}
           >
             {profile.avatar_url ? (
               <img
@@ -238,7 +236,8 @@ export function SettingsPanel({
             style={{
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
               border: "2px solid #050A18",
-              color: "#fff"}}
+              color: "#fff",
+            }}
             title={t.settings_avatar_change}
           >
             {avatarBusy ? (
@@ -256,7 +255,9 @@ export function SettingsPanel({
           />
         </div>
 
-        <div className="text-xl font-bold text-white mt-5">{profile.username}</div>
+        <div className="text-xl font-bold text-white mt-5">
+          {profile.username}
+        </div>
         <div className="text-xs text-slate-500 mt-1">
           {isAdmin ? t.omega_label : t.operator_label}
         </div>
@@ -266,18 +267,23 @@ export function SettingsPanel({
           style={{
             color: levelColor,
             background: `${levelColor}18`,
-            border: `1px solid ${levelColor}44`}}
+            border: `1px solid ${levelColor}44`,
+          }}
         >
           {t.level_label} {level.level} · {getLevelTitle(level.level)}
         </div>
 
-        <div className="w-full mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+        <div
+          className="w-full mt-3 h-1.5 rounded-full overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        >
           <div
             className="h-full rounded-full transition-all"
             style={{
               width: `${Math.round(level.progress * 100)}%`,
               background: levelColor,
-              boxShadow: `0 0 12px ${levelColor}88`}}
+              boxShadow: `0 0 12px ${levelColor}88`,
+            }}
           />
         </div>
         <div className="text-xs text-slate-500 mt-1.5">
@@ -334,9 +340,14 @@ export function SettingsPanel({
                   style={{
                     background: "rgba(0,212,255,0.12)",
                     color: "#00D4FF",
-                    border: "1px solid rgba(0,212,255,0.35)"}}
+                    border: "1px solid rgba(0,212,255,0.35)",
+                  }}
                 >
-                  {birthBusy ? <Loader2 size={14} className="animate-spin" /> : t.save_btn}
+                  {birthBusy ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    t.save_btn
+                  )}
                 </button>
               </div>
               {profile.birth_year && (
@@ -368,7 +379,8 @@ export function SettingsPanel({
                         color: active ? "#00D4FF" : "#94A3B8",
                         border: active
                           ? "1px solid rgba(0,212,255,0.45)"
-                          : "1px solid rgba(0,212,255,0.12)"}}
+                          : "1px solid rgba(0,212,255,0.12)",
+                      }}
                     >
                       {code === "vi" ? t.settings_lang_vi : t.settings_lang_en}
                     </button>
@@ -426,9 +438,7 @@ export function SettingsPanel({
                     border: "1px solid rgba(16,185,129,0.18)",
                   }}
                 >
-                  {isIos
-                    ? t.settings_install_ios
-                    : t.settings_install_manual}
+                  {isIos ? t.settings_install_ios : t.settings_install_manual}
                 </div>
               )}
             </>
@@ -491,7 +501,8 @@ export function SettingsPanel({
             style={{
               background: "rgba(168,85,247,0.15)",
               color: "#C084FC",
-              border: "1px solid rgba(168,85,247,0.4)"}}
+              border: "1px solid rgba(168,85,247,0.4)",
+            }}
           >
             {pwBusy ? (
               <Loader2 size={14} className="animate-spin" />
@@ -500,9 +511,7 @@ export function SettingsPanel({
             )}
             {t.settings_pw_submit}
           </button>
-          <p className="text-xs text-slate-400 mt-2">
-            {t.settings_pw_hint}
-          </p>
+          <p className="text-xs text-slate-400 mt-2">{t.settings_pw_hint}</p>
         </div>
 
         {/* Danger zone */}
@@ -515,9 +524,13 @@ export function SettingsPanel({
             className="flex gap-3 p-3 rounded-xl mb-4"
             style={{
               background: "rgba(244,63,94,0.08)",
-              border: "1px solid rgba(244,63,94,0.22)"}}
+              border: "1px solid rgba(244,63,94,0.22)",
+            }}
           >
-            <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
+            <AlertTriangle
+              size={16}
+              className="text-rose-400 shrink-0 mt-0.5"
+            />
             <p className="text-[12px] text-rose-200/80 leading-relaxed">
               {t.settings_delete_warn}
             </p>
@@ -539,14 +552,16 @@ export function SettingsPanel({
               type="button"
               disabled={
                 deleteBusy ||
-                deleteConfirm.trim().toLowerCase() !== profile.username.toLowerCase()
+                deleteConfirm.trim().toLowerCase() !==
+                  profile.username.toLowerCase()
               }
               onClick={() => void onDelete()}
               className="h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center justify-center gap-2 disabled:opacity-40"
               style={{
                 background: "rgba(244,63,94,0.18)",
                 color: "#FB7185",
-                border: "1px solid rgba(244,63,94,0.45)"}}
+                border: "1px solid rgba(244,63,94,0.45)",
+              }}
             >
               {deleteBusy ? (
                 <Loader2 size={14} className="animate-spin" />

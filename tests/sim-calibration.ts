@@ -374,14 +374,17 @@ for (const axis of AXES) {
     const vals = pts.map((p) => p.v);
     const spread = vals[vals.length - 1] - vals[0];
     const med = median(vals);
-    const tag = spread > 350 ? "  <== LECH RAT RONG" : spread > 250 ? "  <== lech rong" : "";
+    const tag =
+      spread > 350
+        ? "  <== LECH RAT RONG"
+        : spread > 250
+          ? "  <== lech rong"
+          : "";
     console.log(
       `  ${pad(TIER_LABEL[tier], 11)} trung vi ${padL(med, 4)}` +
         `   bien do ${padL(spread, 4)}${tag}`,
     );
-    console.log(
-      "      " + pts.map((p) => `${p.game}=${p.v}`).join("  "),
-    );
+    console.log("      " + pts.map((p) => `${p.game}=${p.v}`).join("  "));
     if (spread > 250) {
       syncIssues.push(
         `${axis} @ ${TIER_LABEL[tier]}: bien do ${spread} ` +
@@ -461,7 +464,9 @@ const ceilingTrials: Trial[] = [
   trail("MANH", 0, 600),
 ];
 console.log(
-  pad("game", 10) + AXES.map((a) => padL(a.slice(0, 5), 6)).join("") + padL("TONG", 7),
+  pad("game", 10) +
+    AXES.map((a) => padL(a.slice(0, 5), 6)).join("") +
+    padL("TONG", 7),
 );
 console.log("-".repeat(48));
 for (const t of ceilingTrials) {

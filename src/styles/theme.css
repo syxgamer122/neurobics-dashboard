@@ -7,54 +7,54 @@
   /* Do mo cua cac panel kinh. Ha xuong o may yeu / man nho vi
      backdrop-filter la mot trong nhung thuoc tinh dat nhat khi cuon. */
   --glass-blur: 18px;
-  --background: #050A18;
-  --foreground: #E2E8F4;
-  --card: #0D1430;
-  --card-foreground: #E2E8F4;
-  --popover: #0D1430;
-  --popover-foreground: #E2E8F4;
-  --primary: #00D4FF;
-  --primary-foreground: #050A18;
-  --secondary: #1A2240;
-  --secondary-foreground: #E2E8F4;
+  --background: #050a18;
+  --foreground: #e2e8f4;
+  --card: #0d1430;
+  --card-foreground: #e2e8f4;
+  --popover: #0d1430;
+  --popover-foreground: #e2e8f4;
+  --primary: #00d4ff;
+  --primary-foreground: #050a18;
+  --secondary: #1a2240;
+  --secondary-foreground: #e2e8f4;
   --muted: #111830;
   /* WCAG: slate-400-ish on #050A18 instead of slate-600/700 */
-  --muted-foreground: #94A3B8;
-  --accent: #A855F7;
+  --muted-foreground: #94a3b8;
+  --accent: #a855f7;
   --accent-foreground: #ffffff;
-  --destructive: #EF4444;
+  --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 212, 255, 0.1);
-  --input: #1A2240;
+  --input: #1a2240;
   --input-background: #111830;
-  --switch-background: #1A2240;
+  --switch-background: #1a2240;
   --font-weight-medium: 600;
   --font-weight-normal: 400;
-  --ring: #00D4FF;
-  --chart-1: #00D4FF;
-  --chart-2: #A855F7;
-  --chart-3: #10B981;
-  --chart-4: #F59E0B;
-  --chart-5: #F43F5E;
+  --ring: #00d4ff;
+  --chart-1: #00d4ff;
+  --chart-2: #a855f7;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
   --radius: 0.875rem;
-  --sidebar: #080E20;
-  --sidebar-foreground: #E2E8F4;
-  --sidebar-primary: #00D4FF;
-  --sidebar-primary-foreground: #050A18;
-  --sidebar-accent: #1A2240;
-  --sidebar-accent-foreground: #E2E8F4;
+  --sidebar: #080e20;
+  --sidebar-foreground: #e2e8f4;
+  --sidebar-primary: #00d4ff;
+  --sidebar-primary-foreground: #050a18;
+  --sidebar-accent: #1a2240;
+  --sidebar-accent-foreground: #e2e8f4;
   --sidebar-border: rgba(0, 212, 255, 0.1);
-  --sidebar-ring: #00D4FF;
+  --sidebar-ring: #00d4ff;
   /* Neuro brand tokens */
-  --neuro-cyan: #00D4FF;
-  --neuro-purple: #A855F7;
-  --neuro-green: #10B981;
-  --neuro-amber: #F59E0B;
-  --neuro-red: #F43F5E;
-  --neuro-ink: #050A18;
-  --neuro-panel: #0D1430;
-  --neuro-muted: #94A3B8;
-  --neuro-subtle: #64748B;
+  --neuro-cyan: #00d4ff;
+  --neuro-purple: #a855f7;
+  --neuro-green: #10b981;
+  --neuro-amber: #f59e0b;
+  --neuro-red: #f43f5e;
+  --neuro-ink: #050a18;
+  --neuro-panel: #0d1430;
+  --neuro-muted: #94a3b8;
+  --neuro-subtle: #64748b;
 }
 
 .dark {
@@ -89,9 +89,9 @@
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: #E2E8F4;
+  --sidebar-accent-foreground: #e2e8f4;
   --sidebar-border: rgba(0, 212, 255, 0.1);
-  --sidebar-ring: #00D4FF;
+  --sidebar-ring: #00d4ff;
 }
 
 @theme inline {

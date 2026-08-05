@@ -18,11 +18,10 @@ export function GlassCard({
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow:
-          "0 4px 44px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)"}}
+          "0 4px 44px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)",
+      }}
     >
       {children}
     </div>
   );
 }
-
-

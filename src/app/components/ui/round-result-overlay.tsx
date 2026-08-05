@@ -299,7 +299,9 @@ export function RoundResultOverlay({
             </div>
           )}
 
-          <div className="text-xs text-slate-400 text-center">{t.score_note}</div>
+          <div className="text-xs text-slate-400 text-center">
+            {t.score_note}
+          </div>
         </div>
 
         {/* Nut CONTINUEghim day — khong bi cuon mat / che boi dock */}

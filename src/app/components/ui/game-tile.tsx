@@ -34,7 +34,8 @@ export function GameTile({
         boxShadow: hover
           ? `0 0 34px ${accent}33`
           : "0 4px 44px rgba(0,0,0,0.45)",
-        transform: hover ? "translateY(-4px)" : "translateY(0)"}}
+        transform: hover ? "translateY(-4px)" : "translateY(0)",
+      }}
     >
       <div className="flex items-center justify-between">
         <div
@@ -42,7 +43,8 @@ export function GameTile({
           style={{
             background: `${accent}22`,
             color: accent,
-            border: `1px solid ${accent}44`}}
+            border: `1px solid ${accent}44`,
+          }}
         >
           {icon}
         </div>
@@ -51,12 +53,13 @@ export function GameTile({
           style={{
             color: accent,
             transform: hover ? "translateX(3px)" : "none",
-            transition: "transform 0.2s"}}
+            transition: "transform 0.2s",
+          }}
         />
       </div>
       <div
         className="text-xs tracking-[0.2em] mt-4 font-mono"
-        style={{  color: accent }}
+        style={{ color: accent }}
       >
         {tag}
       </div>
@@ -64,12 +67,10 @@ export function GameTile({
       <div className="text-xs text-slate-400 mt-2 leading-relaxed">{desc}</div>
       <div
         className="mt-4 inline-flex items-center gap-2 text-xs font-semibold tracking-wider"
-        style={{  color: accent }}
+        style={{ color: accent }}
       >
         <Zap size={12} /> {playLabel ?? "PLAY NOW"}
       </div>
     </button>
   );
 }
-
-

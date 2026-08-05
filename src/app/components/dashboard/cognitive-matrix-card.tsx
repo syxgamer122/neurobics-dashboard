@@ -19,7 +19,10 @@ export type CognitiveMatrixCardProps = {
 };
 
 /** Radar 5 truc + dai so lieu tom tat ben duoi. */
-export function CognitiveMatrixCard({ data, rounds }: CognitiveMatrixCardProps) {
+export function CognitiveMatrixCard({
+  data,
+  rounds,
+}: CognitiveMatrixCardProps) {
   const { t } = useLang();
 
   return (
@@ -48,10 +51,7 @@ export function CognitiveMatrixCard({ data, rounds }: CognitiveMatrixCardProps) 
             data={data}
             margin={{ top: 10, right: 30, bottom: 10, left: 30 }}
           >
-            <PolarGrid
-              key="polar-grid"
-              stroke="rgba(0,212,255,0.09)"
-            />
+            <PolarGrid key="polar-grid" stroke="rgba(0,212,255,0.09)" />
             <PolarAngleAxis
               key="polar-angle"
               dataKey="subject"
@@ -98,8 +98,7 @@ export function CognitiveMatrixCard({ data, rounds }: CognitiveMatrixCardProps) 
             <div
               className="h-1 rounded-full mt-1"
               style={{
-                background:
-                  "linear-gradient(90deg, #00D4FF, #A855F7)",
+                background: "linear-gradient(90deg, #00D4FF, #A855F7)",
                 opacity: d.value / 100,
                 boxShadow: "0 0 6px rgba(0,212,255,0.4)",
               }}

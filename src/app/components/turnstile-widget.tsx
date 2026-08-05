@@ -162,8 +162,8 @@ export function TurnstileWidget({
           }}
         >
           Khong tai duoc captcha (thuong do CSP chan Cloudflare Turnstile hoac
-          mat mang). Thu tai lai trang. Neu van loi, kiem tra Vercel CSP cho phep
-          challenges.cloudflare.com.
+          mat mang). Thu tai lai trang. Neu van loi, kiem tra Vercel CSP cho
+          phep challenges.cloudflare.com.
         </div>
       )}
     </div>

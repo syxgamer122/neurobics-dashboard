@@ -12,11 +12,7 @@ import {
   assertSupabaseConfig,
 } from "../supabase-config";
 import { SESSION_COLUMNS, type SessionColumn } from "../game-registry";
-import {
-  sanitizeRating,
-  decayRating,
-  daysSince,
-} from "../scoring";
+import { sanitizeRating, decayRating, daysSince } from "../scoring";
 
 // ─── Supabase client singleton ───────────────────────────────────────────────
 // Stashed on globalThis so that even if this module is evaluated more than once
@@ -200,7 +196,10 @@ export const AVATAR_MIME = new Set([
   "image/gif",
 ]);
 
-export async function serverPost<T>(path: string, payload: unknown): Promise<T> {
+export async function serverPost<T>(
+  path: string,
+  payload: unknown,
+): Promise<T> {
   const token = await getAccessToken();
   if (!token) throw new Error("Not authenticated.");
   const res = await fetch(`${BASE}/${path}`, {

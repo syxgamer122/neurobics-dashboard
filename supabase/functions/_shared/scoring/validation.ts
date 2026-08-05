@@ -19,8 +19,7 @@ export function assertRtBounds(
       throw new Error(`${label}: reaction time is not a number`);
     if (r < HARD_MIN_RT_MS)
       throw new Error(`${label}: reaction time below human threshold`);
-    if (r > MAX_RT_MS)
-      throw new Error(`${label}: reaction time out of range`);
+    if (r > MAX_RT_MS) throw new Error(`${label}: reaction time out of range`);
     total += r;
   }
   // Tong thoi gian phan ung khong the vuot thoi gian van dau (dem bien 15s).
@@ -36,7 +35,8 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
   };
   const nonNeg = (k: string) => {
     const v = num(k);
-    if (v !== null && v < 0) throw new Error(`${game}: ${k} cannot be negative`);
+    if (v !== null && v < 0)
+      throw new Error(`${game}: ${k} cannot be negative`);
   };
   for (const k of [
     "wrongClicks",
@@ -82,7 +82,12 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
     const correct = num("correct");
     const wrong = num("wrong");
     const total = num("total");
-    if (correct !== null && wrong !== null && total !== null && correct + wrong > total)
+    if (
+      correct !== null &&
+      wrong !== null &&
+      total !== null &&
+      correct + wrong > total
+    )
       throw new Error("math: answered more problems than served");
     if (rtsLen !== null && total !== null && rtsLen > total)
       throw new Error("math: more reaction times than problems");
@@ -91,7 +96,11 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
   if (game === "stroop") {
     const totalStimuli = num("totalStimuli");
     const wrongClicks = num("wrongClicks");
-    if (totalStimuli !== null && wrongClicks !== null && wrongClicks > totalStimuli)
+    if (
+      totalStimuli !== null &&
+      wrongClicks !== null &&
+      wrongClicks > totalStimuli
+    )
       throw new Error("stroop: wrong clicks exceed stimuli shown");
     if (totalStimuli !== null && rtsLen !== null && rtsLen > totalStimuli)
       throw new Error("stroop: more reaction times than stimuli");
@@ -159,8 +168,7 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
     const mode = t.mode;
     if (mode !== undefined && mode !== "A" && mode !== "B")
       throw new Error("trail: mode must be A or B");
-    if (nodes !== null && nodes < 2)
-      throw new Error("trail: too few nodes");
+    if (nodes !== null && nodes < 2) throw new Error("trail: too few nodes");
     // Dong ho bat dau tu cu bam dung dau tien => dung nodes-1 buoc nhay.
     if (nodes !== null && rtsLen !== null && rtsLen > nodes)
       throw new Error("trail: more reaction times than nodes");
@@ -168,4 +176,3 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
       throw new Error("trail: implausible number of wrong clicks");
   }
 }
-

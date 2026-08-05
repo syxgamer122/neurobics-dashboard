@@ -213,7 +213,10 @@ export function GoNoGoGame({
     if (phase !== "stim" || respondedRef.current || !stim) return;
     respondedRef.current = true;
 
-    const rt = Math.max(1, Math.round(performance.now() - stimStartRef.current));
+    const rt = Math.max(
+      1,
+      Math.round(performance.now() - stimStartRef.current),
+    );
 
     if (stim === "go") {
       rtsRef.current.push(rt);
@@ -258,12 +261,20 @@ export function GoNoGoGame({
     setStats({ hits: 0, misses: 0, falseAlarms: 0, correctRejections: 0 });
   };
 
-  const goTotal = kindsRef.current.filter((k) => k === "go").length || Math.round(TOTAL_TRIALS * (1 - NOGO_RATE));
+  const goTotal =
+    kindsRef.current.filter((k) => k === "go").length ||
+    Math.round(TOTAL_TRIALS * (1 - NOGO_RATE));
   const accuracyPct =
     trial > 0 || phase === "done"
       ? Math.round(
           ((stats.hits + stats.correctRejections) /
-            Math.max(1, stats.hits + stats.misses + stats.falseAlarms + stats.correctRejections)) *
+            Math.max(
+              1,
+              stats.hits +
+                stats.misses +
+                stats.falseAlarms +
+                stats.correctRejections,
+            )) *
             100,
         )
       : null;
@@ -292,26 +303,40 @@ export function GoNoGoGame({
         </div>
       </div>
 
-      <p className="text-xs text-slate-400 mt-2 leading-relaxed">{t.gonogo_hint}</p>
+      <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+        {t.gonogo_hint}
+      </p>
 
       <div className="grid grid-cols-4 gap-2 mt-4">
         <div className="text-center">
-          <div className="text-[10px] text-slate-500 tracking-wider">{t.gonogo_trial}</div>
+          <div className="text-[10px] text-slate-500 tracking-wider">
+            {t.gonogo_trial}
+          </div>
           <div className="text-sm font-bold text-white">
-            {phase === "idle" ? `0/${TOTAL_TRIALS}` : `${Math.min(trial + 1, TOTAL_TRIALS)}/${TOTAL_TRIALS}`}
+            {phase === "idle"
+              ? `0/${TOTAL_TRIALS}`
+              : `${Math.min(trial + 1, TOTAL_TRIALS)}/${TOTAL_TRIALS}`}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-slate-500 tracking-wider">{t.gonogo_hit}</div>
+          <div className="text-[10px] text-slate-500 tracking-wider">
+            {t.gonogo_hit}
+          </div>
           <div className="text-sm font-bold text-emerald-400">{stats.hits}</div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-slate-500 tracking-wider">{t.gonogo_miss}</div>
+          <div className="text-[10px] text-slate-500 tracking-wider">
+            {t.gonogo_miss}
+          </div>
           <div className="text-sm font-bold text-slate-300">{stats.misses}</div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-slate-500 tracking-wider">{t.gonogo_false}</div>
-          <div className="text-sm font-bold text-rose-400">{stats.falseAlarms}</div>
+          <div className="text-[10px] text-slate-500 tracking-wider">
+            {t.gonogo_false}
+          </div>
+          <div className="text-sm font-bold text-rose-400">
+            {stats.falseAlarms}
+          </div>
         </div>
       </div>
 
@@ -371,7 +396,9 @@ export function GoNoGoGame({
           className="mt-6 flex flex-col items-center justify-center"
           style={{ minHeight: 280 }}
         >
-          <div className="text-6xl font-bold text-white tabular-nums">{countdown}</div>
+          <div className="text-6xl font-bold text-white tabular-nums">
+            {countdown}
+          </div>
           <div className="mt-3 text-xs text-slate-500 tracking-widest font-mono">
             {t.gonogo_get_ready}
           </div>
@@ -436,17 +463,21 @@ export function GoNoGoGame({
           className="mt-6 flex flex-col items-center justify-center"
           style={{ minHeight: 280 }}
         >
-          <div className="text-lg font-bold text-white">{t.gonogo_complete}</div>
+          <div className="text-lg font-bold text-white">
+            {t.gonogo_complete}
+          </div>
           <div className="mt-3 text-4xl font-bold" style={{ color: ACCENT }}>
             {accuracyPct ?? 0}%
           </div>
           <div className="mt-1 text-xs text-slate-500">{t.gonogo_accuracy}</div>
           <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-slate-400">
             <span>
-              {t.gonogo_hit}: <b className="text-emerald-400">{stats.hits}</b>/{goTotal}
+              {t.gonogo_hit}: <b className="text-emerald-400">{stats.hits}</b>/
+              {goTotal}
             </span>
             <span>
-              {t.gonogo_false}: <b className="text-rose-400">{stats.falseAlarms}</b>
+              {t.gonogo_false}:{" "}
+              <b className="text-rose-400">{stats.falseAlarms}</b>
             </span>
             <span>
               {t.gonogo_miss}: <b className="text-slate-300">{stats.misses}</b>

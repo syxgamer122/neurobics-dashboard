@@ -207,18 +207,26 @@ for (const [k, where] of [...used].sort()) {
 if (!missing) console.log("     OK: tat ca t.<key> deu ton tai");
 
 // ---------- 3. Key khai bao nhung khong dung ----------
-console.log("\n===== 3. Key khai bao nhung khong dung o dau (khong chan build) =====");
+console.log(
+  "\n===== 3. Key khai bao nhung khong dung o dau (khong chan build) =====",
+);
 if (viKeys) {
   const unused = viKeys.filter((k) => !used.has(k));
   if (unused.length)
-    report("WARN", `${unused.length} key khong duoc dung: ${unused.join(", ")}`);
+    report(
+      "WARN",
+      `${unused.length} key khong duoc dung: ${unused.join(", ")}`,
+    );
   else console.log("     OK");
 }
 
 // ---------- 4. Ky tu UTF-8 vo ----------
 console.log("\n===== 4. Ky tu UTF-8 vo (U+FFFD) =====");
 let broken = 0;
-for (const f of [...files, ...walk(path.join(ROOT, "supabase")).filter(() => false)]) {
+for (const f of [
+  ...files,
+  ...walk(path.join(ROOT, "supabase")).filter(() => false),
+]) {
   const s = fs.readFileSync(f, "utf8");
   s.split("\n").forEach((l, i) => {
     if (l.includes("\uFFFD")) {
@@ -329,5 +337,7 @@ for (const f of files) {
 if (!ls) console.log("     OK");
 
 console.log("\n==================================================");
-console.log(issues === 0 ? "KHONG PHAT HIEN LOI CHAN (ERR)" : `${issues} loi ERR`);
+console.log(
+  issues === 0 ? "KHONG PHAT HIEN LOI CHAN (ERR)" : `${issues} loi ERR`,
+);
 process.exit(issues === 0 ? 0 : 1);

@@ -45,7 +45,12 @@ export const NO_AXES: AxisRatings = {
 export const MAX = 1000;
 export const clamp = (n: number) => Math.max(0, Math.min(MAX, Math.round(n)));
 export const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-export const finite = (n: unknown, name: string, min = 0, max = 7_200_000): number => {
+export const finite = (
+  n: unknown,
+  name: string,
+  min = 0,
+  max = 7_200_000,
+): number => {
   const v = Number(n);
   if (!Number.isFinite(v) || v < min || v > max)
     throw new Error(`Invalid ${name}`);
@@ -63,9 +68,7 @@ export const numberArray = (
     throw new Error(`Invalid ${name} length`);
   // Lần nhập đầu tiên có thể bằng 0ms nếu xảy ra trong cùng một clock tick.
   // Chuẩn hóa thành 1ms thay vì từ chối toàn bộ kết quả ván.
-  return v.map((x, i) =>
-    Math.max(1, finite(x, `${name}[${i}]`, 0, 3_600_000)),
-  );
+  return v.map((x, i) => Math.max(1, finite(x, `${name}[${i}]`, 0, 3_600_000)));
 };
 /**
  * Bỏ mốc khởi động ra khỏi thống kê nhịp độ.
@@ -202,4 +205,3 @@ export const headline = (axes: AxisRatings) => {
   if (!vals.length) return 0;
   return clamp(vals.reduce((a, b) => a + b, 0) / vals.length);
 };
-

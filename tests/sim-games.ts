@@ -7,8 +7,7 @@
 // module that su. Khong doi hanh vi luc chay, chi de tsc hieu dung.
 export {};
 
-const BASE =
-  "../supabase/functions/_shared/";
+const BASE = "../supabase/functions/_shared/";
 
 const { scoreAndValidate } = await import(BASE + "round-scoring.ts");
 const { inspectRound, hasHardFlag, softFlags } = await import(
@@ -222,7 +221,10 @@ cases.push({
       correct: 21,
       wrong: 3,
       rts: mrRts,
-      angles: [180,135,90,225,180,135,90,270,180,135,90,225,180,135,90,270,180,135,90,225,45,45,0,0],
+      angles: [
+        180, 135, 90, 225, 180, 135, 90, 270, 180, 135, 90, 225, 180, 135, 90,
+        270, 180, 135, 90, 225, 45, 45, 0, 0,
+      ],
       mirrors: Array.from({ length: 24 }, (_, i) => i % 2 === 0),
       correctFlags: flags,
     },
@@ -230,7 +232,9 @@ cases.push({
     expect: {
       hardFlag: false,
       check: (s) =>
-        s.axes.spatial > 600 && s.axes.speed > 500 && s.label === "Mental Rotation"
+        s.axes.spatial > 600 &&
+        s.axes.speed > 500 &&
+        s.label === "Mental Rotation"
           ? null
           : `spatial=${s.axes.spatial} speed=${s.axes.speed} label=${s.label}`,
     },
@@ -518,8 +522,7 @@ cases.push({
   elapsed: 60000,
   expect: {
     reject: false,
-    check: (s) =>
-      s.axes.memory > 100 ? null : `memory=${s.axes.memory}`,
+    check: (s) => (s.axes.memory > 100 ? null : `memory=${s.axes.memory}`),
   },
 });
 cases.push({
@@ -547,8 +550,14 @@ cases.push({
   desc: "Go/No-Go khai bao go+nogo khong bang trials",
   game: "gonogo",
   tel: {
-    timeMs: 30000, trials: 40, goTrials: 29, nogoTrials: 10,
-    hits: 28, misses: 1, falseAlarms: 0, correctRejections: 10,
+    timeMs: 30000,
+    trials: 40,
+    goTrials: 29,
+    nogoTrials: 10,
+    hits: 28,
+    misses: 1,
+    falseAlarms: 0,
+    correctRejections: 10,
     rts: rts(28, 430),
   },
   elapsed: 35000,
@@ -561,8 +570,15 @@ cases.push({
     desc: "Go/No-Go hoan hao va qua deu: soft flag, khong hard",
     game: "gonogo",
     tel: {
-      timeMs: 30000, trials: 40, goTrials: 28, nogoTrials: 12,
-      hits: 28, misses: 0, falseAlarms: 0, correctRejections: 12, rts: bot,
+      timeMs: 30000,
+      trials: 40,
+      goTrials: 28,
+      nogoTrials: 12,
+      hits: 28,
+      misses: 0,
+      falseAlarms: 0,
+      correctRejections: 12,
+      rts: bot,
     },
     elapsed: 35000,
     expect: { hardFlag: false, softFlagContains: "Perfect inhibition" },
@@ -573,8 +589,12 @@ cases.push({
   desc: "Mental Rotation thieu mot RT bi tu choi",
   game: "mental",
   tel: {
-    timeMs: 30000, trials: 24, correct: 20, wrong: 4,
-    rts: rts(23, 1400), angles: Array.from({ length: 24 }, () => 90),
+    timeMs: 30000,
+    trials: 24,
+    correct: 20,
+    wrong: 4,
+    rts: rts(23, 1400),
+    angles: Array.from({ length: 24 }, () => 90),
   },
   elapsed: 35000,
   expect: { reject: true },
@@ -584,8 +604,12 @@ cases.push({
   desc: "Mental Rotation correctFlags khong khop correct bi tu choi",
   game: "mental",
   tel: {
-    timeMs: 30000, trials: 24, correct: 20, wrong: 4,
-    rts: rts(24, 1400), angles: Array.from({ length: 24 }, () => 90),
+    timeMs: 30000,
+    trials: 24,
+    correct: 20,
+    wrong: 4,
+    rts: rts(24, 1400),
+    angles: Array.from({ length: 24 }, () => 90),
     correctFlags: Array.from({ length: 24 }, (_, i) => i < 21),
   },
   elapsed: 35000,
@@ -598,7 +622,11 @@ cases.push({
     desc: "Mental Rotation hoan hao 300ms: soft flag, khong hard",
     game: "mental",
     tel: {
-      timeMs: 10000, trials: 24, correct: 24, wrong: 0, rts: bot,
+      timeMs: 10000,
+      trials: 24,
+      correct: 24,
+      wrong: 0,
+      rts: bot,
       angles: Array.from({ length: 24 }, () => 180),
       correctFlags: Array.from({ length: 24 }, () => true),
     },
@@ -667,8 +695,13 @@ cases.push({
   desc: "Corsi so rts khong khop so lan cham bi tu choi",
   game: "corsi",
   tel: {
-    timeMs: 20000, span: 5, trials: 7, correctTrials: 4,
-    taps: 24, wrongClicks: 3, rts: rts(20, 700),
+    timeMs: 20000,
+    span: 5,
+    trials: 7,
+    correctTrials: 4,
+    taps: 24,
+    wrongClicks: 3,
+    rts: rts(20, 700),
   },
   elapsed: 30000,
   expect: { reject: true },
@@ -678,8 +711,13 @@ cases.push({
   desc: "Corsi khai span nhung khong luot nao dung bi tu choi",
   game: "corsi",
   tel: {
-    timeMs: 12000, span: 5, trials: 3, correctTrials: 0,
-    taps: 12, wrongClicks: 3, rts: rts(12, 700),
+    timeMs: 12000,
+    span: 5,
+    trials: 3,
+    correctTrials: 0,
+    taps: 12,
+    wrongClicks: 3,
+    rts: rts(12, 700),
   },
   elapsed: 20000,
   expect: { reject: true },
@@ -689,7 +727,11 @@ cases.push({
   desc: "Trail thieu mot buoc nhay bi tu choi",
   game: "trail",
   tel: {
-    timeMs: 25000, nodes: 24, mode: "B", wrongClicks: 1, rts: rts(21, 1100),
+    timeMs: 25000,
+    nodes: 24,
+    mode: "B",
+    wrongClicks: 1,
+    rts: rts(21, 1100),
   },
   elapsed: 32000,
   expect: { reject: true },
@@ -702,8 +744,13 @@ cases.push({
     desc: "Corsi cham deu 120ms dat span 9: hard flag",
     game: "corsi",
     tel: {
-      timeMs: sum(bot), span: 9, trials: 9, correctTrials: 8,
-      taps: 40, wrongClicks: 1, rts: bot,
+      timeMs: sum(bot),
+      span: 9,
+      trials: 9,
+      correctTrials: 8,
+      taps: 40,
+      wrongClicks: 1,
+      rts: bot,
     },
     elapsed: sum(bot) + 10000,
     expect: { hardFlag: true },
@@ -717,7 +764,11 @@ cases.push({
     desc: "Trail hoan hao 250ms/buoc: soft flag, khong hard",
     game: "trail",
     tel: {
-      timeMs: sum(fast), nodes: 24, mode: "B", wrongClicks: 0, rts: fast,
+      timeMs: sum(fast),
+      nodes: 24,
+      mode: "B",
+      wrongClicks: 0,
+      rts: fast,
     },
     elapsed: sum(fast) + 5000,
     expect: {
@@ -736,8 +787,14 @@ cases.push({
   desc: "v54: Go/No-Go bam MOI o phai ~0 diem (truoc day 572)",
   game: "gonogo",
   tel: {
-    timeMs: 60000, trials: 40, goTrials: 28, nogoTrials: 12,
-    hits: 28, misses: 0, falseAlarms: 12, correctRejections: 0,
+    timeMs: 60000,
+    trials: 40,
+    goTrials: 28,
+    nogoTrials: 12,
+    hits: 28,
+    misses: 0,
+    falseAlarms: 12,
+    correctRejections: 0,
     rts: rts(28, 330),
   },
   elapsed: 62000,
@@ -753,15 +810,20 @@ cases.push({
   desc: "v54: Go/No-Go KHONG bam gi phai ~0 diem (truoc day 475)",
   game: "gonogo",
   tel: {
-    timeMs: 60000, trials: 40, goTrials: 28, nogoTrials: 12,
-    hits: 0, misses: 28, falseAlarms: 0, correctRejections: 12, rts: [],
+    timeMs: 60000,
+    trials: 40,
+    goTrials: 28,
+    nogoTrials: 12,
+    hits: 0,
+    misses: 28,
+    falseAlarms: 0,
+    correctRejections: 12,
+    rts: [],
   },
   elapsed: 62000,
   expect: {
     check: (s) =>
-      s.headline <= 30
-        ? null
-        : `khong choi gi van duoc headline=${s.headline}`,
+      s.headline <= 30 ? null : `khong choi gi van duoc headline=${s.headline}`,
   },
 });
 cases.push({
@@ -781,7 +843,13 @@ cases.push({
   id: "V4",
   desc: "v54: Trail B 620ms/buoc khong duoc bao hoa dung 1000",
   game: "trail",
-  tel: { timeMs: 40000, nodes: 24, mode: "B", wrongClicks: 0, rts: rts(23, 620) },
+  tel: {
+    timeMs: 40000,
+    nodes: 24,
+    mode: "B",
+    wrongClicks: 0,
+    rts: rts(23, 620),
+  },
   elapsed: 90000,
   expect: {
     check: (s) =>
@@ -795,8 +863,13 @@ cases.push({
   desc: "v54: Sudoku Medium hoan hao khong duoc re (truoc day 567)",
   game: "sudoku",
   tel: {
-    difficulty: "Medium", placements: 45, moveRts: rts(45, 3500),
-    mistakes: 0, reEntries: 0, repeatMistakes: 0, actualClues: 36,
+    difficulty: "Medium",
+    placements: 45,
+    moveRts: rts(45, 3500),
+    mistakes: 0,
+    reEntries: 0,
+    repeatMistakes: 0,
+    actualClues: 36,
     timeMs: 160000,
   },
   elapsed: 200000,
@@ -854,11 +927,11 @@ for (const c of cases) {
       );
       if (!found)
         problems.push(
-          `thieu soft flag chua "${c.expect.softFlagContains}" (co: ${softFlags(
-            report,
-          )
-            .map((f: any) => f.msg)
-            .join("; ") || "khong co"})`,
+          `thieu soft flag chua "${c.expect.softFlagContains}" (co: ${
+            softFlags(report)
+              .map((f: any) => f.msg)
+              .join("; ") || "khong co"
+          })`,
         );
     }
   }
@@ -882,7 +955,9 @@ for (const c of cases) {
   if (problems.length === 0) {
     pass++;
     console.log(`PASS ${c.id}  ${c.desc}`);
-    console.log(`       ${axesStr}${scored ? `  headline=${scored.headline}` : ""}`);
+    console.log(
+      `       ${axesStr}${scored ? `  headline=${scored.headline}` : ""}`,
+    );
     if (report && report.flags.length) console.log(`       flags: ${flagStr}`);
   } else {
     fails.push(`${c.id} ${c.desc}`);

@@ -61,4 +61,6 @@ writeFileSync(sqlPath, sql);
 
 console.log(`[db:baseline] ${entries.length} version -> ${versionsPath}`);
 console.log(`[db:baseline] SQL chot moc -> ${sqlPath}`);
-console.log("[db:baseline] Dan SQL do vao Supabase SQL Editor (Run and enable RLS), roi: pnpm run db:status");
+console.log(
+  "[db:baseline] Dan SQL do vao Supabase SQL Editor (Run and enable RLS), roi: pnpm run db:status",
+);

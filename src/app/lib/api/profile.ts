@@ -83,9 +83,9 @@ export async function resetActiveUserScores(): Promise<Profile> {
       focus_score: 0,
       cfop_spatial_record: 0,
       synapse_streak: 0,
-      ...Object.fromEntries(
+      ...(Object.fromEntries(
         SESSION_COLUMNS.map((column) => [column, 0]),
-      ) as Record<SessionColumn, number>,
+      ) as Record<SessionColumn, number>),
       total_xp: 0,
       last_active_date: null,
     })
@@ -190,7 +190,9 @@ export async function uploadAvatar(file: File): Promise<Profile> {
 
   // Drop leftover files from previous uploads with a different extension
   // (avatar.jpg left behind after switching to avatar.png, etc.).
-  const { data: listed } = await getSupabase().storage.from("avatars").list(userId);
+  const { data: listed } = await getSupabase()
+    .storage.from("avatars")
+    .list(userId);
   if (listed && listed.length > 0) {
     const stale = listed
       .map((f) => f.name)
@@ -201,14 +203,20 @@ export async function uploadAvatar(file: File): Promise<Profile> {
     }
   }
 
-  const { error: upErr } = await getSupabase().storage
-    .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+  const { error: upErr } = await getSupabase()
+    .storage.from("avatars")
+    .upload(path, file, {
+      upsert: true,
+      contentType: file.type,
+      cacheControl: "3600",
+    });
   if (upErr) {
     throw new Error(describeError(upErr, "Upload avatar failed"));
   }
 
-  const { data: pub } = getSupabase().storage.from("avatars").getPublicUrl(path);
+  const { data: pub } = getSupabase()
+    .storage.from("avatars")
+    .getPublicUrl(path);
   // Bust CDN/browser cache after overwrite.
   const avatarUrl = `${pub.publicUrl}?t=${Date.now()}`;
 
@@ -229,8 +237,8 @@ export async function removeAvatar(): Promise<Profile> {
   const userId = await currentUserId();
   if (!userId) throw new Error("Remove avatar failed: not authenticated.");
 
-  const { data: listed } = await getSupabase().storage
-    .from("avatars")
+  const { data: listed } = await getSupabase()
+    .storage.from("avatars")
     .list(userId);
   if (listed && listed.length > 0) {
     const paths = listed.map((f) => `${userId}/${f.name}`);

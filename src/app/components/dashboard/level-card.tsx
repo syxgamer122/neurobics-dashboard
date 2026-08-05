@@ -12,7 +12,11 @@ export type LevelCardProps = {
 };
 
 /** Cap do, danh hieu va thanh tien do XP trong cap hien tai. */
-export function LevelCard({ levelProgress, levelColor, totalXp }: LevelCardProps) {
+export function LevelCard({
+  levelProgress,
+  levelColor,
+  totalXp,
+}: LevelCardProps) {
   const { t } = useLang();
 
   return (
@@ -33,9 +37,7 @@ export function LevelCard({ levelProgress, levelColor, totalXp }: LevelCardProps
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <Label color={levelColor}>
-            {getLevelTitle(levelProgress.level)}
-          </Label>
+          <Label color={levelColor}>{getLevelTitle(levelProgress.level)}</Label>
           <div className="flex items-baseline gap-2 mt-1 mb-2">
             <span className="text-2xl font-bold text-white">
               {levelProgress.xpIntoLevel}
@@ -44,8 +46,7 @@ export function LevelCard({ levelProgress, levelColor, totalXp }: LevelCardProps
               / {levelProgress.xpNeeded} XP
             </span>
             <span className="ml-auto text-xs text-slate-500">
-              {t.total_xp_label}:{" "}
-              {totalXp.toLocaleString()}
+              {t.total_xp_label}: {totalXp.toLocaleString()}
             </span>
           </div>
           <div

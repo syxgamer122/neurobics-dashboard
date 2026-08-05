@@ -244,7 +244,11 @@ export function CorsiBlockGame({
   const cellState = (cell: number): "lit" | "tapped" | "idle" => {
     if (phase === "watch" && litIndex === cell) return "lit";
     if (phase === "recall" && tapped.includes(cell)) return "tapped";
-    if (phase === "feedback" && lastCorrect === false && sequence.includes(cell))
+    if (
+      phase === "feedback" &&
+      lastCorrect === false &&
+      sequence.includes(cell)
+    )
       return "lit";
     return "idle";
   };

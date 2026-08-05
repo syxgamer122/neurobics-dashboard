@@ -45,9 +45,7 @@ function buildTrail(): TrailNode[] {
     for (let attempt = 0; attempt < 220; attempt++) {
       x = 8 + Math.random() * 84;
       y = 8 + Math.random() * 84;
-      const clash = placed.some(
-        (p) => Math.hypot(p.x - x, p.y - y) < MIN_DIST,
-      );
+      const clash = placed.some((p) => Math.hypot(p.x - x, p.y - y) < MIN_DIST);
       if (!clash) break;
     }
     placed.push({ x, y });
@@ -270,9 +268,7 @@ export function TrailMakingGame({
           style={{ minHeight: 320 }}
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
-          <div className="text-lg font-bold text-white">
-            {t.trail_complete}
-          </div>
+          <div className="text-lg font-bold text-white">{t.trail_complete}</div>
           <div className="mt-2 text-4xl font-bold" style={{ color: ACCENT }}>
             {seconds}s
           </div>

@@ -137,7 +137,10 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             {s.title}
           </span>
         </div>
-        <span className="text-xs whitespace-nowrap" style={{ color: "#F59E0B" }}>
+        <span
+          className="text-xs whitespace-nowrap"
+          style={{ color: "#F59E0B" }}
+        >
           {unlockedCount}/{BADGES.length} {s.unlocked}
         </span>
       </div>
@@ -147,15 +150,16 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       </p>
 
       {rows === null ? (
-        <div className="text-xs text-white/40 py-6 text-center">{s.loading}</div>
+        <div className="text-xs text-white/40 py-6 text-center">
+          {s.loading}
+        </div>
       ) : (
         <>
           {/* Bộ lọc theo nhóm */}
           <div className="flex flex-wrap gap-1.5 mb-4">
             {filters.map((f) => {
               const on = filter === f;
-              const label =
-                f === "all" ? s.all : CATEGORY_LABEL[f][lang];
+              const label = f === "all" ? s.all : CATEGORY_LABEL[f][lang];
               const total =
                 f === "all"
                   ? BADGES.length

@@ -167,15 +167,16 @@ export function ReactionTimeGame({
         border: "1px solid rgba(16,185,129,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
+      }}
     >
       <div className="flex items-start justify-between">
         <div>
           <div
             className="text-xs tracking-[0.2em] mb-1.5 font-mono"
             style={{
-              
-              color: "#10B981"}}
+              color: "#10B981",
+            }}
           >
             {t.rx_tag}
           </div>
@@ -188,7 +189,8 @@ export function ReactionTimeGame({
           style={{
             background: "rgba(16,185,129,0.18)",
             color: "#10B981",
-            border: "1px solid rgba(16,185,129,0.28)"}}
+            border: "1px solid rgba(16,185,129,0.28)",
+          }}
         >
           <Activity size={17} />
         </div>
@@ -238,7 +240,8 @@ export function ReactionTimeGame({
             style={{
               background: "rgba(16,185,129,0.15)",
               color: "#10B981",
-              border: "1px solid rgba(16,185,129,0.4)"}}
+              border: "1px solid rgba(16,185,129,0.4)",
+            }}
           >
             {t.rx_start}
           </button>
@@ -256,32 +259,26 @@ export function ReactionTimeGame({
             {average} ms
           </div>
 
-          <div className="mt-1 text-xs text-slate-500">
-            {t.rx_avg_label}
-          </div>
+          <div className="mt-1 text-xs text-slate-500">{t.rx_avg_label}</div>
         </div>
       ) : (
         <button
           onClick={handlePadClick}
-          className={`mt-6 rounded-2xl flex flex-col items-center justify-center transition-all ${phase === "ready" ? "animate-pulse" : ""
-            }`}
+          className={`mt-6 rounded-2xl flex flex-col items-center justify-center transition-all ${
+            phase === "ready" ? "animate-pulse" : ""
+          }`}
           style={{
             minHeight: 280,
             background: padBackground,
             border: padBorder,
             boxShadow:
-              phase === "ready" ? "0 0 40px rgba(16,185,129,0.45)" : "none"}}
+              phase === "ready" ? "0 0 40px rgba(16,185,129,0.45)" : "none",
+          }}
         >
-          <div
-            className="text-2xl font-bold text-white"
-          >
-            {message}
-          </div>
+          <div className="text-2xl font-bold text-white">{message}</div>
 
           {phase === "waiting" && (
-            <div className="mt-3 text-xs text-slate-500">
-              {t.rx_dont_press}
-            </div>
+            <div className="mt-3 text-xs text-slate-500">{t.rx_dont_press}</div>
           )}
         </button>
       )}
@@ -301,7 +298,8 @@ export function ReactionTimeGame({
           style={{
             background: "rgba(16,185,129,0.1)",
             color: "#10B981",
-            border: "1px solid rgba(16,185,129,0.25)"}}
+            border: "1px solid rgba(16,185,129,0.25)",
+          }}
         >
           <RefreshCw size={12} />
           {t.rx_restart}

@@ -36,7 +36,10 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
           const worker = reg.installing;
           if (!worker) return;
           worker.addEventListener("statechange", () => {
-            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+            if (
+              worker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
               worker.postMessage({ type: "SKIP_WAITING" });
             }
           });

@@ -43,19 +43,27 @@ const MathSprintGame = lazy(() =>
   import("../../games/math-game").then((m) => ({ default: m.MathSprintGame })),
 );
 const MemoryMatrixGame = lazy(() =>
-  import("../../games/memory-game").then((m) => ({ default: m.MemoryMatrixGame })),
+  import("../../games/memory-game").then((m) => ({
+    default: m.MemoryMatrixGame,
+  })),
 );
 const MentalRotationGame = lazy(() =>
-  import("../../games/mental-rotation-game").then((m) => ({ default: m.MentalRotationGame })),
+  import("../../games/mental-rotation-game").then((m) => ({
+    default: m.MentalRotationGame,
+  })),
 );
 const NBackGame = lazy(() =>
   import("../../games/nback-game").then((m) => ({ default: m.NBackGame })),
 );
 const ReactionTimeGame = lazy(() =>
-  import("../../games/reaction-game").then((m) => ({ default: m.ReactionTimeGame })),
+  import("../../games/reaction-game").then((m) => ({
+    default: m.ReactionTimeGame,
+  })),
 );
 const SchulteTableGame = lazy(() =>
-  import("../../games/schulte-game").then((m) => ({ default: m.SchulteTableGame })),
+  import("../../games/schulte-game").then((m) => ({
+    default: m.SchulteTableGame,
+  })),
 );
 const StroopGame = lazy(() =>
   import("../../games/stroop-game").then((m) => ({ default: m.StroopGame })),
@@ -64,7 +72,9 @@ const SudokuGame = lazy(() =>
   import("../../games/sudoku-game").then((m) => ({ default: m.SudokuGame })),
 );
 const TrailMakingGame = lazy(() =>
-  import("../../games/trail-game").then((m) => ({ default: m.TrailMakingGame })),
+  import("../../games/trail-game").then((m) => ({
+    default: m.TrailMakingGame,
+  })),
 );
 
 const GAME_ICONS: Record<GameIconKey, LucideIcon> = {
@@ -169,7 +179,8 @@ export function PlayArena({
         <div
           className="flex-1 h-px"
           style={{
-            background: "linear-gradient(90deg, rgba(0,212,255,0.3), transparent)",
+            background:
+              "linear-gradient(90deg, rgba(0,212,255,0.3), transparent)",
           }}
         />
         {selectedGame && (

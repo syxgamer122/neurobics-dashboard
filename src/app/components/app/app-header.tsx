@@ -73,7 +73,11 @@ export function AppHeader({
             }}
           >
             {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+              <img
+                src={profile.avatar_url}
+                alt=""
+                className="w-full h-full object-cover"
+              />
             ) : (
               profile.username.slice(0, 2)
             )}

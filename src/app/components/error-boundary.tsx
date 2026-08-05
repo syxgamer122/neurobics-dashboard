@@ -71,8 +71,8 @@ export class ErrorBoundary extends Component<Props, State> {
             Đã xảy ra lỗi ngoài dự kiến
           </h1>
           <p className="mt-2 text-sm text-slate-400">
-            Lỗi đã được ghi nhận tự động. Bạn có thể thử lại mà không mất
-            đăng nhập.
+            Lỗi đã được ghi nhận tự động. Bạn có thể thử lại mà không mất đăng
+            nhập.
           </p>
           <pre className="mt-3 max-h-32 overflow-auto rounded-lg bg-black/40 p-3 text-xs text-rose-300">
             {error.name}: {error.message}

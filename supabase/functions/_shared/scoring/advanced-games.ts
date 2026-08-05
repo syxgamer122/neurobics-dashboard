@@ -84,8 +84,7 @@ export function scoreGoNoGo(t: any): ScoredRound {
     throw new Error("Go/No-Go GO outcomes inconsistent");
   if (falseAlarms + correctRejections !== nogoTrials)
     throw new Error("Go/No-Go NOGO outcomes inconsistent");
-  if (rts.length > hits)
-    throw new Error("Go/No-Go more RTs than hits");
+  if (rts.length > hits) throw new Error("Go/No-Go more RTs than hits");
 
   const hitRate = hits / Math.max(1, goTrials);
   const faRate = falseAlarms / Math.max(1, nogoTrials);
@@ -173,7 +172,7 @@ export function scoreMentalRotation(t: any): ScoredRound {
     const a = Math.abs(Number(angles[i]) % 360);
     if (!Number.isFinite(a)) continue;
     // 0→0, 180→1
-    const load = Math.min(1, Math.abs(((a > 180 ? 360 - a : a) / 180)));
+    const load = Math.min(1, Math.abs((a > 180 ? 360 - a : a) / 180));
     // Chỉ cộng load cho trial đúng — sai không "ăn" bonus khó.
     const ok = flags ? flags[i] === true : true;
     if (ok) {
@@ -220,8 +219,7 @@ export function scoreCorsi(t: any): ScoredRound {
 
   if (correctTrials > trials)
     throw new Error("Corsi: correct trials exceed trials");
-  if (rts.length !== taps)
-    throw new Error("Corsi: rts length must equal taps");
+  if (rts.length !== taps) throw new Error("Corsi: rts length must equal taps");
   // Moi luot chi ket thuc bang MOT cu cham sai, nen khong the sai hon so luot.
   if (wrongClicks > trials)
     throw new Error("Corsi: wrong clicks exceed trials");
@@ -248,9 +246,7 @@ export function scoreCorsi(t: any): ScoredRound {
     memory: clamp(MAX * 0.95 * spanFactor(0.65) * (0.7 + 0.3 * accuracy)),
     // v54: 0.88 -> 0.84 de tran spatial cua Corsi (truc PHU) khong vuot
     // Mental Rotation (truc CHINH), la game co spatial LA truc chinh.
-    spatial: clamp(
-      MAX * 0.84 * spanFactor(0.6) * Math.pow(1 - errorRate, 1.2),
-    ),
+    spatial: clamp(MAX * 0.84 * spanFactor(0.6) * Math.pow(1 - errorRate, 1.2)),
   };
   return { axes, headline: headline(axes), label: `Span ${span}`, timeMs };
 }

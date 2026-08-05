@@ -153,7 +153,8 @@ export function SchulteTableGame({
         if (ms != null) local[schulteBestMapKey(ns, nm)] = ms;
       }
     }
-    if (Object.keys(local).length) setBestByConfig((prev) => ({ ...local, ...prev }));
+    if (Object.keys(local).length)
+      setBestByConfig((prev) => ({ ...local, ...prev }));
 
     let alive = true;
     (async () => {
@@ -379,8 +380,7 @@ export function SchulteTableGame({
 
   const target = sequence[seqIdx];
   const progress = seqIdx / sequence.length;
-  const displayedBestMs =
-    bestByConfig[schulteBestMapKey(size, mode)] ?? null;
+  const displayedBestMs = bestByConfig[schulteBestMapKey(size, mode)] ?? null;
   const SIZES: SSize[] = [3, 4, 5, 6];
   const MODES: { id: SMode; label: string; hint: string }[] = [
     { id: "classic", label: t.classic, hint: t.hint_classic(size * size) },
@@ -396,7 +396,8 @@ export function SchulteTableGame({
         border: "1px solid rgba(168,85,247,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
+      }}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-1">
@@ -404,8 +405,8 @@ export function SchulteTableGame({
           <div
             className="text-xs tracking-[0.2em] mb-1.5 font-mono"
             style={{
-              
-              color: "#A855F7"}}
+              color: "#A855F7",
+            }}
           >
             {t.focus_training}
           </div>
@@ -417,12 +418,12 @@ export function SchulteTableGame({
             title="Toggle center fixation"
             className="px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all duration-150"
             style={{
-              
               background: showCenter
                 ? "rgba(168,85,247,0.18)"
                 : "rgba(255,255,255,0.04)",
               color: showCenter ? "#A855F7" : "#475569",
-              border: `1px solid ${showCenter ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.08)"}`}}
+              border: `1px solid ${showCenter ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.08)"}`,
+            }}
           >
             <Focus size={11} /> {t.fixation}
           </button>
@@ -431,7 +432,8 @@ export function SchulteTableGame({
             style={{
               background: "rgba(168,85,247,0.18)",
               color: "#A855F7",
-              border: "1px solid rgba(168,85,247,0.28)"}}
+              border: "1px solid rgba(168,85,247,0.28)",
+            }}
           >
             <Focus size={16} />
           </div>
@@ -440,9 +442,7 @@ export function SchulteTableGame({
 
       {/* Size selector */}
       <div className="flex items-center gap-2.5 mt-3">
-        <span
-          className="text-xs text-slate-400 w-10 shrink-0"
-        >
+        <span className="text-xs text-slate-400 w-10 shrink-0">
           {t.size_label}
         </span>
         <div className="flex gap-1.5">
@@ -458,7 +458,6 @@ export function SchulteTableGame({
                 disabled={status === "playing"}
                 className="rounded-lg text-xs font-bold px-2.5 py-1 transition-all duration-150 disabled:opacity-40"
                 style={{
-                  
                   background: active
                     ? "rgba(168,85,247,0.22)"
                     : "rgba(255,255,255,0.04)",
@@ -466,7 +465,8 @@ export function SchulteTableGame({
                   border: active
                     ? "1px solid rgba(168,85,247,0.5)"
                     : "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: active ? "0 0 12px rgba(168,85,247,0.28)" : "none"}}
+                  boxShadow: active ? "0 0 12px rgba(168,85,247,0.28)" : "none",
+                }}
               >
                 {s}×{s}
               </button>
@@ -501,14 +501,15 @@ export function SchulteTableGame({
                   border: active
                     ? "1px solid rgba(168,85,247,0.5)"
                     : "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: active
-                    ? "0 0 12px rgba(168,85,247,0.28)"
-                    : "none",
+                  boxShadow: active ? "0 0 12px rgba(168,85,247,0.28)" : "none",
                 }}
               >
                 {m.label}
                 {active && (
-                  <span className="hidden sm:inline" style={{ fontSize: 11, opacity: 0.7 }}>
+                  <span
+                    className="hidden sm:inline"
+                    style={{ fontSize: 11, opacity: 0.7 }}
+                  >
                     {m.hint}
                   </span>
                 )}
@@ -524,14 +525,15 @@ export function SchulteTableGame({
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
           style={{
             background: "rgba(168,85,247,0.12)",
-            border: "1px solid rgba(168,85,247,0.25)"}}
+            border: "1px solid rgba(168,85,247,0.25)",
+          }}
         >
           <Star size={11} style={{ color: "#A855F7" }} />
           <span
             className="text-xs font-bold"
             style={{
-              
-              color: "#A855F7"}}
+              color: "#A855F7",
+            }}
           >
             {size === 3
               ? t.size_basic
@@ -566,7 +568,8 @@ export function SchulteTableGame({
                 filter:
                   i < hearts
                     ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))"
-                    : "none"}}
+                    : "none",
+              }}
             >
               <span aria-hidden="true">❤️</span>
             </span>
@@ -577,20 +580,16 @@ export function SchulteTableGame({
       {/* Timer + "Find N" */}
       <div className="mt-4 flex items-center justify-between">
         <div className="flex flex-col">
-          <span
-            className="text-xs text-slate-400 mb-0.5"
-          >
-            {t.time_label}
-          </span>
+          <span className="text-xs text-slate-400 mb-0.5">{t.time_label}</span>
           <div
             className="text-3xl font-bold tabular-nums font-mono"
             style={{
-              
               color: status === "done" ? "#10B981" : "#A855F7",
               textShadow:
                 status === "done"
                   ? "0 0 24px rgba(16,185,129,0.5)"
-                  : "0 0 18px rgba(168,85,247,0.4)"}}
+                  : "0 0 18px rgba(168,85,247,0.4)",
+            }}
           >
             {fmtTime(elapsed)}
           </div>
@@ -598,8 +597,8 @@ export function SchulteTableGame({
             <span
               className="text-xs mt-0.5"
               style={{
-                
-                color: "#475569"}}
+                color: "#475569",
+              }}
             >
               {t.best_label} {fmtTime(displayedBestMs)}
             </span>
@@ -608,9 +607,7 @@ export function SchulteTableGame({
 
         {status !== "done" ? (
           <div className="flex flex-col items-end">
-            <span
-              className="text-xs text-slate-400 mb-0.5"
-            >
+            <span className="text-xs text-slate-400 mb-0.5">
               {status === "idle" ? t.start_with_label : t.find_label}
             </span>
             <div className="flex items-center gap-2">
@@ -619,15 +616,16 @@ export function SchulteTableGame({
                   className="w-3 h-3 rounded-full shrink-0"
                   style={{
                     background: target.color === "red" ? "#F43F5E" : "#A855F7",
-                    boxShadow: `0 0 8px ${target.color === "red" ? "rgba(244,63,94,0.7)" : "rgba(168,85,247,0.7)"}`}}
+                    boxShadow: `0 0 8px ${target.color === "red" ? "rgba(244,63,94,0.7)" : "rgba(168,85,247,0.7)"}`,
+                  }}
                 />
               )}
               <span
                 className="text-4xl font-bold tabular-nums font-mono"
                 style={{
-                  
                   color: target?.color === "red" ? "#F43F5E" : "#A855F7",
-                  textShadow: `0 0 20px ${target?.color === "red" ? "rgba(244,63,94,0.65)" : "rgba(168,85,247,0.65)"}`}}
+                  textShadow: `0 0 20px ${target?.color === "red" ? "rgba(244,63,94,0.65)" : "rgba(168,85,247,0.65)"}`,
+                }}
               >
                 {status === "idle"
                   ? mode === "reverse"
@@ -639,14 +637,10 @@ export function SchulteTableGame({
           </div>
         ) : (
           <div className="flex flex-col items-end gap-1">
-            <span
-              className="text-xs text-emerald-400 flex items-center gap-1.5"
-            >
+            <span className="text-xs text-emerald-400 flex items-center gap-1.5">
               <CheckCircle size={13} /> {t.complete}
             </span>
-            <span
-              className="text-xs text-slate-400"
-            >
+            <span className="text-xs text-slate-400">
               {size}×{size} · {mode}
             </span>
           </div>
@@ -663,25 +657,16 @@ export function SchulteTableGame({
           style={{
             width: `${progress * 100}%`,
             background: "linear-gradient(90deg, #A855F7, #00D4FF)",
-            boxShadow: "0 0 8px rgba(168,85,247,0.5)"}}
+            boxShadow: "0 0 8px rgba(168,85,247,0.5)",
+          }}
         />
       </div>
       <div className="flex justify-between mt-0.5">
-        <span
-          className="text-xs text-slate-400"
-        >
-          0
-        </span>
-        <span
-          className="text-xs text-slate-400"
-        >
+        <span className="text-xs text-slate-400">0</span>
+        <span className="text-xs text-slate-400">
           {seqIdx} / {sequence.length}
         </span>
-        <span
-          className="text-xs text-slate-400"
-        >
-          {sequence.length}
-        </span>
+        <span className="text-xs text-slate-400">{sequence.length}</span>
       </div>
 
       {/* Grid */}
@@ -691,7 +676,8 @@ export function SchulteTableGame({
           display: "grid",
           gridTemplateColumns: `repeat(${size}, 1fr)`,
           gap: size >= 6 ? 4 : 5,
-          maxWidth: size <= 3 ? 280 : size === 4 ? 340 : 420}}
+          maxWidth: size <= 3 ? 280 : size === 4 ? 340 : 420,
+        }}
       >
         {/* Center fixation crosshair */}
         {showCenter && (
@@ -705,7 +691,8 @@ export function SchulteTableGame({
                   right: 0,
                   height: 1,
                   background: "rgba(168,85,247,0.45)",
-                  transform: "translateY(-50%)"}}
+                  transform: "translateY(-50%)",
+                }}
               />
               <div
                 style={{
@@ -715,7 +702,8 @@ export function SchulteTableGame({
                   bottom: 0,
                   width: 1,
                   background: "rgba(168,85,247,0.45)",
-                  transform: "translateX(-50%)"}}
+                  transform: "translateX(-50%)",
+                }}
               />
               <div
                 style={{
@@ -728,7 +716,8 @@ export function SchulteTableGame({
                   borderRadius: "50%",
                   background: "#A855F7",
                   boxShadow:
-                    "0 0 10px rgba(168,85,247,0.9), 0 0 20px rgba(168,85,247,0.4)"}}
+                    "0 0 10px rgba(168,85,247,0.9), 0 0 20px rgba(168,85,247,0.4)",
+                }}
               />
             </div>
           </div>
@@ -746,7 +735,6 @@ export function SchulteTableGame({
               disabled={status === "done" || isDone}
               className="rounded-xl font-bold flex items-center justify-center select-none transition-all duration-[120ms]"
               style={{
-                
                 position: "relative",
                 aspectRatio: "1",
                 fontSize:
@@ -786,7 +774,8 @@ export function SchulteTableGame({
                     : "scale(0.96)"
                   : "scale(1)",
                 opacity: isDone ? 0.45 : 1,
-                cursor: status === "done" || isDone ? "default" : "pointer"}}
+                cursor: status === "done" || isDone ? "default" : "pointer",
+              }}
             >
               {isFlash && (
                 <span
@@ -794,7 +783,8 @@ export function SchulteTableGame({
                     position: "absolute",
                     top: 2,
                     right: 2,
-                    lineHeight: 0}}
+                    lineHeight: 0,
+                  }}
                 >
                   {flashCell!.ok ? (
                     <Check
@@ -819,9 +809,7 @@ export function SchulteTableGame({
 
       {/* Idle hint */}
       {status === "idle" && (
-        <div
-          className="mt-3 text-xs text-center text-slate-500"
-        >
+        <div className="mt-3 text-xs text-center text-slate-500">
           {mode === "dual"
             ? t.idle_dual
             : mode === "reverse"
@@ -831,9 +819,7 @@ export function SchulteTableGame({
       )}
 
       {saving && (
-        <div
-          className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-400"
-        >
+        <div className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-400">
           <Loader2 size={11} className="animate-spin" /> {t.saving}
         </div>
       )}
@@ -843,10 +829,10 @@ export function SchulteTableGame({
         onClick={() => reset()}
         className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 hover:brightness-125"
         style={{
-          
           background: "rgba(168,85,247,0.14)",
           color: "#A855F7",
-          border: "1px solid rgba(168,85,247,0.25)"}}
+          border: "1px solid rgba(168,85,247,0.25)",
+        }}
       >
         <RefreshCw size={12} /> {t.new_game}
       </button>

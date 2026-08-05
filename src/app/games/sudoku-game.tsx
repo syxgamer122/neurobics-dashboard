@@ -18,13 +18,13 @@ const SUDOKU_LEVELS: {
   points: number;
   accent: string;
 }[] = [
-    { id: "Easy", clues: 38, points: 1, accent: "#10B981" },
-    { id: "Medium", clues: 36, points: 2, accent: "#00D4FF" },
-    { id: "Hard", clues: 32, points: 3, accent: "#A855F7" },
-    { id: "Expert", clues: 30, points: 4, accent: "#F59E0B" },
-    { id: "Master", clues: 26, points: 5, accent: "#F97316" },
-    { id: "Extreme", clues: 23, points: 6, accent: "#F43F5E" },
-  ];
+  { id: "Easy", clues: 38, points: 1, accent: "#10B981" },
+  { id: "Medium", clues: 36, points: 2, accent: "#00D4FF" },
+  { id: "Hard", clues: 32, points: 3, accent: "#A855F7" },
+  { id: "Expert", clues: 30, points: 4, accent: "#F59E0B" },
+  { id: "Master", clues: 26, points: 5, accent: "#F97316" },
+  { id: "Extreme", clues: 23, points: 6, accent: "#F43F5E" },
+];
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 // ─── Sudoku Game ───────────────────────────────────────────────────────────────
@@ -39,7 +39,11 @@ class SupersededError extends Error {
 }
 
 export function isSuperseded(e: unknown): boolean {
-  return !!e && typeof e === "object" && (e as { superseded?: boolean }).superseded === true;
+  return (
+    !!e &&
+    typeof e === "object" &&
+    (e as { superseded?: boolean }).superseded === true
+  );
 }
 
 export function SudokuGame({
@@ -68,9 +72,12 @@ export function SudokuGame({
   const ensureSudokuWorker = useCallback(() => {
     if (workerRef.current) return workerRef.current;
     try {
-      const w = new Worker(new URL("../lib/sudoku-worker.ts", import.meta.url), {
-        type: "module",
-      });
+      const w = new Worker(
+        new URL("../lib/sudoku-worker.ts", import.meta.url),
+        {
+          type: "module",
+        },
+      );
       w.onmessage = (ev: MessageEvent) => {
         const pending = pendingGenRef.current;
         if (!pending) return;
@@ -103,20 +110,18 @@ export function SudokuGame({
         solution: number[][];
         actualClues: number;
         budgetExceeded: boolean;
-      }>(
-        (resolve, reject) => {
-          const w = ensureSudokuWorker();
-          if (!w) {
-            resolve(generateSudoku(clues));
-            return;
-          }
-          const requestId = ++workerReqRef.current;
-          // Hủy request cũ trước khi ghi đè, nếu không promise cũ treo vĩnh viễn.
-          pendingGenRef.current?.reject(new SupersededError());
-          pendingGenRef.current = { resolve, reject, requestId };
-          w.postMessage({ clues, requestId });
-        },
-      ),
+      }>((resolve, reject) => {
+        const w = ensureSudokuWorker();
+        if (!w) {
+          resolve(generateSudoku(clues));
+          return;
+        }
+        const requestId = ++workerReqRef.current;
+        // Hủy request cũ trước khi ghi đè, nếu không promise cũ treo vĩnh viễn.
+        pendingGenRef.current?.reject(new SupersededError());
+        pendingGenRef.current = { resolve, reject, requestId };
+        w.postMessage({ clues, requestId });
+      }),
     [ensureSudokuWorker],
   );
 
@@ -136,9 +141,18 @@ export function SudokuGame({
   const [{ puzzle, solution }, setPuzzleData] = useState<{
     puzzle: (number | null)[][];
     solution: number[][];
-  }>({ puzzle: Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null as number | null)), solution: Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => 0)) });
+  }>({
+    puzzle: Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => null as number | null),
+    ),
+    solution: Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => 0),
+    ),
+  });
   const [userGrid, setUserGrid] = useState<(number | null)[][]>(() =>
-    Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null as number | null)),
+    Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => null as number | null),
+    ),
   );
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [status, setStatus] = useState<"idle" | "playing" | "done">("idle");
@@ -163,7 +177,7 @@ export function SudokuGame({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
   // Working-memory signals. Overwriting a cell you already solved, or getting
-  // the SAME cell wrong twice, means you lost track of your own deductions. 
+  // the SAME cell wrong twice, means you lost track of your own deductions.
   // that is what the Memory axis measures here, independent of the clock.
   const placementsRef = useRef(0);
   const moveRtsRef = useRef<number[]>([]);
@@ -438,7 +452,8 @@ export function SudokuGame({
         border: "1px solid rgba(0,212,255,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
+      }}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -446,8 +461,8 @@ export function SudokuGame({
           <div
             className="text-xs tracking-[0.2em] mb-2 font-mono"
             style={{
-              
-              color: "#00D4FF"}}
+              color: "#00D4FF",
+            }}
           >
             {t.logic_training}
           </div>
@@ -457,8 +472,8 @@ export function SudokuGame({
           <div
             className="text-2xl font-bold tabular-nums font-mono"
             style={{
-              
-              color: status === "done" ? "#10B981" : "#00D4FF"}}
+              color: status === "done" ? "#10B981" : "#00D4FF",
+            }}
           >
             {fmtTime(elapsed)}
           </div>
@@ -467,7 +482,8 @@ export function SudokuGame({
             style={{
               background: "rgba(0,212,255,0.18)",
               color: "#00D4FF",
-              border: "1px solid rgba(0,212,255,0.28)"}}
+              border: "1px solid rgba(0,212,255,0.28)",
+            }}
           >
             <Grid3X3 size={16} />
           </div>
@@ -478,18 +494,18 @@ export function SudokuGame({
         <span
           className="text-xs px-2 py-0.5 rounded"
           style={{
-            
             background: `${level.accent}22`,
             color: level.accent,
-            border: `1px solid ${level.accent}44`}}
+            border: `1px solid ${level.accent}44`,
+          }}
         >
           {level.clues} {t.clues}
         </span>
         <span
           className="text-xs flex items-center gap-1"
           style={{
-            
-            color: level.accent}}
+            color: level.accent,
+          }}
         >
           <Star size={10} />+{level.points} LOGIC
         </span>
@@ -515,16 +531,15 @@ export function SudokuGame({
               style={{
                 fontSize: 12,
                 opacity: i < mistakes ? 0.25 : 1,
-                transition: "opacity 0.3s"}}
+                transition: "opacity 0.3s",
+              }}
             >
               <span aria-hidden="true">❤️</span>
             </span>
           ))}
         </div>
         {status === "done" && (
-          <span
-            className="text-xs text-emerald-400 ml-auto flex items-center gap-1"
-          >
+          <span className="text-xs text-emerald-400 ml-auto flex items-center gap-1">
             <CheckCircle size={10} /> {t.solved}
           </span>
         )}
@@ -541,7 +556,6 @@ export function SudokuGame({
               disabled={saving || generating}
               className="rounded-lg py-1.5 text-xs font-bold tracking-wide transition-all duration-150 disabled:opacity-50"
               style={{
-                
                 background: isActive
                   ? `${l.accent}22`
                   : "rgba(255,255,255,0.03)",
@@ -549,7 +563,8 @@ export function SudokuGame({
                 border: isActive
                   ? `1px solid ${l.accent}66`
                   : "1px solid rgba(255,255,255,0.06)",
-                boxShadow: isActive ? `0 0 14px ${l.accent}33` : "none"}}
+                boxShadow: isActive ? `0 0 14px ${l.accent}33` : "none",
+              }}
             >
               {(t[l.id as keyof typeof t] as string) ?? l.id}
             </button>
@@ -561,8 +576,8 @@ export function SudokuGame({
         <div
           className="mt-3 flex items-center justify-center gap-2 text-xs"
           style={{
-            
-            color: "#00D4FF"}}
+            color: "#00D4FF",
+          }}
         >
           <Loader2 size={11} className="animate-spin" /> {t.sudoku_generating}
         </div>
@@ -584,7 +599,8 @@ export function SudokuGame({
           borderRadius: 12,
           border: "1px solid rgba(0,212,255,0.6)",
           boxShadow:
-            "0 0 26px rgba(0,212,255,0.28), inset 0 0 18px rgba(0,212,255,0.12)"}}
+            "0 0 26px rgba(0,212,255,0.28), inset 0 0 18px rgba(0,212,255,0.12)",
+        }}
       >
         {([0, 1, 2] as const).map((boxRow) =>
           ([0, 1, 2] as const).map((boxCol) => (
@@ -596,7 +612,8 @@ export function SudokuGame({
                 gap: 2,
                 background: "rgba(0,212,255,0.14)",
                 borderRadius: 4,
-                overflow: "hidden"}}
+                overflow: "hidden",
+              }}
             >
               {([0, 1, 2] as const).map((cr) =>
                 ([0, 1, 2] as const).map((cc) => {
@@ -636,7 +653,7 @@ export function SudokuGame({
                         aspectRatio: "1",
                         background: bg,
                         color: textColor,
-                        
+
                         fontWeight: isGiven ? 800 : 600,
                         fontSize: 15,
                         cursor: isGiven ? "default" : "pointer",
@@ -656,7 +673,8 @@ export function SudokuGame({
                           !isGiven && val
                             ? "0 0 8px rgba(56,225,255,0.5)"
                             : "none",
-                        padding: 0}}
+                        padding: 0,
+                      }}
                     >
                       {val ?? ""}
                     </button>
@@ -708,12 +726,12 @@ export function SudokuGame({
         disabled={saving || generating}
         className="mt-2.5 mx-auto w-full max-w-[420px] rounded-xl flex items-center justify-center gap-2 py-2.5 transition-all duration-100 hover:brightness-125 disabled:opacity-40"
         style={{
-          
           background: "rgba(0,212,255,0.08)",
           color: "#00D4FF",
           border: "1px solid rgba(0,212,255,0.22)",
           fontSize: 11,
-          letterSpacing: "0.15em"}}
+          letterSpacing: "0.15em",
+        }}
       >
         {saving ? (
           <Loader2 size={14} className="animate-spin" />

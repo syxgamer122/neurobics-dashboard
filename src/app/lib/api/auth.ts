@@ -2,12 +2,7 @@
  * Account lifecycle: username rules, sign up, login, logout, access token
  * and recovery-code password reset.
  */
-import {
-  getSupabase,
-  BASE,
-  sanitizeProfile,
-  type Profile,
-} from "./internal";
+import { getSupabase, BASE, sanitizeProfile, type Profile } from "./internal";
 import { logError } from "../logger";
 // Signup/login goi thang REST nen van can anon key o day.
 import { SUPABASE_ANON_KEY } from "../supabase-config";
@@ -38,7 +33,10 @@ export const LEGACY_AUTH_EMAIL_DOMAIN = "neurobics.local";
 function authEmailCandidates(username: string): string[] {
   const name = assertValidUsername(username);
   // Mindgem trước, legacy sau — signup mới luôn trúng candidate đầu.
-  return [`${name}@${AUTH_EMAIL_DOMAIN}`, `${name}@${LEGACY_AUTH_EMAIL_DOMAIN}`];
+  return [
+    `${name}@${AUTH_EMAIL_DOMAIN}`,
+    `${name}@${LEGACY_AUTH_EMAIL_DOMAIN}`,
+  ];
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -118,12 +116,12 @@ export async function handleLogin(
 ): Promise<string> {
   const supabase = getSupabase();
   const emails = authEmailCandidates(username);
-  let data: Awaited<
-    ReturnType<typeof supabase.auth.signInWithPassword>
-  >["data"] | null = null;
-  let error: Awaited<
-    ReturnType<typeof supabase.auth.signInWithPassword>
-  >["error"] | null = null;
+  let data:
+    | Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"]
+    | null = null;
+  let error:
+    | Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["error"]
+    | null = null;
 
   for (const email of emails) {
     const res = await supabase.auth.signInWithPassword({ email, password });

@@ -1,7 +1,4 @@
-import {
-  SESSION_COLUMNS,
-  type SessionColumn,
-} from "./game-registry.ts";
+import { SESSION_COLUMNS, type SessionColumn } from "./game-registry.ts";
 
 /** Session counters are derived from the canonical Game Registry. */
 export { SESSION_COLUMNS, type SessionColumn };

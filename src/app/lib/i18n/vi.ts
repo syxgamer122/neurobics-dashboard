@@ -356,8 +356,7 @@ export const vi = {
   corsi_tag: "CHUỖI KHỐI CORSI",
   corsi_desc:
     "Chuỗi ô sáng lên rồi tắt. Bấm lại đúng thứ tự — chuỗi dài dần sau mỗi lần đúng.",
-  corsi_hint:
-    "Nhớ VỊ TRÍ và THỨ TỰ. Sai hai lần ở cùng độ dài thì kết thúc.",
+  corsi_hint: "Nhớ VỊ TRÍ và THỨ TỰ. Sai hai lần ở cùng độ dài thì kết thúc.",
   corsi_start: "BẮT ĐẦU",
   corsi_restart: "CHƠI LẠI",
   corsi_complete: "HOÀN THÀNH",
@@ -374,8 +373,7 @@ export const vi = {
   trail_tag: "NỐI ĐƯỜNG",
   trail_desc:
     "Nối 1 → A → 2 → B → 3 → C… nhanh nhất có thể. Quét thị giác và chuyển đổi quy tắc.",
-  trail_hint:
-    "Xen kẽ SỐ và CHỮ. Đồng hồ chỉ chạy từ cú bấm đúng đầu tiên.",
+  trail_hint: "Xen kẽ SỐ và CHỮ. Đồng hồ chỉ chạy từ cú bấm đúng đầu tiên.",
   trail_start: "BẮT ĐẦU",
   trail_restart: "CHƠI LẠI",
   trail_complete: "HOÀN THÀNH",

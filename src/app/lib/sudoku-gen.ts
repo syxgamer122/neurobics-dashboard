@@ -1,7 +1,7 @@
 // Shared sudoku generator — single source for worker + main-thread fallback.
 // Worker imports these; App must NOT redefine countSolutions/generateSudoku.
 
-export const shuffleArray = <T,>(arr: T[]): T[] => {
+export const shuffleArray = <T>(arr: T[]): T[] => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -10,7 +10,10 @@ export const shuffleArray = <T,>(arr: T[]): T[] => {
   return a;
 };
 
-export const countSolutions = (grid: (number | null)[][], limit = 2): number => {
+export const countSolutions = (
+  grid: (number | null)[][],
+  limit = 2,
+): number => {
   const g = grid.map((r) => [...r]);
   let count = 0;
 

@@ -45,8 +45,7 @@ export function AccessDenied({
             ACCESS DENIED
           </div>
           <div className="text-xs text-slate-500">
-            Signed in as{" "}
-            <span style={{ color: amber }}>{username}</span> ·
+            Signed in as <span style={{ color: amber }}>{username}</span> ·
             required <span style={{ color: red }}>admin role</span>
           </div>
         </div>

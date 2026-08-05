@@ -6,12 +6,12 @@
  */
 import type { Profile } from "./api";
 import { AXIS_META, type AxisKey } from "./axes";
-import { GAME_BY_ID, SESSION_COLUMNS, type SessionColumn } from "./game-registry";
 import {
-  pullUpRating,
-  sanitizeRating,
-  type AxisRatings,
-} from "./scoring";
+  GAME_BY_ID,
+  SESSION_COLUMNS,
+  type SessionColumn,
+} from "./game-registry";
+import { pullUpRating, sanitizeRating, type AxisRatings } from "./scoring";
 import { calculateRoundXp, levelFromXp } from "./xp";
 import type { RoundGame, SubmittedRound } from "./api";
 import { scoreAndValidate } from "../../../supabase/functions/_shared/round-scoring";
@@ -90,7 +90,11 @@ export function completeGuestRound(
       ? tel.timeMs
       : 1000;
   // serverElapsed >= max(500, timeMs) de qua assert duration + time bound.
-  const serverElapsed = Math.max(500, Math.round(elapsedMs), Math.round(telMs) + 500);
+  const serverElapsed = Math.max(
+    500,
+    Math.round(elapsedMs),
+    Math.round(telMs) + 500,
+  );
 
   const scored = scoreAndValidate(game, telemetry, serverElapsed);
   const axes = scored.axes as AxisRatings;

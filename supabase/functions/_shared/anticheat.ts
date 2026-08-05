@@ -49,10 +49,7 @@ const flag = (
   detail?: Record<string, unknown>,
 ): CheatFlag => ({ msg, severity, detail });
 
-function inspectShared(
-  t: any,
-  serverElapsedMs: number,
-): CheatFlag[] {
+function inspectShared(t: any, serverElapsedMs: number): CheatFlag[] {
   const out: CheatFlag[] = [];
   const timeMs = Number(t?.timeMs);
   if (Number.isFinite(timeMs) && timeMs - serverElapsedMs > 5000) {
@@ -193,8 +190,7 @@ function inspectMath(t: any): CheatFlag[] {
   const correct = Number(t?.correct);
   const total = Number(t?.totalProblems);
   const difficulty = String(t?.difficulty ?? "");
-  if (med < 250)
-    out.push(flag("Math median impossibly low", "hard", { med }));
+  if (med < 250) out.push(flag("Math median impossibly low", "hard", { med }));
   if (cv(rts) < ROBOT_CV)
     out.push(flag("Math timing too metronomic", "soft", { cv: cv(rts) }));
   if (

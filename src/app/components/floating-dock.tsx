@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { LayoutDashboard, Gamepad2, History, UserCog, Terminal } from "lucide-react";
+import {
+  LayoutDashboard,
+  Gamepad2,
+  History,
+  UserCog,
+  Terminal,
+} from "lucide-react";
 import { useLang } from "../lib/i18n";
 
 export type DockPage = "dashboard" | "play" | "history" | "profile" | "god";
@@ -116,9 +122,7 @@ export function FloatingDock({
                   size={19}
                   style={{
                     color:
-                      isActive || isHovered
-                        ? `rgb(${item.accent})`
-                        : "#64748b",
+                      isActive || isHovered ? `rgb(${item.accent})` : "#64748b",
                     filter: isActive
                       ? `drop-shadow(0 0 6px rgb(${item.accent}))`
                       : "none",

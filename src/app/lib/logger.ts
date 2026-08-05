@@ -28,7 +28,8 @@ export function logError(...args: unknown[]): void {
     return;
   }
   const cause = args.find((a) => a instanceof Error);
-  if (cause) captureError(cause, { event: "log.error", message: describe(args) });
+  if (cause)
+    captureError(cause, { event: "log.error", message: describe(args) });
   else captureMessage(describe(args), "error", { event: "log.error" });
 }
 

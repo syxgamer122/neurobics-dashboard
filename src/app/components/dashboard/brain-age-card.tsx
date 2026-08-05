@@ -42,9 +42,7 @@ export function BrainAgeCard({
             <input
               value={birthYearInput}
               onChange={(e) =>
-                onBirthYearChange(
-                  e.target.value.replace(/\D/g, "").slice(0, 4),
-                )
+                onBirthYearChange(e.target.value.replace(/\D/g, "").slice(0, 4))
               }
               inputMode="numeric"
               placeholder={t.birth_year_placeholder}
@@ -84,8 +82,7 @@ export function BrainAgeCard({
               className="h-full rounded-full"
               style={{
                 width: `${(brainAge.roundsPlayed / brainAge.roundsNeeded) * 100}%`,
-                background:
-                  "linear-gradient(90deg, #A855F7, #00D4FF)",
+                background: "linear-gradient(90deg, #A855F7, #00D4FF)",
                 transition: "width 0.6s ease",
               }}
             />
@@ -96,13 +93,7 @@ export function BrainAgeCard({
           <div className="relative shrink-0">
             <svg width="88" height="88" viewBox="0 0 88 88">
               <defs>
-                <linearGradient
-                  id="ageGrad"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
+                <linearGradient id="ageGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#A855F7" />
                   <stop offset="100%" stopColor="#00D4FF" />
                 </linearGradient>
@@ -126,8 +117,7 @@ export function BrainAgeCard({
                 strokeDasharray={`${2 * Math.PI * 36 * brainAge.ringPct} ${2 * Math.PI * 36 * (1 - brainAge.ringPct)}`}
                 strokeDashoffset={2 * Math.PI * 36 * 0.25}
                 style={{
-                  filter:
-                    "drop-shadow(0 0 8px rgba(168,85,247,0.7))",
+                  filter: "drop-shadow(0 0 8px rgba(168,85,247,0.7))",
                   transition: "stroke-dasharray 0.8s ease",
                 }}
               />
