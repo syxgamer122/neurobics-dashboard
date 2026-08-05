@@ -5,7 +5,12 @@
  * Not part of the public surface - import from "../api" instead.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "../../../../utils/supabase/info";
+import {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  FUNCTIONS_BASE,
+  assertSupabaseConfig,
+} from "../supabase-config";
 import { SESSION_COLUMNS, type SessionColumn } from "../game-registry";
 import {
   sanitizeRating,
@@ -24,10 +29,8 @@ type GlobalWithClient = typeof globalThis & { [CLIENT_KEY]?: SupabaseClient };
 export function getSupabase(): SupabaseClient {
   const g = globalThis as GlobalWithClient;
   if (!g[CLIENT_KEY]) {
-    g[CLIENT_KEY] = createClient(
-      `https://${projectId}.supabase.co`,
-      publicAnonKey,
-    );
+    assertSupabaseConfig();
+    g[CLIENT_KEY] = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   return g[CLIENT_KEY]!;
 }
@@ -36,7 +39,7 @@ export function getSupabase(): SupabaseClient {
 // email requires the service-role key, which must never reach the browser.
 // Everything else reads/writes the genuine public.profiles table directly via
 // the authenticated client (RLS scopes writes to the user's own row).
-export const BASE = `https://${projectId}.supabase.co/functions/v1/server`;
+export const BASE = FUNCTIONS_BASE;
 
 export type Profile = {
   id: string;

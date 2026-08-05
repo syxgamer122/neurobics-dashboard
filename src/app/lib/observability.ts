@@ -12,7 +12,11 @@
  *  - Khong gui PII: email, JWT, UUID, day so dai deu bi thay bang nhan.
  *  - Co gioi han: 30 su kien/lo, 300 ky tu/chuoi, gop trung trong 60 giay.
  */
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import {
+  FUNCTIONS_BASE,
+  HAS_SUPABASE_CONFIG,
+  SUPABASE_ANON_KEY,
+} from "./supabase-config";
 import { APP_VERSION } from "./version";
 
 // Dung `key: T | undefined` (khong phai `key?: T`) de tests/scan.mjs nhan ra
@@ -276,8 +280,7 @@ export function createCollector(options: CollectorOptions): Collector {
 // ─── Ban singleton dung trong app ────────────────────────────────────────────
 
 const ENDPOINT =
-  ENV.VITE_TELEMETRY_ENDPOINT ??
-  `https://${projectId}.supabase.co/functions/v1/server/telemetry`;
+  ENV.VITE_TELEMETRY_ENDPOINT ?? `${FUNCTIONS_BASE}/telemetry`;
 
 function readSessionId(): string {
   const KEY = "mindgem.obs.session";
@@ -295,6 +298,9 @@ function readSessionId(): string {
 }
 
 function httpTransport(events: ObsPayloadEvent[]): void {
+  // Thieu cau hinh Supabase (vd. quen set env tren Vercel) => bo qua im
+  // lang, giu dung nguyen tac 'telemetry chet thi app van chay'.
+  if (!HAS_SUPABASE_CONFIG && !ENV.VITE_TELEMETRY_ENDPOINT) return;
   const body = JSON.stringify({ events });
   try {
     void fetch(ENDPOINT, {
@@ -302,8 +308,8 @@ function httpTransport(events: ObsPayloadEvent[]): void {
       keepalive: true,
       headers: {
         "Content-Type": "application/json",
-        apikey: publicAnonKey,
-        Authorization: `Bearer ${publicAnonKey}`,
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body,
     }).catch(() => {});

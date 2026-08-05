@@ -13,6 +13,7 @@ export default defineConfig({
         "src/app/lib/scoring.ts",
         "src/app/lib/xp.ts",
         "src/app/lib/axes.ts",
+        "src/app/lib/achievements.ts",
         "src/app/lib/game-registry.ts",
         "src/app/lib/observability.ts",
         "supabase/functions/_shared/**/*.ts",
