@@ -113,7 +113,11 @@ app.use(
   "/*",
   cors({
     origin: ALLOWED_ORIGINS,
-    allowHeaders: ["Content-Type", "Authorization"],
+    // `apikey` va `x-client-info` duoc liet ke de phong client gui kem (thu vien
+    // supabase-js tu dong them chung). Thieu mot header trong danh sach nay thi
+    // preflight OPTIONS bi tu choi va request that bai TRUOC KHI toi handler,
+    // nen loi hien ra la "CORS policy" chu khong phai loi that su.
+    allowHeaders: ["Content-Type", "Authorization", "apikey", "x-client-info"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
