@@ -1,0 +1,49 @@
+{
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Vi sao can file nay?
+  //
+  //  Repo nay tron HAI runtime:
+  //    - src/          -> React + Vite, chay bang Node/trinh duyet  -> tsconfig.json
+  //    - supabase/functions/ -> Deno, import kieu "npm:hono@4.12.27"
+  //
+  //  tsconfig.json CO Y exclude "supabase", nen VS Code khong biet phai xu ly
+  //  cac file do bang gi. No be sang che do TypeScript mac dinh, va che do do:
+  //    - khong hieu specifier "npm:..."  -> Hono thanh kieu rong
+  //                                      -> "Parameter 'c' implicitly has an 'any' type"
+  //    - khong biet global Deno         -> "Cannot find name 'Deno'"
+  //
+  //  Do la LOI CUA TRINH SOAN THAO, khong phai loi cua code: CI dung `deno check`
+  //  va deploy bang Supabase CLI, ca hai deu hieu "npm:" va global Deno.
+  //
+  //  deno.enablePaths duoi day giao rieng thu muc functions cho Deno LSP, phan
+  //  con lai van do TypeScript thuong lo. Can cai extension "denoland.vscode-deno"
+  //  (VS Code se tu goi y khi mo repo — xem .vscode/extensions.json).
+  // ─────────────────────────────────────────────────────────────────────────
+  "deno.enable": false,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+  "deno.unstable": false,
+
+  // Khong de Deno LSP dinh vao phan React.
+  "deno.disablePaths": ["src", "tests", "tools", "node_modules"],
+
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // Deno tu format file trong functions/, dung Prettier de tranh danh nhau.
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  "files.eol": "\n",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/pnpm-lock.yaml": true
+  }
+}

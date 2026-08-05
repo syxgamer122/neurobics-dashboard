@@ -1,7 +1,8 @@
 // Server-side anti-cheat inspectors.
 // Principle: better to miss a cheater than ban an innocent player ("tha lot con hon bat oan").
 // Hard flags reject the round. Soft flags still accept but record trust damage.
-import type { Game } from "./scoring/core.ts";
+import { asTelemetry } from "./scoring/core.ts";
+import type { Game, Telemetry } from "./scoring/core.ts";
 
 export type CheatSeverity = "soft" | "hard";
 
@@ -49,7 +50,7 @@ const flag = (
   detail?: Record<string, unknown>,
 ): CheatFlag => ({ msg, severity, detail });
 
-function inspectShared(t: any, serverElapsedMs: number): CheatFlag[] {
+function inspectShared(t: Telemetry, serverElapsedMs: number): CheatFlag[] {
   const out: CheatFlag[] = [];
   const timeMs = Number(t?.timeMs);
   if (Number.isFinite(timeMs) && timeMs - serverElapsedMs > 5000) {
@@ -63,7 +64,7 @@ function inspectShared(t: any, serverElapsedMs: number): CheatFlag[] {
   return out;
 }
 
-function inspectReaction(t: any): CheatFlag[] {
+function inspectReaction(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   if (rts.length < 3) return [];
   const out: CheatFlag[] = [];
@@ -78,7 +79,7 @@ function inspectReaction(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectSchulte(t: any): CheatFlag[] {
+function inspectSchulte(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.hitRts);
   if (rts.length < 4) return [];
   const out: CheatFlag[] = [];
@@ -90,7 +91,7 @@ function inspectSchulte(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectStroop(t: any): CheatFlag[] {
+function inspectStroop(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   if (rts.length < 4) return [];
   const out: CheatFlag[] = [];
@@ -102,7 +103,7 @@ function inspectStroop(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectSudoku(t: any): CheatFlag[] {
+function inspectSudoku(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.moveRts);
   const out: CheatFlag[] = [];
   if (rts.length >= 5) {
@@ -126,7 +127,7 @@ function inspectSudoku(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectMemory(t: any): CheatFlag[] {
+function inspectMemory(t: Telemetry): CheatFlag[] {
   const timeMs = Number(t?.timeMs);
   // Uu tien clearedLevels (so cap THUC SU vuot qua). maxLevel cu bi client nang
   // san len 1 nen van thua ngay cap 1 van bi chia cho 1.
@@ -154,7 +155,7 @@ function inspectMemory(t: any): CheatFlag[] {
  * anticipation). Server khong con hard-reject ca van vi mot mau nhu vay — mau
  * do bi loai khoi thong ke ben round-scoring, con day chi ghi soft flag.
  */
-function inspectSubThreshold(t: any): CheatFlag[] {
+function inspectSubThreshold(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   if (!rts.length) return [];
   const borderline = rts.filter((r) => r >= HUMAN_FLOOR_MS && r < 120);
@@ -170,7 +171,7 @@ function inspectSubThreshold(t: any): CheatFlag[] {
   ];
 }
 
-function inspectNBack(t: any): CheatFlag[] {
+function inspectNBack(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   if (rts.length < 3) return [];
   const out: CheatFlag[] = [];
@@ -182,7 +183,7 @@ function inspectNBack(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectMath(t: any): CheatFlag[] {
+function inspectMath(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   if (rts.length < 4) return [];
   const out: CheatFlag[] = [];
@@ -207,7 +208,7 @@ function inspectMath(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectGoNoGo(t: any): CheatFlag[] {
+function inspectGoNoGo(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   const out: CheatFlag[] = [];
   if (rts.length >= 3) {
@@ -246,7 +247,7 @@ function inspectGoNoGo(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectMental(t: any): CheatFlag[] {
+function inspectMental(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   const out: CheatFlag[] = [];
   if (rts.length >= 4) {
@@ -280,7 +281,7 @@ function inspectMental(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectCorsi(t: any): CheatFlag[] {
+function inspectCorsi(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   const out: CheatFlag[] = [];
   if (rts.length >= 4) {
@@ -311,7 +312,7 @@ function inspectCorsi(t: any): CheatFlag[] {
   return out;
 }
 
-function inspectTrail(t: any): CheatFlag[] {
+function inspectTrail(t: Telemetry): CheatFlag[] {
   const rts = nums(t?.rts);
   const out: CheatFlag[] = [];
   if (rts.length >= 5) {
@@ -345,7 +346,7 @@ function inspectTrail(t: any): CheatFlag[] {
   return out;
 }
 
-type GameInspector = (telemetry: any) => CheatFlag[];
+type GameInspector = (telemetry: Telemetry) => CheatFlag[];
 
 /** Exhaustive registry: adding a Game without an inspector fails typecheck. */
 const GAME_INSPECTORS = {
@@ -367,7 +368,7 @@ export function inspectRound(
   telemetry: unknown,
   serverElapsedMs: number,
 ): CheatReport {
-  const t = telemetry as any;
+  const t = asTelemetry(telemetry);
   return {
     flags: [
       ...inspectShared(t, serverElapsedMs),

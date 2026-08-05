@@ -21,6 +21,24 @@ const GAME_SET: ReadonlySet<string> = new Set(GAME_IDS);
 export function isGame(value: unknown): value is Game {
   return typeof value === "string" && GAME_SET.has(value);
 }
+/**
+ * Telemetry THO do client gui len — tuyet doi khong duoc tin.
+ *
+ * Co tinh de la Record<string, unknown> chu khong phai `any`: moi truong doc ra
+ * deu la `unknown`, nen buoc phai di qua finite() / int() / numberArray() /
+ * Number() moi dung duoc. `any` thi doc bua kieu gi cung qua, va do chinh la
+ * cach mot truong go sai (vd. t.wrongClick thay vi t.wrongClicks) lot xuong
+ * production duoi dang diem sai — khong he bao loi.
+ */
+export type Telemetry = Record<string, unknown>;
+
+/** Chuan hoa payload tho thanh Telemetry. null / mang / so -> {} de moi truong
+ *  doc ra la undefined, roi finite()/int() nem loi nhu cu. */
+export const asTelemetry = (v: unknown): Telemetry =>
+  typeof v === "object" && v !== null && !Array.isArray(v)
+    ? (v as Telemetry)
+    : {};
+
 export type AxisRatings = {
   speed: number | null;
   focus: number | null;

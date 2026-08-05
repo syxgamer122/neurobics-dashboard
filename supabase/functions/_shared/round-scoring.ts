@@ -1,5 +1,6 @@
 // Server-side source of truth for round validation and cognitive scoring.
-import type { Game, ScoredRound } from "./scoring/core.ts";
+import { asTelemetry } from "./scoring/core.ts";
+import type { Game, ScoredRound, Telemetry } from "./scoring/core.ts";
 import {
   scoreMath,
   scoreMemory,
@@ -18,7 +19,12 @@ import {
 import { assertCountBounds, assertRtBounds } from "./scoring/validation.ts";
 
 export { GAME_IDS, isGame } from "./scoring/core.ts";
-export type { Game, AxisRatings, ScoredRound } from "./scoring/core.ts";
+export type {
+  Game,
+  AxisRatings,
+  ScoredRound,
+  Telemetry,
+} from "./scoring/core.ts";
 
 const SCORERS = {
   schulte: scoreSchulte,
@@ -32,7 +38,7 @@ const SCORERS = {
   mental: scoreMentalRotation,
   corsi: scoreCorsi,
   trail: scoreTrail,
-} satisfies Record<Game, (telemetry: any) => ScoredRound>;
+} satisfies Record<Game, (telemetry: Telemetry) => ScoredRound>;
 
 export function scoreAndValidate(
   game: Game,
@@ -54,7 +60,7 @@ export function scoreAndValidate(
     game,
   );
 
-  const scored = SCORERS[game](telemetry);
+  const scored = SCORERS[game](asTelemetry(telemetry));
   // Client time may exclude fixed animations/waits, but cannot exceed server by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000) {
     throw new Error("Telemetry time exceeds server round time");

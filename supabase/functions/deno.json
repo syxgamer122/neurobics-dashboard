@@ -1,0 +1,34 @@
+{
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
+
+  "//": [
+    "Cau hinh Deno cho rieng thu muc edge function.",
+    "Muc dich chinh: bao cho Deno LSP (extension denoland.vscode-deno) biet",
+    "day la mot du an Deno, nho do VS Code moi hieu specifier 'npm:' va global",
+    "Deno -> het gach do o server/index.ts.",
+    "Supabase CLI cung doc file nay khi deploy.",
+    "nodeModulesDir=auto: Deno 2 doc npm: qua node_modules (repo co pnpm-workspace.yaml),",
+    "khop voi co --node-modules-dir=auto ma CI dang dung o buoc deno check."
+  ],
+
+  "nodeModulesDir": "auto",
+
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["deno.window", "deno.ns", "ES2022"]
+  },
+
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false
+  }
+}

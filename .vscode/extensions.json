@@ -1,0 +1,10 @@
+{
+  // VS Code se hien goi y "Do you want to install the recommended extensions?"
+  // khi mo repo lan dau. Deno la cai BAT BUOC de het gach do trong
+  // supabase/functions — xem giai thich trong .vscode/settings.json.
+  "recommendations": [
+    "denoland.vscode-deno",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint"
+  ]
+}
