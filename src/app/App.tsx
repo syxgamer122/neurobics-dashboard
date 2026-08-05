@@ -1,9 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Suspense,
+  lazy,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { LangProvider, useLang } from "./lib/i18n";
 import { Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
-import { AdminPanel } from "./components/admin-panel";
 import { AccessDeniedOverlay } from "./components/app/access-denied-overlay";
 import { AmbientBackground } from "./components/app/ambient-background";
 import { AppHeader } from "./components/app/app-header";
@@ -22,7 +28,6 @@ import { FloatingDock, type DockPage } from "./components/floating-dock";
 import {
   BrainAgeCard,
   CognitiveIndexCard,
-  CognitiveMatrixCard,
   LevelCard,
   StreakCard,
 } from "./components/dashboard";
@@ -56,6 +61,42 @@ import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
 import { logError } from "./lib/logger";
 import { isGuestProfile } from "./lib/guest";
+
+// ─── Chunk tai theo nhu cau ─────────────────────────────────
+// admin-panel (~1000 dong, chi admin mo duoc) va radar recharts (~100KB)
+// truoc day nam trong bundle dau tien cua MOI nguoi dung. Gio tach rieng.
+const AdminPanel = lazy(() =>
+  import("./components/admin-panel").then((m) => ({ default: m.AdminPanel })),
+);
+const CognitiveMatrixCard = lazy(() =>
+  import("./components/dashboard/cognitive-matrix-card").then((m) => ({
+    default: m.CognitiveMatrixCard,
+  })),
+);
+
+/** Spinner toan man — dung khi doi chunk admin panel. */
+function FullScreenFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-neuro-ink">
+      <Loader2 size={28} className="animate-spin text-neuro-cyan" />
+    </div>
+  );
+}
+
+/** Khung giu cho radar trong khi recharts dang tai — tranh nhay layout. */
+function ChartCardFallback() {
+  return (
+    <div
+      className="lg:col-span-2 rounded-2xl min-h-[320px] flex items-center justify-center"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(0,212,255,0.12)",
+      }}
+    >
+      <Loader2 size={22} className="animate-spin text-neuro-cyan" />
+    </div>
+  );
+}
 
 // ─── Cognitive data ────────────────────────────────────────────────────────────
 
@@ -352,15 +393,17 @@ function AppInner() {
 
   if (adminPanelOpen)
     return (
-      <AdminPanel
-        onExit={() => setAdminPanelOpen(false)}
-        profile={profile}
-        onProfileChange={setProfile}
-        onAccountDeleted={() => {
-          setAdminPanelOpen(false);
-          setProfile(null);
-        }}
-      />
+      <Suspense fallback={<FullScreenFallback />}>
+        <AdminPanel
+          onExit={() => setAdminPanelOpen(false)}
+          profile={profile}
+          onProfileChange={setProfile}
+          onAccountDeleted={() => {
+            setAdminPanelOpen(false);
+            setProfile(null);
+          }}
+        />
+      </Suspense>
     );
 
   return (
@@ -447,10 +490,12 @@ function AppInner() {
                 />
               </div>
 
-              <CognitiveMatrixCard
-                data={cognitiveData}
-                rounds={totalRounds(profile)}
-              />
+              <Suspense fallback={<ChartCardFallback />}>
+                <CognitiveMatrixCard
+                  data={cognitiveData}
+                  rounds={totalRounds(profile)}
+                />
+              </Suspense>
             </div>
           </>
         )}

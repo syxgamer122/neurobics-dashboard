@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ProgressChart } from "./progress-chart";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   fetchTrainingHistory,
   fetchPersonalBests,
@@ -53,6 +59,25 @@ const panelStyle: React.CSSProperties = {
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
+
+// recharts nang khoang 100KB va bieu do NAY chi xuat hien trong tab History.
+// Tach thanh chunk rieng de nguoi dung o dashboard khong phai tai truoc.
+const ProgressChart = lazy(() =>
+  import("./progress-chart").then((m) => ({ default: m.ProgressChart })),
+);
+
+/** Khung giu cho bieu do trong khi chunk recharts dang tai. */
+function ChartFallback() {
+  return (
+    <div
+      className="mb-8 rounded-2xl min-h-[240px] animate-pulse"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(0,212,255,0.12)",
+      }}
+    />
+  );
+}
 
 export function HistoryPanel() {
   const [filter, setFilter] = useState<RoundGame | "all">("all");
@@ -110,7 +135,9 @@ export function HistoryPanel() {
       </div>
 
       {/* ── Giai đoạn 3: biểu đồ tiến trình ── */}
-      <ProgressChart />
+      <Suspense fallback={<ChartFallback />}>
+        <ProgressChart />
+      </Suspense>
 
       {/* ── Kỷ lục cá nhân ── */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
