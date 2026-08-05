@@ -10,7 +10,7 @@ import {
 } from "./internal";
 import { logError } from "../logger";
 // Signup/login goi thang REST nen van can anon key o day.
-import { publicAnonKey } from "../../../../utils/supabase/info";
+import { SUPABASE_ANON_KEY } from "../supabase-config";
 
 // Username -> spoofed email so users never provide a real email address.
 export const USERNAME_RE = /^[a-z0-9_.-]{3,20}$/i;
@@ -61,7 +61,7 @@ export async function handleSignUp(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${publicAnonKey}`,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify({ username: safeName, password, captchaToken }),
   });
@@ -96,7 +96,7 @@ export async function resetPasswordWithRecoveryCode(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${publicAnonKey}`,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify({
       username: username.trim(),

@@ -30,7 +30,10 @@ import {
   totalSessions,
 } from "../lib/api";
 import { levelFromXp } from "../lib/xp";
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import {
+  HAS_SUPABASE_CONFIG,
+  SUPABASE_URL,
+} from "../lib/supabase-config";
 
 import {
   ADMIN_COLORS,
@@ -56,7 +59,6 @@ export function AdminPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealUrl, setRevealUrl] = useState(false);
-  const [revealKey, setRevealKey] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [latency, setLatency] = useState(12);
   // Nhanh fallback chi quet duoc 200 dong dau => top that co the vang mat.
@@ -74,8 +76,6 @@ export function AdminPanel({
 
   const isAdmin = profile.role === "admin";
 
-  const SUPABASE_URL = `https://${projectId}.supabase.co`;
-  const ANON_KEY = publicAnonKey;
 
   const { green, blue, amber, red, purple } = ADMIN_COLORS;
 
@@ -988,16 +988,26 @@ export function AdminPanel({
               mask={mask}
               accent={blue}
             />
-            <EnvField
-              label="VITE_SUPABASE_ANON_KEY"
-              value={ANON_KEY}
-              revealed={revealKey}
-              onToggle={() => setRevealKey((v) => !v)}
-              onCopy={() => copy("key", ANON_KEY)}
-              copied={copied === "key"}
-              mask={mask}
-              accent={blue}
-            />
+            {/* Anon key KHONG con hien ra day nua. Panel admin hay bi chia se
+                man hinh / chup anh, va key gio nam trong .env chu khong con
+                trong repo — bao trang thai cau hinh la du dung. */}
+            <div className="mb-3">
+              <div className="text-xs text-slate-500 mb-1.5 tracking-wider">
+                VITE_SUPABASE_ANON_KEY
+              </div>
+              <div
+                className="rounded-lg px-3 py-2 text-xs font-mono"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: `1px solid ${blue}18`,
+                  color: HAS_SUPABASE_CONFIG ? green : red,
+                }}
+              >
+                {HAS_SUPABASE_CONFIG
+                  ? "OK — da nap tu bien moi truong (an)"
+                  : "THIEU — kiem tra .env / Vercel env vars"}
+              </div>
+            </div>
             <div
               className="mt-4 p-3 rounded-lg text-xs text-slate-500 leading-relaxed"
               style={{ background: `${blue}06`, border: `1px solid ${blue}18` }}
