@@ -494,7 +494,15 @@ export function SudokuGame({
           <Star size={10} />+{level.points} LOGIC
         </span>
         {/* Mistake hearts */}
-        <div className="flex items-center gap-0.5 ml-1">
+        <div
+          className="flex items-center gap-0.5 ml-1"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          aria-label={`${MAX_MISTAKES - mistakes}/${MAX_MISTAKES} ${
+            t.heart_full ?? "lives"
+          }`}
+        >
           {Array.from({ length: MAX_MISTAKES }).map((_, i) => (
             <span
               key={i}
