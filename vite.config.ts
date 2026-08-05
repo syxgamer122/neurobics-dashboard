@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite'
-import path from 'path'
-import fs from 'fs'
-import crypto from 'crypto'
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import path from "path";
+import fs from "fs";
+import crypto from "crypto";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 
 // Dong dau phien ban that vao public/sw.js sau khi build.
 //
@@ -21,29 +21,29 @@ import react from '@vitejs/plugin-react'
 // so voi mot ban deploy im lang khong don cache.
 function swVersionStamp() {
   return {
-    name: 'sw-version-stamp',
-    apply: 'build' as const,
+    name: "sw-version-stamp",
+    apply: "build" as const,
     closeBundle() {
-      const distDir = path.resolve(__dirname, 'dist')
-      const swPath = path.join(distDir, 'sw.js')
+      const distDir = path.resolve(__dirname, "dist");
+      const swPath = path.join(distDir, "sw.js");
 
       if (!fs.existsSync(swPath)) {
         throw new Error(
-          '[sw-version-stamp] khong thay dist/sw.js. public/sw.js con ton tai khong?',
-        )
+          "[sw-version-stamp] khong thay dist/sw.js. public/sw.js con ton tai khong?",
+        );
       }
 
-      const src = fs.readFileSync(swPath, 'utf8')
-      if (!src.includes('__APP_VERSION__')) {
+      const src = fs.readFileSync(swPath, "utf8");
+      if (!src.includes("__APP_VERSION__")) {
         throw new Error(
-          '[sw-version-stamp] public/sw.js khong con chuoi __APP_VERSION__. ' +
-            'Thieu no thi cache cu se KHONG duoc don sau khi deploy.',
-        )
+          "[sw-version-stamp] public/sw.js khong con chuoi __APP_VERSION__. " +
+            "Thieu no thi cache cu se KHONG duoc don sau khi deploy.",
+        );
       }
 
       const pkg = JSON.parse(
-        fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'),
-      )
+        fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8"),
+      );
 
       // Van tay noi dung thay cho dau thoi gian.
       //
@@ -53,30 +53,30 @@ function swVersionStamp() {
       //
       // Ten file trong dist/assets da chua hash noi dung, nen bam danh sach ten
       // file la du: NOI DUNG doi -> ten doi -> van tay doi -> VERSION doi.
-      const assetsDir = path.join(distDir, 'assets')
+      const assetsDir = path.join(distDir, "assets");
       const assetNames = fs.existsSync(assetsDir)
         ? fs.readdirSync(assetsDir).sort()
-        : []
+        : [];
 
       if (assetNames.length === 0) {
         throw new Error(
-          '[sw-version-stamp] dist/assets rong. Build that bai, hay assetsDir bi doi?',
-        )
+          "[sw-version-stamp] dist/assets rong. Build that bai, hay assetsDir bi doi?",
+        );
       }
 
       const fingerprint = crypto
-        .createHash('sha256')
-        .update(assetNames.join('\n'))
-        .digest('hex')
-        .slice(0, 12)
+        .createHash("sha256")
+        .update(assetNames.join("\n"))
+        .digest("hex")
+        .slice(0, 12);
 
-      const stamp = `${pkg.version}-${fingerprint}`
-      fs.writeFileSync(swPath, src.split('__APP_VERSION__').join(stamp))
+      const stamp = `${pkg.version}-${fingerprint}`;
+      fs.writeFileSync(swPath, src.split("__APP_VERSION__").join(stamp));
       console.log(
         `[sw-version-stamp] sw.js VERSION -> mindgem-${stamp} (${assetNames.length} asset)`,
-      )
+      );
     },
-  }
+  };
 }
 
 export default defineConfig({
@@ -93,10 +93,10 @@ export default defineConfig({
   resolve: {
     alias: {
       // Alias @ to the src directory
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
-  assetsInclude: ['**/*.svg', '**/*.csv'],
-})
+  assetsInclude: ["**/*.svg", "**/*.csv"],
+});

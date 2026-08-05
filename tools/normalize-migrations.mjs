@@ -13,7 +13,9 @@ const DIR = "supabase/migrations";
 const apply = process.argv.includes("--apply");
 const NAME_RE = /^(\d{8}|\d{14})_([a-z0-9_]+)\.sql$/i;
 
-const files = readdirSync(DIR).filter((f) => f.endsWith(".sql")).sort();
+const files = readdirSync(DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
 const byPrefix = new Map();
 
 for (const file of files) {
@@ -31,14 +33,20 @@ for (const [day, group] of byPrefix) {
   if (group.length < 2) continue;
   // Neu moi file da co version 14 so KHAC nhau thi bo qua
   const versions = new Set(group.map((g) => g.version));
-  if (versions.size === group.length && [...versions].every((v) => v.length === 14)) {
+  if (
+    versions.size === group.length &&
+    [...versions].every((v) => v.length === 14)
+  ) {
     continue;
   }
   // Trung version (cung chuoi version, hoac cung day 8 so ma version ngan)
   const short = group.filter((g) => g.version.length === 8);
-  const targets = short.length >= 2 ? short : group.filter((g) => {
-    return group.filter((x) => x.version === g.version).length > 1;
-  });
+  const targets =
+    short.length >= 2
+      ? short
+      : group.filter((g) => {
+          return group.filter((x) => x.version === g.version).length > 1;
+        });
   const list = targets.length ? targets : group;
   // Sap xep on dinh theo ten file cu
   list.sort((a, b) => a.file.localeCompare(b.file));
@@ -61,7 +69,9 @@ for (const { from, to } of plan) {
 }
 
 if (!apply) {
-  console.log("\nChay lai voi --apply de thuc hien, sau do: pnpm run db:baseline");
+  console.log(
+    "\nChay lai voi --apply de thuc hien, sau do: pnpm run db:baseline",
+  );
 } else {
   console.log(`\n[db:normalize] Da doi ten ${plan.length} file.`);
 }

@@ -28,16 +28,37 @@ const QUEST_TXT: Record<string, { vi: string; en: string }> = {
   q_play_schulte_2: { vi: "Chơi Schulte 2 ván", en: "Play 2 Schulte rounds" },
   q_play_sudoku_2: { vi: "Chơi Sudoku 2 ván", en: "Play 2 Sudoku rounds" },
   q_play_stroop_2: { vi: "Chơi Stroop 2 ván", en: "Play 2 Stroop rounds" },
-  q_play_reaction_2: { vi: "Chơi Reaction 2 ván", en: "Play 2 Reaction rounds" },
+  q_play_reaction_2: {
+    vi: "Chơi Reaction 2 ván",
+    en: "Play 2 Reaction rounds",
+  },
   q_play_memory_2: { vi: "Chơi Memory 2 ván", en: "Play 2 Memory rounds" },
   q_play_nback_2: { vi: "Chơi N-Back 2 ván", en: "Play 2 N-Back rounds" },
-  q_play_math_2: { vi: "Chơi Math Sprint 2 ván", en: "Play 2 Math Sprint rounds" },
-  q_play_gonogo_2: { vi: "Chơi Go / No-Go 2 ván", en: "Play 2 Go / No-Go rounds" },
-  q_play_mental_2: { vi: "Chơi Mental Rotation 2 ván", en: "Play 2 Mental Rotation rounds" },
-  w_rounds_25: { vi: "Tuần: hoàn thành 25 ván", en: "Weekly: finish 25 rounds" },
-  w_games_7: { vi: "Tuần: chơi 7 trò khác nhau", en: "Weekly: play 7 different games" },
+  q_play_math_2: {
+    vi: "Chơi Math Sprint 2 ván",
+    en: "Play 2 Math Sprint rounds",
+  },
+  q_play_gonogo_2: {
+    vi: "Chơi Go / No-Go 2 ván",
+    en: "Play 2 Go / No-Go rounds",
+  },
+  q_play_mental_2: {
+    vi: "Chơi Mental Rotation 2 ván",
+    en: "Play 2 Mental Rotation rounds",
+  },
+  w_rounds_25: {
+    vi: "Tuần: hoàn thành 25 ván",
+    en: "Weekly: finish 25 rounds",
+  },
+  w_games_7: {
+    vi: "Tuần: chơi 7 trò khác nhau",
+    en: "Weekly: play 7 different games",
+  },
   w_score_800_5: { vi: "Tuần: 5 ván đạt 800+", en: "Weekly: 5 rounds at 800+" },
-  w_score_900_3: { vi: "Tuần elite: 3 ván đạt 900+", en: "Elite week: 3 rounds at 900+" },
+  w_score_900_3: {
+    vi: "Tuần elite: 3 ván đạt 900+",
+    en: "Elite week: 3 rounds at 900+",
+  },
 };
 
 // Tên game dùng cho nhãn dự phòng. Giữ tại chỗ để panel không bao giờ vỡ
@@ -148,7 +169,9 @@ function QuestRow({
     <div
       className="rounded-xl p-3"
       style={{
-        background: quest.claimed ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.03)",
+        background: quest.claimed
+          ? "rgba(16,185,129,0.08)"
+          : "rgba(255,255,255,0.03)",
         border: `1px solid ${
           ready
             ? "rgba(16,185,129,0.5)"
@@ -165,17 +188,29 @@ function QuestRow({
         </span>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+        <div
+          className="flex-1 h-1.5 rounded-full overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.07)" }}
+        >
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, background: "linear-gradient(90deg,#10B981,#00D4FF)" }}
+            style={{
+              width: `${pct}%`,
+              background: "linear-gradient(90deg,#10B981,#00D4FF)",
+            }}
           />
         </div>
-        <span className="text-xs w-14 text-right" style={{ color: "rgba(255,255,255,0.45)" }}>
+        <span
+          className="text-xs w-14 text-right"
+          style={{ color: "rgba(255,255,255,0.45)" }}
+        >
           {quest.progress}/{quest.goal}
         </span>
         {quest.claimed ? (
-          <span className="text-xs flex items-center gap-1 w-20 justify-end" style={{ color: "#10B981" }}>
+          <span
+            className="text-xs flex items-center gap-1 w-20 justify-end"
+            style={{ color: "#10B981" }}
+          >
             <CheckCircle2 size={11} /> {s.claimed}
           </span>
         ) : (
@@ -248,16 +283,23 @@ export function QuestsPanel({
       <div className="flex items-center justify-between mb-1 gap-2">
         <div className="flex items-center gap-2">
           <Target size={16} style={{ color: "#10B981" }} />
-          <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">{s.title}</span>
+          <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">
+            {s.title}
+          </span>
         </div>
-        <span className="text-xs whitespace-nowrap" style={{ color: "#10B981" }}>
+        <span
+          className="text-xs whitespace-nowrap"
+          style={{ color: "#10B981" }}
+        >
           {completed}/{(quests ?? []).length} {s.done}
         </span>
       </div>
       <p className="text-xs text-white/40 mb-4">{s.sub}</p>
 
       {quests === null ? (
-        <div className="text-xs text-white/40 py-6 text-center">{s.loading}</div>
+        <div className="text-xs text-white/40 py-6 text-center">
+          {s.loading}
+        </div>
       ) : (
         <div className="space-y-5">
           <section>
@@ -265,7 +307,15 @@ export function QuestsPanel({
               <Target size={12} /> {s.daily}
             </div>
             <div className="space-y-2.5">
-              {daily.map((q) => <QuestRow key={q.code} quest={q} lang={lang} busy={busy} onClaim={claim} />)}
+              {daily.map((q) => (
+                <QuestRow
+                  key={q.code}
+                  quest={q}
+                  lang={lang}
+                  busy={busy}
+                  onClaim={claim}
+                />
+              ))}
             </div>
           </section>
           <section>
@@ -273,7 +323,15 @@ export function QuestsPanel({
               <CalendarDays size={12} /> {s.weekly}
             </div>
             <div className="space-y-2.5">
-              {weekly.map((q) => <QuestRow key={q.code} quest={q} lang={lang} busy={busy} onClaim={claim} />)}
+              {weekly.map((q) => (
+                <QuestRow
+                  key={q.code}
+                  quest={q}
+                  lang={lang}
+                  busy={busy}
+                  onClaim={claim}
+                />
+              ))}
             </div>
           </section>
         </div>

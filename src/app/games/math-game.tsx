@@ -202,8 +202,7 @@ function buildSet(diff: MathDifficulty): Problem[] {
   // streak thoi gian thuc de diem van so sanh duoc giua cac van adaptive.
   const out: Problem[] = [];
   for (let i = 0; i < TOTAL; i++) {
-    const tier: MathDifficulty =
-      i < 8 ? "easy" : i < 16 ? "medium" : "hard";
+    const tier: MathDifficulty = i < 8 ? "easy" : i < 16 ? "medium" : "hard";
     out.push(makeProblem(tier));
   }
   return out;
@@ -376,15 +375,11 @@ export function MathSprintGame({
         </span>
       </div>
       <div className="text-white text-lg mb-1">Math Sprint</div>
-      <p className="text-xs text-white/50 mb-4">
-        {s.desc}
-      </p>
+      <p className="text-xs text-white/50 mb-4">{s.desc}</p>
 
       {phase === "idle" && (
         <>
-          <div
-            className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono"
-          >
+          <div className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono">
             {s.level}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
@@ -417,7 +412,8 @@ export function MathSprintGame({
             style={{
               background: "rgba(56,189,248,0.15)",
               border: "1px solid rgba(56,189,248,0.45)",
-              color: ACCENT}}
+              color: ACCENT,
+            }}
           >
             <Play size={13} /> {s.start}
           </button>
@@ -459,7 +455,8 @@ export function MathSprintGame({
                   : flash === "bad"
                     ? "rgba(244,63,94,0.45)"
                     : "rgba(255,255,255,0.08)"
-              }`}}
+              }`,
+            }}
           >
             <span className="inline-flex items-center justify-center gap-3">
               {/* Icon dung/sai: khong chi dua vao mau cho nguoi mu mau. */}
@@ -471,7 +468,11 @@ export function MathSprintGame({
                 />
               )}
               {flash === "bad" && (
-                <X size={26} aria-label={s.wrong} style={{ color: "#F43F5E" }} />
+                <X
+                  size={26}
+                  aria-label={s.wrong}
+                  style={{ color: "#F43F5E" }}
+                />
               )}
               <span>{problem.prompt} = ?</span>
             </span>
@@ -486,7 +487,8 @@ export function MathSprintGame({
                 style={{
                   background: "rgba(56,189,248,0.08)",
                   border: "1px solid rgba(56,189,248,0.28)",
-                  color: "#E2F6FF"}}
+                  color: "#E2F6FF",
+                }}
               >
                 <span className="text-white/35 text-xs mr-2">{i + 1}</span>
                 {c}

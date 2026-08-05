@@ -11,7 +11,6 @@ import type { GameId } from "../game-registry";
 
 // ─── XP awarding (server-side, tamper-resistant) ──────────────────────────────
 
-
 /** Backward-compatible API name; canonical type comes from Game Registry. */
 export type RoundGame = GameId;
 export type RoundTicket = {

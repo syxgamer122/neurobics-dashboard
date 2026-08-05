@@ -21,15 +21,11 @@ export function CognitiveIndexCard({ index }: { index: number }) {
         >
           {index}
         </span>
-        <span className="text-lg text-slate-500">
-          / {RATING_MAX}
-        </span>
+        <span className="text-lg text-slate-500">/ {RATING_MAX}</span>
       </div>
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp size={13} className="text-emerald-400" />
-        <span className="text-sm text-emerald-400">
-          {t.balanced_avg}
-        </span>
+        <span className="text-sm text-emerald-400">{t.balanced_avg}</span>
       </div>
       <div
         className="h-1.5 rounded-full overflow-hidden"
@@ -46,12 +42,8 @@ export function CognitiveIndexCard({ index }: { index: number }) {
         />
       </div>
       <div className="flex justify-between mt-1.5">
-        <span className="text-xs text-slate-400">
-          {t.apprentice}
-        </span>
-        <span className="text-xs text-slate-400">
-          {t.mastermind}
-        </span>
+        <span className="text-xs text-slate-400">{t.apprentice}</span>
+        <span className="text-xs text-slate-400">{t.mastermind}</span>
       </div>
     </GlassCard>
   );

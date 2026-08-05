@@ -24,11 +24,41 @@ const AXES: {
   color: string;
   dash: string | undefined;
 }[] = [
-  { key: "speed", short: "SPD", name: "Tốc độ", color: "#10B981", dash: undefined },
-  { key: "focus", short: "FOC", name: "Tập trung", color: "#A855F7", dash: "6 3" },
-  { key: "spatial", short: "SPA", name: "Không gian", color: "#F59E0B", dash: "2 3" },
-  { key: "logic", short: "LOG", name: "Logic", color: "#00D4FF", dash: "10 3 2 3" },
-  { key: "memory", short: "MEM", name: "Trí nhớ", color: "#F43F5E", dash: "1 4" },
+  {
+    key: "speed",
+    short: "SPD",
+    name: "Tốc độ",
+    color: "#10B981",
+    dash: undefined,
+  },
+  {
+    key: "focus",
+    short: "FOC",
+    name: "Tập trung",
+    color: "#A855F7",
+    dash: "6 3",
+  },
+  {
+    key: "spatial",
+    short: "SPA",
+    name: "Không gian",
+    color: "#F59E0B",
+    dash: "2 3",
+  },
+  {
+    key: "logic",
+    short: "LOG",
+    name: "Logic",
+    color: "#00D4FF",
+    dash: "10 3 2 3",
+  },
+  {
+    key: "memory",
+    short: "MEM",
+    name: "Trí nhớ",
+    color: "#F43F5E",
+    dash: "1 4",
+  },
 ];
 
 const RANGES: { days: number; label: string }[] = [
@@ -43,9 +73,7 @@ const panelStyle: React.CSSProperties = {
   backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.6667))",
 };
 
-const mono: React.CSSProperties = {
-  
-};
+const mono: React.CSSProperties = {};
 
 const fmtDay = (iso: string): string => {
   const d = new Date(`${iso}T00:00:00`);
@@ -140,7 +168,8 @@ export function ProgressChart() {
               style={{
                 color: days === r.days ? "#020617" : "#94a3b8",
                 background:
-                  days === r.days ? "#00D4FF" : "rgba(148,163,184,0.1)"}}
+                  days === r.days ? "#00D4FF" : "rgba(148,163,184,0.1)",
+              }}
             >
               {r.label}
             </button>
@@ -155,7 +184,11 @@ export function ProgressChart() {
           value={String(summary.totalRounds)}
           color="#e2e8f0"
         />
-        <SummaryCard label="XP" value={String(summary.totalXp)} color="#10B981" />
+        <SummaryCard
+          label="XP"
+          value={String(summary.totalXp)}
+          color="#10B981"
+        />
         <SummaryCard
           label="NGÀY CÓ TẬP"
           value={`${summary.activeDays}/${rows.length}`}
@@ -270,7 +303,8 @@ export function ProgressChart() {
                     background: off ? "rgba(148,163,184,0.06)" : `${a.color}1f`,
                     border: `1px solid ${
                       off ? "rgba(148,163,184,0.12)" : `${a.color}55`
-                    }`}}
+                    }`,
+                  }}
                 >
                   <svg
                     width="14"
@@ -380,10 +414,7 @@ function SummaryCard({
           {value}
         </span>
         {hint ? (
-          <span
-            className="text-xs"
-            style={{ color: hintColor ?? "#64748b" }}
-          >
+          <span className="text-xs" style={{ color: hintColor ?? "#64748b" }}>
             {hint}
           </span>
         ) : null}

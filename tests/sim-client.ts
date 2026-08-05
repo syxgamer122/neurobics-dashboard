@@ -8,9 +8,7 @@
 // module that su. Khong doi hanh vi luc chay, chi de tsc hieu dung.
 export {};
 
-const M = await import(
-  "../src/app/lib/scoring.ts"
-);
+const M = await import("../src/app/lib/scoring.ts");
 
 let pass = 0;
 const fails: string[] = [];
@@ -37,7 +35,9 @@ function approx(name: string, got: number, want: number, tol = 1) {
   }
 }
 
-console.log("===== sanitizeRating (fix vong 1: 1001 khong con xoa trang truc) =====");
+console.log(
+  "===== sanitizeRating (fix vong 1: 1001 khong con xoa trang truc) =====",
+);
 t("sanitizeRating(999)", M.sanitizeRating(999), 999);
 t("sanitizeRating(1000)", M.sanitizeRating(1000), 1000);
 t("sanitizeRating(1001) -> kep ve 1000", M.sanitizeRating(1001), 1000);
@@ -88,18 +88,30 @@ const pop = { mean: 400, sd: 150, n: 120 };
 approx("dung trung binh -> 0.5", M.percentileOf(400, pop), 0.5, 0.01);
 approx("+1sd -> ~0.841", M.percentileOf(550, pop), 0.841, 0.01);
 approx("-1sd -> ~0.159", M.percentileOf(250, pop), 0.159, 0.01);
-t("sd = 0 khong lam vo", Number.isFinite(M.percentileOf(500, { mean: 400, sd: 0, n: 50 })), true);
+t(
+  "sd = 0 khong lam vo",
+  Number.isFinite(M.percentileOf(500, { mean: 400, sd: 0, n: 50 })),
+  true,
+);
 
 console.log("\n===== calcBrainAge =====");
 const NOW = new Date("2026-08-02T00:00:00.000Z");
 t(
   "chua co nam sinh",
-  M.calcBrainAge({ cognitiveIndex: 500, birthYear: null, roundsPlayed: 30 }, pop, NOW).status,
+  M.calcBrainAge(
+    { cognitiveIndex: 500, birthYear: null, roundsPlayed: 30 },
+    pop,
+    NOW,
+  ).status,
   "needs_age",
 );
 t(
   "chua du 5 van",
-  M.calcBrainAge({ cognitiveIndex: 500, birthYear: 1990, roundsPlayed: 3 }, pop, NOW).status,
+  M.calcBrainAge(
+    { cognitiveIndex: 500, birthYear: 1990, roundsPlayed: 3 },
+    pop,
+    NOW,
+  ).status,
   "calibrating",
 );
 {
@@ -118,8 +130,13 @@ t(
     NOW,
   );
   const ok = r.delta > 5 && r.delta <= M.MAX_AGE_SWING;
-  if (ok) { pass++; console.log(`PASS  choi rat tot -> tre hon ${r.delta} tuoi (age=${r.age})`); }
-  else { fails.push("brain age cao"); console.log(`FAIL  choi tot nhung delta=${r.delta}`); }
+  if (ok) {
+    pass++;
+    console.log(`PASS  choi rat tot -> tre hon ${r.delta} tuoi (age=${r.age})`);
+  } else {
+    fails.push("brain age cao");
+    console.log(`FAIL  choi tot nhung delta=${r.delta}`);
+  }
 }
 {
   const r: any = M.calcBrainAge(
@@ -128,8 +145,13 @@ t(
     NOW,
   );
   const ok = r.delta < -5 && r.delta >= -M.MAX_AGE_SWING;
-  if (ok) { pass++; console.log(`PASS  choi kem -> gia hon ${-r.delta} tuoi (age=${r.age})`); }
-  else { fails.push("brain age thap"); console.log(`FAIL  choi kem nhung delta=${r.delta}`); }
+  if (ok) {
+    pass++;
+    console.log(`PASS  choi kem -> gia hon ${-r.delta} tuoi (age=${r.age})`);
+  } else {
+    fails.push("brain age thap");
+    console.log(`FAIL  choi kem nhung delta=${r.delta}`);
+  }
 }
 {
   const r: any = M.calcBrainAge(
@@ -138,8 +160,15 @@ t(
     NOW,
   );
   const ok = r.age >= 5;
-  if (ok) { pass++; console.log(`PASS  tre 6 tuoi choi sieu tot -> age=${r.age} (khong duoi 5)`); }
-  else { fails.push("brain age san 5"); console.log(`FAIL  age=${r.age}`); }
+  if (ok) {
+    pass++;
+    console.log(
+      `PASS  tre 6 tuoi choi sieu tot -> age=${r.age} (khong duoi 5)`,
+    );
+  } else {
+    fails.push("brain age san 5");
+    console.log(`FAIL  age=${r.age}`);
+  }
 }
 {
   const thin: any = M.calcBrainAge(

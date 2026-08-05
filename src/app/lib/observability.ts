@@ -102,11 +102,7 @@ export function scrubText(input: unknown, maxLen = MAX_TEXT_LEN): string {
 
 /** Bo phan bien doi (so, uuid) de cung mot loi luon ra cung mot van tay. */
 export function normalizeForFingerprint(message: string): string {
-  return message
-    .replace(/\d+/g, "#")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
+  return message.replace(/\d+/g, "#").replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
 /** Bam djb2 -> chuoi base36 ngan, du de nhom loi giong nhau. */
@@ -279,8 +275,7 @@ export function createCollector(options: CollectorOptions): Collector {
 
 // ─── Ban singleton dung trong app ────────────────────────────────────────────
 
-const ENDPOINT =
-  ENV.VITE_TELEMETRY_ENDPOINT ?? `${FUNCTIONS_BASE}/telemetry`;
+const ENDPOINT = ENV.VITE_TELEMETRY_ENDPOINT ?? `${FUNCTIONS_BASE}/telemetry`;
 
 function readSessionId(): string {
   const KEY = "mindgem.obs.session";
@@ -337,7 +332,9 @@ function lazyCollector(): Collector | null {
     collector = createCollector({
       transport: httpTransport,
       sessionId: readSessionId(),
-      sampleRate: Number.isFinite(SAMPLE) ? Math.max(0, Math.min(1, SAMPLE)) : 1,
+      sampleRate: Number.isFinite(SAMPLE)
+        ? Math.max(0, Math.min(1, SAMPLE))
+        : 1,
     });
   }
   return collector;
@@ -358,15 +355,12 @@ export function initObservability(): void {
     });
   });
 
-  window.addEventListener(
-    "unhandledrejection",
-    (e: PromiseRejectionEvent) => {
-      sink.captureError(e.reason, {
-        event: "window.unhandledrejection",
-        route: location.pathname,
-      });
-    },
-  );
+  window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
+    sink.captureError(e.reason, {
+      event: "window.unhandledrejection",
+      route: location.pathname,
+    });
+  });
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") sink.flush();

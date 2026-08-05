@@ -30,7 +30,9 @@ describe("scrubText — khong bao gio de lo bi mat", () => {
     ).toContain("[jwt]");
     expect(scrubText("apikey=abc123secretvalue")).toContain("[redacted]");
     expect(scrubText("password: hunter2hunter2")).toContain("[redacted]");
-    expect(scrubText("user studentcow05@gmail.com bi loi")).toContain("[email]");
+    expect(scrubText("user studentcow05@gmail.com bi loi")).toContain(
+      "[email]",
+    );
     expect(scrubText("card 4111111111111111")).toContain("[num]");
   });
 
@@ -40,7 +42,9 @@ describe("scrubText — khong bao gio de lo bi mat", () => {
   });
 
   it("chuan hoa khoang trang, tra chuoi rong cho gia tri rong", () => {
-    expect(scrubText("  nhieu\n\n  khoang   trang ")).toBe("nhieu khoang trang");
+    expect(scrubText("  nhieu\n\n  khoang   trang ")).toBe(
+      "nhieu khoang trang",
+    );
     expect(scrubText(null)).toBe("");
     expect(scrubText(undefined)).toBe("");
   });
@@ -76,7 +80,11 @@ describe("scrubContext — chan payload phinh to", () => {
 describe("collector", () => {
   it("gui su kien kem session, release va van tay", () => {
     const { batches, collector } = harness();
-    collector.capture({ event: "round.submit", level: "info", game: "schulte" });
+    collector.capture({
+      event: "round.submit",
+      level: "info",
+      game: "schulte",
+    });
     expect(collector.pending()).toBe(1);
     collector.flush();
     expect(batches).toHaveLength(1);
@@ -95,7 +103,11 @@ describe("collector", () => {
   it("gop loi lap thay vi gui 100 lan giong nhau", () => {
     const { batches, collector } = harness();
     for (let i = 0; i < 100; i += 1) {
-      collector.capture({ event: "api.fail", level: "error", message: "timeout" });
+      collector.capture({
+        event: "api.fail",
+        level: "error",
+        message: "timeout",
+      });
     }
     expect(collector.pending()).toBe(1);
     collector.flush();
@@ -114,7 +126,10 @@ describe("collector", () => {
   });
 
   it("lay mau debug/info nhung KHONG bao gio bo loi", () => {
-    const { batches, collector } = harness({ sampleRate: 0.5, random: () => 0.9 });
+    const { batches, collector } = harness({
+      sampleRate: 0.5,
+      random: () => 0.9,
+    });
     collector.capture({ event: "noise", level: "info" });
     collector.capture({ event: "noise.debug", level: "debug" });
     expect(collector.pending()).toBe(0);

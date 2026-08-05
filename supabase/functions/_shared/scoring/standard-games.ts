@@ -1,7 +1,18 @@
 // Schulte, Sudoku, Stroop, Reaction, Memory and Math.
 import {
-  MAX, NO_AXES, clamp, clamp01, finite, focus, headline, int,
-  median, numberArray, ratio, speed, statSamples,
+  MAX,
+  NO_AXES,
+  clamp,
+  clamp01,
+  finite,
+  focus,
+  headline,
+  int,
+  median,
+  numberArray,
+  ratio,
+  speed,
+  statSamples,
   type ScoredRound,
 } from "./core.ts";
 
@@ -136,9 +147,7 @@ export function scoreSchulte(t: any): ScoredRound {
     speed: found
       ? clamp(speed(statRts, per, diff, timeMs / found) * completion)
       : null,
-    focus: found
-      ? clamp(focus(statRts, accuracy, diff, per) * completion)
-      : 0,
+    focus: found ? clamp(focus(statRts, accuracy, diff, per) * completion) : 0,
     spatial,
   };
   const size = Math.round(Math.sqrt(cells));
@@ -172,7 +181,10 @@ export function scoreSudoku(t: any): ScoredRound {
   // Chi tin so clue trong khoang hop le; ngoai khoang thi bo qua.
   const rawClues = t?.actualClues;
   const actualClues =
-    typeof rawClues === "number" && Number.isFinite(rawClues) && rawClues >= 17 && rawClues <= 81
+    typeof rawClues === "number" &&
+    Number.isFinite(rawClues) &&
+    rawClues >= 17 &&
+    rawClues <= 81
       ? Math.round(rawClues)
       : null;
   const diff = effectiveSudokuDiff(difficulty, actualClues);
@@ -188,9 +200,7 @@ export function scoreSudoku(t: any): ScoredRound {
   const per = SUDOKU_TARGET[difficulty] / expected;
   const completion = clamp01(placements / expected);
   // Logic: sai 1 nuoc phat nang hon; perfect van bi diff gioi han.
-  const logic = clamp(
-    MAX * diff * Math.pow(1 - clamp01(mistakes / 3), 1.35),
-  );
+  const logic = clamp(MAX * diff * Math.pow(1 - clamp01(mistakes / 3), 1.35));
   const retention =
     1 - clamp01((reEntries + repeat * 1.75) / Math.max(3, placements * 0.2));
   const axes = {
@@ -208,7 +218,9 @@ export function scoreSudoku(t: any): ScoredRound {
           )
         : null,
     logic: failed ? clamp(logic * 0.35) : logic,
-    memory: failed ? clamp(MAX * diff * retention * 0.5) : clamp(MAX * diff * retention),
+    memory: failed
+      ? clamp(MAX * diff * retention * 0.5)
+      : clamp(MAX * diff * retention),
   };
   return {
     axes,
@@ -242,8 +254,7 @@ export function scoreStroop(t: any): ScoredRound {
     ...NO_AXES,
     // Target 1400ms (truoc 1800): choi kha ~1100 van chua full.
     speed: clamp(
-      speed(statRts, 1400, 0.78, timeMs / Math.max(1, rts.length)) *
-        completion,
+      speed(statRts, 1400, 0.78, timeMs / Math.max(1, rts.length)) * completion,
     ),
     focus: clamp(focus(statRts, accuracy, 0.78, 1400) * completion),
   };

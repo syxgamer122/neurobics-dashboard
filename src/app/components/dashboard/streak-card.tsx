@@ -12,7 +12,11 @@ export type StreakCardProps = {
 };
 
 /** Chuoi ngay lien tiep + 3 so lieu nhanh (streak / thang nay / XP hom nay). */
-export function StreakCard({ streak, sessionsThisMonth, xpToday }: StreakCardProps) {
+export function StreakCard({
+  streak,
+  sessionsThisMonth,
+  xpToday,
+}: StreakCardProps) {
   const { t } = useLang();
 
   return (
@@ -47,22 +51,16 @@ export function StreakCard({ streak, sessionsThisMonth, xpToday }: StreakCardPro
           >
             {streak}
           </div>
-          <div className="text-sm text-slate-400 mt-1.5">
-            {t.day_streak}
-          </div>
+          <div className="text-sm text-slate-400 mt-1.5">{t.day_streak}</div>
           <div className="flex gap-1.5 mt-3">
             {Array.from({ length: 7 }).map((_, i) => (
               <div
                 key={i}
                 className="w-6 h-2 rounded-full"
                 style={
-                  i <
-                  (streak > 0
-                    ? ((streak - 1) % 7) + 1
-                    : 0)
+                  i < (streak > 0 ? ((streak - 1) % 7) + 1 : 0)
                     ? {
-                        background:
-                          "linear-gradient(90deg, #F59E0B, #EF4444)",
+                        background: "linear-gradient(90deg, #F59E0B, #EF4444)",
                         boxShadow: "0 0 6px rgba(245,158,11,0.5)",
                       }
                     : { background: "rgba(255,255,255,0.07)" }

@@ -1,10 +1,7 @@
 /**
  * Achievements and daily quests.
  */
-import {
-  getSupabase,
-  currentUserId,
-} from "./internal";
+import { getSupabase, currentUserId } from "./internal";
 
 // ─── Giai đoạn 5: thành tựu, nhiệm vụ ngày, bạn bè ────────────────────────
 // Mọi điều kiện mở khoá và phần thưởng XP đều được tính lại trong Postgres.
@@ -53,7 +50,8 @@ export async function fetchAchievementProgress(): Promise<
   if (!userId) return [];
 
   const { data, error } = await getSupabase().rpc("get_achievement_progress");
-  if (error) throw new Error(`Fetch achievement progress failed: ${error.message}`);
+  if (error)
+    throw new Error(`Fetch achievement progress failed: ${error.message}`);
 
   const rows: unknown[] = Array.isArray(data) ? data : [];
   const out: AchievementProgress[] = [];

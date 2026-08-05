@@ -63,13 +63,28 @@ for (let lv = 1; lv <= 2000; lv++) {
   const need = xpRequiredForLevel(lv);
   if (levelFromXp(need) !== lv) {
     roundTripOk = false;
-    fails.push("  chi tiet: level " + lv + " nguong " + need + " -> " + levelFromXp(need));
+    fails.push(
+      "  chi tiet: level " +
+        lv +
+        " nguong " +
+        need +
+        " -> " +
+        levelFromXp(need),
+    );
     break;
   }
   // ngay truoc nguong phai la level truoc do
   if (lv > 1 && levelFromXp(need - 1) !== lv - 1) {
     boundaryOk = false;
-    fails.push("  chi tiet: xp " + (need - 1) + " -> " + levelFromXp(need - 1) + " (mong " + (lv - 1) + ")");
+    fails.push(
+      "  chi tiet: xp " +
+        (need - 1) +
+        " -> " +
+        levelFromXp(need - 1) +
+        " (mong " +
+        (lv - 1) +
+        ")",
+    );
     break;
   }
 }
@@ -77,7 +92,11 @@ check("xpRequiredForLevel(L) -> levelFromXp tra dung L (1..2000)", roundTripOk);
 check("xp ngay truoc nguong roi ve level truoc (khong off-by-one)", boundaryOk);
 
 check("levelFromXp(0) = 1", levelFromXp(0) === 1, String(levelFromXp(0)));
-check("xp am khong lam vo", levelFromXp(-5000) === 1, String(levelFromXp(-5000)));
+check(
+  "xp am khong lam vo",
+  levelFromXp(-5000) === 1,
+  String(levelFromXp(-5000)),
+);
 check(
   "XP_MAX 200tr -> level ~2000",
   levelFromXp(200_000_000) >= 1990 && levelFromXp(200_000_000) <= 2010,
@@ -110,19 +129,31 @@ for (let xp = 0; xp <= 500_000; xp += 991) {
     break;
   }
 }
-check("progress luon trong [0,1) va xpIntoLevel <= xpNeeded", progressOk, progressDetail);
+check(
+  "progress luon trong [0,1) va xpIntoLevel <= xpNeeded",
+  progressOk,
+  progressDetail,
+);
 
 const p0 = getLevelProgress(0);
 check("xp 0 -> progress 0", p0.progress === 0, String(p0.progress));
 
 section("xp.ts: calculateRoundXp");
-check("diem 0 -> 15 xp san", calculateRoundXp(0) === 15, String(calculateRoundXp(0)));
+check(
+  "diem 0 -> 15 xp san",
+  calculateRoundXp(0) === 15,
+  String(calculateRoundXp(0)),
+);
 check(
   "diem 1000 -> tran " + MAX_XP_PER_ROUND,
   calculateRoundXp(1000) === MAX_XP_PER_ROUND,
   String(calculateRoundXp(1000)),
 );
-check("diem am bi kep ve 15", calculateRoundXp(-500) === 15, String(calculateRoundXp(-500)));
+check(
+  "diem am bi kep ve 15",
+  calculateRoundXp(-500) === 15,
+  String(calculateRoundXp(-500)),
+);
 check(
   "diem 99999 khong vuot tran",
   calculateRoundXp(99999) === MAX_XP_PER_ROUND,
@@ -130,7 +161,8 @@ check(
 );
 let xpMonoOk = true;
 for (let s = 0; s <= 1000; s++) {
-  if (calculateRoundXp(s) < calculateRoundXp(Math.max(0, s - 1))) xpMonoOk = false;
+  if (calculateRoundXp(s) < calculateRoundXp(Math.max(0, s - 1)))
+    xpMonoOk = false;
 }
 check("xp moi van khong giam khi diem tang", xpMonoOk);
 
@@ -162,7 +194,8 @@ check(
 check(
   "primary/secondary axis hop le",
   GAME_REGISTRY.every(
-    (game) => game.primaryAxis in AXIS_COLUMNS && game.secondaryAxis in AXIS_COLUMNS,
+    (game) =>
+      game.primaryAxis in AXIS_COLUMNS && game.secondaryAxis in AXIS_COLUMNS,
   ),
 );
 check(
@@ -197,7 +230,11 @@ check("undefined -> 0", totalSessions(undefined) === 0);
 check("object rong -> 0", totalSessions({}) === 0);
 check(
   "cong dung tong",
-  totalSessions({ schulte_sessions: 3, math_sessions: 4, nback_sessions: null }) === 7,
+  totalSessions({
+    schulte_sessions: 3,
+    math_sessions: 4,
+    nback_sessions: null,
+  }) === 7,
 );
 
 // ---------------------------------------------------------------------- AXES
@@ -235,7 +272,8 @@ function validFullGrid(g: number[][]): boolean {
   for (let br = 0; br < 9; br += 3) {
     for (let bc = 0; bc < 9; bc += 3) {
       const box = new Set<number>();
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) box.add(g[br + i][bc + j]);
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 3; j++) box.add(g[br + i][bc + j]);
       if (box.size !== 9) return false;
     }
   }
@@ -268,7 +306,8 @@ let detail = "";
 
 for (const target of clueTargets) {
   for (let rep = 0; rep < 3; rep++) {
-    const { puzzle, solution, actualClues, budgetExceeded } = generateSudoku(target);
+    const { puzzle, solution, actualClues, budgetExceeded } =
+      generateSudoku(target);
     if (!validFullGrid(solution)) {
       gridValid = false;
       detail = "loi grid o clues=" + target;
@@ -285,8 +324,15 @@ for (const target of clueTargets) {
     if (real !== actualClues) {
       clueCountOk = false;
       detail =
-        "actualClues=" + actualClues + " nhung dem duoc " + real +
-        " (clues=" + target + ", budgetExceeded=" + budgetExceeded + ")";
+        "actualClues=" +
+        actualClues +
+        " nhung dem duoc " +
+        real +
+        " (clues=" +
+        target +
+        ", budgetExceeded=" +
+        budgetExceeded +
+        ")";
     }
   }
 }

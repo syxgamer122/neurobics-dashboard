@@ -1,7 +1,11 @@
 import { Hono, type Context } from "npm:hono@4.12.27";
 import { cors } from "npm:hono@4.12.27/cors";
 import { createClient } from "npm:@supabase/supabase-js@2.110.9";
-import { GAME_IDS, isGame, scoreAndValidate } from "../_shared/round-scoring.ts";
+import {
+  GAME_IDS,
+  isGame,
+  scoreAndValidate,
+} from "../_shared/round-scoring.ts";
 import { inspectRound, hasHardFlag, softFlags } from "../_shared/anticheat.ts";
 
 import {
@@ -93,7 +97,9 @@ function resolveAllowedOrigins(): string[] {
   const base = configured.length > 0 ? configured : PRODUCTION_ORIGINS;
 
   if (Deno.env.get("ALLOW_LOCALHOST_ORIGINS") === "1") {
-    console.log("CORS: ALLOW_LOCALHOST_ORIGINS=1 — dang cho phep loopback (chi dung o local).");
+    console.log(
+      "CORS: ALLOW_LOCALHOST_ORIGINS=1 — dang cho phep loopback (chi dung o local).",
+    );
     return [...new Set([...base, ...LOCALHOST_ORIGINS])];
   }
 
@@ -134,8 +140,7 @@ const SESSION_SELECT = SESSION_COLUMNS.join(", ");
 const EMPTY_SESSION_PATCH = Object.fromEntries(
   SESSION_COLUMNS.map((column) => [column, 0]),
 );
-const PROFILE_COLS =
-  `id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, ${SESSION_SELECT}, created_at`;
+const PROFILE_COLS = `id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, ${SESSION_SELECT}, created_at`;
 // Ca nha thuong dung chung mot duong mang, nen mot dia chi phai du cho
 // vai nguoi cung dang ky.
 const SIGNUP_LIMIT = 10;

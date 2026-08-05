@@ -238,10 +238,7 @@ function AppInner() {
       try {
         setPopStats(await fetchPopulationStats());
       } catch (err) {
-        logError(
-          "Population stats unavailable, using seed baseline:",
-          err,
-        );
+        logError("Population stats unavailable, using seed baseline:", err);
       }
     })();
   }, [profile?.id]);

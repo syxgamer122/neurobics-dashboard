@@ -202,15 +202,11 @@ export function NBackGame({
         </span>
       </div>
       <div className="text-white text-lg mb-1">N-Back</div>
-      <p className="text-xs text-white/50 mb-4">
-        {s.desc}
-      </p>
+      <p className="text-xs text-white/50 mb-4">{s.desc}</p>
 
       {phase === "idle" && (
         <>
-          <div
-            className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono"
-          >
+          <div className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono">
             {s.level}
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
@@ -222,7 +218,9 @@ export function NBackGame({
                 className="py-2 rounded-xl text-xs transition-all"
                 style={{
                   background:
-                    n === lv ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.04)",
+                    n === lv
+                      ? "rgba(168,85,247,0.18)"
+                      : "rgba(255,255,255,0.04)",
                   border: `1px solid ${
                     n === lv ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.08)"
                   }`,
@@ -239,7 +237,8 @@ export function NBackGame({
             style={{
               background: "rgba(168,85,247,0.15)",
               border: "1px solid rgba(168,85,247,0.45)",
-              color: "#A855F7"}}
+              color: "#A855F7",
+            }}
           >
             <Play size={13} /> {s.start}
           </button>
@@ -272,7 +271,8 @@ export function NBackGame({
                     border: `1px solid ${
                       on ? "rgba(168,85,247,0.9)" : "rgba(255,255,255,0.07)"
                     }`,
-                    boxShadow: on ? "0 0 22px rgba(168,85,247,0.5)" : "none"}}
+                    boxShadow: on ? "0 0 22px rgba(168,85,247,0.5)" : "none",
+                  }}
                 />
               );
             })}
@@ -302,7 +302,8 @@ export function NBackGame({
                   ? "#10B981"
                   : flash === "bad"
                     ? "#F43F5E"
-                    : "#A855F7"}}
+                    : "#A855F7",
+            }}
           >
             <Target size={13} /> {warmup ? s.watch : s.match}
           </button>

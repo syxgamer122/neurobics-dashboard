@@ -85,13 +85,16 @@ export function MemoryMatrixGame({
       );
     }
 
-    later(() => {
-      setStatus((prev) => {
-        if (prev !== "memorize") return prev;
-        recallStartRef.current = Date.now();
-        return "recall";
-      });
-    }, 1500 + targetCount * 100);
+    later(
+      () => {
+        setStatus((prev) => {
+          if (prev !== "memorize") return prev;
+          recallStartRef.current = Date.now();
+          return "recall";
+        });
+      },
+      1500 + targetCount * 100,
+    );
   }, [level, targetCount, totalCells, clearTimers, later, onPlayStart]);
 
   const reset = () => {
@@ -201,15 +204,16 @@ export function MemoryMatrixGame({
         border: "1px solid rgba(244,63,94,0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
-        boxShadow: "0 4px 44px rgba(0,0,0,0.45)"}}
+        boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
+      }}
     >
       <div className="flex items-start justify-between mb-1">
         <div>
           <div
             className="text-xs tracking-[0.2em] mb-1.5 font-mono"
             style={{
-              
-              color: "#F43F5E"}}
+              color: "#F43F5E",
+            }}
           >
             {t.mem_tag}
           </div>
@@ -220,7 +224,8 @@ export function MemoryMatrixGame({
           style={{
             background: "rgba(244,63,94,0.18)",
             color: "#F43F5E",
-            border: "1px solid rgba(244,63,94,0.28)"}}
+            border: "1px solid rgba(244,63,94,0.28)",
+          }}
         >
           <Brain size={16} />
         </div>
@@ -231,14 +236,15 @@ export function MemoryMatrixGame({
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
           style={{
             background: "rgba(244,63,94,0.12)",
-            border: "1px solid rgba(244,63,94,0.25)"}}
+            border: "1px solid rgba(244,63,94,0.25)",
+          }}
         >
           <Star size={11} style={{ color: "#F43F5E" }} />
           <span
             className="text-xs font-bold"
             style={{
-              
-              color: "#F43F5E"}}
+              color: "#F43F5E",
+            }}
           >
             +{level} MEMORY
           </span>
@@ -266,7 +272,8 @@ export function MemoryMatrixGame({
                 filter:
                   i < hearts
                     ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))"
-                    : "none"}}
+                    : "none",
+              }}
             >
               ❤️
             </span>
@@ -276,36 +283,28 @@ export function MemoryMatrixGame({
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex flex-col">
-          <span
-            className="text-xs text-slate-400 mb-0.5"
-          >
-            {t.time_label}
-          </span>
+          <span className="text-xs text-slate-400 mb-0.5">{t.time_label}</span>
           <div
             className="text-3xl font-bold tabular-nums font-mono"
             style={{
-              
               color: status === "done" ? "#10B981" : "#F43F5E",
               textShadow:
                 status === "done"
                   ? "0 0 24px rgba(16,185,129,0.5)"
-                  : "0 0 18px rgba(244,63,94,0.4)"}}
+                  : "0 0 18px rgba(244,63,94,0.4)",
+            }}
           >
             {fmtTime(elapsed)}
           </div>
         </div>
         <div className="flex flex-col items-end">
-          <span
-            className="text-xs text-slate-400 mb-0.5"
-          >
-            {t.level_label}
-          </span>
+          <span className="text-xs text-slate-400 mb-0.5">{t.level_label}</span>
           <span
             className="text-4xl font-bold tabular-nums font-mono"
             style={{
-              
               color: "#F43F5E",
-              textShadow: "0 0 20px rgba(244,63,94,0.55)"}}
+              textShadow: "0 0 20px rgba(244,63,94,0.55)",
+            }}
           >
             {level}
           </span>
@@ -317,9 +316,7 @@ export function MemoryMatrixGame({
           className="mt-6 flex flex-col items-center justify-center py-10"
           style={{ minHeight: 280 }}
         >
-          <div
-            className="text-sm text-slate-400 text-center mb-6 leading-relaxed"
-          >
+          <div className="text-sm text-slate-400 text-center mb-6 leading-relaxed">
             {t.mem_intro_1}
             <br />
             {t.mem_intro_2}
@@ -328,11 +325,11 @@ export function MemoryMatrixGame({
             onClick={generateLevel}
             className="px-8 py-3 rounded-xl text-sm font-bold tracking-widest transition-all duration-200 hover:scale-105 font-mono"
             style={{
-              
               background: "rgba(244,63,94,0.15)",
               color: "#F43F5E",
               border: "1px solid rgba(244,63,94,0.4)",
-              boxShadow: "0 0 20px rgba(244,63,94,0.2)"}}
+              boxShadow: "0 0 20px rgba(244,63,94,0.2)",
+            }}
           >
             {t.mem_start}
           </button>
@@ -343,14 +340,8 @@ export function MemoryMatrixGame({
           style={{ minHeight: 280 }}
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
-          <div
-            className="text-lg font-bold text-white mb-1"
-          >
-            {t.game_over}
-          </div>
-          <div
-            className="text-sm text-slate-400"
-          >
+          <div className="text-lg font-bold text-white mb-1">{t.game_over}</div>
+          <div className="text-sm text-slate-400">
             {t.mem_max_level}:{" "}
             <span className="text-[#F43F5E]">
               {Math.max(1, maxClearedRef.current)}
@@ -368,7 +359,8 @@ export function MemoryMatrixGame({
               gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
               gap: 8,
               aspectRatio: "1",
-              pointerEvents: status === "recall" ? "auto" : "none"}}
+              pointerEvents: status === "recall" ? "auto" : "none",
+            }}
           >
             {Array.from({ length: totalCells }).map((_, idx) => {
               const isTarget = targets.includes(idx);
@@ -415,7 +407,8 @@ export function MemoryMatrixGame({
                     cursor:
                       status === "recall" && !isSelected
                         ? "pointer"
-                        : "default"}}
+                        : "default",
+                  }}
                 />
               );
             })}
@@ -424,9 +417,7 @@ export function MemoryMatrixGame({
       )}
 
       {saving && (
-        <div
-          className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400"
-        >
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
           <Loader2 size={11} className="animate-spin" /> {t.saving}
         </div>
       )}
@@ -437,10 +428,10 @@ export function MemoryMatrixGame({
           onClick={reset}
           className="mt-6 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-125"
           style={{
-            
             background: "rgba(244,63,94,0.1)",
             color: "#F43F5E",
-            border: "1px solid rgba(244,63,94,0.25)"}}
+            border: "1px solid rgba(244,63,94,0.25)",
+          }}
         >
           <RefreshCw size={12} /> {t.abort_restart}
         </button>

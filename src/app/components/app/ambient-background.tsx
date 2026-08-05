@@ -8,7 +8,8 @@ export function AmbientBackground() {
           left: "-8%",
           width: 700,
           height: 700,
-          background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)",
         }}
       />
       <div
@@ -18,7 +19,8 @@ export function AmbientBackground() {
           right: "-12%",
           width: 600,
           height: 600,
-          background: "radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)",
         }}
       />
       <div
@@ -28,7 +30,8 @@ export function AmbientBackground() {
           left: "35%",
           width: 500,
           height: 500,
-          background: "radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%)",
         }}
       />
       <div

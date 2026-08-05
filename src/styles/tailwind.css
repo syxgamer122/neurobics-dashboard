@@ -1,4 +1,4 @@
-﻿@import 'tailwindcss' source(none);
+﻿@import "tailwindcss" source(none);
 @source '../**/*.{js,ts,jsx,tsx}';
 
 /* tw-animate-css da go: app chi dung animate-spin/pulse/ping co san trong Tailwind. */

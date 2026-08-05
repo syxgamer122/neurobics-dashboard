@@ -1,10 +1,7 @@
 /**
  * Player search, friend requests and the friends-only leaderboard.
  */
-import {
-  getSupabase,
-  currentUserId,
-} from "./internal";
+import { getSupabase, currentUserId } from "./internal";
 
 export type PlayerSearchResult = {
   id: string;
@@ -106,7 +103,8 @@ export async function fetchFriendLeaderboard(): Promise<FriendRank[]> {
   if (!userId) return [];
 
   const { data, error } = await getSupabase().rpc("get_friend_leaderboard");
-  if (error) throw new Error(`Fetch friend leaderboard failed: ${error.message}`);
+  if (error)
+    throw new Error(`Fetch friend leaderboard failed: ${error.message}`);
 
   return (data ?? []).map((row: Record<string, unknown>) => ({
     id: String(row.id ?? ""),

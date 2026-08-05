@@ -127,10 +127,7 @@ export function HistoryPanel() {
         >
           TRAINING HISTORY
         </h2>
-        <p
-          className="mt-1 text-xs tracking-wider"
-          style={{ color: "#64748b" }}
-        >
+        <p className="mt-1 text-xs tracking-wider" style={{ color: "#64748b" }}>
           {totalRounds} ván đã chơi · {totalXp} XP tích luỹ
         </p>
       </div>
@@ -154,7 +151,8 @@ export function HistoryPanel() {
               style={{
                 ...panelStyle,
                 border: `1px solid ${meta.accent}26`,
-                boxShadow: pb ? `0 0 24px ${meta.accent}14` : "none"}}
+                boxShadow: pb ? `0 0 24px ${meta.accent}14` : "none",
+              }}
             >
               <div
                 className="mb-3 text-xs tracking-[0.2em] font-mono"
@@ -199,7 +197,8 @@ export function HistoryPanel() {
                 background: isActive ? `${accent}1F` : "rgba(255,255,255,0.03)",
                 border: `1px solid ${
                   isActive ? `${accent}66` : "rgba(255,255,255,0.06)"
-                }`}}
+                }`,
+              }}
             >
               {label.toUpperCase()}
             </button>
@@ -246,13 +245,15 @@ export function HistoryPanel() {
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
                 style={{
                   borderTop:
-                    i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)"}}
+                    i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
+                }}
               >
                 <div
                   className="h-8 w-1 rounded-full"
                   style={{
                     background: meta.accent,
-                    boxShadow: `0 0 10px ${meta.accent}`}}
+                    boxShadow: `0 0 10px ${meta.accent}`,
+                  }}
                 />
 
                 <div className="min-w-[140px] flex-1">
@@ -270,16 +271,10 @@ export function HistoryPanel() {
                     if (v === null || v === undefined) return null;
                     return (
                       <div key={a.short} className="text-center">
-                        <div
-                          className="text-xs"
-                          style={{ color: "#475569" }}
-                        >
+                        <div className="text-xs" style={{ color: "#475569" }}>
                           {a.short}
                         </div>
-                        <div
-                          className="text-xs"
-                          style={{ color: a.color }}
-                        >
+                        <div className="text-xs" style={{ color: a.color }}>
                           {v}
                         </div>
                       </div>
@@ -300,10 +295,7 @@ export function HistoryPanel() {
                   <div className="text-xs" style={{ color: "#475569" }}>
                     ĐIỂM
                   </div>
-                  <div
-                    className="text-[13px]"
-                    style={{ color: meta.accent }}
-                  >
+                  <div className="text-[13px]" style={{ color: meta.accent }}>
                     {s.round_score}
                   </div>
                 </div>
@@ -335,10 +327,7 @@ function Stat({
 }) {
   return (
     <div>
-      <div
-        className="text-xs tracking-wider"
-        style={{ color: "#475569" }}
-      >
+      <div className="text-xs tracking-wider" style={{ color: "#475569" }}>
         {label}
       </div>
       <div className="text-[14px]" style={{ color }}>

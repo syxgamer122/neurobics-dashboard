@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Crown, Search, UserMinus, UserPlus, Users, X } from "lucide-react";
+import {
+  Check,
+  Crown,
+  Search,
+  UserMinus,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "../lib/i18n";
 import {
@@ -19,9 +27,7 @@ import { logError } from "../lib/logger";
 // Mọi thao tác đi qua RPC security definer: chỉ người được mời mới chấp nhận
 // được lời mời, và bảng xếp hạng chỉ trả về những người đã kết bạn.
 
-const mono: React.CSSProperties = {
-  
-};
+const mono: React.CSSProperties = {};
 
 const panelStyle: React.CSSProperties = {
   background: "rgba(10,16,36,0.55)",
@@ -95,7 +101,8 @@ const Avatar = ({
         height: size,
         background: "rgba(0,212,255,0.14)",
         border: "1px solid rgba(0,212,255,0.3)",
-        ...mono}}
+        ...mono,
+      }}
     >
       {name.slice(0, 2).toUpperCase()}
     </div>
@@ -170,22 +177,19 @@ export function FriendsPanel() {
     <div className="rounded-2xl p-5" style={panelStyle}>
       <div className="flex items-center gap-2 mb-1">
         <Users size={16} style={{ color: "#00D4FF" }} />
-        <span
-          className="text-xs tracking-[0.25em] uppercase text-white font-mono"
-        >
+        <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">
           {s.title}
         </span>
       </div>
-      <p className="text-xs text-white/40 mb-4">
-        {s.sub}
-      </p>
+      <p className="text-xs text-white/40 mb-4">{s.sub}</p>
 
       {/* Tìm người chơi */}
       <div
         className="flex items-center gap-2 rounded-xl px-3 py-2 mb-3"
         style={{
           background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)"}}
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
       >
         <Search size={13} className="text-white/35" />
         <input
@@ -199,9 +203,7 @@ export function FriendsPanel() {
       {results !== null && (
         <div className="space-y-1.5 mb-4">
           {results.length === 0 ? (
-            <div className="text-xs text-white/35 py-2">
-              {s.noResult}
-            </div>
+            <div className="text-xs text-white/35 py-2">{s.noResult}</div>
           ) : (
             results.map((p) => (
               <div
@@ -226,7 +228,8 @@ export function FriendsPanel() {
                   style={{
                     background: "rgba(0,212,255,0.13)",
                     border: "1px solid rgba(0,212,255,0.4)",
-                    color: "#00D4FF"}}
+                    color: "#00D4FF",
+                  }}
                 >
                   <UserPlus size={11} /> {s.add}
                 </button>
@@ -239,9 +242,7 @@ export function FriendsPanel() {
       {/* Lời mời đến */}
       {incoming.length > 0 && (
         <div className="mb-4">
-          <div
-            className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono"
-          >
+          <div className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono">
             {s.incoming}
           </div>
           <div className="space-y-1.5">
@@ -251,7 +252,8 @@ export function FriendsPanel() {
                 className="flex items-center gap-2.5 rounded-xl px-3 py-2"
                 style={{
                   background: "rgba(245,158,11,0.08)",
-                  border: "1px solid rgba(245,158,11,0.25)"}}
+                  border: "1px solid rgba(245,158,11,0.25)",
+                }}
               >
                 <Avatar url={f.avatar_url} name={f.username} />
                 <span className="flex-1 text-xs text-white/85 truncate">
@@ -269,7 +271,8 @@ export function FriendsPanel() {
                   style={{
                     background: "rgba(16,185,129,0.15)",
                     border: "1px solid rgba(16,185,129,0.4)",
-                    color: "#10B981"}}
+                    color: "#10B981",
+                  }}
                 >
                   <Check size={12} />
                 </button>
@@ -285,7 +288,8 @@ export function FriendsPanel() {
                   style={{
                     background: "rgba(244,63,94,0.12)",
                     border: "1px solid rgba(244,63,94,0.35)",
-                    color: "#F43F5E"}}
+                    color: "#F43F5E",
+                  }}
                 >
                   <X size={12} />
                 </button>
@@ -298,9 +302,7 @@ export function FriendsPanel() {
       {/* Đang chờ phản hồi */}
       {outgoing.length > 0 && (
         <div className="mb-4">
-          <div
-            className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono"
-          >
+          <div className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono">
             {s.outgoing}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -310,7 +312,8 @@ export function FriendsPanel() {
                 className="text-xs px-2.5 py-1 rounded-lg text-white/50"
                 style={{
                   background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)"}}
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
               >
                 {f.username}
               </span>
@@ -320,9 +323,7 @@ export function FriendsPanel() {
       )}
 
       {/* Bảng xếp hạng riêng */}
-      <div
-        className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono"
-      >
+      <div className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono">
         {s.ranking}
       </div>
 
@@ -331,9 +332,7 @@ export function FriendsPanel() {
           {s.loading}
         </div>
       ) : accepted.length === 0 ? (
-        <div className="text-xs text-white/35 py-3">
-          {s.empty}
-        </div>
+        <div className="text-xs text-white/35 py-3">{s.empty}</div>
       ) : (
         <div className="space-y-1.5">
           {board.map((r, i) => (
@@ -346,26 +345,23 @@ export function FriendsPanel() {
                   : "rgba(255,255,255,0.03)",
                 border: `1px solid ${
                   r.is_me ? "rgba(0,212,255,0.35)" : "rgba(255,255,255,0.06)"
-                }`}}
+                }`,
+              }}
             >
               <span
                 className="text-xs w-5 shrink-0"
                 style={{
-                  color: i === 0 ? "#F59E0B" : "rgba(255,255,255,0.35)"}}
+                  color: i === 0 ? "#F59E0B" : "rgba(255,255,255,0.35)",
+                }}
               >
                 {i === 0 ? <Crown size={12} /> : `#${i + 1}`}
               </span>
               <Avatar url={r.avatar_url} name={r.username} size={26} />
               <span className="flex-1 text-xs text-white/85 truncate">
                 {r.username}
-                {r.is_me && (
-                  <span className="text-white/35"> · {s.you}</span>
-                )}
+                {r.is_me && <span className="text-white/35"> · {s.you}</span>}
               </span>
-              <span
-                className="text-xs"
-                style={{ color: "#00D4FF" }}
-              >
+              <span className="text-xs" style={{ color: "#00D4FF" }}>
                 {Math.round(r.cognitive_index)}
               </span>
               {!r.is_me && (

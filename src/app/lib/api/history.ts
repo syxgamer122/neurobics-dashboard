@@ -1,11 +1,7 @@
 /**
  * Past performance: training history, personal bests and progress series.
  */
-import {
-  getSupabase,
-  currentUserId,
-  numOrNull,
-} from "./internal";
+import { getSupabase, currentUserId, numOrNull } from "./internal";
 import { type RoundGame } from "./rounds";
 
 // ─── Giai đoạn 2: Lịch sử luyện tập ─────────────────────────────────────────
@@ -89,7 +85,8 @@ export type SchulteConfigBest = {
   last_played_at: string;
 };
 
-export type SchulteBestKey = `${SchulteConfigBest["grid_size"]}_${SchulteConfigBest["mode"]}`;
+export type SchulteBestKey =
+  `${SchulteConfigBest["grid_size"]}_${SchulteConfigBest["mode"]}`;
 
 export function schulteBestMapKey(
   size: SchulteConfigBest["grid_size"],

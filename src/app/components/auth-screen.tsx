@@ -112,9 +112,12 @@ export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) =
         }
         onAuthed(profile);
       }
-    } catch (err: any) {
+    } catch (err) {
       logError("Auth error during sign in:", err);
-      const msg = err?.message ?? "Something went wrong.";
+      // strict + useUnknownInCatchVariables: err la unknown, phai thu hep kieu.
+      // Pattern giong use-round-submission / settings-panel / admin-panel.
+      const msg =
+        err instanceof Error ? err.message : "Something went wrong.";
       // Show the styled DB-constraint block only when a name is genuinely taken.
       if (mode === "signup" && msg.toLowerCase().includes("already taken")) {
         setUsernameError(true);

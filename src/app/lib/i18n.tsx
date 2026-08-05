@@ -30,7 +30,9 @@ function detectInitialLanguage(): Lang {
       ? navigator.languages
       : [navigator.language];
     for (const tag of tags) {
-      const base = String(tag ?? "").toLowerCase().split("-")[0];
+      const base = String(tag ?? "")
+        .toLowerCase()
+        .split("-")[0];
       if (base === "vi") return "vi";
       if (base === "en") return "en";
     }

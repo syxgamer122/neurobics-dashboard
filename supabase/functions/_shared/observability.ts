@@ -80,11 +80,7 @@ export function fingerprintOf(parts: Array<string | null | undefined>): string {
   return (hash >>> 0).toString(36);
 }
 
-function intOrNull(
-  value: unknown,
-  min: number,
-  max: number,
-): number | null {
+function intOrNull(value: unknown, min: number, max: number): number | null {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   const rounded = Math.round(n);
@@ -303,7 +299,8 @@ export function logServerEvent(input: ServerEventInput): void {
   });
 
   const shouldPersist =
-    input.persist ?? (level === "warn" || level === "error" || level === "fatal");
+    input.persist ??
+    (level === "warn" || level === "error" || level === "fatal");
   if (!shouldPersist) return;
 
   persistEvents([

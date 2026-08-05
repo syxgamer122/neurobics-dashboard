@@ -30,10 +30,7 @@ import {
   totalSessions,
 } from "../lib/api";
 import { levelFromXp } from "../lib/xp";
-import {
-  HAS_SUPABASE_CONFIG,
-  SUPABASE_URL,
-} from "../lib/supabase-config";
+import { HAS_SUPABASE_CONFIG, SUPABASE_URL } from "../lib/supabase-config";
 
 import {
   ADMIN_COLORS,
@@ -75,7 +72,6 @@ export function AdminPanel({
   const logRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = profile.role === "admin";
-
 
   const { green, blue, amber, red, purple } = ADMIN_COLORS;
 

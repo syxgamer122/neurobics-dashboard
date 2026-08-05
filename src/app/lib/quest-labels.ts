@@ -24,16 +24,28 @@ export const QUEST_LABELS: Record<string, { vi: string; en: string }> = {
   q_play_schulte_2: { vi: "Chơi Schulte 2 ván", en: "Play 2 Schulte rounds" },
   q_play_sudoku_2: { vi: "Chơi Sudoku 2 ván", en: "Play 2 Sudoku rounds" },
   q_play_stroop_2: { vi: "Chơi Stroop 2 ván", en: "Play 2 Stroop rounds" },
-  q_play_reaction_2: { vi: "Chơi Reaction 2 ván", en: "Play 2 Reaction rounds" },
+  q_play_reaction_2: {
+    vi: "Chơi Reaction 2 ván",
+    en: "Play 2 Reaction rounds",
+  },
   q_play_memory_2: { vi: "Chơi Memory 2 ván", en: "Play 2 Memory rounds" },
   q_play_nback_2: { vi: "Chơi N-Back 2 ván", en: "Play 2 N-Back rounds" },
-  q_play_math_2: { vi: "Chơi Math Sprint 2 ván", en: "Play 2 Math Sprint rounds" },
-  q_play_gonogo_2: { vi: "Chơi Go / No-Go 2 ván", en: "Play 2 Go / No-Go rounds" },
+  q_play_math_2: {
+    vi: "Chơi Math Sprint 2 ván",
+    en: "Play 2 Math Sprint rounds",
+  },
+  q_play_gonogo_2: {
+    vi: "Chơi Go / No-Go 2 ván",
+    en: "Play 2 Go / No-Go rounds",
+  },
   q_play_mental_2: {
     vi: "Chơi Mental Rotation 2 ván",
     en: "Play 2 Mental Rotation rounds",
   },
-  w_rounds_25: { vi: "Tuần: hoàn thành 25 ván", en: "Weekly: finish 25 rounds" },
+  w_rounds_25: {
+    vi: "Tuần: hoàn thành 25 ván",
+    en: "Weekly: finish 25 rounds",
+  },
   w_games_7: {
     vi: "Tuần: chơi 7 trò khác nhau",
     en: "Weekly: play 7 different games",
@@ -99,7 +111,10 @@ export function humanizeQuestCode(code: string, lang: QuestLang): string {
   if (!text) {
     // Bỏ gạch dưới; nếu vẫn giống mã kỹ thuật thì dùng nhãn generic.
     const soft = body.replace(/_/g, " ").trim();
-    if (!soft || /^[a-z0-9 ]+$/i.test(soft) && /\d/.test(soft) && soft.length < 4) {
+    if (
+      !soft ||
+      (/^[a-z0-9 ]+$/i.test(soft) && /\d/.test(soft) && soft.length < 4)
+    ) {
       text = lang === "vi" ? "nhiệm vụ" : "quest";
     } else {
       text = soft || (lang === "vi" ? "nhiệm vụ" : "quest");
