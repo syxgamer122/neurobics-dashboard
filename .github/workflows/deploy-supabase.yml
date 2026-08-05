@@ -1,35 +1,30 @@
+# ==============================================================================
+# CHU Y THU TU BAT (quan trong, tranh mat du lieu)
+#
+# Database production duoc dung TAY qua SQL Editor, nen bang so migration
+# (supabase_migrations.schema_migrations) ban dau RONG. Neu de workflow tu
+# chay `db push` ngay, CLI se coi CA 35 migration la chua ap dung va chay lai
+# tu dau — trong do co `drop column` (20260812_security_hardening.sql) va
+# `delete from` (20260730020000_signup_security.sql). Do la MAT DU LIEU THAT.
+#
+#   BUOC 1 (bay gio): chi chay TAY tu tab Actions, GIU O "dry run" DUOC TICH.
+#            Log phai bao khong con migration nao cho ap dung.
+#   BUOC 2 (sau khi buoc 1 sach): bo comment khoi `push:` ben duoi de moi lan
+#            day len main la tu dong deploy.
+#
+# Truoc BUOC 1 phai chay MOT LAN file supabase/baseline/mark-existing-as-applied.sql
+# trong Supabase SQL Editor de chot moc 35 migration da ap dung tay.
+# ==============================================================================
 name: Deploy Supabase
 
-# Migration KHONG con chay tay qua SQL Editor.
-# Moi file trong supabase/migrations/ duoc ap dung tu dong theo thu tu version.
-#
-# Bat buoc co 3 secrets (Settings > Secrets and variables > Actions):
-#   SUPABASE_ACCESS_TOKEN  -> https://supabase.com/dashboard/account/tokens
-#   SUPABASE_PROJECT_REF   -> pujzeomddvquxeacblvr
-#   SUPABASE_DB_PASSWORD   -> mat khau Postgres cua project
-#
-# LAN DAU: phai chay supabase/baseline/mark-existing-as-applied.sql mot lan
-# (xem docs/migrations.md), neu khong CLI se chay lai 34 migration cu.
-
-# CHU Y THU TU BAT (quan trong, tranh mat du lieu):
-#
-#   BUOC 1 — hien tai: workflow CHI chay bang tay.
-#     Actions > Deploy Supabase > Run workflow, de nguyen o "dry run" da tich.
-#     Database that dung tay qua SQL Editor nen chua co so ghi migration; neu de
-#     tu dong chay ngay, CLI se coi ca 35 migration la "chua ap dung" va chay lai
-#     tu dau (co drop column / delete from) => mat du lieu.
-#
-#   BUOC 2 — sau khi da chay baseline VA dry run bao "Remote database is up to date":
-#     bo comment khoi "push" ben duoi roi commit. Tu do moi thay doi trong
-#     supabase/** tren main se tu dong deploy.
-
 on:
+  # BUOC 2: bo dau # cua 4 dong duoi day SAU KHI dry run da sach.
   # push:
   #   branches: [main]
   #   paths:
   #     - "supabase/migrations/**"
   #     - "supabase/functions/**"
-  #     - ".github/workflows/deploy-supabase.yml"
+
   workflow_dispatch:
     inputs:
       dry_run:
@@ -37,31 +32,34 @@ on:
         type: boolean
         default: true
 
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    name: db push + functions deploy
+    name: Push migrations + deploy edge function
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Tao environment ten "production" trong Settings > Environments neu muon
-    # them buoc phe duyet tay truoc khi doi database.
     environment: production
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
       - name: Verify secrets
         env:
-          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          PW: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           missing=""
-          [ -z "$TOKEN" ] && missing="$missing SUPABASE_ACCESS_TOKEN"
-          [ -z "$REF" ] && missing="$missing SUPABASE_PROJECT_REF"
-          [ -z "$PW" ] && missing="$missing SUPABASE_DB_PASSWORD"
+          [ -z "$SUPABASE_ACCESS_TOKEN" ] && missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -z "$SUPABASE_PROJECT_REF" ] && missing="$missing SUPABASE_PROJECT_REF"
+          [ -z "$SUPABASE_DB_PASSWORD" ] && missing="$missing SUPABASE_DB_PASSWORD"
           if [ -n "$missing" ]; then
             echo "::error::Thieu secrets:$missing"
             exit 1
           fi
+          echo "Du 3 secrets."
 
       - uses: supabase/setup-cli@v1
         with:
@@ -73,28 +71,28 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
 
-      - name: Migration da/chua ap dung
+      - name: Migration list (truoc khi chay)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase migration list --linked
 
-      - name: Dry run
-        if: ${{ inputs.dry_run == true }}
+      - name: DRY RUN — chi in, khong ap dung
+        if: ${{ inputs.dry_run }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase db push --dry-run
 
-      - name: Apply migrations
-        if: ${{ inputs.dry_run != true }}
+      - name: AP DUNG THAT — day migration len database
+        if: ${{ !inputs.dry_run }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase db push
 
-      - name: Deploy Edge Function (server)
-        if: ${{ inputs.dry_run != true }}
+      - name: Deploy edge function
+        if: ${{ !inputs.dry_run }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy server --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
