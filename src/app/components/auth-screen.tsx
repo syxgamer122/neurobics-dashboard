@@ -1,13 +1,5 @@
 import { useState } from "react";
-import {
-  Brain,
-  Lock,
-  User,
-  ArrowRight,
-  Loader2,
-  AlertTriangle,
-  CheckCircle2,
-} from "lucide-react";
+import { Brain, Lock, User, ArrowRight, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
   handleSignUp,
   handleLogin,
@@ -21,16 +13,10 @@ import { TurnstileWidget } from "./turnstile-widget";
 import { logError } from "../lib/logger";
 import { createGuestProfile } from "../lib/guest";
 
-export function AuthScreen({
-  onAuthed,
-}: {
-  onAuthed: (profile: Profile | null) => void;
-}) {
+export function AuthScreen({ onAuthed }: { onAuthed: (profile: Profile | null) => void }) {
   const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
   const [recoveryCode, setRecoveryCode] = useState("");
-  const [issuedRecoveryCode, setIssuedRecoveryCode] = useState<string | null>(
-    null,
-  );
+  const [issuedRecoveryCode, setIssuedRecoveryCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -71,9 +57,7 @@ export function AuthScreen({
     }
 
     if ((mode === "signup" || mode === "recover") && password.length < 8) {
-      setError(
-        t.password_min_length ?? "Password must be at least 8 characters.",
-      );
+      setError(t.password_min_length ?? "Password must be at least 8 characters.");
       return;
     }
 
@@ -101,10 +85,7 @@ export function AuthScreen({
         setRecoveryCode("");
         setUsernameError(false);
         setSuccess(false);
-        setError(
-          "✓ " +
-            (t.recovery_success ?? "Password updated. You can sign in now."),
-        );
+        setError("✓ " + (t.recovery_success ?? "Password updated. You can sign in now."));
         setCaptchaToken("");
         setCaptchaResetKey((k) => k + 1);
         return;
@@ -133,7 +114,10 @@ export function AuthScreen({
       }
     } catch (err) {
       logError("Auth error during sign in:", err);
-      const msg = err?.message ?? "Something went wrong.";
+      // strict + useUnknownInCatchVariables: err la unknown, phai thu hep kieu.
+      // Pattern giong use-round-submission / settings-panel / admin-panel.
+      const msg =
+        err instanceof Error ? err.message : "Something went wrong.";
       // Show the styled DB-constraint block only when a name is genuinely taken.
       if (mode === "signup" && msg.toLowerCase().includes("already taken")) {
         setUsernameError(true);
@@ -166,41 +150,11 @@ export function AuthScreen({
     >
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none">
-        <div
-          className="absolute rounded-full"
-          style={{
-            top: "-10%",
-            left: "20%",
-            width: 600,
-            height: 600,
-            background:
-              "radial-gradient(circle, rgba(0,212,255,0.10) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            bottom: "-15%",
-            right: "10%",
-            width: 500,
-            height: 500,
-            background:
-              "radial-gradient(circle, rgba(168,85,247,0.10) 0%, transparent 70%)",
-          }}
-        />
+        <div className="absolute rounded-full" style={{ top: "-10%", left: "20%", width: 600, height: 600, background: "radial-gradient(circle, rgba(0,212,255,0.10) 0%, transparent 70%)" }} />
+        <div className="absolute rounded-full" style={{ bottom: "-15%", right: "10%", width: 500, height: 500, background: "radial-gradient(circle, rgba(168,85,247,0.10) 0%, transparent 70%)" }} />
         {/* Extra red glow when error */}
         {usernameError && (
-          <div
-            className="absolute rounded-full transition-opacity duration-500"
-            style={{
-              top: "30%",
-              left: "30%",
-              width: 400,
-              height: 400,
-              background:
-                "radial-gradient(circle, rgba(239,68,68,0.08) 0%, transparent 70%)",
-            }}
-          />
+          <div className="absolute rounded-full transition-opacity duration-500" style={{ top: "30%", left: "30%", width: 400, height: 400, background: "radial-gradient(circle, rgba(239,68,68,0.08) 0%, transparent 70%)" }} />
         )}
       </div>
 
@@ -208,44 +162,36 @@ export function AuthScreen({
         className="relative z-10 w-full max-w-sm rounded-2xl p-8 transition-all duration-300"
         style={{
           background: "rgba(13,20,45,0.75)",
-          border: usernameError
-            ? "1px solid rgba(239,68,68,0.45)"
-            : "1px solid rgba(0,212,255,0.16)",
+          border: usernameError ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(0,212,255,0.16)",
           backdropFilter: "blur(var(--glass-blur, 18px))",
           boxShadow: usernameError
             ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(239,68,68,0.15)"
             : success
-              ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(16,185,129,0.2)"
-              : "0 8px 60px rgba(0,0,0,0.5)",
-          transition: "box-shadow 0.4s ease, border-color 0.4s ease",
-        }}
+            ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(16,185,129,0.2)"
+            : "0 8px 60px rgba(0,0,0,0.5)",
+          transition: "box-shadow 0.4s ease, border-color 0.4s ease"}}
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-7">
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-            style={{
-              background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-              boxShadow: "0 0 26px rgba(0,212,255,0.4)",
-            }}
+            style={{ background: "linear-gradient(135deg, #00D4FF, #7C3AED)", boxShadow: "0 0 26px rgba(0,212,255,0.4)" }}
           >
             <Brain size={22} className="text-white" />
           </div>
           <div className="text-lg font-bold tracking-[0.22em] text-white font-mono">
             MINDGEM
           </div>
-          <div className="text-xs text-slate-500 mt-1">{t.auth_tagline}</div>
+          <div className="text-xs text-slate-500 mt-1">
+            {t.auth_tagline}
+          </div>
         </div>
 
         {/* Success state overlay */}
         {success && (
           <div
             className="mb-5 rounded-xl p-4 flex flex-col items-center gap-2 text-center"
-            style={{
-              background: "rgba(16,185,129,0.08)",
-              border: "1px solid rgba(16,185,129,0.3)",
-              boxShadow: "0 0 20px rgba(16,185,129,0.15)",
-            }}
+            style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)", boxShadow: "0 0 20px rgba(16,185,129,0.15)" }}
           >
             <CheckCircle2 size={22} className="text-emerald-400" />
             <div className="text-xs font-bold tracking-wider text-emerald-400">
@@ -262,16 +208,9 @@ export function AuthScreen({
           <div
             className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-300"
             style={{
-              background: usernameError
-                ? "rgba(239,68,68,0.08)"
-                : "rgba(0,0,0,0.3)",
-              border: usernameError
-                ? "1px solid rgba(239,68,68,0.6)"
-                : "1px solid rgba(0,212,255,0.14)",
-              boxShadow: usernameError
-                ? "0 0 16px rgba(239,68,68,0.25), inset 0 0 8px rgba(239,68,68,0.05)"
-                : "none",
-            }}
+              background: usernameError ? "rgba(239,68,68,0.08)" : "rgba(0,0,0,0.3)",
+              border: usernameError ? "1px solid rgba(239,68,68,0.6)" : "1px solid rgba(0,212,255,0.14)",
+              boxShadow: usernameError ? "0 0 16px rgba(239,68,68,0.25), inset 0 0 8px rgba(239,68,68,0.05)" : "none"}}
           >
             <span style={{ color: usernameError ? "#F87171" : "#64748b" }}>
               <User size={15} />
@@ -284,15 +223,11 @@ export function AuthScreen({
               autoComplete="username"
               className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
               style={{
-                color: usernameError ? "#F87171" : "white",
-              }}
+                
+                color: usernameError ? "#F87171" : "white"}}
             />
             {usernameError && (
-              <AlertTriangle
-                size={14}
-                className="text-red-400 shrink-0"
-                style={{ filter: "drop-shadow(0 0 4px rgba(239,68,68,0.8))" }}
-              />
+              <AlertTriangle size={14} className="text-red-400 shrink-0" style={{ filter: "drop-shadow(0 0 4px rgba(239,68,68,0.8))" }} />
             )}
           </div>
 
@@ -300,21 +235,14 @@ export function AuthScreen({
           {usernameError && (
             <div
               className="rounded-lg px-3 py-2.5 space-y-1"
-              style={{
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                boxShadow: "0 0 12px rgba(239,68,68,0.1)",
-              }}
+              style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", boxShadow: "0 0 12px rgba(239,68,68,0.1)" }}
             >
               <div className="flex items-center gap-1.5">
-                <span
-                  className="text-xs font-bold tracking-widest font-mono"
-                  style={{ color: "#F43F5E" }}
-                >
+                <span className="text-xs font-bold tracking-widest font-mono" style={{  color: "#F43F5E" }}>
                   ✕ DB_CONSTRAINT_VIOLATION
                 </span>
               </div>
-              <div className="text-xs" style={{ color: "#FCA5A5" }}>
+              <div className="text-xs" style={{  color: "#FCA5A5" }}>
                 ERROR: Username already taken. Please choose another.
               </div>
               <div className="text-xs text-red-800">
@@ -326,14 +254,9 @@ export function AuthScreen({
           {/* Password field */}
           <div
             className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
-            style={{
-              background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(0,212,255,0.14)",
-            }}
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(0,212,255,0.14)" }}
           >
-            <span className="text-slate-500">
-              <Lock size={15} />
-            </span>
+            <span className="text-slate-500"><Lock size={15} /></span>
             <input
               type="password"
               placeholder={t.password_label}
@@ -350,8 +273,7 @@ export function AuthScreen({
               style={{
                 background: "rgba(245,158,11,0.08)",
                 border: "1px solid rgba(245,158,11,0.28)",
-                color: "#FBBF24",
-              }}
+                color: "#FBBF24"}}
             >
               {t.signup_no_email_warning ??
                 "No real email is stored. If you forget this password, only the recovery code shown after sign-up can restore the account. Save it offline."}
@@ -363,8 +285,7 @@ export function AuthScreen({
               className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
               style={{
                 background: "rgba(0,0,0,0.3)",
-                border: "1px solid rgba(0,212,255,0.14)",
-              }}
+                border: "1px solid rgba(0,212,255,0.14)"}}
             >
               <input
                 type="text"
@@ -388,11 +309,7 @@ export function AuthScreen({
           {error && !usernameError && (
             <div
               className="text-xs px-3 py-2 rounded-lg"
-              style={{
-                background: "rgba(239,68,68,0.1)",
-                color: "#F87171",
-                border: "1px solid rgba(239,68,68,0.25)",
-              }}
+              style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.25)"}}
             >
               {error}
             </div>
@@ -400,23 +317,15 @@ export function AuthScreen({
 
           <button
             type="submit"
-            disabled={
-              busy ||
-              success ||
-              ((mode === "signup" || mode === "recover") && !captchaToken)
-            }
+            disabled={busy || success || ((mode === "signup" || mode === "recover") && !captchaToken)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
+              
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
               color: "white",
-              boxShadow: "0 0 22px rgba(0,212,255,0.3)",
-            }}
+              boxShadow: "0 0 22px rgba(0,212,255,0.3)"}}
           >
-            {busy ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <ArrowRight size={15} />
-            )}
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
             {mode === "login"
               ? t.sign_in.toUpperCase()
               : mode === "recover"
@@ -499,8 +408,7 @@ export function AuthScreen({
             className="mt-4 p-3 rounded-xl text-xs space-y-2"
             style={{
               background: "rgba(16,185,129,0.1)",
-              border: "1px solid rgba(16,185,129,0.35)",
-            }}
+              border: "1px solid rgba(16,185,129,0.35)"}}
           >
             <div className="text-emerald-300 font-semibold">
               {t.recovery_code_title ?? "Save your recovery code"}
@@ -526,8 +434,7 @@ export function AuthScreen({
               style={{
                 background: "rgba(16,185,129,0.15)",
                 border: "1px solid rgba(16,185,129,0.4)",
-                color: "#6EE7B7",
-              }}
+                color: "#6EE7B7"}}
             >
               {copied
                 ? (t.copied ?? "Copied")
