@@ -1,0 +1,12 @@
+dist
+coverage
+node_modules
+pnpm-lock.yaml
+public/sw.js
+sql-chia-nho
+supabase/baseline
+supabase/migrations
+
+# Tai lieu tieng Viet co bang ke thu cong - de Prettier khong xao tron.
+# Xoa dong duoi neu muon Prettier format ca markdown.
+*.md

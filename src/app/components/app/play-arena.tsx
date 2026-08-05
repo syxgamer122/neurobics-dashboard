@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { Suspense, lazy, type ComponentType } from "react";
 import {
   Activity,
   Blocks,
@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Focus,
   Grid3X3,
+  Loader2,
   RotateCcw,
   Route,
   ShieldAlert,
@@ -23,17 +24,47 @@ import {
 } from "../../lib/game-registry";
 import type { Translation } from "../../lib/i18n";
 import { GameTile } from "../ui/game-tile";
-import { CorsiBlockGame } from "../../games/corsi-game";
-import { GoNoGoGame } from "../../games/go-nogo-game";
-import { MathSprintGame } from "../../games/math-game";
-import { MemoryMatrixGame } from "../../games/memory-game";
-import { MentalRotationGame } from "../../games/mental-rotation-game";
-import { NBackGame } from "../../games/nback-game";
-import { ReactionTimeGame } from "../../games/reaction-game";
-import { SchulteTableGame } from "../../games/schulte-game";
-import { StroopGame } from "../../games/stroop-game";
-import { SudokuGame } from "../../games/sudoku-game";
-import { TrailMakingGame } from "../../games/trail-game";
+// ─── Chunk rieng cho tung game ────────────────────────────────────
+// TRUOC DAY 11 game duoc import tinh, nen ca 11 nam trong bundle DAU TIEN:
+// nguoi chi choi Schulte van phai tai Sudoku, Mental Rotation, N-Back...
+// truoc khi thay man hinh dau tien. Tren 4G do la vai giay chet.
+//
+// GIO moi game la mot chunk rieng, chi tai dung luc nguoi dung bam vao o do.
+// Cac game export theo TEN (khong phai default) nen phai anh xa sang `default`
+// cho React.lazy hieu.
+const CorsiBlockGame = lazy(() =>
+  import("../../games/corsi-game").then((m) => ({ default: m.CorsiBlockGame })),
+);
+const GoNoGoGame = lazy(() =>
+  import("../../games/go-nogo-game").then((m) => ({ default: m.GoNoGoGame })),
+);
+const MathSprintGame = lazy(() =>
+  import("../../games/math-game").then((m) => ({ default: m.MathSprintGame })),
+);
+const MemoryMatrixGame = lazy(() =>
+  import("../../games/memory-game").then((m) => ({ default: m.MemoryMatrixGame })),
+);
+const MentalRotationGame = lazy(() =>
+  import("../../games/mental-rotation-game").then((m) => ({ default: m.MentalRotationGame })),
+);
+const NBackGame = lazy(() =>
+  import("../../games/nback-game").then((m) => ({ default: m.NBackGame })),
+);
+const ReactionTimeGame = lazy(() =>
+  import("../../games/reaction-game").then((m) => ({ default: m.ReactionTimeGame })),
+);
+const SchulteTableGame = lazy(() =>
+  import("../../games/schulte-game").then((m) => ({ default: m.SchulteTableGame })),
+);
+const StroopGame = lazy(() =>
+  import("../../games/stroop-game").then((m) => ({ default: m.StroopGame })),
+);
+const SudokuGame = lazy(() =>
+  import("../../games/sudoku-game").then((m) => ({ default: m.SudokuGame })),
+);
+const TrailMakingGame = lazy(() =>
+  import("../../games/trail-game").then((m) => ({ default: m.TrailMakingGame })),
+);
 
 const GAME_ICONS: Record<GameIconKey, LucideIcon> = {
   focus: Focus,
@@ -93,6 +124,18 @@ const GAME_COMPONENTS: Record<RoundGame, ComponentType<RegistryGameProps>> = {
     <TrailMakingGame onComplete={onComplete} onPlayStart={onPlayStart} />
   ),
 };
+
+/**
+ * Khung cho trong khi chunk cua game dang tai. Giu chieu cao toi thieu de
+ * layout khong nhay mot cai khi game xuat hien.
+ */
+function GameChunkFallback() {
+  return (
+    <div className="flex min-h-[320px] w-full items-center justify-center">
+      <Loader2 size={24} className="animate-spin text-neuro-cyan" />
+    </div>
+  );
+}
 
 export function PlayArena({
   selectedGame,
@@ -163,10 +206,12 @@ export function PlayArena({
       {selectedGame && ActiveGame && (
         <div className="w-full flex justify-center px-1 sm:px-0">
           <div className={gameStageClass(selectedGame)}>
-            <ActiveGame
-              onComplete={makeGameHandler(selectedGame)}
-              onPlayStart={() => beginPlay(selectedGame)}
-            />
+            <Suspense fallback={<GameChunkFallback />}>
+              <ActiveGame
+                onComplete={makeGameHandler(selectedGame)}
+                onPlayStart={() => beginPlay(selectedGame)}
+              />
+            </Suspense>
           </div>
         </div>
       )}
