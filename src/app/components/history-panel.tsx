@@ -14,6 +14,7 @@ import {
   type PersonalBest,
 } from "../lib/api";
 import { GAME_BY_ID, GAME_IDS } from "../lib/game-registry";
+import { ErrorBoundary } from "./error-boundary";
 
 const fmtTime = (ms: number): string => {
   const total = Math.max(0, Math.round(ms / 1000));
@@ -135,9 +136,11 @@ export function HistoryPanel() {
       </div>
 
       {/* ── Giai đoạn 3: biểu đồ tiến trình ── */}
-      <Suspense fallback={<ChartFallback />}>
-        <ProgressChart />
-      </Suspense>
+      <ErrorBoundary area="history:progress-chart" variant="inline">
+        <Suspense fallback={<ChartFallback />}>
+          <ProgressChart />
+        </Suspense>
+      </ErrorBoundary>
 
       {/* ── Kỷ lục cá nhân ── */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
