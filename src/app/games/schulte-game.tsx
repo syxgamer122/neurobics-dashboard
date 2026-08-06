@@ -76,6 +76,31 @@ function buildSchulteSeq(
   return seq;
 }
 
+// Cache diem tot nhat trong localStorage. Ba ham nay KHONG dung props/state,
+// nen dat o pham vi module: tao lai moi lan render la vo nghia, va quan trong
+// hon — de trong component thi moi useEffect goi den chung deu bi ESLint bao
+// thieu dependency, ma them vao deps thi effect chay lai sau moi render.
+const localStorageKey = (ns: SSize, nm: SMode) => `nb_schulte_best_${ns}_${nm}`;
+
+function readLocalBest(ns: SSize, nm: SMode): number | null {
+  try {
+    const raw = localStorage.getItem(localStorageKey(ns, nm));
+    if (!raw) return null;
+    const ms = Number(raw);
+    return Number.isFinite(ms) && ms > 0 ? ms : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalBest(ns: SSize, nm: SMode, ms: number) {
+  try {
+    localStorage.setItem(localStorageKey(ns, nm), String(ms));
+  } catch {
+    /* private mode */
+  }
+}
+
 export function SchulteTableGame({
   onComplete,
   onPlayStart,
@@ -108,26 +133,11 @@ export function SchulteTableGame({
   const [bestByConfig, setBestByConfig] = useState<
     Partial<Record<SchulteBestKey, number>>
   >({});
-  const localStorageKey = (ns: SSize, nm: SMode) =>
-    `nb_schulte_best_${ns}_${nm}`;
-  const readLocalBest = (ns: SSize, nm: SMode): number | null => {
-    try {
-      const raw = localStorage.getItem(localStorageKey(ns, nm));
-      if (!raw) return null;
-      const ms = Number(raw);
-      return Number.isFinite(ms) && ms > 0 ? ms : null;
-    } catch {
-      return null;
-    }
-  };
-  const writeLocalBest = (ns: SSize, nm: SMode, ms: number) => {
-    try {
-      localStorage.setItem(localStorageKey(ns, nm), String(ms));
-    } catch {
-      /* private mode */
-    }
-  };
-  const mergeBest = (ns: SSize, nm: SMode, ms: number) => {
+  // localStorageKey / readLocalBest / writeLocalBest da duoc dua ra pham vi
+  // module (xem dau file). `mergeBest` thi phai o trong component vi no dung
+  // setBestByConfig — boc useCallback([]) de danh tinh khong bao gio doi, nho
+  // vay dua duoc vao deps cua effect ma effect khong chay lai them lan nao.
+  const mergeBest = useCallback((ns: SSize, nm: SMode, ms: number) => {
     const key = schulteBestMapKey(ns, nm);
     setBestByConfig((prev) => {
       const cur = prev[key];
@@ -135,7 +145,7 @@ export function SchulteTableGame({
       return { ...prev, [key]: ms };
     });
     writeLocalBest(ns, nm, ms);
-  };
+  }, []);
   const [showCenter, setShowCenter] = useState(true);
   const [hearts, setHearts] = useState(3);
   const MAX_HEARTS = 3;
@@ -306,7 +316,16 @@ export function SchulteTableGame({
         setSaving(false);
       }
     })();
-  }, [seqIdx, sequence.length, status, size, mode, hearts, onComplete]);
+  }, [
+    seqIdx,
+    sequence.length,
+    status,
+    size,
+    mode,
+    hearts,
+    onComplete,
+    mergeBest,
+  ]);
 
   const handleClick = useCallback(
     async (cell: SCell, idx: number) => {

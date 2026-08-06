@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import type { RoundGame } from "../../lib/api";
 import {
-  GAME_BY_ID,
   GAME_REGISTRY,
   gameStageClass,
   type GameIconKey,
@@ -241,9 +240,4 @@ export function PlayArena({
       )}
     </>
   );
-}
-
-/** Runtime assertion used by tests/build audits. */
-export function hasRegisteredGameComponent(game: RoundGame): boolean {
-  return Boolean(GAME_COMPONENTS[game] && GAME_BY_ID[game]);
 }

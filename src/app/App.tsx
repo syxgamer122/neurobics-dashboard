@@ -6,7 +6,8 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { LangProvider, useLang } from "./lib/i18n";
+import { useLang } from "./lib/i18n";
+import { LangProvider } from "./lib/lang-provider";
 import { Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -232,8 +233,15 @@ function AppInner() {
 
   // Load the population baseline once a session is active. Failure is silent:
   // the seed distribution keeps the dial rendering. Khach: bo qua (khong co token).
+  // Gom ca ba dieu kien (co ho so / khong phai khach / id nao) vao MOT gia tri.
+  // Effect chi doc `popStatsKey`, nen deps liet ke dung nhung gi no dung —
+  // het canh bao exhaustive-deps ma hanh vi y het truoc: chay lai dung khi id
+  // doi hoac khi khach chuyen thanh tai khoan that.
+  const popStatsKey =
+    profile && !isGuestProfile(profile) ? (profile.id ?? null) : null;
+
   useEffect(() => {
-    if (!profile || isGuestProfile(profile)) return;
+    if (!popStatsKey) return;
     (async () => {
       try {
         setPopStats(await fetchPopulationStats());
@@ -241,7 +249,7 @@ function AppInner() {
         logError("Population stats unavailable, using seed baseline:", err);
       }
     })();
-  }, [profile?.id]);
+  }, [popStatsKey]);
 
   const submitBirthYear = async () => {
     const year = parseInt(birthYearInput, 10);
@@ -310,8 +318,18 @@ function AppInner() {
     sessionsThisMonth: 0,
   });
 
+  // Khoa nap lai: phai chay lai khi id doi HOAC khi total_xp doi (vua choi xong
+  // mot van thi thong ke hoat dong da cu). Truoc day deps liet ke
+  // `profile?.total_xp` nhung than ham lai doc `profile`, nen ESLint doi them ca
+  // object `profile` — ma them vao thi moi lan refreshProfile() se goi lai API
+  // du XP khong doi. Gop thanh mot chuoi la cach giu dung nhip cu.
+  const activityKey =
+    profile?.id && !isGuestProfile(profile)
+      ? `${profile.id}:${profile.total_xp ?? 0}`
+      : null;
+
   useEffect(() => {
-    if (!profile?.id || isGuestProfile(profile)) {
+    if (!activityKey) {
       setActivity({ xpToday: 0, sessionsThisMonth: 0 });
       return;
     }
@@ -319,7 +337,7 @@ function AppInner() {
     fetchActivityStats()
       .then(setActivity)
       .catch((err) => logError("Activity stats failed:", err));
-  }, [profile?.id, profile?.total_xp]);
+  }, [activityKey]);
 
   // Ho so la nguon su that: localStorage chi nho da xem huong dan, khong quyet
   // dinh trang thai hieu chuan. Tai khoan duoi 5 van luon thay thanh tien do.
