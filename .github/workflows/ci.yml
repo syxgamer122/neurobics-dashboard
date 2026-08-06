@@ -65,12 +65,12 @@ jobs:
           if-no-files-found: ignore
 
   edge-functions:
-    name: Edge Function typecheck (advisory)
+    name: Edge Function typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Advisory: khong chan merge. Deno 2 doc npm: qua node_modules khi thay
-    # pnpm-workspace.yaml — can install truoc, neu khong se bao thieu @supabase/*.
-    continue-on-error: true
+    # CHAN MERGE. Truoc day la advisory (continue-on-error) nen loi kieu o
+    # edge function — lop cham diem + chong gian lan — khong ai thay. Deno 2 doc
+    # npm: qua node_modules khi thay pnpm-workspace.yaml, nen phai install truoc.
     steps:
       - uses: actions/checkout@v4
 

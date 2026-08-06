@@ -12,9 +12,10 @@ import {
   speed,
   statSamples,
   type ScoredRound,
+  type Telemetry,
 } from "./core.ts";
 
-export function scoreNBack(t: any): ScoredRound {
+export function scoreNBack(t: Telemetry): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
   const n = int(t?.n, "n", 1, 9);
   const trials = int(t?.trials, "trials", 5, 200);
@@ -62,7 +63,7 @@ export function scoreNBack(t: any): ScoredRound {
 const GONOGO_TRIALS_MIN = 30;
 const GONOGO_TRIALS_MAX = 48;
 
-export function scoreGoNoGo(t: any): ScoredRound {
+export function scoreGoNoGo(t: Telemetry): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 8_000, 600_000);
   const trials = int(t?.trials, "trials", GONOGO_TRIALS_MIN, GONOGO_TRIALS_MAX);
   const goTrials = int(t?.goTrials, "goTrials", 1, GONOGO_TRIALS_MAX);
@@ -134,7 +135,7 @@ export function scoreGoNoGo(t: any): ScoredRound {
 const MENTAL_TRIALS_MIN = 20;
 const MENTAL_TRIALS_MAX = 32;
 
-export function scoreMentalRotation(t: any): ScoredRound {
+export function scoreMentalRotation(t: Telemetry): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 8_000, 600_000);
   const trials = int(t?.trials, "trials", MENTAL_TRIALS_MIN, MENTAL_TRIALS_MAX);
   const correct = int(t?.correct, "correct", 0, MENTAL_TRIALS_MAX);
@@ -207,7 +208,7 @@ export function scoreMentalRotation(t: any): ScoredRound {
 // chuoi co thoi luong co dinh — dong ho khong phai nhip cua nguoi choi.
 const CORSI_MAX_SPAN = 9;
 
-export function scoreCorsi(t: any): ScoredRound {
+export function scoreCorsi(t: Telemetry): ScoredRound {
   // Thua ngay chuoi dau (2 o) chi mat ~1s, nen san duoi phai thap.
   const timeMs = finite(t?.timeMs, "timeMs", 800, 7_200_000);
   const span = int(t?.span, "span", 0, CORSI_MAX_SPAN);
@@ -256,7 +257,7 @@ export function scoreCorsi(t: any): ScoredRound {
 const TRAIL_MIN_NODES = 12;
 const TRAIL_MAX_NODES = 40;
 
-export function scoreTrail(t: any): ScoredRound {
+export function scoreTrail(t: Telemetry): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 3_000, 900_000);
   const nodes = int(t?.nodes, "nodes", TRAIL_MIN_NODES, TRAIL_MAX_NODES);
   const wrongClicks = int(t?.wrongClicks, "wrongClicks", 0, 500);

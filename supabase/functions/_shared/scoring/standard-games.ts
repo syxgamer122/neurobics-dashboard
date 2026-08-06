@@ -14,6 +14,7 @@ import {
   speed,
   statSamples,
   type ScoredRound,
+  type Telemetry,
 } from "./core.ts";
 
 /**
@@ -107,7 +108,7 @@ const SUDOKU_TARGET: Record<string, number> = {
   Extreme: 1200000,
 };
 
-export function scoreSchulte(t: any): ScoredRound {
+export function scoreSchulte(t: Telemetry): ScoredRound {
   const cells = int(t?.cells, "cells", 9, 36);
   if (![9, 16, 25, 36].includes(cells)) throw new Error("Invalid Schulte size");
   const timeMs = finite(t?.timeMs, "timeMs", 100, 3_600_000);
@@ -161,7 +162,7 @@ export function scoreSchulte(t: any): ScoredRound {
     timeMs,
   };
 }
-export function scoreSudoku(t: any): ScoredRound {
+export function scoreSudoku(t: Telemetry): ScoredRound {
   const difficulty = String(t?.difficulty ?? "");
   if (!(difficulty in SUDOKU_DIFF))
     throw new Error("Invalid Sudoku difficulty");
@@ -232,7 +233,7 @@ export function scoreSudoku(t: any): ScoredRound {
 /** So cau chuan de hoan thanh mot van Stroop (khop TOTAL ben stroop-game.tsx). */
 const STROOP_TRIALS = 30;
 
-export function scoreStroop(t: any): ScoredRound {
+export function scoreStroop(t: Telemetry): ScoredRound {
   // totalStimuli = so lan stimulus da hien (dung + sai), khong con hardcode 20.
   const total = int(t?.totalStimuli, "totalStimuli", 1, 80);
   const wrong = int(t?.wrongClicks, "wrongClicks", 0, 20);
@@ -260,7 +261,7 @@ export function scoreStroop(t: any): ScoredRound {
   };
   return { axes, headline: headline(axes), label: "Stroop Test", timeMs };
 }
-export function scoreReaction(t: any): ScoredRound {
+export function scoreReaction(t: Telemetry): ScoredRound {
   // Client hien tai gui dung 10 mau. Cho 8-12 de tuong thich ban cu/moi.
   const rts = numberArray(t?.rts, "rts", 8, 12);
   const falseStarts = int(t?.falseStarts, "falseStarts", 0, 50);
@@ -281,7 +282,7 @@ export function scoreReaction(t: any): ScoredRound {
   };
   return { axes, headline: headline(axes), label: "Reaction Time", timeMs };
 }
-export function scoreMemory(t: any): ScoredRound {
+export function scoreMemory(t: Telemetry): ScoredRound {
   // Thua ngay cap 1 thi pha recall rat ngan; nguong 800ms cu lam van do bi
   // tu choi thay vi duoc cham 0.
   const timeMs = finite(t?.timeMs, "timeMs", 100, 7_200_000);
@@ -341,7 +342,7 @@ const MATH_LABEL: Record<string, string> = {
   hard: "Math Hard",
   adaptive: "Math Adaptive",
 };
-export function scoreMath(t: any): ScoredRound {
+export function scoreMath(t: Telemetry): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
   const difficulty = String(t?.difficulty ?? "medium");
   if (!(difficulty in MATH_DIFF)) throw new Error("Invalid math difficulty");
