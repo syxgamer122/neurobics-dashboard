@@ -64,7 +64,8 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
 
-      // Khoang 30 cho dang dung `any`. Warn de thay so luong, khong chan CI.
+      // Da don sach: 0 cho dung `any` trong src/ va tests/. Giu "warn" cho den
+      // khi het cac canh bao con lai roi nang ca cum len "error" mot the.
       "@typescript-eslint/no-explicit-any": "warn",
 
       // console.log lot len production la mui code; warn/error thi giu lai.
@@ -75,9 +76,21 @@ export default tseslint.config(
     },
   },
 
-  // Script chay bang Node: tools/, tests/*.mjs, file config o goc
+  // Script chay bang Node: tools/, tests/*.mjs, bo mo phong, file config o goc.
+  //
+  // `tests/sim-*.ts` la CLI harness chay bang `node --experimental-strip-types`,
+  // KHONG phai test cua vitest. Viec cua chung la in bang ket qua ra terminal,
+  // nen console.log o day la tinh nang chu khong phai mui code.
+  //
+  // Co tinh liet ke `sim-*` chu khong phai `tests/**/*.ts`: cac file *.test.ts
+  // van phai bi bat neu lo lot console.log (hien tai ca 10 file deu sach).
   {
-    files: ["tools/**/*.{js,mjs}", "tests/**/*.mjs", "*.config.{js,mjs,ts}"],
+    files: [
+      "tools/**/*.{js,mjs}",
+      "tests/**/*.mjs",
+      "tests/sim-*.ts",
+      "*.config.{js,mjs,ts}",
+    ],
     languageOptions: {
       globals: { ...globals.node },
     },

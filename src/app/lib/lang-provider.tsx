@@ -1,22 +1,10 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { vi } from "./i18n/vi";
-import { en } from "./i18n/en";
+// Tach khoi i18n.tsx cu — xem giai thich day du o `./i18n.ts`.
+//
+// File nay chi xuat DUY NHAT mot component, nho vay Vite Fast Refresh hoat dong
+// binh thuong: sua Provider thi chi component nay remount, khong reload trang.
 
-export type Lang = "vi" | "en";
-export type Translation = typeof vi;
-export const translations = { vi, en };
-
-type LangCtx = {
-  lang: Lang;
-  toggle: () => void;
-  t: Translation;
-};
-
-const Ctx = createContext<LangCtx>({
-  lang: "vi",
-  toggle: () => {},
-  t: vi,
-});
+import { useState, type ReactNode } from "react";
+import { LangContext, translations, type Lang } from "./i18n";
 
 function detectInitialLanguage(): Lang {
   try {
@@ -58,12 +46,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
     });
 
   return (
-    <Ctx.Provider value={{ lang, toggle, t: translations[lang] }}>
+    <LangContext.Provider value={{ lang, toggle, t: translations[lang] }}>
       {children}
-    </Ctx.Provider>
+    </LangContext.Provider>
   );
-}
-
-export function useLang() {
-  return useContext(Ctx);
 }

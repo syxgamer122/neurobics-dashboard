@@ -330,6 +330,15 @@ export function MathSprintGame({
     }, 220);
   };
 
+  // `answer` duoc tao lai moi lan render. Dua thang vao deps thi listener bi go
+  // ra / gan lai sau MOI render (lang phi, va co khe hoi mat phim); bo qua thi
+  // ESLint canh bao dung. Giu ban moi nhat trong ref: listener chi gan lai khi
+  // phase/idx doi, nhung luon goi dung phien ban `answer` hien tai.
+  const answerRef = useRef(answer);
+  useEffect(() => {
+    answerRef.current = answer;
+  });
+
   // Phím 1–4 chọn đáp án theo thứ tự hiển thị.
   useEffect(() => {
     if (phase !== "playing") return;
@@ -349,7 +358,7 @@ export function MathSprintGame({
       e.preventDefault();
       const p = problemsRef.current[idx];
       if (!p) return;
-      answer(p.choices[i]);
+      answerRef.current(p.choices[i]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

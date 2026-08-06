@@ -81,7 +81,15 @@ const QUEST_GAME_NAMES: Record<string, string> = {
  * hay "w_games_7" ngay trên giao diện. Hàm này dịch mã thành câu đọc được
  * từ chính cấu trúc mã, nên UI vẫn tử tế với mọi nhiệm vụ thêm sau này.
  */
-export function humanizeQuestCode(code: string, lang: "vi" | "en"): string {
+// Khong export: chi dung o dong ~166 trong chinh file nay, va de `export` thi
+// Fast Refresh phai reload ca trang moi lan sua QuestsPanel.
+//
+// CANH BAO NO KY THUAT: ham nay TRUNG TEN va trung muc dich voi
+// `humanizeQuestCode` trong `src/app/lib/quest-labels.ts` (ban o do moi la ban
+// duoc test boi tests/quest-labels.test.ts). Hai ban co the da lech nhau. Chua
+// gop lam mot o day vi gop la doi hanh vi hien thi, phai doi chieu tung mau
+// truoc — xem ghi chu cuoi phien.
+function humanizeQuestCode(code: string, lang: "vi" | "en"): string {
   const weekly = code.startsWith("w_");
   const body = code.replace(/^[qw]_/, "");
   const prefix = weekly ? (lang === "vi" ? "Tuần: " : "Weekly: ") : "";

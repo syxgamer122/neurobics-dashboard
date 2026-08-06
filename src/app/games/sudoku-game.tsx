@@ -38,7 +38,10 @@ class SupersededError extends Error {
   }
 }
 
-export function isSuperseded(e: unknown): boolean {
+// Khong export: chi dung trong file nay (dong ~233). De `export` thi Fast
+// Refresh cua Vite phai reload ca trang moi lan sua SudokuGame, vi file vua
+// xuat component vua xuat ham thuong.
+function isSuperseded(e: unknown): boolean {
   return (
     !!e &&
     typeof e === "object" &&
