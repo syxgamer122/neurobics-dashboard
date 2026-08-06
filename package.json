@@ -16,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run scan && pnpm run db:lint && pnpm run test:coverage && pnpm run test:sim",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run scan && pnpm run db:lint && pnpm run test:coverage && pnpm run test:sim",
     "test:coverage": "vitest run --coverage",
     "db:lint": "node tools/check-migrations.mjs",
     "db:normalize": "node tools/normalize-migrations.mjs",

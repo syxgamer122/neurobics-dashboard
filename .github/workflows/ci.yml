@@ -40,6 +40,9 @@ jobs:
       - name: Lint (ESLint + react-hooks)
         run: pnpm run lint
 
+      - name: Format check (Prettier)
+        run: pnpm run format:check
+
       - name: Static scan (i18n / constants / localStorage)
         run: pnpm run scan
 

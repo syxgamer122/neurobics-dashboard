@@ -1,54 +1,110 @@
 # CI
 
-Trước đây repo không có CI: mọi lỗi type, test đỏ hay build vỡ chỉ lộ ra sau khi đã deploy lên Vercel. Giờ mọi `push` vào `main` và mọi pull request đều phải đi qua đúng bộ kiểm tra bạn chạy ở máy.
+Mọi pull request và mọi push vào `main` đều chạy cùng bộ kiểm tra chất lượng. CI là lớp chặn trước khi Vercel hoặc Supabase nhận code.
 
 ## Workflow
 
-`.github/workflows/ci.yml` có hai job.
+`.github/workflows/ci.yml` có hai job và **cả hai đều chặn merge**.
 
-### Job `quality` (chặn merge)
+### Job `quality`
 
-| Bước | Lệnh | Chặn cái gì |
-|---|---|---|
-| Install | `pnpm install --frozen-lockfile` | `package.json` và `pnpm-lock.yaml` lệch nhau |
-| Typecheck | `pnpm run typecheck` | Lỗi TypeScript ở app **và** sudoku worker |
-| Static scan | `pnpm run scan` | 333 quy tắc nội bộ trong `tests/scan.mjs` (i18n thiếu key, hằng số lạc, localStorage trực tiếp…) |
-| Unit tests | `pnpm run test` | `tests/*.test.ts` (vitest) |
-| Simulation | `pnpm run test:sim` | Hồi quy cân bằng điểm / gameplay (`sim-client`, `sim-games`, `sim-audit`) |
-| Build | `pnpm run build:only` | Lỗi bundle mà typecheck không thấy |
+1. **Install** — `pnpm install --frozen-lockfile`
+   - Bắt `package.json` lệch `pnpm-lock.yaml`.
+2. **Typecheck** — `pnpm run typecheck`
+   - Kiểm tra app và Sudoku worker.
+3. **Lint** — `pnpm run lint`
+   - ESLint, React Hooks và Fast Refresh; `--max-warnings=0` nên một warning mới cũng làm CI đỏ.
+4. **Format check** — `pnpm run format:check`
+   - Chặn file chưa đúng Prettier.
+5. **Static scan** — `pnpm run scan`
+   - Kiểm tra i18n, hằng số, localStorage và các quy tắc riêng của repo.
+6. **Migration lint** — `pnpm run db:lint`
+   - Kiểm tra tên, thứ tự và lệnh SQL phá huỷ/rủi ro.
+7. **Unit tests + coverage** — `pnpm run test:coverage`
+   - Chạy Vitest và áp ngưỡng coverage trong `vitest.config.ts`.
+8. **Simulation** — `pnpm run test:sim`
+   - Chạy `sim-client`, `sim-games`, `sim-audit` trên logic thật.
+9. **Build** — `pnpm run build:only`
+   - Bắt lỗi bundle mà typecheck không thấy.
+10. **Coverage artifact**
+   - Upload thư mục `coverage` và giữ 14 ngày, kể cả khi một bước trước đó lỗi.
 
-Kết quả build được upload thành artifact `dist` (giữ 7 ngày) để tải về so sánh khi cần.
+### Job `edge-functions`
 
-### Job `edge-functions` (chỉ cảnh báo)
+Job này chạy:
 
-`deno check supabase/functions/server/index.ts` — bắt lỗi type của Edge Function, thứ mà `tsc` **không** kiểm tra (`tsconfig.json` đã exclude `supabase/`). Đặt `continue-on-error: true` vì Deno phải tải `npm:hono` qua mạng nên có thể flaky — báo để biết, không chặn merge.
+```bash
+deno check --node-modules-dir=auto supabase/functions/server/index.ts
+```
 
-## Chạy đúng bộ đó ở máy
+Nó kiểm tra Hono, Supabase client, scoring và anti-cheat trong runtime Deno — phần bị `tsconfig.json` của app loại trừ. Job đã bỏ `continue-on-error`, vì vậy lỗi Edge Function **chặn merge** như lỗi frontend.
+
+CI cài dependencies trước khi chạy Deno để Deno 2 đọc các import `npm:` qua workspace pnpm ổn định hơn.
+
+## Chạy cùng bộ kiểm tra ở máy
 
 ```bash
 pnpm run check
+pnpm run build
 ```
 
-Nếu lệnh này xanh thì CI xanh. Thói quen nên giữ: chạy trước khi commit, đừng đợi GitHub báo.
+`pnpm run check` hiện bao gồm typecheck, lint, Prettier, static scan, migration lint, coverage và simulation. `pnpm run build` typecheck lại rồi tạo bundle production.
 
-## Không cần secret nào
+Trước khi commit nên chạy:
 
-CI chỉ typecheck / test / build nên không cần secret. `VITE_TURNSTILE_SITE_KEY` dùng **test key cóng khai của Cloudflare** (`1x00000000000000000000AA`, luôn pass) — khóa thật chỉ cần ở Vercel.
+```bash
+pnpm run format
+pnpm run check
+pnpm run build
+```
+
+## CI không cần secret production
+
+Job chất lượng không gọi database thật. `VITE_TURNSTILE_SITE_KEY` trong workflow là test site key công khai của Cloudflare (`1x00000000000000000000AA`).
+
+Không đưa các giá trị sau vào workflow CI:
+
+- `EDGE_SERVICE_ROLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RECOVERY_HMAC_SECRET`
+- `TURNSTILE_SECRET_KEY` production
+
+Các secret deploy nằm trong GitHub Environment/Supabase Secrets và chỉ được workflow deploy sử dụng khi cần.
 
 ## Vì sao Vercel không thay được CI
 
-Vercel chỉ chạy `pnpm run build`. Nó không chạy test, không chạy simulation, và khi nó báo lỗi thì code đã nằm trên `main` rồi. CI là nơi chặn; Vercel là nơi nhận kết quả.
+Vercel chủ yếu build frontend. Nó không thay thế migration lint, coverage, simulation hoặc `deno check`. CI chặn lỗi trước; Vercel chỉ nhận commit đã qua kiểm tra.
 
 ## Xử lý sự cố
 
-**`ERR_PNPM_OUTDATED_LOCKFILE`** — bạn sửa `package.json` mà chưa cập nhật lockfile. Chạy `pnpm install` ở máy rồi commit cả `pnpm-lock.yaml`.
+### `ERR_PNPM_OUTDATED_LOCKFILE`
 
-**`test:sim` lỗi `Unknown option --experimental-strip-types`** — Node quá cũ. CI đã ghì Node 24; ở máy hãy dùng Node ≥ 22.6 (khuyến nghị 24).
+Bạn đã đổi dependency hoặc `package.json` nhưng chưa cập nhật lockfile:
 
-**Job `edge-functions` đỏ** — đọc log: nếu là lỗi mạng khi tải `npm:hono` thì bỏ qua, nếu là lỗi type thật thì sửa.
+```bash
+pnpm install
+```
 
-**Muốn bắt buộc CI xanh mới merge được** — GitHub → Settings → Branches → Add rule cho `main` → *Require status checks to pass* → chọn **Typecheck / scan / test / build**.
+Commit cả `package.json` và `pnpm-lock.yaml` nếu lockfile thay đổi.
 
-## Bước tiếp theo (để sau)
+### `format:check` đỏ
 
-Ba khuyết điểm còn lại chưa xử lý trong bản này: observability, migration chạy tay qua SQL Editor, độ phủ test hạn chế. Khi làm tiếp, mỗi thứ chỉ cần thêm một bước vào job `quality` (ví dụ `pnpm run db:lint`, `pnpm run test:coverage`) — khung CI đã sẵn.
+```bash
+pnpm run format
+pnpm run format:check
+```
+
+### `test:sim` báo không hiểu `--experimental-strip-types`
+
+Node quá cũ. Dùng Node >= 22.6; repo và CI khuyến nghị Node 24.
+
+### `edge-functions` đỏ
+
+Không bỏ qua. Mở log `deno check` và sửa lỗi type/import. Các import dạng `npm:hono@...` là đúng cho Deno; trên VS Code phải cài extension `denoland.vscode-deno` để editor hiểu chúng.
+
+### Bắt buộc CI xanh mới merge
+
+GitHub → Settings → Branches/Rulesets → bảo vệ `main` → bật **Require status checks to pass** và chọn:
+
+- `Typecheck / scan / test / build`
+- `Edge Function typecheck`

@@ -71,6 +71,9 @@ t("gan tran: (998, 1000)", M.pullUpRating(998, 1000), 1000);
 t("legacy prev: (4200, 600)", M.pullUpRating(4200, 600), 600);
 t("tang toi thieu 1: (900, 902)", M.pullUpRating(900, 902), 902);
 t("giam snap: (500, 497)", M.pullUpRating(500, 497), 497);
+t("NaN round giu nguyen rating", M.pullUpRating(500, Number.NaN), 500);
+t("bien snap tang khong dao chieu", M.pullUpRating(500, 504), 503);
+t("bien snap giam khong dao chieu", M.pullUpRating(500, 496), 497);
 
 console.log("\n===== decayRating (an han 7 ngay, san 35%) =====");
 t("idle 0", M.decayRating(800, 0), 800);

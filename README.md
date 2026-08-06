@@ -36,7 +36,7 @@ Mặc định mở ở `http://localhost:5173`.
 | Biến | Bắt buộc | Ghi chú |
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | ✅ | Dạng `https://<ref>.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | ✅ | Khoá anon, công khai theo thiết kế |
+| `VITE_SUPABASE_ANON_KEY` | ✅ | Khoá `sb_publishable_...` (khuyến nghị) hoặc anon JWT cũ; công khai theo thiết kế |
 | `VITE_TURNSTILE_SITE_KEY` | ✅ | Cloudflare Turnstile. Khoá test: `1x00000000000000000000AA` |
 | `VITE_TELEMETRY_ENDPOINT` | — | Ghi đè endpoint telemetry |
 | `VITE_TELEMETRY_SAMPLE` | — | Tỷ lệ lấy mẫu, `0`–`1` |
@@ -49,15 +49,22 @@ Thiếu hai biến đầu thì app **không** crash — nó hiện thông báo h
 
 | Biến | Bắt buộc | Ghi chú |
 | --- | --- | --- |
-| `SUPABASE_URL` | ✅ | |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | **Bí mật.** Chỉ tồn tại ở server |
+| `SUPABASE_URL` | ✅ | Supabase tự cấp trong Edge runtime |
+| `EDGE_SERVICE_ROLE_KEY` | ✅* | Khoá `sb_secret_...` mới; tự đặt trong Secrets |
+| `SUPABASE_SERVICE_ROLE_KEY` | fallback | Khoá service-role JWT cũ do Supabase tự cấp; không cần tự tạo |
 | `ALLOWED_ORIGINS` | ✅ | Danh sách origin, cách nhau bởi dấu phẩy |
 | `RECOVERY_HMAC_SECRET` | ✅ | Tối thiểu 32 ký tự |
 | `TURNSTILE_SECRET_KEY` | ✅ | Khoá bí mật phía server của Turnstile |
 | `ALLOW_LOCALHOST_ORIGINS` | — | Đặt `1` **chỉ khi chạy local** |
 
-> ⚠️ Không bao giờ commit `.env` hay `.env.local`. `.gitignore` đã chặn, nhưng
-> `ALLOW_LOCALHOST_ORIGINS=1` lỡ bật trên production sẽ mở CORS cho localhost.
+> \* Edge Function cần **một trong hai** khoá quản trị: ưu tiên
+> `EDGE_SERVICE_ROLE_KEY=sb_secret_...`, nếu không có thì code fallback về
+> `SUPABASE_SERVICE_ROLE_KEY` cũ. Supabase không cho tự tạo secret có tiền tố
+> `SUPABASE_`, vì vậy khoá mới phải dùng tên `EDGE_SERVICE_ROLE_KEY`.
+>
+> ⚠️ Không bao giờ đặt `sb_secret_...` vào biến bắt đầu bằng `VITE_`: mọi biến
+> `VITE_` được đóng vào JavaScript gửi xuống trình duyệt. Không commit `.env`
+> hay `.env.local`; và không bật `ALLOW_LOCALHOST_ORIGINS=1` trên production.
 
 ## Lệnh
 
@@ -167,7 +174,7 @@ Chi tiết: `docs/ci.md`.
 ## Bảo mật
 
 - **RLS bật trên toàn bộ 14 bảng**, không có policy nào cấp cho `anon`
-- `SUPABASE_SERVICE_ROLE_KEY` chỉ nằm trong Edge Function, không bao giờ ở frontend
+- `EDGE_SERVICE_ROLE_KEY` (`sb_secret_...`) hoặc service-role JWT cũ chỉ nằm trong Edge Function, không bao giờ ở frontend
 - Đăng ký có Turnstile + giới hạn tần suất theo IP
 - Mỗi vòng chơi cần một *ticket* do server phát; điểm được tính lại và kiểm tra
   chống gian lận ở server, không tin client

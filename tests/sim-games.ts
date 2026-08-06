@@ -1,14 +1,13 @@
 // Bo gia lap: chay THAT scoreAndValidate + inspectRound tren nhieu kich ban.
 
-// Cac ham cham diem duoc nap bang `await import()` DONG (specifier ghep chuoi)
-// nen TypeScript khong suy ra duoc kieu, tra ve `any`. De khong phai rai `any`
-// khap file, ta nhap RIENG PHAN KIEU bang `import type` — hai dong duoi bi xoa
-// sach luc bien dich nen khong dung den runtime, khong pha vo cach nap dong.
-//
-// `export {}` van giu lai: no la thu bao dam file duoc coi la MODULE that su
-// (top-level await hop le, bien `pass`/`fails` khong va cham voi file sim khac)
-// ke ca khi sau nay hai dong `import type` bi go bo.
-import type { ScoredRound } from "../supabase/functions/_shared/scoring/core.ts";
+// Dung specifier literal de TypeScript suy ra DUNG chu ky cua cac ham server.
+// Truoc day duong dan ghep `BASE + ...` lam ca module thanh `any` ngam: viet sai
+// game id hay tham so van qua typecheck. import type bi xoa sach luc chay, nen
+// bo mo phong van chay truc tiep bang Node --experimental-strip-types.
+import type {
+  Game,
+  ScoredRound,
+} from "../supabase/functions/_shared/scoring/core.ts";
 import type {
   CheatFlag,
   CheatReport,
@@ -16,12 +15,10 @@ import type {
 
 export {};
 
-const BASE = "../supabase/functions/_shared/";
-
-const { scoreAndValidate } = await import(BASE + "round-scoring.ts");
-const { inspectRound, hasHardFlag, softFlags } = await import(
-  BASE + "anticheat.ts"
-);
+const { scoreAndValidate } =
+  await import("../supabase/functions/_shared/round-scoring.ts");
+const { inspectRound, hasHardFlag, softFlags } =
+  await import("../supabase/functions/_shared/anticheat.ts");
 
 // RNG deterministic de ket qua on dinh giua cac lan chay.
 let seed = 12345;
@@ -72,7 +69,7 @@ type Expect = {
 type Case = {
   id: string;
   desc: string;
-  game: string;
+  game: Game;
   tel: Record<string, unknown>;
   elapsed: number;
   expect: Expect;

@@ -50,12 +50,10 @@ describe("clampRating", () => {
     }
   });
 
-  it("CHU Y: NaN di xuyen qua ma khong bi chan", () => {
-    // Day la hanh vi hien tai, khong phai mong muon. Ham nay tin rang dau vao
-    // da la so hop le. Moi cho goi no bang du lieu tu nguoi dung PHAI di qua
-    // sanitizeRating truoc. Test nay khoa hanh vi lai de neu sau nay ai sua
-    // cho NaN -> 0 thi se thay test do va biet minh dang doi hop dong.
-    expect(Number.isNaN(clampRating(NaN))).toBe(true);
+  it("chan moi gia tri khong huu han", () => {
+    expect(clampRating(NaN)).toBe(RATING_MIN);
+    expect(clampRating(Infinity)).toBe(RATING_MIN);
+    expect(clampRating(-Infinity)).toBe(RATING_MIN);
   });
 });
 
@@ -66,6 +64,9 @@ describe("clamp01", () => {
     expect(clamp01(0.33)).toBe(0.33);
     expect(clamp01(1)).toBe(1);
     expect(clamp01(2)).toBe(1);
+    expect(clamp01(NaN)).toBe(0);
+    expect(clamp01(Infinity)).toBe(0);
+    expect(clamp01(-Infinity)).toBe(0);
   });
 });
 
@@ -109,6 +110,20 @@ describe("applyRoundRating", () => {
     expect(applyRoundRating(500, 503)).toBe(503);
     expect(applyRoundRating(500, 497)).toBe(497);
     expect(applyRoundRating(999, 1000)).toBe(1000);
+  });
+
+  it("giu rating cu neu diem vong khong huu han", () => {
+    expect(applyRoundRating(500, NaN)).toBe(500);
+    expect(applyRoundRating(500, Infinity)).toBe(500);
+    expect(applyRoundRating(500, -Infinity)).toBe(500);
+    expect(applyRoundRating(null, NaN)).toBe(0);
+  });
+
+  it("khong dao chieu tai bien snap", () => {
+    expect(applyRoundRating(500, 503)).toBe(503);
+    expect(applyRoundRating(500, 504)).toBe(503);
+    expect(applyRoundRating(500, 496)).toBe(497);
+    expect(applyRoundRating(500, 497)).toBe(497);
   });
 
   it("keo len bang EMA_ALPHA, keo xuong bang EMA_ALPHA_DOWN", () => {

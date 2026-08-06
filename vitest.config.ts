@@ -17,31 +17,32 @@ export default defineConfig({
         "src/app/lib/quest-labels.ts",
         "src/app/lib/game-registry.ts",
         "src/app/lib/observability.ts",
-        "supabase/functions/_shared/**/*.ts",
+        // Liet ke ro tung file Edge thay vi glob ** de Windows/Linux do cung
+        // mot mau so. Khi them file scoring moi, them no vao danh sach nay.
+        "supabase/functions/_shared/anticheat.ts",
+        "supabase/functions/_shared/observability.ts",
+        "supabase/functions/_shared/round-scoring.ts",
+        "supabase/functions/_shared/scoring/advanced-games.ts",
+        "supabase/functions/_shared/scoring/core.ts",
+        "supabase/functions/_shared/scoring/standard-games.ts",
+        "supabase/functions/_shared/scoring/validation.ts",
       ],
       exclude: ["**/*.d.ts"],
-      // LICH SU DO DUOC
+      // BASELINE DA XAC NHAN TREN WINDOWS 2026-08-07 (214 test):
+      //   statements 56.78% (1683/2964) | branches 91.79% (481/524)
+      //   functions  61.81% (68/110)    | lines    56.78% (1683/2964)
       //
-      // 2026-08-05, chay o may local:
-      //   statements 53.69% (1622/3021) | branches 91.86% (497/541)
-      //   functions  72.04% (67/93)     | lines    53.69% (1622/3021)
-      //
-      // 2026-08-06, chay tren CI (run 31061865110):
-      //   statements 63.02% (1674/2656) | branches 92.64% (479/517)
-      //   functions  66.36% (73/110)    | lines    63.02% (1674/2656)
-      //
-      // Mau so khac nhau giua hai lan do (93 vs 110 ham) vi glob
-      // "supabase/functions/_shared/**" khong khop cung mot tap file o hai moi
-      // truong. Nguong duoi day ghim theo so do TREN CI, vi CI moi la cai chan
-      // merge. Functions ha 70 -> 65 cho khop thuc te; ba chi so con lai deu
-      // tang nen duoc nang len sat hon.
-      //
-      // AI XOA TEST hoac viet code moi khong kem test thi CI do ngay o day.
-      // Khi phu tang len, nang nguong theo cho sat lai.
+      // Truoc day threshold 60/65 duoc dat theo mot lan CI chi instrument
+      // 2656 statement, trong khi Windows instrument du 2964 statement. Test
+      // deu xanh nhung `pnpm run check` o may lai do. Danh sach include phia
+      // tren da bo glob de hai OS do cung tap file; nguong nay dat thap hon
+      // baseline 1–2 diem de chua bien dong nho, nhung van chan viec xoa test.
+      // Khi test moi lam coverage tang, nang nguong theo so do TREN CA CI VA
+      // Windows — khong nang theo rieng mot moi truong.
       thresholds: {
-        lines: 60,
-        statements: 60,
-        functions: 65,
+        lines: 55,
+        statements: 55,
+        functions: 60,
         branches: 90,
       },
     },

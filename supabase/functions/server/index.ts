@@ -134,11 +134,21 @@ app.use(
 // sb_secret_ moi phai mang ten rieng la EDGE_SERVICE_ROLE_KEY. Van fallback
 // ve bien tu dong de `supabase functions serve` chay o local khong can them
 // cau hinh gi.
-const adminClient = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("EDGE_SERVICE_ROLE_KEY") ??
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-);
+const ADMIN_SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.trim();
+const ADMIN_SERVICE_KEY =
+  Deno.env.get("EDGE_SERVICE_ROLE_KEY")?.trim() ||
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+
+if (!ADMIN_SUPABASE_URL) {
+  throw new Error("Missing required Edge Function secret: SUPABASE_URL");
+}
+if (!ADMIN_SERVICE_KEY) {
+  throw new Error(
+    "Missing Edge admin key: set EDGE_SERVICE_ROLE_KEY (sb_secret_) or use the legacy SUPABASE_SERVICE_ROLE_KEY",
+  );
+}
+
+const adminClient = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_KEY);
 
 const SESSION_COLUMNS = GAME_IDS.map((game) => `${game}_sessions` as const);
 const SESSION_SELECT = SESSION_COLUMNS.join(", ");
