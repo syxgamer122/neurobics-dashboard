@@ -144,7 +144,16 @@ export function SchulteTableGame({
       if (cur != null && cur <= ms) return prev;
       return { ...prev, [key]: ms };
     });
-    writeLocalBest(ns, nm, ms);
+    // BUG cu: dong nay chay VO DIEU KIEN, nam ngoai updater. State React thi
+    // tu choi dung thoi gian cham hon, nhung localStorage van bi ghi de — nen
+    // sau khi tai lai trang, ky luc that bi thay bang van cham nhat vua choi.
+    // Do bang mo phong: 164/200 luot mat ky luc. Khach/offline mat vinh vien
+    // vi khong co ban server de sua lai.
+    //
+    // Khong the chuyen writeLocalBest vao trong updater: updater phai thuan,
+    // va o StrictMode no chay hai lan. Nen doc thang cache roi so.
+    const cached = readLocalBest(ns, nm);
+    if (cached == null || ms < cached) writeLocalBest(ns, nm, ms);
   }, []);
   const [showCenter, setShowCenter] = useState(true);
   const [hearts, setHearts] = useState(3);
