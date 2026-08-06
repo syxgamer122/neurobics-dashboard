@@ -1,10 +1,19 @@
 // Bo gia lap: chay THAT scoreAndValidate + inspectRound tren nhieu kich ban.
 
-// File nay chi dung `await import()` dong, khong co import/export tinh nao.
-// Voi ES module spec, file nhu vay bi coi la SCRIPT chay o pham vi toan cuc
-// chu khong phai module => top-level await bi cam, va cac bien `pass`/`fails`
-// se va cham voi file sim khac. Dong `export {}` duoi day bien no thanh
-// module that su. Khong doi hanh vi luc chay, chi de tsc hieu dung.
+// Cac ham cham diem duoc nap bang `await import()` DONG (specifier ghep chuoi)
+// nen TypeScript khong suy ra duoc kieu, tra ve `any`. De khong phai rai `any`
+// khap file, ta nhap RIENG PHAN KIEU bang `import type` — hai dong duoi bi xoa
+// sach luc bien dich nen khong dung den runtime, khong pha vo cach nap dong.
+//
+// `export {}` van giu lai: no la thu bao dam file duoc coi la MODULE that su
+// (top-level await hop le, bien `pass`/`fails` khong va cham voi file sim khac)
+// ke ca khi sau nay hai dong `import type` bi go bo.
+import type { ScoredRound } from "../supabase/functions/_shared/scoring/core.ts";
+import type {
+  CheatFlag,
+  CheatReport,
+} from "../supabase/functions/_shared/anticheat.ts";
+
 export {};
 
 const BASE = "../supabase/functions/_shared/";
@@ -35,13 +44,13 @@ type Expect = {
   reject?: boolean;
   hardFlag?: boolean;
   softFlagContains?: string;
-  check?: (s: any) => string | null; // tra ve chuoi loi, null = dat
+  check?: (s: ScoredRound) => string | null; // tra ve chuoi loi, null = dat
 };
 type Case = {
   id: string;
   desc: string;
   game: string;
-  tel: any;
+  tel: Record<string, unknown>;
   elapsed: number;
   expect: Expect;
 };
@@ -885,12 +894,12 @@ let pass = 0;
 const fails: string[] = [];
 
 for (const c of cases) {
-  let scored: any = null;
+  let scored: ScoredRound | null = null;
   let err: string | null = null;
   try {
     scored = scoreAndValidate(c.game, c.tel, c.elapsed);
-  } catch (e: any) {
-    err = String(e?.message ?? e);
+  } catch (e) {
+    err = e instanceof Error ? e.message : String(e);
   }
 
   const problems: string[] = [];
@@ -901,12 +910,14 @@ for (const c of cases) {
     if (err) problems.push(`bi tu choi ngoai y muon: ${err}`);
   }
 
-  let report: any = null;
+  let report: CheatReport | null = null;
   if (!err) {
     try {
       report = inspectRound(c.game, c.tel, c.elapsed);
-    } catch (e: any) {
-      problems.push(`inspectRound nem loi: ${e?.message ?? e}`);
+    } catch (e) {
+      problems.push(
+        `inspectRound nem loi: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -917,26 +928,26 @@ for (const c of cases) {
     if (c.expect.hardFlag === false && hard)
       problems.push(
         `hard flag ngoai y muon: ${report.flags
-          .filter((f: any) => f.severity === "hard")
-          .map((f: any) => f.msg)
+          .filter((f: CheatFlag) => f.severity === "hard")
+          .map((f: CheatFlag) => f.msg)
           .join("; ")}`,
       );
     if (c.expect.softFlagContains) {
-      const found = softFlags(report).some((f: any) =>
+      const found = softFlags(report).some((f: CheatFlag) =>
         f.msg.includes(c.expect.softFlagContains!),
       );
       if (!found)
         problems.push(
           `thieu soft flag chua "${c.expect.softFlagContains}" (co: ${
             softFlags(report)
-              .map((f: any) => f.msg)
+              .map((f: CheatFlag) => f.msg)
               .join("; ") || "khong co"
           })`,
         );
     }
   }
 
-  if (!err && c.expect.check) {
+  if (!err && c.expect.check && scored) {
     const msg = c.expect.check(scored);
     if (msg) problems.push(msg);
   }
@@ -948,8 +959,9 @@ for (const c of cases) {
         .join(" ")
     : "-";
   const flagStr = report
-    ? report.flags.map((f: any) => `[${f.severity}] ${f.msg}`).join(" | ") ||
-      "sach"
+    ? report.flags
+        .map((f: CheatFlag) => `[${f.severity}] ${f.msg}`)
+        .join(" | ") || "sach"
     : "-";
 
   if (problems.length === 0) {
