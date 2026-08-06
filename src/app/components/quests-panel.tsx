@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useLang } from "../lib/i18n";
 import { claimQuest, fetchDailyQuests, type DailyQuest } from "../lib/api";
 import { logError } from "../lib/logger";
+import { resolveQuestLabel } from "../lib/quest-labels";
 
 // Tiến độ do Postgres tính từ training_sessions theo giờ Việt Nam.
 // 3 daily xoay mỗi ngày + 3 weekly; client chỉ hiển thị và xin nhận thưởng.
@@ -14,122 +15,6 @@ const panelStyle: React.CSSProperties = {
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
-
-const QUEST_TXT: Record<string, { vi: string; en: string }> = {
-  q_rounds_3: { vi: "Khởi động: chơi 3 ván", en: "Warm up: play 3 rounds" },
-  q_rounds_5: { vi: "Chơi 5 ván hôm nay", en: "Play 5 rounds today" },
-  q_rounds_7: { vi: "Bền bỉ: chơi 7 ván", en: "Endurance: play 7 rounds" },
-  q_score_600: { vi: "Đạt 600+ trong một ván", en: "Score 600+ in one round" },
-  q_score_750_2: { vi: "Đạt 750+ trong 2 ván", en: "Score 750+ in 2 rounds" },
-  q_score_850: { vi: "Đạt 850+ trong một ván", en: "Score 850+ in one round" },
-  q_games_2: { vi: "Chơi 2 trò khác nhau", en: "Play 2 different games" },
-  q_games_3: { vi: "Chơi 3 trò khác nhau", en: "Play 3 different games" },
-  q_games_4: { vi: "Chơi 4 trò khác nhau", en: "Play 4 different games" },
-  q_play_schulte_2: { vi: "Chơi Schulte 2 ván", en: "Play 2 Schulte rounds" },
-  q_play_sudoku_2: { vi: "Chơi Sudoku 2 ván", en: "Play 2 Sudoku rounds" },
-  q_play_stroop_2: { vi: "Chơi Stroop 2 ván", en: "Play 2 Stroop rounds" },
-  q_play_reaction_2: {
-    vi: "Chơi Reaction 2 ván",
-    en: "Play 2 Reaction rounds",
-  },
-  q_play_memory_2: { vi: "Chơi Memory 2 ván", en: "Play 2 Memory rounds" },
-  q_play_nback_2: { vi: "Chơi N-Back 2 ván", en: "Play 2 N-Back rounds" },
-  q_play_math_2: {
-    vi: "Chơi Math Sprint 2 ván",
-    en: "Play 2 Math Sprint rounds",
-  },
-  q_play_gonogo_2: {
-    vi: "Chơi Go / No-Go 2 ván",
-    en: "Play 2 Go / No-Go rounds",
-  },
-  q_play_mental_2: {
-    vi: "Chơi Mental Rotation 2 ván",
-    en: "Play 2 Mental Rotation rounds",
-  },
-  w_rounds_25: {
-    vi: "Tuần: hoàn thành 25 ván",
-    en: "Weekly: finish 25 rounds",
-  },
-  w_games_7: {
-    vi: "Tuần: chơi 7 trò khác nhau",
-    en: "Weekly: play 7 different games",
-  },
-  w_score_800_5: { vi: "Tuần: 5 ván đạt 800+", en: "Weekly: 5 rounds at 800+" },
-  w_score_900_3: {
-    vi: "Tuần elite: 3 ván đạt 900+",
-    en: "Elite week: 3 rounds at 900+",
-  },
-};
-
-// Tên game dùng cho nhãn dự phòng. Giữ tại chỗ để panel không bao giờ vỡ
-// nếu Postgres phát một mã nhiệm vụ mới trước khi bản dịch kịp lên.
-const QUEST_GAME_NAMES: Record<string, string> = {
-  schulte: "Schulte",
-  sudoku: "Sudoku",
-  stroop: "Stroop",
-  reaction: "Reaction",
-  memory: "Memory",
-  nback: "N-Back",
-  math: "Math Sprint",
-  gonogo: "Go / No-Go",
-  mental: "Mental Rotation",
-};
-
-/**
- * Nhãn dự phòng khi một mã nhiệm vụ chưa có trong QUEST_TXT.
- * Trước đây fallback là chính mã thô, nên người chơi nhìn thấy "q_rounds_5"
- * hay "w_games_7" ngay trên giao diện. Hàm này dịch mã thành câu đọc được
- * từ chính cấu trúc mã, nên UI vẫn tử tế với mọi nhiệm vụ thêm sau này.
- */
-// Khong export: chi dung o dong ~166 trong chinh file nay, va de `export` thi
-// Fast Refresh phai reload ca trang moi lan sua QuestsPanel.
-//
-// CANH BAO NO KY THUAT: ham nay TRUNG TEN va trung muc dich voi
-// `humanizeQuestCode` trong `src/app/lib/quest-labels.ts` (ban o do moi la ban
-// duoc test boi tests/quest-labels.test.ts). Hai ban co the da lech nhau. Chua
-// gop lam mot o day vi gop la doi hanh vi hien thi, phai doi chieu tung mau
-// truoc — xem ghi chu cuoi phien.
-function humanizeQuestCode(code: string, lang: "vi" | "en"): string {
-  const weekly = code.startsWith("w_");
-  const body = code.replace(/^[qw]_/, "");
-  const prefix = weekly ? (lang === "vi" ? "Tuần: " : "Weekly: ") : "";
-
-  let text: string | null = null;
-  let m: RegExpMatchArray | null;
-
-  if ((m = body.match(/^rounds_(\d+)$/))) {
-    text = lang === "vi" ? `chơi ${m[1]} ván` : `play ${m[1]} rounds`;
-  } else if ((m = body.match(/^score_(\d+)_(\d+)$/))) {
-    text =
-      lang === "vi"
-        ? `đạt ${m[1]}+ trong ${m[2]} ván`
-        : `score ${m[1]}+ in ${m[2]} rounds`;
-  } else if ((m = body.match(/^score_(\d+)$/))) {
-    text =
-      lang === "vi"
-        ? `đạt ${m[1]}+ trong một ván`
-        : `score ${m[1]}+ in one round`;
-  } else if ((m = body.match(/^games_(\d+)$/))) {
-    text =
-      lang === "vi"
-        ? `chơi ${m[1]} trò khác nhau`
-        : `play ${m[1]} different games`;
-  } else if ((m = body.match(/^play_([a-z]+)_(\d+)$/))) {
-    const game = QUEST_GAME_NAMES[m[1]] ?? m[1];
-    text =
-      lang === "vi"
-        ? `chơi ${game} ${m[2]} ván`
-        : `play ${m[2]} ${game} rounds`;
-  }
-
-  if (!text) {
-    // Mã hoàn toàn lạ: ít nhất cũng bỏ gạch dưới thay vì phơi mã kỹ thuật.
-    text = body.replace(/_/g, " ");
-  }
-
-  const label = prefix + text;
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
 
 const TXT = {
   vi: {
@@ -170,8 +55,13 @@ function QuestRow({
   const s = TXT[lang];
   const pct = Math.min(100, (quest.progress / Math.max(1, quest.goal)) * 100);
   const ready = quest.progress >= quest.goal && !quest.claimed;
-  const label =
-    QUEST_TXT[quest.code]?.[lang] ?? humanizeQuestCode(quest.code, lang);
+  // Mot nguon duy nhat cho nhan nhiem vu: resolveQuestLabel tra cuu
+  // QUEST_LABELS roi moi humanize, dung thu tu ma lib da dinh nghia va
+  // tests/quest-labels.test.ts da khoa. Truoc day panel giu ban sao rieng
+  // cua ca bang nhan lan ham humanize; ban sao do lech 50/250 phep thu:
+  // thieu corsi + trail nen hien id tho, tra chuoi rong voi ma "q_", va
+  // NEM TypeError neu RPC tra code null.
+  const label = resolveQuestLabel(quest.code, lang);
 
   return (
     <div
