@@ -61,7 +61,15 @@ function QuestRow({
   // cua ca bang nhan lan ham humanize; ban sao do lech 50/250 phep thu:
   // thieu corsi + trail nen hien id tho, tra chuoi rong voi ma "q_", va
   // NEM TypeError neu RPC tra code null.
-  const label = resolveQuestLabel(quest.code, lang);
+  // Uu tien 1: nhan do server viet (title_vi/title_en tu migration 20260828)
+  // — doi ten nhiem vu trong database la giao dien doi theo, khoi build lai.
+  // Thu tu day du (server -> QUEST_LABELS -> humanize -> "Nhiem vu") da duoc
+  // tests/quest-labels.test.ts khoa san (xem nhom "thu tu uu tien").
+  const label = resolveQuestLabel(
+    quest.code,
+    lang,
+    lang === "vi" ? quest.title_vi : quest.title_en,
+  );
 
   return (
     <div
