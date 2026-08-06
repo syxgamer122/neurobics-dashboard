@@ -1,10 +1,19 @@
 // Bo gia lap: chay THAT scoreAndValidate + inspectRound tren nhieu kich ban.
 
-// File nay chi dung `await import()` dong, khong co import/export tinh nao.
-// Voi ES module spec, file nhu vay bi coi la SCRIPT chay o pham vi toan cuc
-// chu khong phai module => top-level await bi cam, va cac bien `pass`/`fails`
-// se va cham voi file sim khac. Dong `export {}` duoi day bien no thanh
-// module that su. Khong doi hanh vi luc chay, chi de tsc hieu dung.
+// Cac ham cham diem duoc nap bang `await import()` DONG (specifier ghep chuoi)
+// nen TypeScript khong suy ra duoc kieu, tra ve `any`. De khong phai rai `any`
+// khap file, ta nhap RIENG PHAN KIEU bang `import type` — hai dong duoi bi xoa
+// sach luc bien dich nen khong dung den runtime, khong pha vo cach nap dong.
+//
+// `export {}` van giu lai: no la thu bao dam file duoc coi la MODULE that su
+// (top-level await hop le, bien `pass`/`fails` khong va cham voi file sim khac)
+// ke ca khi sau nay hai dong `import type` bi go bo.
+import type { ScoredRound } from "../supabase/functions/_shared/scoring/core.ts";
+import type {
+  CheatFlag,
+  CheatReport,
+} from "../supabase/functions/_shared/anticheat.ts";
+
 export {};
 
 const BASE = "../supabase/functions/_shared/";
@@ -31,17 +40,40 @@ function rts(n: number, center: number, spread = 0.28): number[] {
 }
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 
+/**
+ * Doc mot truc BAT BUOC phai co diem.
+ *
+ * Kieu that cua `axes` la `number | null` vi moi game chi cham vai truc lien
+ * quan (Schulte khong cham logic, Sudoku khong cham speed...). Tai cac case
+ * duoi day thi truc dang doc chac chan duoc cham, nen ta khang dinh dieu do
+ * bang mot ham NEM LOI chu khong bang `!`:
+ *
+ * - `s.axes.speed!` neu sau nay game ngung cham truc do se im lang tro thanh
+ *   `null > 400` = false, bo sim bao FAIL voi thong bao vo nghia "speed=null".
+ * - `ax(s, "speed")` thi dung ngay tai cho, chi ro truc nao hong.
+ *
+ * Cac cho co chu y kiem tra truc PHAI bang null (vd. Corsi khong cham speed)
+ * van doc thang `s.axes.speed === null` — do la khang dinh khac han.
+ */
+function ax(s: ScoredRound, key: keyof ScoredRound["axes"]): number {
+  const v = s.axes[key];
+  if (v === null) {
+    throw new Error(`truc "${key}" khong duoc cham diem trong van nay`);
+  }
+  return v;
+}
+
 type Expect = {
   reject?: boolean;
   hardFlag?: boolean;
   softFlagContains?: string;
-  check?: (s: any) => string | null; // tra ve chuoi loi, null = dat
+  check?: (s: ScoredRound) => string | null; // tra ve chuoi loi, null = dat
 };
 type Case = {
   id: string;
   desc: string;
   game: string;
-  tel: any;
+  tel: Record<string, unknown>;
   elapsed: number;
   expect: Expect;
 };
@@ -59,7 +91,7 @@ const cases: Case[] = [];
     elapsed: sum(r) + 2000,
     expect: {
       check: (s) =>
-        s.axes.speed > 100 && s.axes.spatial > 50 && !/failed/.test(s.label)
+        ax(s, "speed") > 100 && ax(s, "spatial") > 50 && !/failed/.test(s.label)
           ? null
           : `speed=${s.axes.speed} spatial=${s.axes.spatial} label=${s.label}`,
     },
@@ -84,7 +116,7 @@ const cases: Case[] = [];
     elapsed: sum(r) + 3000,
     expect: {
       check: (s) =>
-        s.axes.speed > 200 && s.axes.logic > 400 && s.label === "Easy"
+        ax(s, "speed") > 200 && ax(s, "logic") > 400 && s.label === "Easy"
           ? null
           : `speed=${s.axes.speed} logic=${s.axes.logic} label=${s.label}`,
     },
@@ -100,7 +132,7 @@ const cases: Case[] = [];
     elapsed: sum(r) + 4000,
     expect: {
       check: (s) =>
-        s.axes.speed > 300 && s.axes.focus > 300
+        ax(s, "speed") > 300 && ax(s, "focus") > 300
           ? null
           : `speed=${s.axes.speed} focus=${s.axes.focus}`,
     },
@@ -115,7 +147,7 @@ const cases: Case[] = [];
     tel: { rts: r, falseStarts: 0, timeMs: sum(r) },
     elapsed: 40000,
     expect: {
-      check: (s) => (s.axes.speed > 500 ? null : `speed=${s.axes.speed}`),
+      check: (s) => (ax(s, "speed") > 500 ? null : `speed=${s.axes.speed}`),
     },
   });
 }
@@ -127,7 +159,7 @@ cases.push({
   elapsed: 90000,
   expect: {
     check: (s) =>
-      s.axes.memory > 200 && s.label === "Level 6"
+      ax(s, "memory") > 200 && s.label === "Level 6"
         ? null
         : `memory=${s.axes.memory} label=${s.label}`,
   },
@@ -150,7 +182,7 @@ cases.push({
     elapsed: 65000,
     expect: {
       check: (s) =>
-        s.axes.memory > 300 && s.axes.speed !== null
+        ax(s, "memory") > 300 && s.axes.speed !== null
           ? null
           : `memory=${s.axes.memory} speed=${s.axes.speed}`,
     },
@@ -173,7 +205,7 @@ cases.push({
     elapsed: sum(r) + 2000,
     expect: {
       check: (s) =>
-        s.axes.logic > 400 && s.axes.speed !== null
+        ax(s, "logic") > 400 && s.axes.speed !== null
           ? null
           : `logic=${s.axes.logic} speed=${s.axes.speed}`,
     },
@@ -202,7 +234,7 @@ cases.push({
     expect: {
       hardFlag: false,
       check: (s) =>
-        s.axes.focus > 500 && s.axes.speed > 500 && s.label === "Go / No-Go"
+        ax(s, "focus") > 500 && ax(s, "speed") > 500 && s.label === "Go / No-Go"
           ? null
           : `focus=${s.axes.focus} speed=${s.axes.speed} label=${s.label}`,
     },
@@ -232,8 +264,8 @@ cases.push({
     expect: {
       hardFlag: false,
       check: (s) =>
-        s.axes.spatial > 600 &&
-        s.axes.speed > 500 &&
+        ax(s, "spatial") > 600 &&
+        ax(s, "speed") > 500 &&
         s.label === "Mental Rotation"
           ? null
           : `spatial=${s.axes.spatial} speed=${s.axes.speed} label=${s.label}`,
@@ -281,7 +313,7 @@ cases.push({
     expect: {
       // completion = 3/20 = 0.15
       check: (s) =>
-        s.axes.speed < 200 && s.axes.focus < 150
+        ax(s, "speed") < 200 && ax(s, "focus") < 150
           ? null
           : `speed=${s.axes.speed} focus=${s.axes.focus} (phai thap)`,
     },
@@ -332,7 +364,7 @@ cases.push({
     expect: {
       reject: false,
       hardFlag: false,
-      check: (s) => (s.axes.speed > 400 ? null : `speed=${s.axes.speed}`),
+      check: (s) => (ax(s, "speed") > 400 ? null : `speed=${s.axes.speed}`),
     },
   });
 }
@@ -457,7 +489,7 @@ cases.push({
     // nay doi tu 520 sang 680. Y nghia khong doi: van phai bi ha han so voi
     // nhan Extreme (logic 980 neu de that dung la Extreme).
     check: (s) =>
-      s.axes.logic <= 680
+      ax(s, "logic") <= 680
         ? null
         : `logic=${s.axes.logic} — he so kho chua bi ha`,
   },
@@ -522,7 +554,7 @@ cases.push({
   elapsed: 60000,
   expect: {
     reject: false,
-    check: (s) => (s.axes.memory > 100 ? null : `memory=${s.axes.memory}`),
+    check: (s) => (ax(s, "memory") > 100 ? null : `memory=${s.axes.memory}`),
   },
 });
 cases.push({
@@ -656,8 +688,8 @@ cases.push({
     expect: {
       hardFlag: false,
       check: (s) =>
-        s.axes.memory > 450 &&
-        s.axes.spatial > 400 &&
+        ax(s, "memory") > 450 &&
+        ax(s, "spatial") > 400 &&
         s.axes.speed === null &&
         s.axes.focus === null &&
         s.label === "Span 6"
@@ -684,7 +716,7 @@ cases.push({
     expect: {
       hardFlag: false,
       check: (s) =>
-        s.axes.speed > 400 && s.axes.focus > 400 && s.label === "Trail B"
+        ax(s, "speed") > 400 && ax(s, "focus") > 400 && s.label === "Trail B"
           ? null
           : `speed=${s.axes.speed} focus=${s.axes.focus} label=${s.label}`,
     },
@@ -834,7 +866,7 @@ cases.push({
   elapsed: 40000,
   expect: {
     check: (s) =>
-      s.axes.speed < 1000 && s.axes.speed > 900
+      ax(s, "speed") < 1000 && ax(s, "speed") > 900
         ? null
         : `speed=${s.axes.speed} — phai nam trong (900, 1000)`,
   },
@@ -853,7 +885,7 @@ cases.push({
   elapsed: 90000,
   expect: {
     check: (s) =>
-      s.axes.speed < 1000 && s.axes.speed > 850
+      ax(s, "speed") < 1000 && ax(s, "speed") > 850
         ? null
         : `speed=${s.axes.speed} — phai nam trong (850, 1000)`,
   },
@@ -885,12 +917,12 @@ let pass = 0;
 const fails: string[] = [];
 
 for (const c of cases) {
-  let scored: any = null;
+  let scored: ScoredRound | null = null;
   let err: string | null = null;
   try {
     scored = scoreAndValidate(c.game, c.tel, c.elapsed);
-  } catch (e: any) {
-    err = String(e?.message ?? e);
+  } catch (e) {
+    err = e instanceof Error ? e.message : String(e);
   }
 
   const problems: string[] = [];
@@ -901,12 +933,14 @@ for (const c of cases) {
     if (err) problems.push(`bi tu choi ngoai y muon: ${err}`);
   }
 
-  let report: any = null;
+  let report: CheatReport | null = null;
   if (!err) {
     try {
       report = inspectRound(c.game, c.tel, c.elapsed);
-    } catch (e: any) {
-      problems.push(`inspectRound nem loi: ${e?.message ?? e}`);
+    } catch (e) {
+      problems.push(
+        `inspectRound nem loi: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -917,26 +951,26 @@ for (const c of cases) {
     if (c.expect.hardFlag === false && hard)
       problems.push(
         `hard flag ngoai y muon: ${report.flags
-          .filter((f: any) => f.severity === "hard")
-          .map((f: any) => f.msg)
+          .filter((f: CheatFlag) => f.severity === "hard")
+          .map((f: CheatFlag) => f.msg)
           .join("; ")}`,
       );
     if (c.expect.softFlagContains) {
-      const found = softFlags(report).some((f: any) =>
+      const found = softFlags(report).some((f: CheatFlag) =>
         f.msg.includes(c.expect.softFlagContains!),
       );
       if (!found)
         problems.push(
           `thieu soft flag chua "${c.expect.softFlagContains}" (co: ${
             softFlags(report)
-              .map((f: any) => f.msg)
+              .map((f: CheatFlag) => f.msg)
               .join("; ") || "khong co"
           })`,
         );
     }
   }
 
-  if (!err && c.expect.check) {
+  if (!err && c.expect.check && scored) {
     const msg = c.expect.check(scored);
     if (msg) problems.push(msg);
   }
@@ -948,8 +982,9 @@ for (const c of cases) {
         .join(" ")
     : "-";
   const flagStr = report
-    ? report.flags.map((f: any) => `[${f.severity}] ${f.msg}`).join(" | ") ||
-      "sach"
+    ? report.flags
+        .map((f: CheatFlag) => `[${f.severity}] ${f.msg}`)
+        .join(" | ") || "sach"
     : "-";
 
   if (problems.length === 0) {

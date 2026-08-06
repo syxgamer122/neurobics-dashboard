@@ -35,7 +35,20 @@ const TIER_LABEL: Record<TierId, string> = {
 // Nguoi yeu co nhip bam that thuong hon nguoi manh — anh huong that den Focus.
 const SPREAD: Record<TierId, number> = { YEU: 0.38, TB: 0.28, MANH: 0.2 };
 
-type Trial = { game: string; tier: TierId; tel: any };
+/**
+ * Telemetry gia lap. Chi 4 truong duoi day duoc doc TRUC TIEP trong file nay
+ * (de tinh `elapsed`); phan con lai chuyen thang cho scoreAndValidate nen de
+ * `unknown` — muon dung phai ep kieu mot cach co y thuc.
+ */
+type SimTelemetry = {
+  timeMs: number;
+  rts?: number[];
+  moveRts?: number[];
+  hitRts?: number[];
+  [field: string]: unknown;
+};
+
+type Trial = { game: string; tier: TierId; tel: SimTelemetry };
 const trials: Trial[] = [];
 const add = (t: Trial) => trials.push(t);
 
@@ -303,7 +316,7 @@ for (const t of trials) {
     Math.max(t.tel.timeMs, rtsLen, moveLen, hitLen) + 20000,
   );
   try {
-    const s = scoreAndValidate(t.game as any, t.tel, elapsed);
+    const s = scoreAndValidate(t.game, t.tel, elapsed);
     rows.push({
       game: t.game,
       tier: t.tier,
@@ -478,7 +491,7 @@ for (const t of ceilingTrials) {
     Math.max(t.tel.timeMs, rtsLen, moveLen, hitLen) + 20000,
   );
   try {
-    const s = scoreAndValidate(t.game as any, t.tel, elapsed);
+    const s = scoreAndValidate(t.game, t.tel, elapsed);
     console.log(
       pad(t.game, 10) +
         AXES.map((a) => padL(cell(s.axes[a]), 6)).join("") +

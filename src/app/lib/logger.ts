@@ -42,5 +42,10 @@ export function logWarn(...args: unknown[]): void {
 }
 
 export function logInfo(...args: unknown[]): void {
+  // Day la cho DUY NHAT trong src/ duoc phep goi console.info, va no da bi khoa
+  // sau IS_DEV nen khong bao gio chay tren production. Tat rule dung mot dong
+  // thay vi noi long cau hinh chung — nho vay moi console.info THEM MOI o cho
+  // khac van bi ESLint bat.
+  // eslint-disable-next-line no-console
   if (IS_DEV) console.info(...args);
 }

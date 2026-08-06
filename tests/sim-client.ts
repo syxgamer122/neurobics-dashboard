@@ -10,6 +10,19 @@ export {};
 
 const M = await import("../src/app/lib/scoring.ts");
 
+// calcBrainAge tra ve union 3 nhanh: needs_age | calibrating | ready. Cac ca
+// kiem tra ben duoi deu chay o nhanh "ready", nen thu hep kieu MOT LAN o day
+// thay vi rai `any` khap file. Vao nham nhanh khac thi nem loi ngay, chu khong
+// im lang doc ra undefined roi bao PASS oan.
+type BrainAge = ReturnType<typeof M.calcBrainAge>;
+type BrainAgeReady = Extract<BrainAge, { status: "ready" }>;
+function ready(r: BrainAge): BrainAgeReady {
+  if (r.status !== "ready") {
+    throw new Error(`mong doi status="ready" nhung nhan duoc "${r.status}"`);
+  }
+  return r;
+}
+
 let pass = 0;
 const fails: string[] = [];
 function t(name: string, got: unknown, want: unknown) {
@@ -115,19 +128,23 @@ t(
   "calibrating",
 );
 {
-  const r: any = M.calcBrainAge(
-    { cognitiveIndex: 400, birthYear: 1990, roundsPlayed: 30 },
-    pop,
-    NOW,
+  const r = ready(
+    M.calcBrainAge(
+      { cognitiveIndex: 400, birthYear: 1990, roundsPlayed: 30 },
+      pop,
+      NOW,
+    ),
   );
   t("trung binh dan so -> delta 0", r.delta, 0);
   t("tuoi that 36", r.realAge, 36);
 }
 {
-  const r: any = M.calcBrainAge(
-    { cognitiveIndex: 900, birthYear: 1990, roundsPlayed: 30 },
-    pop,
-    NOW,
+  const r = ready(
+    M.calcBrainAge(
+      { cognitiveIndex: 900, birthYear: 1990, roundsPlayed: 30 },
+      pop,
+      NOW,
+    ),
   );
   const ok = r.delta > 5 && r.delta <= M.MAX_AGE_SWING;
   if (ok) {
@@ -139,10 +156,12 @@ t(
   }
 }
 {
-  const r: any = M.calcBrainAge(
-    { cognitiveIndex: 50, birthYear: 1990, roundsPlayed: 30 },
-    pop,
-    NOW,
+  const r = ready(
+    M.calcBrainAge(
+      { cognitiveIndex: 50, birthYear: 1990, roundsPlayed: 30 },
+      pop,
+      NOW,
+    ),
   );
   const ok = r.delta < -5 && r.delta >= -M.MAX_AGE_SWING;
   if (ok) {
@@ -154,10 +173,12 @@ t(
   }
 }
 {
-  const r: any = M.calcBrainAge(
-    { cognitiveIndex: 900, birthYear: 2020, roundsPlayed: 30 },
-    pop,
-    NOW,
+  const r = ready(
+    M.calcBrainAge(
+      { cognitiveIndex: 900, birthYear: 2020, roundsPlayed: 30 },
+      pop,
+      NOW,
+    ),
   );
   const ok = r.age >= 5;
   if (ok) {
@@ -171,10 +192,12 @@ t(
   }
 }
 {
-  const thin: any = M.calcBrainAge(
-    { cognitiveIndex: 500, birthYear: 1990, roundsPlayed: 30 },
-    { mean: 400, sd: 150, n: 3 },
-    NOW,
+  const thin = ready(
+    M.calcBrainAge(
+      { cognitiveIndex: 500, birthYear: 1990, roundsPlayed: 30 },
+      { mean: 400, sd: 150, n: 3 },
+      NOW,
+    ),
   );
   t("dan so mong -> provisional", thin.provisional, true);
 }
