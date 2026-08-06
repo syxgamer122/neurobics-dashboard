@@ -237,8 +237,12 @@ function AppInner() {
   // Effect chi doc `popStatsKey`, nen deps liet ke dung nhung gi no dung —
   // het canh bao exhaustive-deps ma hanh vi y het truoc: chay lai dung khi id
   // doi hoac khi khach chuyen thanh tai khoan that.
+  // `?? "__no_id__"` chu KHONG phai `?? null`: guard cu chi hoi
+  // `!profile || isGuestProfile(profile)`, tuc ho so THAT ma thieu id thi van
+  // tai baseline. Dung `?? null` la tu them dieu kien moi va lam mat 20 lan
+  // goi fetchPopulationStats (do bang mo phong doi chieu 121 cap trang thai).
   const popStatsKey =
-    profile && !isGuestProfile(profile) ? (profile.id ?? null) : null;
+    profile && !isGuestProfile(profile) ? (profile.id ?? "__no_id__") : null;
 
   useEffect(() => {
     if (!popStatsKey) return;
@@ -325,7 +329,7 @@ function AppInner() {
   // du XP khong doi. Gop thanh mot chuoi la cach giu dung nhip cu.
   const activityKey =
     profile?.id && !isGuestProfile(profile)
-      ? `${profile.id}:${profile.total_xp ?? 0}`
+      ? `${profile.id}:${String(profile.total_xp)}`
       : null;
 
   useEffect(() => {
