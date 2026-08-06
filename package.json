@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:sim": "node --experimental-strip-types tests/sim-client.ts && node --experimental-strip-types tests/sim-games.ts && node --experimental-strip-types tests/sim-audit.ts",
     "scan": "node tests/scan.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
