@@ -130,9 +130,14 @@ app.use(
 );
 
 // Admin client (service role) — required to create a confirmed auth user.
+// Supabase CLI tu choi dat secret co ten bat dau bang SUPABASE_, nen key
+// sb_secret_ moi phai mang ten rieng la EDGE_SERVICE_ROLE_KEY. Van fallback
+// ve bien tu dong de `supabase functions serve` chay o local khong can them
+// cau hinh gi.
 const adminClient = createClient(
   Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  Deno.env.get("EDGE_SERVICE_ROLE_KEY") ??
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
 const SESSION_COLUMNS = GAME_IDS.map((game) => `${game}_sessions` as const);
