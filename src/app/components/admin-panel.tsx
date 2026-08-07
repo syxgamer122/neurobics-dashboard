@@ -1,44 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Database,
-  Activity,
-  Terminal,
-  RefreshCw,
-  ShieldCheck,
-  Server,
-  Cpu,
-  ChevronLeft,
-  Loader2,
-  AlertTriangle,
-  Plus,
-  RotateCcw,
-  Trash2,
-  Zap,
-  UserCheck,
-  X,
-} from "lucide-react";
-import {
-  fetchLeaderboard,
-  dataQuality,
-  type DataQuality,
   adminApplyGrant,
-  adminResetScores,
   adminDeleteUser,
+  adminResetScores,
   AXIS_COLUMNS,
+  dataQuality,
+  fetchLeaderboard,
   type AxisKey,
+  type DataQuality,
   type Profile,
-  totalSessions,
 } from "../lib/api";
 import { levelFromXp } from "../lib/xp";
-import { HAS_SUPABASE_CONFIG, SUPABASE_URL } from "../lib/supabase-config";
-
 import {
-  ADMIN_COLORS,
-  consoleBoot,
-  Panel,
-  ActionBtn,
-  EnvField,
   AccessDenied,
+  ActivityLog,
+  AdminControls,
+  AdminOverview,
+  AdminShell,
+  ApiIntegrationPanel,
+  consoleBoot,
+  EMPTY_GRANT,
+  parseGrantField,
+  ProfilesGrid,
+  type GrantAxes,
+  type GrantMode,
 } from "./admin";
 
 export function AdminPanel({
@@ -49,36 +34,31 @@ export function AdminPanel({
 }: {
   onExit: () => void;
   profile: Profile;
-  onProfileChange: (p: Profile) => void;
+  onProfileChange: (profile: Profile) => void;
   onAccountDeleted: () => void;
 }) {
   const [rows, setRows] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [revealUrl, setRevealUrl] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
   const [latency, setLatency] = useState(12);
-  // Nhanh fallback chi quet duoc 200 dong dau => top that co the vang mat.
-  // Hien badge thay vi de bang xep hang sai mot cach im lang.
   const [partial, setPartial] = useState<DataQuality>({
     partial: false,
     scanned: 0,
   });
-  const [beat, setBeat] = useState(0);
   const [log, setLog] = useState<string[]>(consoleBoot);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const logRef = useRef<HTMLDivElement>(null);
+  const [grantAxes, setGrantAxes] = useState<GrantAxes>(EMPTY_GRANT);
+  const [grantXp, setGrantXp] = useState("");
+  const [grantMode, setGrantMode] = useState<GrantMode>("add");
 
   const isAdmin = profile.role === "admin";
 
-  const { green, blue, amber, red, purple } = ADMIN_COLORS;
-
   const pushLog = useCallback(
     (line: string) =>
-      setLog((l) => [
-        ...l.slice(-60),
+      setLog((current) => [
+        ...current.slice(-60),
         `[${new Date().toLocaleTimeString("en-GB")}] ${line}`,
       ]),
     [],
@@ -87,10 +67,10 @@ export function AdminPanel({
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const t0 = performance.now();
+    const startedAt = performance.now();
     try {
       const data = await fetchLeaderboard();
-      setLatency(Math.max(1, Math.round(performance.now() - t0)));
+      setLatency(Math.max(1, Math.round(performance.now() - startedAt)));
       setRows(data);
       setPartial({ ...dataQuality.leaderboard });
       if (dataQuality.leaderboard.partial) {
@@ -99,12 +79,12 @@ export function AdminPanel({
         );
       }
       pushLog(
-        `SELECT * FROM profiles — 200 OK (${data.length} rows, ${Math.round(performance.now() - t0)}ms)`,
+        `SELECT * FROM profiles — 200 OK (${data.length} rows, ${Math.round(performance.now() - startedAt)}ms)`,
       );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
-      pushLog(`ERR :: SELECT FROM profiles — ${msg}`);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      setError(message);
+      pushLog(`ERR :: SELECT FROM profiles — ${message}`);
     } finally {
       setLoading(false);
     }
@@ -115,88 +95,37 @@ export function AdminPanel({
     else setLoading(false);
   }, [fetchProfiles, isAdmin]);
 
-  useEffect(() => {
-    const i = setInterval(() => setBeat((b) => (b + 1) % 100), 1400);
-    return () => clearInterval(i);
-  }, []);
-
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [log]);
-
-  const copy = (label: string, value: string) => {
-    navigator.clipboard?.writeText(value);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 1500);
-  };
-
-  const mask = (s: string) => "•".repeat(Math.min(s.length, 44));
-  const EMPTY_GRANT: Record<AxisKey, string> = {
-    logic: "",
-    memory: "",
-    speed: "",
-    focus: "",
-    spatial: "",
-  };
-
-  const [grantAxes, setGrantAxes] =
-    useState<Record<AxisKey, string>>(EMPTY_GRANT);
-  const [grantXp, setGrantXp] = useState("");
-  const [grantMode, setGrantMode] = useState<"add" | "set">("add");
-
-  const runAction = async (key: string, fn: () => Promise<void>) => {
+  const runAction = async (key: string, action: () => Promise<void>) => {
     if (!isAdmin || busy) return;
     setBusy(key);
     try {
-      await fn();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      pushLog(`ERR :: ${key} — ${msg}`);
+      await action();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      pushLog(`ERR :: ${key} — ${message}`);
     } finally {
       setBusy(null);
     }
   };
 
-  // ── Actions on selectedUser ──────────────────────────────────────────────
-
-  const target = selectedUser;
-
-  const parseField = (raw: string): number | undefined => {
-    const trimmed = raw.trim();
-    if (trimmed === "") return undefined;
-    const n = Number(trimmed);
-    return Number.isFinite(n) ? n : undefined;
-  };
-
-  /** Điền cùng một số vào cả 5 ô trục. */
-  const fillAllAxes = (amount: number) => {
-    setGrantAxes({
-      logic: String(amount),
-      memory: String(amount),
-      speed: String(amount),
-      focus: String(amount),
-      spatial: String(amount),
-    });
-  };
-
   const handleApplyGrant = () => {
-    if (!target) return;
+    if (!selectedUser) return;
 
+    const target = selectedUser;
     const axes: Partial<Record<AxisKey, number>> = {};
     for (const key of Object.keys(grantAxes) as AxisKey[]) {
-      const value = parseField(grantAxes[key]);
+      const value = parseGrantField(grantAxes[key]);
       if (value !== undefined) axes[key] = value;
     }
 
-    const xp = parseField(grantXp);
-    const touched = Object.keys(axes).length;
-    if (touched === 0 && xp === undefined) {
+    const xp = parseGrantField(grantXp);
+    if (Object.keys(axes).length === 0 && xp === undefined) {
       pushLog("SKIP :: không có trường nào được nhập");
       return;
     }
 
     const isSelf = target.id === profile.id;
-    runAction(`grant:${target.id}`, async () => {
+    void runAction(`grant:${target.id}`, async () => {
       const updated = await adminApplyGrant(target.id, {
         axes,
         xp,
@@ -205,7 +134,7 @@ export function AdminPanel({
 
       const verb = grantMode === "set" ? "SET" : "+=";
       const parts = (Object.keys(axes) as AxisKey[]).map(
-        (k) => `${AXIS_COLUMNS[k]} ${verb} ${axes[k]}`,
+        (key) => `${AXIS_COLUMNS[key]} ${verb} ${axes[key]}`,
       );
       if (xp !== undefined) parts.push(`total_xp ${verb} ${xp}`);
 
@@ -220,28 +149,32 @@ export function AdminPanel({
       setSelectedUser(updated);
       setGrantAxes(EMPTY_GRANT);
       setGrantXp("");
-      fetchProfiles();
+      void fetchProfiles();
     });
   };
 
   const handleReset = () => {
-    if (!target) return;
+    if (!selectedUser) return;
+
+    const target = selectedUser;
     const isSelf = target.id === profile.id;
-    runAction(`reset:${target.id}`, async () => {
+    void runAction(`reset:${target.id}`, async () => {
       const updated = await adminResetScores(target.id);
       pushLog(
         `UPDATE profiles SET all=0 WHERE username='${target.username}' — OK`,
       );
       if (isSelf) onProfileChange(updated);
       setSelectedUser(updated);
-      fetchProfiles();
+      void fetchProfiles();
     });
   };
 
   const handleDelete = () => {
-    if (!target) return;
+    if (!selectedUser) return;
+
+    const target = selectedUser;
     const isSelf = target.id === profile.id;
-    runAction(`delete:${target.id}`, async () => {
+    void runAction(`delete:${target.id}`, async () => {
       await adminDeleteUser(target.id);
       pushLog(`DELETE FROM profiles WHERE username='${target.username}' — OK`);
       setSelectedUser(null);
@@ -249,798 +182,65 @@ export function AdminPanel({
       if (isSelf) {
         onAccountDeleted();
       } else {
-        fetchProfiles();
+        void fetchProfiles();
       }
     });
   };
 
-  // ── Unauthorized view ──────────────────────────────
-  if (!isAdmin)
+  if (!isAdmin) {
     return <AccessDenied username={profile.username} onExit={onExit} />;
+  }
 
   return (
-    <div
-      className="min-h-screen text-slate-100"
-      style={{ background: "#04060D" }}
-    >
-      {/* Ambient glows */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute rounded-full"
-          style={{
-            top: "-10%",
-            left: "-6%",
-            width: 620,
-            height: 620,
-            background: `radial-gradient(circle, ${green}14 0%, transparent 70%)`,
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            bottom: "-12%",
-            right: "-8%",
-            width: 560,
-            height: 560,
-            background: `radial-gradient(circle, ${blue}12 0%, transparent 70%)`,
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `linear-gradient(${green}06 1px, transparent 1px), linear-gradient(90deg, ${green}06 1px, transparent 1px)`,
-            backgroundSize: "44px 44px",
-          }}
-        />
-      </div>
-
-      {/* Top bar */}
-      <div
-        className="relative z-10 flex items-center justify-between px-8 py-4"
-        style={{ borderBottom: `1px solid ${green}1A` }}
-      >
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onExit}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-200 transition-colors"
-          >
-            <ChevronLeft size={14} /> EXIT
-          </button>
-          <div className="h-4 w-px" style={{ background: `${green}22` }} />
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{
-              background: `${green}14`,
-              border: `1px solid ${green}33`,
-              boxShadow: `0 0 20px ${green}22`,
-            }}
-          >
-            <Database size={16} style={{ color: green }} />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-white tracking-[0.18em] font-mono">
-              ADMIN PANEL · DB CONTROL
-            </div>
-            <div className="text-xs text-slate-500 tracking-wider">
-              SUPER ADMIN — HỮU MẠNH
-            </div>
-          </div>
-        </div>
-        <span
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded"
-          style={{
-            background: `${green}12`,
-            color: green,
-            border: `1px solid ${green}30`,
-          }}
-        >
-          <ShieldCheck size={11} /> ROOT ACCESS
-        </span>
-      </div>
-
+    <AdminShell onExit={onExit}>
       <div className="relative z-10 max-w-[1440px] mx-auto p-6 space-y-5">
-        {/* Telemetry row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Panel accent={green}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs tracking-widest text-slate-500 font-mono">
-                SUPABASE STATUS
-              </span>
-              <Server size={13} style={{ color: green }} />
-            </div>
-            <div className="flex items-center gap-2 mt-3">
-              <span className="relative flex h-2.5 w-2.5">
-                {!error && (
-                  <span
-                    className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-                    style={{ background: green }}
-                  />
-                )}
-                <span
-                  className="relative inline-flex rounded-full h-2.5 w-2.5"
-                  style={{ background: error ? red : green }}
-                />
-              </span>
-              <span
-                className="text-lg font-bold"
-                style={{ color: error ? red : green }}
-              >
-                {error ? "ERROR" : loading ? "SYNCING" : "CONNECTED"}
-              </span>
-            </div>
-          </Panel>
+        <AdminOverview
+          loading={loading}
+          error={error}
+          latency={latency}
+          usersCount={rows.length}
+          partial={partial}
+          selectedUser={selectedUser}
+          onClearSelected={() => {
+            setSelectedUser(null);
+            setConfirmDelete(false);
+          }}
+        />
 
-          <Panel accent={blue}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs tracking-widest text-slate-500 font-mono">
-                DB LATENCY
-              </span>
-              <Activity size={13} style={{ color: blue }} />
-            </div>
-            <div className="flex items-baseline gap-1 mt-3">
-              <span className="text-2xl font-bold text-white">{latency}</span>
-              <span className="text-sm text-slate-400">ms</span>
-            </div>
-            <div className="mt-2 h-5 flex items-end gap-0.5 overflow-hidden">
-              {Array.from({ length: 24 }).map((_, i) => {
-                const h = ((Math.sin((i + beat) * 0.9) + 1) / 2) * 100;
-                const spike = (i + beat) % 9 === 0 ? 100 : h;
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-sm"
-                    style={{
-                      height: `${20 + spike * 0.8}%`,
-                      background: `${blue}${spike > 80 ? "" : "55"}`,
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </Panel>
+        <AdminControls
+          selectedUser={selectedUser}
+          currentUserId={profile.id}
+          busy={busy}
+          confirmDelete={confirmDelete}
+          grantAxes={grantAxes}
+          grantXp={grantXp}
+          grantMode={grantMode}
+          setGrantAxes={setGrantAxes}
+          setGrantXp={setGrantXp}
+          setGrantMode={setGrantMode}
+          setConfirmDelete={setConfirmDelete}
+          onApplyGrant={handleApplyGrant}
+          onReset={handleReset}
+          onDelete={handleDelete}
+        />
 
-          <Panel accent={green}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs tracking-widest text-slate-500 font-mono">
-                TOTAL USERS
-              </span>
-              <Cpu size={13} style={{ color: green }} />
-            </div>
-            <div className="text-2xl font-bold text-white mt-3">
-              {rows.length}
-            </div>
-            {partial.partial && (
-              <div
-                className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold"
-                style={{
-                  background: "rgba(245,158,11,0.14)",
-                  border: "1px solid rgba(245,158,11,0.45)",
-                  color: "#FBBF24",
-                }}
-                title={`Nguon du phong: chi quet ${partial.scanned} nguoi choi dau tien.`}
-              >
-                DU LIEU MOT PHAN
-              </div>
-            )}
-            <div className="text-xs text-slate-500 mt-1">profiles · live</div>
-          </Panel>
-
-          <Panel accent={purple}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs tracking-widest text-slate-500 font-mono">
-                TARGET
-              </span>
-              <UserCheck size={13} style={{ color: purple }} />
-            </div>
-            {selectedUser ? (
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-bold" style={{ color: purple }}>
-                    {selectedUser.username}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    streak {selectedUser.synapse_streak}d ·{" "}
-                    {selectedUser.algebraic_logic_score} pts
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedUser(null);
-                    setConfirmDelete(false);
-                  }}
-                  className="shrink-0 text-slate-400 hover:text-slate-300 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <div className="text-xs text-slate-400 mt-3">
-                Click a row to select
-              </div>
-            )}
-          </Panel>
-        </div>
-
-        {/* Admin Controls */}
-        <Panel accent={amber} className="!p-0 overflow-hidden">
-          <div
-            className="flex items-center gap-2 px-5 py-3.5"
-            style={{ borderBottom: `1px solid ${amber}22` }}
-          >
-            <ShieldCheck size={14} style={{ color: amber }} />
-            <span className="text-xs font-bold tracking-widest text-white font-mono">
-              ADMIN CONTROLS
-            </span>
-            {selectedUser ? (
-              <span
-                className="text-xs px-2.5 py-0.5 rounded-lg ml-1"
-                style={{
-                  background: `${purple}18`,
-                  color: purple,
-                  border: `1px solid ${purple}30`,
-                }}
-              >
-                @{selectedUser.username}
-                {selectedUser.id === profile.id && (
-                  <span className="ml-1 text-xs opacity-70">(you)</span>
-                )}
-              </span>
-            ) : (
-              <span className="text-xs text-slate-400 ml-1">
-                — select a user from the table below
-              </span>
-            )}
-          </div>
-
-          <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Add Points */}
-            <div
-              className="rounded-xl p-4"
-              style={{
-                background: `${green}0A`,
-                border: `1px solid ${green}22`,
-                opacity: selectedUser ? 1 : 0.4,
-              }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Plus size={13} style={{ color: green }} />
-                <span
-                  className="text-xs font-bold tracking-wider"
-                  style={{ color: green }}
-                >
-                  ADD POINTS
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                Nhập số vào từng trục. Bỏ trống nghĩa là không đụng tới. Số âm
-                để trừ. Mọi trục đều bị kẹp trong 0–1000.
-              </p>
-
-              {/* Chế độ */}
-              <div className="grid grid-cols-2 gap-1 mb-3">
-                {(["add", "set"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setGrantMode(m)}
-                    disabled={!!busy || !selectedUser}
-                    className="py-1.5 rounded-lg text-xs font-bold tracking-wider"
-                    style={
-                      grantMode === m
-                        ? {
-                            background: `${green}22`,
-                            color: green,
-                            border: `1px solid ${green}55`,
-                          }
-                        : {
-                            background: "rgba(0,0,0,0.3)",
-                            color: "#64748B",
-                            border: "1px solid rgba(255,255,255,0.06)",
-                          }
-                    }
-                  >
-                    {m === "add" ? "CỘNG THÊM" : "GÁN ĐÈ"}
-                  </button>
-                ))}
-              </div>
-
-              {/* Điền nhanh cả 5 trục */}
-              <div className="grid grid-cols-5 gap-1 mb-3">
-                {[10, 50, 100, 500, 1000].map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => fillAllAxes(amt)}
-                    disabled={!!busy || !selectedUser}
-                    className="py-1 rounded-md text-xs font-bold"
-                    style={{
-                      background: "rgba(0,0,0,0.3)",
-                      color: green,
-                      border: `1px solid ${green}22`,
-                    }}
-                  >
-                    {amt}
-                  </button>
-                ))}
-              </div>
-
-              {/* Ô nhập từng trục */}
-              <div className="space-y-1.5 mb-3">
-                {(
-                  [
-                    ["logic", "LOGIC", selectedUser?.algebraic_logic_score],
-                    ["memory", "MEMORY", selectedUser?.memory_score],
-                    ["speed", "SPEED", selectedUser?.speed_score],
-                    ["focus", "FOCUS", selectedUser?.focus_score],
-                    ["spatial", "SPATIAL", selectedUser?.cfop_spatial_record],
-                  ] as [AxisKey, string, number | null | undefined][]
-                ).map(([key, label, current]) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500 w-14 shrink-0">
-                      {label}
-                    </span>
-                    <span className="text-xs text-slate-400 w-10 shrink-0 text-right">
-                      {current ?? 0}
-                    </span>
-                    <input
-                      type="number"
-                      value={grantAxes[key]}
-                      onChange={(e) =>
-                        setGrantAxes((g) => ({ ...g, [key]: e.target.value }))
-                      }
-                      disabled={!!busy || !selectedUser}
-                      placeholder="—"
-                      className="flex-1 min-w-0 px-2 py-1 rounded-md text-xs text-white outline-none"
-                      style={{
-                        background: "rgba(0,0,0,0.4)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    />
-                  </div>
-                ))}
-
-                <div
-                  className="flex items-center gap-2 pt-1.5"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <span
-                    className="text-xs w-14 shrink-0"
-                    style={{ color: amber }}
-                  >
-                    XP
-                  </span>
-                  <span className="text-xs text-slate-400 w-10 shrink-0 text-right">
-                    {selectedUser?.total_xp ?? 0}
-                  </span>
-                  <input
-                    type="number"
-                    value={grantXp}
-                    onChange={(e) => setGrantXp(e.target.value)}
-                    disabled={!!busy || !selectedUser}
-                    placeholder="—"
-                    className="flex-1 min-w-0 px-2 py-1 rounded-md text-xs text-white outline-none"
-                    style={{
-                      background: "rgba(0,0,0,0.4)",
-                      border: `1px solid ${amber}33`,
-                    }}
-                  />
-                </div>
-
-                {selectedUser && (
-                  <div className="text-xs text-slate-500 pl-16">
-                    Level hiện tại {levelFromXp(selectedUser.total_xp ?? 0)}
-                    {parseField(grantXp) !== undefined && (
-                      <span style={{ color: amber }}>
-                        {" → "}
-                        {levelFromXp(
-                          Math.max(
-                            0,
-                            grantMode === "set"
-                              ? (parseField(grantXp) ?? 0)
-                              : (selectedUser.total_xp ?? 0) +
-                                  (parseField(grantXp) ?? 0),
-                          ),
-                        )}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <ActionBtn
-                accent={green}
-                label={grantMode === "set" ? "GÁN GIÁ TRỊ" : "CỘNG ĐIỂM"}
-                icon={<Zap size={11} />}
-                loading={busy === `grant:${selectedUser?.id}`}
-                disabled={!!busy || !selectedUser}
-                onClick={handleApplyGrant}
-                full
-              />
-            </div>
-
-            {/* Reset Scores */}
-            <div
-              className="rounded-xl p-4"
-              style={{
-                background: `${blue}0A`,
-                border: `1px solid ${blue}22`,
-                opacity: selectedUser ? 1 : 0.4,
-              }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <RotateCcw size={13} style={{ color: blue }} />
-                <span
-                  className="text-xs font-bold tracking-wider"
-                  style={{ color: blue }}
-                >
-                  RESET SCORES
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                Xóa toàn bộ điểm số và streak về 0.
-              </p>
-              {selectedUser && (
-                <div className="grid grid-cols-4 gap-1 mb-3 text-center">
-                  {[
-                    { k: "LOGIC", v: selectedUser.algebraic_logic_score },
-                    { k: "MEM", v: selectedUser.memory_score },
-                    { k: "SPD", v: selectedUser.speed_score },
-                    { k: "FOC", v: selectedUser.focus_score },
-                  ].map(({ k, v }) => (
-                    <div
-                      key={k}
-                      className="rounded-lg py-1.5"
-                      style={{ background: "rgba(0,0,0,0.35)" }}
-                    >
-                      <div className="text-[8px] text-slate-500">{k}</div>
-                      <div className="text-xs font-bold text-white">
-                        {(v ?? 0).toLocaleString()}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <ActionBtn
-                accent={blue}
-                label="RESET ALL TO 0"
-                icon={<RotateCcw size={11} />}
-                loading={busy === `reset:${selectedUser?.id}`}
-                disabled={!!busy || !selectedUser}
-                onClick={handleReset}
-                full
-              />
-            </div>
-
-            {/* Danger: Delete */}
-            <div
-              className="rounded-xl p-4"
-              style={{
-                background: `${red}0A`,
-                border: `1px solid ${red}33`,
-                opacity: selectedUser ? 1 : 0.4,
-              }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle size={13} style={{ color: red }} />
-                <span
-                  className="text-xs font-bold tracking-wider"
-                  style={{ color: red }}
-                >
-                  DANGER ZONE
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                Xóa vĩnh viễn profile. Không thể hoàn tác.
-                {selectedUser?.id === profile.id && (
-                  <span style={{ color: amber }}>
-                    {" "}
-                    Đây là tài khoản của bạn!
-                  </span>
-                )}
-              </p>
-              {!confirmDelete ? (
-                <ActionBtn
-                  accent={red}
-                  label="DELETE ACCOUNT"
-                  icon={<Trash2 size={11} />}
-                  disabled={!!busy || !selectedUser}
-                  onClick={() => setConfirmDelete(true)}
-                  full
-                />
-              ) : (
-                <div className="space-y-2">
-                  <div className="text-xs text-red-300/90 text-center">
-                    Xóa{" "}
-                    <span style={{ color: red }}>
-                      @{selectedUser?.username}
-                    </span>
-                    ? Không hoàn tác được!
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <ActionBtn
-                      accent="#64748B"
-                      label="HỦY"
-                      disabled={!!busy}
-                      onClick={() => setConfirmDelete(false)}
-                    />
-                    <ActionBtn
-                      accent={red}
-                      label="XÓA"
-                      icon={<Trash2 size={11} />}
-                      loading={busy === `delete:${selectedUser?.id}`}
-                      disabled={!!busy}
-                      onClick={handleDelete}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </Panel>
-
-        {/* Data table + Env */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <Panel accent={green} className="lg:col-span-2 !p-0 overflow-hidden">
-            <div
-              className="flex items-center justify-between px-5 py-3.5"
-              style={{ borderBottom: `1px solid ${green}18` }}
-            >
-              <div className="flex items-center gap-2">
-                <Database size={14} style={{ color: green }} />
-                <span className="text-xs font-bold tracking-widest text-white font-mono">
-                  LIVE DATA GRID
-                </span>
-                <span
-                  className="text-xs px-2 py-0.5 rounded"
-                  style={{ background: `${green}12`, color: green }}
-                >
-                  public.profiles
-                </span>
-              </div>
-              <button
-                onClick={fetchProfiles}
-                disabled={loading}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={11}
-                  className={loading ? "animate-spin" : ""}
-                />
-                <span>Refresh</span>
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-16 text-xs text-slate-500">
-                  <Loader2
-                    size={16}
-                    className="animate-spin"
-                    style={{ color: green }}
-                  />{" "}
-                  Querying…
-                </div>
-              ) : error ? (
-                <div className="flex flex-col items-center gap-2 py-16 text-xs text-center px-6">
-                  <AlertTriangle size={20} style={{ color: red }} />
-                  <span style={{ color: red }}>Query failed</span>
-                  <span className="text-slate-500 max-w-md break-words">
-                    {error}
-                  </span>
-                  <button
-                    onClick={fetchProfiles}
-                    className="mt-2 px-3 py-1.5 rounded-lg text-xs"
-                    style={{
-                      background: `${green}12`,
-                      color: green,
-                      border: `1px solid ${green}30`,
-                    }}
-                  >
-                    RETRY
-                  </button>
-                </div>
-              ) : rows.length === 0 ? (
-                <div className="py-16 text-center text-xs text-slate-500">
-                  No rows.
-                </div>
-              ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr style={{ background: "rgba(0,255,156,0.04)" }}>
-                      {[
-                        "Username",
-                        "Logic",
-                        "Memory",
-                        "Speed",
-                        "Focus",
-                        "Streak",
-                        "Sessions",
-                      ].map((c) => (
-                        <th
-                          key={c}
-                          className="px-4 py-2.5 text-xs tracking-wider whitespace-nowrap"
-                          style={{
-                            color: green,
-                            borderBottom: `1px solid ${green}18`,
-                          }}
-                        >
-                          {c}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => {
-                      const isAdminRow = r.role === "admin";
-                      const isSelected = selectedUser?.id === r.id;
-                      return (
-                        <tr
-                          key={r.id}
-                          onClick={() => {
-                            setSelectedUser(r);
-                            setConfirmDelete(false);
-                          }}
-                          className="cursor-pointer transition-colors duration-100"
-                          style={{
-                            borderBottom: "1px solid rgba(255,255,255,0.04)",
-                            background: isSelected
-                              ? `${purple}18`
-                              : "transparent",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isSelected)
-                              (
-                                e.currentTarget as HTMLElement
-                              ).style.background = "rgba(255,255,255,0.03)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLElement).style.background =
-                              isSelected ? `${purple}18` : "transparent";
-                          }}
-                        >
-                          <td className="px-4 py-2.5 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              {isSelected && (
-                                <div
-                                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                                  style={{
-                                    background: purple,
-                                    boxShadow: `0 0 6px ${purple}`,
-                                  }}
-                                />
-                              )}
-                              <span
-                                style={{
-                                  color: isAdminRow
-                                    ? amber
-                                    : isSelected
-                                      ? purple
-                                      : "#E2E8F4",
-                                }}
-                              >
-                                {r.username}
-                                {isAdminRow && (
-                                  <span
-                                    className="ml-1.5 text-xs"
-                                    style={{ color: green }}
-                                  >
-                                    ★
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-2.5 text-xs text-white">
-                            {(r.algebraic_logic_score ?? 0).toLocaleString()}
-                          </td>
-                          <td
-                            className="px-4 py-2.5 text-xs"
-                            style={{ color: "#94a3b8" }}
-                          >
-                            {(r.memory_score ?? 0).toLocaleString()}
-                          </td>
-                          <td
-                            className="px-4 py-2.5 text-xs"
-                            style={{ color: "#94a3b8" }}
-                          >
-                            {(r.speed_score ?? 0).toLocaleString()}
-                          </td>
-                          <td
-                            className="px-4 py-2.5 text-xs"
-                            style={{ color: "#94a3b8" }}
-                          >
-                            {(r.focus_score ?? 0).toLocaleString()}
-                          </td>
-                          <td
-                            className="px-4 py-2.5 text-xs"
-                            style={{ color: blue }}
-                          >
-                            {r.synapse_streak}
-                          </td>
-                          <td className="px-4 py-2.5 text-xs text-slate-500">
-                            {totalSessions(r)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </Panel>
-
-          <Panel accent={blue} className="lg:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck size={14} style={{ color: blue }} />
-              <span className="text-xs font-bold tracking-widest text-white font-mono">
-                API INTEGRATION
-              </span>
-            </div>
-            <EnvField
-              label="VITE_SUPABASE_URL"
-              value={SUPABASE_URL}
-              revealed={revealUrl}
-              onToggle={() => setRevealUrl((v) => !v)}
-              onCopy={() => copy("url", SUPABASE_URL)}
-              copied={copied === "url"}
-              mask={mask}
-              accent={blue}
-            />
-            {/* Anon key KHONG con hien ra day nua. Panel admin hay bi chia se
-                man hinh / chup anh, va key gio nam trong .env chu khong con
-                trong repo — bao trang thai cau hinh la du dung. */}
-            <div className="mb-3">
-              <div className="text-xs text-slate-500 mb-1.5 tracking-wider">
-                VITE_SUPABASE_ANON_KEY
-              </div>
-              <div
-                className="rounded-lg px-3 py-2 text-xs font-mono"
-                style={{
-                  background: "rgba(0,0,0,0.4)",
-                  border: `1px solid ${blue}18`,
-                  color: HAS_SUPABASE_CONFIG ? green : red,
-                }}
-              >
-                {HAS_SUPABASE_CONFIG
-                  ? "OK — da nap tu bien moi truong (an)"
-                  : "THIEU — kiem tra .env / Vercel env vars"}
-              </div>
-            </div>
-            <div
-              className="mt-4 p-3 rounded-lg text-xs text-slate-500 leading-relaxed"
-              style={{ background: `${blue}06`, border: `1px solid ${blue}18` }}
-            >
-              <span style={{ color: blue }}>ⓘ</span> Anon key is safe for client
-              use. Service role key is never exposed to the browser.
-            </div>
-          </Panel>
+          <ProfilesGrid
+            rows={rows}
+            loading={loading}
+            error={error}
+            selectedUser={selectedUser}
+            onRefresh={() => void fetchProfiles()}
+            onSelect={(target) => {
+              setSelectedUser(target);
+              setConfirmDelete(false);
+            }}
+          />
+          <ApiIntegrationPanel />
         </div>
 
-        {/* Activity Log */}
-        <Panel accent={green} className="!p-0 overflow-hidden">
-          <div
-            className="flex items-center gap-2 px-5 py-3.5"
-            style={{ borderBottom: `1px solid ${green}18` }}
-          >
-            <Terminal size={14} style={{ color: green }} />
-            <span className="text-xs font-bold tracking-widest text-white font-mono">
-              ACTIVITY LOG
-            </span>
-          </div>
-          <div
-            ref={logRef}
-            className="px-5 py-3 h-36 overflow-y-auto text-xs leading-relaxed"
-            style={{ background: "rgba(0,0,0,0.35)" }}
-          >
-            {log.map((line, i) => (
-              <div
-                key={i}
-                style={{ color: line.includes("ERR") ? red : green }}
-              >
-                {line}
-              </div>
-            ))}
-          </div>
-        </Panel>
+        <ActivityLog lines={log} />
       </div>
-    </div>
+    </AdminShell>
   );
 }
