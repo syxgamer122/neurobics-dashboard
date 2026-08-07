@@ -43,7 +43,7 @@ jobs:
     environment: production
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Verify secrets
         env:
