@@ -1,0 +1,15 @@
+# Giu line ending on dinh tren Windows, Linux va macOS.
+# Repo + Prettier dung LF; dong nay ngan Git doi nguoc ve CRLF khi checkout.
+* text=auto eol=lf
+
+# Tai san nhi phan khong duoc phep chuan hoa line ending.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary

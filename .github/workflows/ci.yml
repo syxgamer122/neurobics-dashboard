@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
@@ -75,7 +75,7 @@ jobs:
     # edge function — lop cham diem + chong gian lan — khong ai thay. Deno 2 doc
     # npm: qua node_modules khi thay pnpm-workspace.yaml, nen phai install truoc.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
