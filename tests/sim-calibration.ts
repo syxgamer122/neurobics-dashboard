@@ -3,10 +3,14 @@
 //   1. Cac truc co DONG BO khong (choi ngang trinh do o 2 game => diem ngang)?
 //   2. Diem co RE QUA khong (nguoi yeu da duoc diem cao, nguoi manh bao hoa)?
 // Chay: node --experimental-strip-types tests/sim-calibration.ts
+import type { Game } from "../supabase/functions/_shared/scoring/core.ts";
+
 export {};
 
-const BASE = "../supabase/functions/_shared/";
-const { scoreAndValidate } = await import(BASE + "round-scoring.ts");
+// Specifier literal de TypeScript suy ra chu ky scoreAndValidate. Ghep chuoi
+// `BASE + ...` truoc day bien ham nay thanh `any` ngam, nen game id sai van lot.
+const { scoreAndValidate } =
+  await import("../supabase/functions/_shared/round-scoring.ts");
 
 // RNG tien dinh de ket qua lap lai duoc giua cac lan chay.
 let seed = 987654321;
@@ -48,7 +52,7 @@ type SimTelemetry = {
   [field: string]: unknown;
 };
 
-type Trial = { game: string; tier: TierId; tel: SimTelemetry };
+type Trial = { game: Game; tier: TierId; tel: SimTelemetry };
 const trials: Trial[] = [];
 const add = (t: Trial) => trials.push(t);
 

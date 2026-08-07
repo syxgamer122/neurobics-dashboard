@@ -29,10 +29,15 @@
 export const RATING_MIN = 0;
 export const RATING_MAX = 1000;
 
-export const clampRating = (n: number): number =>
-  Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(n)));
+export const clampRating = (n: number): number => {
+  if (!Number.isFinite(n)) return RATING_MIN;
+  return Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(n)));
+};
 
-export const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
+export const clamp01 = (n: number): number => {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+};
 
 /**
  * Auto-heals legacy data. Pre-model accounts hold cumulative totals (e.g. 4200)
@@ -89,17 +94,31 @@ export function applyRoundRating(
   round: number,
 ): number {
   const o = sanitizeRating(prev);
+
+  // Diem vong khong huu han la payload hong, KHONG phai mot van 0 diem.
+  // Giu nguyen rating cu de loi mang/parse khong phat nguoi choi. Cold start
+  // thi `o` bang 0, nen van tra ve moc an toan hop le.
+  if (!Number.isFinite(round)) return o;
+
   const r = clampRating(round);
   // COLD START: van dau tien la baseline.
   if (o <= 0) return r;
   if (r === o) return o;
   const gap = r - o;
   if (Math.abs(gap) <= RATING_SNAP) return r;
+
+  // Noi lien nhanh EMA voi bien snap. Neu khong co san/tran nay:
+  //   gap +3 -> 503 (snap), nhung gap +4 -> 502 (EMA)
+  // tuc choi tot hon lai nhan rating thap hon. `snapBoundary` giu quy tac cu
+  // trong vung 3 diem va chi san/tran nhung gia tri EMA bi dao chieu sat bien.
+  const snapBoundary = o + Math.sign(gap) * RATING_SNAP;
   if (gap > 0) {
-    return clampRating(Math.max(o + 1, o + EMA_ALPHA * gap));
+    const ema = o + EMA_ALPHA * gap;
+    return clampRating(Math.max(snapBoundary, ema));
   }
-  // Keo xuong: toi thieu -1 moi lan giam that su.
-  return clampRating(Math.min(o - 1, o + EMA_ALPHA_DOWN * gap));
+
+  const ema = o + EMA_ALPHA_DOWN * gap;
+  return clampRating(Math.min(snapBoundary, ema));
 }
 
 // ─── Inactivity decay ──────────────────────────────────────────────────
