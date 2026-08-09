@@ -30,8 +30,8 @@ import { logError } from "../lib/logger";
 const mono: React.CSSProperties = {};
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(10,16,36,0.55)",
-  border: "1px solid rgba(0,212,255,0.16)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
+  border: "1px solid rgba(var(--neuro-cyan-rgb),0.16)",
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
@@ -99,8 +99,8 @@ const Avatar = ({
       style={{
         width: size,
         height: size,
-        background: "rgba(0,212,255,0.14)",
-        border: "1px solid rgba(0,212,255,0.3)",
+        background: "rgba(var(--neuro-cyan-rgb),0.14)",
+        border: "1px solid rgba(var(--neuro-cyan-rgb),0.3)",
         ...mono,
       }}
     >
@@ -226,8 +226,8 @@ export function FriendsPanel() {
                   onClick={() => act(() => sendFriendRequest(p.id), s.sent)}
                   className="text-xs py-1.5 px-2.5 rounded-lg flex items-center gap-1"
                   style={{
-                    background: "rgba(0,212,255,0.13)",
-                    border: "1px solid rgba(0,212,255,0.4)",
+                    background: "rgba(var(--neuro-cyan-rgb),0.13)",
+                    border: "1px solid rgba(var(--neuro-cyan-rgb),0.4)",
                     color: "#00D4FF",
                   }}
                 >
@@ -251,8 +251,8 @@ export function FriendsPanel() {
                 key={f.friendship_id}
                 className="flex items-center gap-2.5 rounded-xl px-3 py-2"
                 style={{
-                  background: "rgba(245,158,11,0.08)",
-                  border: "1px solid rgba(245,158,11,0.25)",
+                  background: "rgba(var(--neuro-amber-rgb),0.08)",
+                  border: "1px solid rgba(var(--neuro-amber-rgb),0.25)",
                 }}
               >
                 <Avatar url={f.avatar_url} name={f.username} />
@@ -269,8 +269,8 @@ export function FriendsPanel() {
                   }
                   className="p-1.5 rounded-lg"
                   style={{
-                    background: "rgba(16,185,129,0.15)",
-                    border: "1px solid rgba(16,185,129,0.4)",
+                    background: "rgba(var(--neuro-green-rgb),0.15)",
+                    border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
                     color: "#10B981",
                   }}
                 >
@@ -286,8 +286,8 @@ export function FriendsPanel() {
                   }
                   className="p-1.5 rounded-lg"
                   style={{
-                    background: "rgba(244,63,94,0.12)",
-                    border: "1px solid rgba(244,63,94,0.35)",
+                    background: "rgba(var(--neuro-red-rgb),0.12)",
+                    border: "1px solid rgba(var(--neuro-red-rgb),0.35)",
                     color: "#F43F5E",
                   }}
                 >
@@ -341,10 +341,12 @@ export function FriendsPanel() {
               className="flex items-center gap-2.5 rounded-xl px-3 py-2"
               style={{
                 background: r.is_me
-                  ? "rgba(0,212,255,0.1)"
+                  ? "rgba(var(--neuro-cyan-rgb),0.1)"
                   : "rgba(255,255,255,0.03)",
                 border: `1px solid ${
-                  r.is_me ? "rgba(0,212,255,0.35)" : "rgba(255,255,255,0.06)"
+                  r.is_me
+                    ? "rgba(var(--neuro-cyan-rgb),0.35)"
+                    : "rgba(255,255,255,0.06)"
                 }`,
               }}
             >

@@ -186,7 +186,7 @@ export function TrailMakingGame({
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
         border: `1px solid ${ACCENT}33`,
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
@@ -335,13 +335,13 @@ export function TrailMakingGame({
                     height: 38,
                     fontSize: 13,
                     background: isWrong
-                      ? "rgba(244,63,94,0.35)"
+                      ? "rgba(var(--neuro-red-rgb),0.35)"
                       : done
                         ? `${ACCENT}40`
-                        : "rgba(13,20,45,0.9)",
+                        : "rgba(var(--neuro-panel-rgb),0.9)",
                     color: isWrong ? "#FDA4AF" : done ? ACCENT : "#E2E8F0",
                     border: isWrong
-                      ? "1px solid rgba(244,63,94,0.9)"
+                      ? "1px solid rgba(var(--neuro-red-rgb),0.9)"
                       : done
                         ? `1px solid ${ACCENT}`
                         : isNext

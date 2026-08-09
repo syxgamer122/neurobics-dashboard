@@ -36,7 +36,7 @@ export function StreakCard({
             className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
               background: "#EF4444",
-              boxShadow: "0 0 12px rgba(239,68,68,0.5)",
+              boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.5)",
             }}
           >
             <Flame size={13} className="text-white" />
@@ -46,7 +46,7 @@ export function StreakCard({
           <div
             className="text-6xl font-bold text-white leading-none"
             style={{
-              textShadow: "0 0 24px rgba(245,158,11,0.5)",
+              textShadow: "0 0 24px rgba(var(--neuro-amber-rgb),0.5)",
             }}
           >
             {streak}
@@ -61,7 +61,7 @@ export function StreakCard({
                   i < (streak > 0 ? ((streak - 1) % 7) + 1 : 0)
                     ? {
                         background: "linear-gradient(90deg, #F59E0B, #EF4444)",
-                        boxShadow: "0 0 6px rgba(245,158,11,0.5)",
+                        boxShadow: "0 0 6px rgba(var(--neuro-amber-rgb),0.5)",
                       }
                     : { background: "rgba(255,255,255,0.07)" }
                 }

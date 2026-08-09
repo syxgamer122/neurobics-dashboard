@@ -37,9 +37,9 @@ export function CognitiveMatrixCard({
         <div
           className="text-xs px-3 py-1.5 rounded-lg shrink-0"
           style={{
-            background: "rgba(168,85,247,0.1)",
+            background: "rgba(var(--neuro-purple-rgb),0.1)",
             color: "#A855F7",
-            border: "1px solid rgba(168,85,247,0.2)",
+            border: "1px solid rgba(var(--neuro-purple-rgb),0.2)",
           }}
         >
           {t.live}
@@ -51,7 +51,10 @@ export function CognitiveMatrixCard({
             data={data}
             margin={{ top: 10, right: 30, bottom: 10, left: 30 }}
           >
-            <PolarGrid key="polar-grid" stroke="rgba(0,212,255,0.09)" />
+            <PolarGrid
+              key="polar-grid"
+              stroke="rgba(var(--neuro-cyan-rgb),0.09)"
+            />
             <PolarAngleAxis
               key="polar-angle"
               dataKey="subject"
@@ -77,7 +80,7 @@ export function CognitiveMatrixCard({
               isAnimationActive={false}
               dot={false}
               style={{
-                filter: "drop-shadow(0 0 8px rgba(0,212,255,0.5))",
+                filter: "drop-shadow(0 0 8px rgba(var(--neuro-cyan-rgb),0.5))",
               }}
             />
           </RadarChart>
@@ -100,7 +103,7 @@ export function CognitiveMatrixCard({
               style={{
                 background: "linear-gradient(90deg, #00D4FF, #A855F7)",
                 opacity: d.value / 100,
-                boxShadow: "0 0 6px rgba(0,212,255,0.4)",
+                boxShadow: "0 0 6px rgba(var(--neuro-cyan-rgb),0.4)",
               }}
             />
           </div>

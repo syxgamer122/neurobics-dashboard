@@ -15,7 +15,7 @@ export function AccessDeniedOverlay({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{
-        background: "rgba(5,10,24,0.92)",
+        background: "rgba(var(--neuro-ink-rgb),0.92)",
         backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.3333))",
       }}
       onClick={onClose}
@@ -24,16 +24,16 @@ export function AccessDeniedOverlay({
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at center, rgba(239,68,68,0.18) 0%, transparent 65%)",
+            "radial-gradient(ellipse at center, rgba(var(--neuro-red-rgb),0.18) 0%, transparent 65%)",
         }}
       />
       <div
         className="relative flex flex-col items-center gap-5 p-10 rounded-2xl max-w-sm w-full mx-4"
         style={{
           background: "rgba(13,5,10,0.9)",
-          border: "1px solid rgba(239,68,68,0.5)",
+          border: "1px solid rgba(var(--neuro-red-rgb),0.5)",
           boxShadow:
-            "0 0 80px rgba(239,68,68,0.25), inset 0 0 40px rgba(239,68,68,0.04)",
+            "0 0 80px rgba(var(--neuro-red-rgb),0.25), inset 0 0 40px rgba(var(--neuro-red-rgb),0.04)",
         }}
         onClick={(event) => event.stopPropagation()}
       >
@@ -51,16 +51,16 @@ export function AccessDeniedOverlay({
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center"
           style={{
-            background: "rgba(239,68,68,0.1)",
-            border: "2px solid rgba(239,68,68,0.5)",
-            boxShadow: "0 0 30px rgba(239,68,68,0.3)",
+            background: "rgba(var(--neuro-red-rgb),0.1)",
+            border: "2px solid rgba(var(--neuro-red-rgb),0.5)",
+            boxShadow: "0 0 30px rgba(var(--neuro-red-rgb),0.3)",
           }}
         >
           <Terminal
             size={28}
             style={{
               color: "#EF4444",
-              filter: "drop-shadow(0 0 8px rgba(239,68,68,0.8))",
+              filter: "drop-shadow(0 0 8px rgba(var(--neuro-red-rgb),0.8))",
             }}
           />
         </div>
@@ -69,7 +69,7 @@ export function AccessDeniedOverlay({
             className="text-2xl font-bold tracking-[0.3em] font-mono"
             style={{
               color: "#EF4444",
-              textShadow: "0 0 20px rgba(239,68,68,0.6)",
+              textShadow: "0 0 20px rgba(var(--neuro-red-rgb),0.6)",
             }}
           >
             {t.access_denied_title}
@@ -82,7 +82,7 @@ export function AccessDeniedOverlay({
           className="w-full rounded-lg p-4 space-y-1.5 text-left"
           style={{
             background: "rgba(0,0,0,0.5)",
-            border: "1px solid rgba(239,68,68,0.12)",
+            border: "1px solid rgba(var(--neuro-red-rgb),0.12)",
           }}
         >
           {[
@@ -102,7 +102,7 @@ export function AccessDeniedOverlay({
             <div key={label} className="flex items-center gap-2">
               <span
                 className="text-xs w-20 shrink-0"
-                style={{ color: "rgba(239,68,68,0.5)" }}
+                style={{ color: "rgba(var(--neuro-red-rgb),0.5)" }}
               >
                 {label}
               </span>
@@ -117,9 +117,9 @@ export function AccessDeniedOverlay({
           onClick={onClose}
           className="w-full py-2 rounded-xl text-xs tracking-widest font-bold transition-all duration-200 font-mono"
           style={{
-            background: "rgba(239,68,68,0.1)",
+            background: "rgba(var(--neuro-red-rgb),0.1)",
             color: "#EF4444",
-            border: "1px solid rgba(239,68,68,0.3)",
+            border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
           }}
         >
           {t.dismiss}

@@ -26,7 +26,7 @@ type Phase = "idle" | "countdown" | "isi" | "stim" | "done";
 type StimKind = "go" | "nogo";
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(13,20,45,0.62)",
+  background: "rgba(var(--neuro-panel-rgb),0.62)",
   border: `1px solid ${ACCENT}33`,
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
@@ -350,8 +350,8 @@ export function GoNoGoGame({
               <div
                 className="w-14 h-14 rounded-full"
                 style={{
-                  background: "rgba(16,185,129,0.85)",
-                  boxShadow: "0 0 24px rgba(16,185,129,0.45)",
+                  background: "rgba(var(--neuro-green-rgb),0.85)",
+                  boxShadow: "0 0 24px rgba(var(--neuro-green-rgb),0.45)",
                 }}
               />
               <span className="text-[11px] text-emerald-400 font-mono tracking-widest">
@@ -362,8 +362,8 @@ export function GoNoGoGame({
               <div
                 className="w-14 h-14 rounded-lg"
                 style={{
-                  background: "rgba(244,63,94,0.85)",
-                  boxShadow: "0 0 24px rgba(244,63,94,0.4)",
+                  background: "rgba(var(--neuro-red-rgb),0.85)",
+                  boxShadow: "0 0 24px rgba(var(--neuro-red-rgb),0.4)",
                 }}
               />
               <span className="text-[11px] text-rose-400 font-mono tracking-widest">
@@ -414,15 +414,15 @@ export function GoNoGoGame({
             minHeight: 280,
             background:
               flash === "bad"
-                ? "rgba(244,63,94,0.2)"
+                ? "rgba(var(--neuro-red-rgb),0.2)"
                 : flash === "ok"
-                  ? "rgba(16,185,129,0.12)"
-                  : "rgba(10,16,36,0.75)",
+                  ? "rgba(var(--neuro-green-rgb),0.12)"
+                  : "rgba(var(--neuro-ink-rgb),0.75)",
             border:
               flash === "bad"
-                ? "1px solid rgba(244,63,94,0.7)"
+                ? "1px solid rgba(var(--neuro-red-rgb),0.7)"
                 : flash === "ok"
-                  ? "1px solid rgba(16,185,129,0.55)"
+                  ? "1px solid rgba(var(--neuro-green-rgb),0.55)"
                   : "1px solid rgba(255,255,255,0.08)",
           }}
         >
@@ -433,8 +433,8 @@ export function GoNoGoGame({
             <div
               className="w-28 h-28 rounded-full animate-pulse"
               style={{
-                background: "rgba(16,185,129,0.9)",
-                boxShadow: "0 0 48px rgba(16,185,129,0.55)",
+                background: "rgba(var(--neuro-green-rgb),0.9)",
+                boxShadow: "0 0 48px rgba(var(--neuro-green-rgb),0.55)",
               }}
             />
           )}
@@ -442,8 +442,8 @@ export function GoNoGoGame({
             <div
               className="w-28 h-28 rounded-xl"
               style={{
-                background: "rgba(244,63,94,0.92)",
-                boxShadow: "0 0 48px rgba(244,63,94,0.5)",
+                background: "rgba(var(--neuro-red-rgb),0.92)",
+                boxShadow: "0 0 48px rgba(var(--neuro-red-rgb),0.5)",
               }}
             />
           )}

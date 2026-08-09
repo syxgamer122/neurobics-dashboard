@@ -327,8 +327,8 @@ export function SchulteTableGame({
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
-        border: "1px solid rgba(168,85,247,0.2)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
+        border: "1px solid rgba(var(--neuro-purple-rgb),0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: "0 4px 44px rgba(0,0,0,0.45)",

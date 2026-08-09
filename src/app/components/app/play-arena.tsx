@@ -189,7 +189,7 @@ export function PlayArena({
           className="flex-1 h-px"
           style={{
             background:
-              "linear-gradient(90deg, rgba(0,212,255,0.3), transparent)",
+              "linear-gradient(90deg, rgba(var(--neuro-cyan-rgb),0.3), transparent)",
           }}
         />
         {selectedGame && (

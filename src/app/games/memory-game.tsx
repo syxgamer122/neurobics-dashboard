@@ -200,8 +200,8 @@ export function MemoryMatrixGame({
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
-        border: "1px solid rgba(244,63,94,0.2)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
+        border: "1px solid rgba(var(--neuro-red-rgb),0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
@@ -222,9 +222,9 @@ export function MemoryMatrixGame({
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{
-            background: "rgba(244,63,94,0.18)",
+            background: "rgba(var(--neuro-red-rgb),0.18)",
             color: "#F43F5E",
-            border: "1px solid rgba(244,63,94,0.28)",
+            border: "1px solid rgba(var(--neuro-red-rgb),0.28)",
           }}
         >
           <Brain size={16} />
@@ -235,8 +235,8 @@ export function MemoryMatrixGame({
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
           style={{
-            background: "rgba(244,63,94,0.12)",
-            border: "1px solid rgba(244,63,94,0.25)",
+            background: "rgba(var(--neuro-red-rgb),0.12)",
+            border: "1px solid rgba(var(--neuro-red-rgb),0.25)",
           }}
         >
           <Star size={11} style={{ color: "#F43F5E" }} />
@@ -271,7 +271,7 @@ export function MemoryMatrixGame({
                 transition: "opacity 0.25s",
                 filter:
                   i < hearts
-                    ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))"
+                    ? "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.6))"
                     : "none",
               }}
             >
@@ -290,8 +290,8 @@ export function MemoryMatrixGame({
               color: status === "done" ? "#10B981" : "#F43F5E",
               textShadow:
                 status === "done"
-                  ? "0 0 24px rgba(16,185,129,0.5)"
-                  : "0 0 18px rgba(244,63,94,0.4)",
+                  ? "0 0 24px rgba(var(--neuro-green-rgb),0.5)"
+                  : "0 0 18px rgba(var(--neuro-red-rgb),0.4)",
             }}
           >
             {fmtTime(elapsed)}
@@ -303,7 +303,7 @@ export function MemoryMatrixGame({
             className="text-4xl font-bold tabular-nums font-mono"
             style={{
               color: "#F43F5E",
-              textShadow: "0 0 20px rgba(244,63,94,0.55)",
+              textShadow: "0 0 20px rgba(var(--neuro-red-rgb),0.55)",
             }}
           >
             {level}
@@ -325,10 +325,10 @@ export function MemoryMatrixGame({
             onClick={generateLevel}
             className="px-8 py-3 rounded-xl text-sm font-bold tracking-widest transition-all duration-200 hover:scale-105 font-mono"
             style={{
-              background: "rgba(244,63,94,0.15)",
+              background: "rgba(var(--neuro-red-rgb),0.15)",
               color: "#F43F5E",
-              border: "1px solid rgba(244,63,94,0.4)",
-              boxShadow: "0 0 20px rgba(244,63,94,0.2)",
+              border: "1px solid rgba(var(--neuro-red-rgb),0.4)",
+              boxShadow: "0 0 20px rgba(var(--neuro-red-rgb),0.2)",
             }}
           >
             {t.mem_start}
@@ -373,17 +373,17 @@ export function MemoryMatrixGame({
               let transform = "scale(1)";
 
               if ((status === "memorize" || status === "fail") && isTarget) {
-                bg = "rgba(244,63,94,0.8)";
-                border = "1px solid rgba(244,63,94,1)";
-                shadow = "0 0 15px rgba(244,63,94,0.6)";
+                bg = "rgba(var(--neuro-red-rgb),0.8)";
+                border = "1px solid rgba(var(--neuro-red-rgb),1)";
+                shadow = "0 0 15px rgba(var(--neuro-red-rgb),0.6)";
               } else if (status === "recall" || status === "success") {
                 if (isWrong) {
-                  bg = "rgba(239,68,68,0.4)";
-                  border = "1px solid rgba(239,68,68,0.8)";
+                  bg = "rgba(var(--neuro-red-rgb),0.4)";
+                  border = "1px solid rgba(var(--neuro-red-rgb),0.8)";
                 } else if (isSelected) {
-                  bg = "rgba(16,185,129,0.5)";
-                  border = "1px solid rgba(16,185,129,0.8)";
-                  shadow = "0 0 10px rgba(16,185,129,0.4)";
+                  bg = "rgba(var(--neuro-green-rgb),0.5)";
+                  border = "1px solid rgba(var(--neuro-green-rgb),0.8)";
+                  shadow = "0 0 10px rgba(var(--neuro-green-rgb),0.4)";
                   transform = "scale(0.92)";
                 } else {
                   bg = "rgba(255,255,255,0.05)";
@@ -428,9 +428,9 @@ export function MemoryMatrixGame({
           onClick={reset}
           className="mt-6 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-125"
           style={{
-            background: "rgba(244,63,94,0.1)",
+            background: "rgba(var(--neuro-red-rgb),0.1)",
             color: "#F43F5E",
-            border: "1px solid rgba(244,63,94,0.25)",
+            border: "1px solid rgba(var(--neuro-red-rgb),0.25)",
           }}
         >
           <RefreshCw size={12} /> {t.abort_restart}

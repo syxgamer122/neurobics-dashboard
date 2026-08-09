@@ -20,7 +20,7 @@ export function AmbientBackground() {
           width: 600,
           height: 600,
           background:
-            "radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(var(--neuro-cyan-rgb),0.08) 0%, transparent 70%)",
         }}
       />
       <div
@@ -31,14 +31,14 @@ export function AmbientBackground() {
           width: 500,
           height: 500,
           background:
-            "radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(var(--neuro-purple-rgb),0.07) 0%, transparent 70%)",
         }}
       />
       <div
         className="absolute inset-0"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px)",
+            "linear-gradient(rgba(var(--neuro-cyan-rgb),0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--neuro-cyan-rgb),0.03) 1px, transparent 1px)",
           backgroundSize: "56px 56px",
         }}
       />

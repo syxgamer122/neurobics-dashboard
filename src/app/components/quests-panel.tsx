@@ -10,8 +10,8 @@ import { resolveQuestLabel } from "../lib/quest-labels";
 // 3 daily xoay mỗi ngày + 3 weekly; client chỉ hiển thị và xin nhận thưởng.
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(10,16,36,0.55)",
-  border: "1px solid rgba(16,185,129,0.16)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
+  border: "1px solid rgba(var(--neuro-green-rgb),0.16)",
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
@@ -76,13 +76,13 @@ function QuestRow({
       className="rounded-xl p-3"
       style={{
         background: quest.claimed
-          ? "rgba(16,185,129,0.08)"
+          ? "rgba(var(--neuro-green-rgb),0.08)"
           : "rgba(255,255,255,0.03)",
         border: `1px solid ${
           ready
-            ? "rgba(16,185,129,0.5)"
+            ? "rgba(var(--neuro-green-rgb),0.5)"
             : quest.claimed
-              ? "rgba(16,185,129,0.25)"
+              ? "rgba(var(--neuro-green-rgb),0.25)"
               : "rgba(255,255,255,0.07)"
         }`,
       }}
@@ -128,8 +128,8 @@ function QuestRow({
             style={{
               opacity: ready ? 1 : 0.35,
               cursor: ready ? "pointer" : "not-allowed",
-              background: "rgba(16,185,129,0.15)",
-              border: "1px solid rgba(16,185,129,0.45)",
+              background: "rgba(var(--neuro-green-rgb),0.15)",
+              border: "1px solid rgba(var(--neuro-green-rgb),0.45)",
               color: "#10B981",
             }}
           >

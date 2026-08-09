@@ -49,7 +49,7 @@ export function BrainAgeCard({
               className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm text-white outline-none"
               style={{
                 background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(168,85,247,0.25)",
+                border: "1px solid rgba(var(--neuro-purple-rgb),0.25)",
               }}
             />
             <button
@@ -57,9 +57,9 @@ export function BrainAgeCard({
               disabled={saving}
               className="px-4 py-2 rounded-xl text-xs font-bold tracking-wider shrink-0 transition-all duration-150 hover:brightness-125 disabled:opacity-60"
               style={{
-                background: "rgba(168,85,247,0.18)",
+                background: "rgba(var(--neuro-purple-rgb),0.18)",
                 color: "#A855F7",
-                border: "1px solid rgba(168,85,247,0.4)",
+                border: "1px solid rgba(var(--neuro-purple-rgb),0.4)",
               }}
             >
               {saving ? t.saving : t.save_btn}
@@ -103,7 +103,7 @@ export function BrainAgeCard({
                 cy="44"
                 r="36"
                 fill="none"
-                stroke="rgba(168,85,247,0.12)"
+                stroke="rgba(var(--neuro-purple-rgb),0.12)"
                 strokeWidth="7"
               />
               <circle
@@ -117,7 +117,8 @@ export function BrainAgeCard({
                 strokeDasharray={`${2 * Math.PI * 36 * brainAge.ringPct} ${2 * Math.PI * 36 * (1 - brainAge.ringPct)}`}
                 strokeDashoffset={2 * Math.PI * 36 * 0.25}
                 style={{
-                  filter: "drop-shadow(0 0 8px rgba(168,85,247,0.7))",
+                  filter:
+                    "drop-shadow(0 0 8px rgba(var(--neuro-purple-rgb),0.7))",
                   transition: "stroke-dasharray 0.8s ease",
                 }}
               />

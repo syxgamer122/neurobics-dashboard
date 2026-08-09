@@ -147,24 +147,24 @@ export function ReactionTimeGame({
 
   const padBackground =
     phase === "ready"
-      ? "rgba(16,185,129,0.85)"
+      ? "rgba(var(--neuro-green-rgb),0.85)"
       : phase === "result" && currentRt === null
-        ? "rgba(244,63,94,0.35)"
-        : "rgba(13,20,45,0.8)";
+        ? "rgba(var(--neuro-red-rgb),0.35)"
+        : "rgba(var(--neuro-panel-rgb),0.8)";
 
   const padBorder =
     phase === "ready"
-      ? "1px solid rgba(16,185,129,1)"
+      ? "1px solid rgba(var(--neuro-green-rgb),1)"
       : phase === "result" && currentRt === null
-        ? "1px solid rgba(244,63,94,0.8)"
-        : "1px solid rgba(16,185,129,0.25)";
+        ? "1px solid rgba(var(--neuro-red-rgb),0.8)"
+        : "1px solid rgba(var(--neuro-green-rgb),0.25)";
 
   return (
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
-        border: "1px solid rgba(16,185,129,0.2)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
+        border: "1px solid rgba(var(--neuro-green-rgb),0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
@@ -187,9 +187,9 @@ export function ReactionTimeGame({
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
           style={{
-            background: "rgba(16,185,129,0.18)",
+            background: "rgba(var(--neuro-green-rgb),0.18)",
             color: "#10B981",
-            border: "1px solid rgba(16,185,129,0.28)",
+            border: "1px solid rgba(var(--neuro-green-rgb),0.28)",
           }}
         >
           <Activity size={17} />
@@ -238,9 +238,9 @@ export function ReactionTimeGame({
             onClick={startGame}
             className="mt-6 px-8 py-3 rounded-xl text-sm font-bold tracking-widest hover:scale-105 transition-all font-mono"
             style={{
-              background: "rgba(16,185,129,0.15)",
+              background: "rgba(var(--neuro-green-rgb),0.15)",
               color: "#10B981",
-              border: "1px solid rgba(16,185,129,0.4)",
+              border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
             }}
           >
             {t.rx_start}
@@ -272,7 +272,9 @@ export function ReactionTimeGame({
             background: padBackground,
             border: padBorder,
             boxShadow:
-              phase === "ready" ? "0 0 40px rgba(16,185,129,0.45)" : "none",
+              phase === "ready"
+                ? "0 0 40px rgba(var(--neuro-green-rgb),0.45)"
+                : "none",
           }}
         >
           <div className="text-2xl font-bold text-white">{message}</div>
@@ -296,9 +298,9 @@ export function ReactionTimeGame({
           onClick={resetGame}
           className="mt-5 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2"
           style={{
-            background: "rgba(16,185,129,0.1)",
+            background: "rgba(var(--neuro-green-rgb),0.1)",
             color: "#10B981",
-            border: "1px solid rgba(16,185,129,0.25)",
+            border: "1px solid rgba(var(--neuro-green-rgb),0.25)",
           }}
         >
           <RefreshCw size={12} />

@@ -268,7 +268,7 @@ export function CorsiBlockGame({
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
         border: `1px solid ${ACCENT}33`,
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",

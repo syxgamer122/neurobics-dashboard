@@ -70,8 +70,8 @@ export function ProfilePage({
         <div
           className="rounded-2xl p-6 text-sm leading-relaxed text-slate-300"
           style={{
-            background: "rgba(13,20,45,0.62)",
-            border: "1px solid rgba(16,185,129,0.22)",
+            background: "rgba(var(--neuro-panel-rgb),0.62)",
+            border: "1px solid rgba(var(--neuro-green-rgb),0.22)",
           }}
         >
           {t.guest_banner}
@@ -80,9 +80,9 @@ export function ProfilePage({
             onClick={onRegister}
             className="mt-4 h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
             style={{
-              background: "rgba(16,185,129,0.15)",
+              background: "rgba(var(--neuro-green-rgb),0.15)",
               color: "#34D399",
-              border: "1px solid rgba(16,185,129,0.35)",
+              border: "1px solid rgba(var(--neuro-green-rgb),0.35)",
             }}
           >
             {t.guest_register}
@@ -97,8 +97,8 @@ export function ProfilePage({
           className="rounded-xl px-4 py-2.5 text-xs font-semibold tracking-wider transition-all hover:brightness-125"
           style={{
             color: "#00D4FF",
-            background: "rgba(0,212,255,0.08)",
-            border: "1px solid rgba(0,212,255,0.22)",
+            background: "rgba(var(--neuro-cyan-rgb),0.08)",
+            border: "1px solid rgba(var(--neuro-cyan-rgb),0.22)",
           }}
         >
           {t.onboarding_reopen}
@@ -110,9 +110,9 @@ export function ProfilePage({
           onClick={onLogout}
           className="py-2.5 px-5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
           style={{
-            background: "rgba(244,63,94,0.1)",
+            background: "rgba(var(--neuro-red-rgb),0.1)",
             color: "#F43F5E",
-            border: "1px solid rgba(244,63,94,0.28)",
+            border: "1px solid rgba(var(--neuro-red-rgb),0.28)",
           }}
         >
           <LogOut size={13} /> {t.sign_out}

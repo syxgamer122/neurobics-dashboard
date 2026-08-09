@@ -12,7 +12,7 @@ const TOTAL = 24;
 const ACCENT = "#38BDF8";
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(10,16,36,0.55)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
   border: `1px solid ${ACCENT}2E`,
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
@@ -454,15 +454,15 @@ export function MathSprintGame({
             style={{
               background:
                 flash === "ok"
-                  ? "rgba(16,185,129,0.12)"
+                  ? "rgba(var(--neuro-green-rgb),0.12)"
                   : flash === "bad"
-                    ? "rgba(244,63,94,0.12)"
+                    ? "rgba(var(--neuro-red-rgb),0.12)"
                     : "rgba(255,255,255,0.03)",
               border: `1px solid ${
                 flash === "ok"
-                  ? "rgba(16,185,129,0.45)"
+                  ? "rgba(var(--neuro-green-rgb),0.45)"
                   : flash === "bad"
-                    ? "rgba(244,63,94,0.45)"
+                    ? "rgba(var(--neuro-red-rgb),0.45)"
                     : "rgba(255,255,255,0.08)"
               }`,
             }}

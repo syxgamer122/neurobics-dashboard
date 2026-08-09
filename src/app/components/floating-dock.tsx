@@ -55,8 +55,8 @@ export function FloatingDock({
       <div
         className="mx-auto mb-1 sm:mb-2 flex w-fit max-w-full items-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-3 py-2 sm:py-2.5 pointer-events-auto"
         style={{
-          background: "rgba(10,16,36,0.88)",
-          border: "1px solid rgba(0,212,255,0.14)",
+          background: "rgba(var(--neuro-ink-rgb),0.88)",
+          border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
           backdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
           WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
           boxShadow:
@@ -73,7 +73,7 @@ export function FloatingDock({
               <div
                 className="absolute bottom-full mb-3 hidden whitespace-nowrap rounded-lg px-3 py-1.5 text-xs tracking-wider transition-all duration-200 sm:block"
                 style={{
-                  background: "rgba(5,10,24,0.95)",
+                  background: "rgba(var(--neuro-ink-rgb),0.95)",
                   color: `rgb(${item.accent})`,
                   border: `1px solid rgba(${item.accent},0.35)`,
                   boxShadow: `0 0 18px rgba(${item.accent},0.2)`,
