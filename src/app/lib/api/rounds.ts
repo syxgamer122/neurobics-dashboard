@@ -55,3 +55,9 @@ export async function submitRound(
   });
   return { ...result, profile: sanitizeProfile(result.profile) };
 }
+
+export async function syncOfflineRounds(payload: {
+  rounds: unknown[];
+}): Promise<{ results: unknown[] }> {
+  return serverPost<{ results: unknown[] }>("sync-offline-rounds", payload);
+}

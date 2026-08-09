@@ -74,16 +74,12 @@ function writeAxis(profile: Profile, key: AxisKey, value: number): void {
  * Cham diem van khach bang cung bo scoreAndValidate cua server, roi cap nhat
  * ho so ao + XP cuc bo. elapsedMs phai >= timeMs telemetry (giong rang buoc server).
  */
-export function completeGuestRound(
+export function completeLocalRound(
   profile: Profile,
   game: RoundGame,
   telemetry: unknown,
   elapsedMs: number,
 ): SubmittedRound {
-  if (!isGuestProfile(profile)) {
-    throw new Error("completeGuestRound only accepts guest profiles");
-  }
-
   const tel = telemetry as { timeMs?: number } | null;
   const telMs =
     typeof tel?.timeMs === "number" && Number.isFinite(tel.timeMs)
