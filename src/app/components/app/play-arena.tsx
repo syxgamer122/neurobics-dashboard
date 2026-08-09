@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Suspense, lazy, type ComponentType } from "react";
 import {
   Activity,
@@ -14,6 +15,7 @@ import {
   Sparkles,
   Zap,
   Search,
+  Gamepad2,
   type LucideIcon,
 } from "lucide-react";
 import type { RoundGame } from "../../lib/api";
@@ -25,6 +27,7 @@ import {
 import type { Translation } from "../../lib/i18n";
 import { ErrorBoundary } from "../error-boundary";
 import { GameTile } from "../ui/game-tile";
+import { ArcadePanel } from "./arcade-panel";
 // ─── Chunk rieng cho tung game ────────────────────────────────────
 // TRUOC DAY 11 game duoc import tinh, nen ca 11 nam trong bundle DAU TIEN:
 // nguoi chi choi Schulte van phai tai Sudoku, Mental Rotation, N-Back...
@@ -170,12 +173,52 @@ export function PlayArena({
   beginPlay: (game: RoundGame) => void;
   makeGameHandler: (game: RoundGame) => (telemetry: unknown) => Promise<void>;
 }) {
+  const [tab, setTab] = useState<"cognitive" | "arcade">("cognitive");
   const ActiveGame = selectedGame ? GAME_COMPONENTS[selectedGame] : null;
+
+  const TABS = [
+    { id: "cognitive" as const, label: "Game Nhận Thức", icon: Brain },
+    { id: "arcade" as const, label: "Arcade", icon: Gamepad2 },
+  ];
 
   return (
     <>
+      {/* Tab switcher — chỉ hiện khi chưa chọn game nhận thức */}
+      {!selectedGame && (
+        <div className="flex gap-2 max-w-4xl mx-auto w-full">
+          {TABS.map((tabItem) => {
+            const Icon = tabItem.icon;
+            const isActive = tab === tabItem.id;
+            return (
+              <button
+                key={tabItem.id}
+                type="button"
+                onClick={() => setTab(tabItem.id)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold tracking-widest transition-all duration-200"
+                style={{
+                  background: isActive
+                    ? "rgba(var(--neuro-cyan-rgb),0.15)"
+                    : "rgba(var(--neuro-panel-rgb),0.5)",
+                  border: isActive
+                    ? "1px solid rgba(var(--neuro-cyan-rgb),0.45)"
+                    : "1px solid rgba(var(--neuro-panel-rgb),0.6)",
+                  color: isActive ? "var(--neuro-cyan)" : "var(--neuro-muted)",
+                  boxShadow: isActive
+                    ? "0 0 16px rgba(var(--neuro-cyan-rgb),0.2)"
+                    : "none",
+                }}
+              >
+                <Icon size={13} />
+                {tabItem.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div
-        className={`flex items-center gap-4 pt-1 ${selectedGame ? "max-w-lg mx-auto w-full" : ""}`}
+        className="flex items-center gap-4 pt-1"
+        style={{ maxWidth: selectedGame ? undefined : undefined }}
       >
         <Zap
           size={14}
@@ -204,8 +247,8 @@ export function PlayArena({
         )}
       </div>
 
-      {!selectedGame && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto w-full">
+      {!selectedGame && tab === "cognitive" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto w-full page-enter">
           {GAME_REGISTRY.map((game) => {
             const Icon = GAME_ICONS[game.icon];
             return (
@@ -221,6 +264,12 @@ export function PlayArena({
               />
             );
           })}
+        </div>
+      )}
+
+      {!selectedGame && tab === "arcade" && (
+        <div className="page-enter">
+          <ArcadePanel />
         </div>
       )}
 
