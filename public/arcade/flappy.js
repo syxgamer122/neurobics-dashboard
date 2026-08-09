@@ -15,12 +15,14 @@ let bird,
   score,
   bestScore = parseInt(localStorage.getItem("flappyBest")) || 0,
   frame,
-  particles;
+  particles,
+  collectStars;
 
 function initGame() {
   bird = { x: W * 0.28, y: H / 2, vy: 0, r: 18, rot: 0 };
   pipes = [];
   particles = [];
+  collectStars = [];
   score = 0;
   frame = 0;
   document.getElementById("score-val").textContent = "0";
@@ -83,7 +85,19 @@ function spawnPipe() {
   const minY = 80,
     maxY = H - GAP - 80;
   const topH = Math.random() * (maxY - minY) + minY;
-  pipes.push({ x: W + PIPE_W, topH, passed: false });
+  let vy = 0;
+  if (score > 10 && Math.random() < 0.3) {
+    vy = (Math.random() < 0.5 ? 1 : -1) * (1 + Math.random());
+  }
+  pipes.push({ x: W + PIPE_W, topH, passed: false, vy, initialTopH: topH });
+
+  if (Math.random() < 0.4) {
+    collectStars.push({
+      x: W + PIPE_W + 100 + Math.random() * 50,
+      y: Math.random() * (H - 150) + 75,
+      collected: false,
+    });
+  }
 }
 
 function drawBird() {
@@ -174,7 +188,7 @@ function drawBg() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Stars
+  // Stars background
   ctx.fillStyle = "rgba(196,181,253,0.5)";
   for (let i = 0; i < 40; i++) {
     const sx = (i * 137 + frame * 0.05) % W;
@@ -182,6 +196,19 @@ function drawBg() {
     const ss = 0.5 + (i % 3) * 0.5;
     ctx.beginPath();
     ctx.arc(sx, sy, ss, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Parallax clouds
+  ctx.fillStyle = "rgba(255,255,255,0.03)";
+  for (let i = 0; i < 4; i++) {
+    const cx =
+      ((((i * 200 - frame * 0.4) % (W + 200)) + W + 200) % (W + 200)) - 100;
+    const cy = 100 + (i % 3) * 80;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+    ctx.arc(cx + 30, cy - 10, 50, 0, Math.PI * 2);
+    ctx.arc(cx + 60, cy, 40, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -210,6 +237,11 @@ function loop() {
 
     for (let i = pipes.length - 1; i >= 0; i--) {
       pipes[i].x -= 3;
+      if (pipes[i].vy) {
+        pipes[i].topH += pipes[i].vy;
+        if (Math.abs(pipes[i].topH - pipes[i].initialTopH) > 40)
+          pipes[i].vy *= -1;
+      }
       drawPipe(pipes[i]);
       if (!pipes[i].passed && pipes[i].x + PIPE_W < bird.x) {
         pipes[i].passed = true;
@@ -217,6 +249,51 @@ function loop() {
         document.getElementById("score-val").textContent = score;
       }
       if (pipes[i].x + PIPE_W < 0) pipes.splice(i, 1);
+    }
+
+    // Stars
+    for (let i = collectStars.length - 1; i >= 0; i--) {
+      const s = collectStars[i];
+      s.x -= 3;
+      if (!s.collected) {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(frame * 0.05);
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        for (let j = 0; j < 5; j++) {
+          ctx.lineTo(
+            Math.cos(((18 + j * 72) * Math.PI) / 180) * 12,
+            -Math.sin(((18 + j * 72) * Math.PI) / 180) * 12,
+          );
+          ctx.lineTo(
+            Math.cos(((54 + j * 72) * Math.PI) / 180) * 6,
+            -Math.sin(((54 + j * 72) * Math.PI) / 180) * 6,
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        const dx = bird.x - s.x;
+        const dy = bird.y - s.y;
+        if (Math.sqrt(dx * dx + dy * dy) < bird.r + 12) {
+          s.collected = true;
+          score += 3;
+          document.getElementById("score-val").textContent = score;
+          for (let k = 0; k < 10; k++) {
+            particles.push({
+              x: s.x,
+              y: s.y,
+              vx: (Math.random() - 0.5) * 5,
+              vy: (Math.random() - 0.5) * 5,
+              life: 1,
+              color: "#fbbf24",
+            });
+          }
+        }
+      }
+      if (s.x < -20 || s.collected) collectStars.splice(i, 1);
     }
 
     // Particles
