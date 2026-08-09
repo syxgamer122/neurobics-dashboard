@@ -218,13 +218,16 @@ function loop() {
       p.x += p.vx;
       p.y += p.vy;
       p.life -= 0.06;
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+        continue;
+      }
       ctx.globalAlpha = p.life;
       ctx.fillStyle = p.color;
       ctx.beginPath();
       ctx.arc(p.x, p.y, 3 * p.life, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
-      if (p.life <= 0) particles.splice(i, 1);
     }
 
     if (checkCollision()) {
