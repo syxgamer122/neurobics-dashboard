@@ -291,6 +291,32 @@ export function scoreTrail(t: Telemetry): ScoredRound {
   };
 }
 
+export function scoreSearch(t: Telemetry): ScoredRound {
+  const timeMs = finite(t?.totalTimeMs, "totalTimeMs", 30_000, 120_000);
+  const score = int(t?.score, "score", 0, 200);
+  const mistakes = int(t?.mistakes, "mistakes", 0, 500);
+  const rts = numberArray(t?.rts, "rts", 0, 200);
+
+  const accuracy = clamp01(score / Math.max(1, score + mistakes));
+  const statRts = statSamples(rts, 120);
+
+  const target = 1100;
+  const diff = 0.85;
+
+  const axes = {
+    ...NO_AXES,
+    speed: statRts.length >= 3 ? speed(statRts, target, diff) : null,
+    focus: focus(statRts, accuracy, diff, target),
+  };
+
+  return {
+    axes,
+    headline: headline(axes),
+    label: `${score} found`,
+    timeMs,
+  };
+}
+
 // ---- Rang buoc bien cho telemetry tho (chong gia mao tu DevTools) ----
 // Khong the chung minh tuyet doi, nhung chan duoc cac gia tri phi ly.
 // San THONG KE: mau nhanh hon nguong nay bi loai khoi median/CV (statSamples),

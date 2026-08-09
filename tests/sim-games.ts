@@ -910,6 +910,39 @@ cases.push({
   },
 });
 
+// Visual Search tests
+{
+  const r = rts(30, 1100);
+  cases.push({
+    id: "A10",
+    desc: "Visual Search tot",
+    game: "search",
+    tel: { totalTimeMs: 60000, score: 30, mistakes: 2, rts: r },
+    elapsed: 60500,
+    expect: {
+      hardFlag: false,
+      check: (s) =>
+        ax(s, "speed") > 300 && ax(s, "focus") > 300
+          ? null
+          : `speed=${s.axes.speed} focus=${s.axes.focus}`,
+    },
+  });
+}
+{
+  const r = rts(150, 300);
+  cases.push({
+    id: "B10",
+    desc: "Visual Search hack diem (score > 120)",
+    game: "search",
+    tel: { totalTimeMs: 60000, score: 150, mistakes: 0, rts: r },
+    elapsed: 60500,
+    expect: {
+      hardFlag: true,
+      check: () => null,
+    },
+  });
+}
+
 let pass = 0;
 const fails: string[] = [];
 

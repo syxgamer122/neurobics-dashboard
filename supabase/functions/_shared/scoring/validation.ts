@@ -175,4 +175,10 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
     if (nodes !== null && wrongClicks !== null && wrongClicks > nodes * 40)
       throw new Error("trail: implausible number of wrong clicks");
   }
+
+  if (game === "search") {
+    const score = num("score");
+    if (rtsLen !== null && score !== null && rtsLen > score)
+      throw new Error("search: more reaction times than score");
+  }
 }

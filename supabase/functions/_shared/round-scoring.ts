@@ -15,6 +15,7 @@ import {
   scoreMentalRotation,
   scoreNBack,
   scoreTrail,
+  scoreSearch,
 } from "./scoring/advanced-games.ts";
 import { assertCountBounds, assertRtBounds } from "./scoring/validation.ts";
 
@@ -38,6 +39,7 @@ const SCORERS = {
   mental: scoreMentalRotation,
   corsi: scoreCorsi,
   trail: scoreTrail,
+  search: scoreSearch,
 } satisfies Record<Game, (telemetry: Telemetry) => ScoredRound>;
 
 export function scoreAndValidate(

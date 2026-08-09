@@ -346,6 +346,23 @@ function inspectTrail(t: Telemetry): CheatFlag[] {
   return out;
 }
 
+function inspectSearch(t: Telemetry): CheatFlag[] {
+  const flags: CheatFlag[] = [];
+  const score = Number(t?.score);
+  const rts = nums(t?.rts);
+  if (score > 120) {
+    flags.push(flag("search: score exceeds human limits", "hard", { score }));
+  }
+  if (rts.length >= 10 && cv(rts) < ROBOT_CV) {
+    flags.push(
+      flag("search: mechanically steady pace (robot)", "hard", {
+        cv: cv(rts),
+      }),
+    );
+  }
+  return flags;
+}
+
 type GameInspector = (telemetry: Telemetry) => CheatFlag[];
 
 /** Exhaustive registry: adding a Game without an inspector fails typecheck. */
@@ -361,6 +378,7 @@ const GAME_INSPECTORS = {
   mental: inspectMental,
   corsi: inspectCorsi,
   trail: inspectTrail,
+  search: inspectSearch,
 } satisfies Record<Game, GameInspector>;
 
 export function inspectRound(

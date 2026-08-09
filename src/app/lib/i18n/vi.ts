@@ -384,4 +384,19 @@ export const vi = {
   trail_intro_1: "Bắt đầu từ số 1, rồi đến chữ A.",
   trail_intro_2: "Cứ thế xen kẽ cho đến điểm cuối cùng.",
   trail_saving: "Đang lưu kết quả…",
+
+  // Visual Search
+  search_tag: "TÌM KIẾM TRỰC QUAN",
+  search_desc:
+    "Tìm biểu tượng mục tiêu bị giấu giữa hàng chục biểu tượng gây nhiễu. Càng tìm nhanh điểm càng cao.",
+  search_hint: "Tìm biểu tượng đang hiển thị ở trên cùng và nhấn vào nó.",
+  search_start: "BẮT ĐẦU",
+  search_restart: "CHƠI LẠI",
+  search_complete: "HOÀN THÀNH",
+  search_target: "MỤC TIÊU",
+  search_score: "ĐIỂM",
+  search_mistakes: "SAI",
+  search_intro_1: "Ghi nhớ biểu tượng mục tiêu ở trên.",
+  search_intro_2: "Tìm và bấm chính xác biểu tượng đó trong lưới bên dưới.",
+  search_saving: "Đang lưu kết quả…",
 };

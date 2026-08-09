@@ -18,12 +18,11 @@
 name: Deploy Supabase
 
 on:
-  # BUOC 2: bo dau # cua 4 dong duoi day SAU KHI dry run da sach.
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "supabase/migrations/**"
-  #     - "supabase/functions/**"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/functions/**"
 
   workflow_dispatch:
     inputs:
@@ -43,7 +42,7 @@ jobs:
     environment: production
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Verify secrets
         env:

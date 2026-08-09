@@ -380,4 +380,19 @@ export const en: typeof vi = {
   trail_intro_1: "Start at number 1, then jump to letter A.",
   trail_intro_2: "Keep alternating all the way to the final node.",
   trail_saving: "Saving result…",
+
+  // Visual Search
+  search_tag: "VISUAL SEARCH",
+  search_desc:
+    "Find the target symbol hidden among dozens of distractors. The faster you find it, the higher you score.",
+  search_hint: "Find the symbol shown at the top and tap on it.",
+  search_start: "START",
+  search_restart: "PLAY AGAIN",
+  search_complete: "COMPLETE",
+  search_target: "TARGET",
+  search_score: "SCORE",
+  search_mistakes: "MISTAKES",
+  search_intro_1: "Memorize the target symbol at the top.",
+  search_intro_2: "Find and tap that exact symbol in the grid below.",
+  search_saving: "Saving result…",
 };
