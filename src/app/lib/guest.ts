@@ -80,7 +80,6 @@ export function completeLocalRound(
   telemetry: unknown,
   elapsedMs: number,
 ): SubmittedRound {
-
   const tel = telemetry as { timeMs?: number } | null;
   const telMs =
     typeof tel?.timeMs === "number" && Number.isFinite(tel.timeMs)

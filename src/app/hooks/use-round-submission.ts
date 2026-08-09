@@ -203,7 +203,12 @@ export function useRoundSubmission({
             startedAt: ticket.startedAt,
             clientElapsedMs: elapsedMs,
           });
-          const result = completeLocalRound(current!, game, telemetry, elapsedMs);
+          const result = completeLocalRound(
+            current!,
+            game,
+            telemetry,
+            elapsedMs,
+          );
           setProfile(result.profile);
           delete roundTicketsRef.current[game];
           delete guestPlayStartedAtRef.current[game];

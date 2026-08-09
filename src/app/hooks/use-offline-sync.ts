@@ -22,7 +22,7 @@ export function useOfflineSync() {
     const handleOnline = async () => {
       const queue = getOfflineQueue();
       if (queue.length === 0 || isSyncing) return;
-      
+
       setIsSyncing(true);
       try {
         await syncOfflineQueue(syncOfflineRounds);

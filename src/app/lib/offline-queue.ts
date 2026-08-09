@@ -33,7 +33,9 @@ export function clearOfflineQueue(): void {
 
 // Hàm đồng bộ lên server khi có mạng
 export async function syncOfflineQueue(
-  syncEndpoint: (payload: { rounds: OfflineRoundPayload[] }) => Promise<{ results: unknown[] }>,
+  syncEndpoint: (payload: {
+    rounds: OfflineRoundPayload[];
+  }) => Promise<{ results: unknown[] }>,
 ): Promise<void> {
   const queue = getOfflineQueue();
   if (queue.length === 0) return;
