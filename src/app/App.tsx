@@ -20,10 +20,7 @@ import { AchievementsPanel } from "./components/achievements-panel";
 import { QuestsPanel } from "./components/quests-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock } from "./components/floating-dock";
-import {
-  CognitiveIndexCard,
-  LevelCard,
-} from "./components/dashboard";
+import { CognitiveIndexCard, LevelCard } from "./components/dashboard";
 
 import { RoundResultOverlay } from "./components/ui/round-result-overlay";
 
@@ -150,7 +147,6 @@ function AppInner() {
     setRoundResult,
     gamificationKey,
     setGamificationKey,
-    popStats,
     onboardingOpen,
     setOnboardingOpen,
     showCalibrationComplete,
@@ -160,7 +156,6 @@ function AppInner() {
     goToCalibration,
     onLogout,
     exitGuestToAuth,
-    activity,
   } = useAppState(t);
 
   // Kích hoạt đồng bộ offline ngầm
