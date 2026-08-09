@@ -162,7 +162,6 @@ function ArcadeModal({
         title={game.title}
         className="flex-1 w-full border-0"
         allow="autoplay"
-        sandbox="allow-scripts allow-same-origin"
       />
     </div>
   );
