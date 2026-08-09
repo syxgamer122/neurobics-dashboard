@@ -110,7 +110,7 @@ export function useRoundSubmission({
         const ticket = await startRound(game);
         roundTicketsRef.current[game] = ticket;
         return ticket;
-      } catch (err) {
+      } catch (_err) {
         const now = Date.now();
         const fake: RoundTicket = {
           roundId: `offline-${game}-${now}`,
@@ -140,7 +140,7 @@ export function useRoundSubmission({
         logError("Play-start ticket prepare failed:", err),
       );
     },
-    [prepareRound, profileRef],
+    [prepareRound],
   );
 
   const completeRound = useCallback(
