@@ -274,170 +274,177 @@ function AppInner() {
       <main
         className="relative z-10 max-w-[1380px] mx-auto px-3 sm:px-5 py-5 sm:py-7 space-y-5 sm:space-y-6"
         style={{
-          // Du cho floating dock (~72px) + khoang thoang nut day game (NEW GAME...).
           paddingBottom:
             "max(10rem, calc(7.5rem + env(safe-area-inset-bottom)))",
         }}
       >
-        {isGuest && (
-          <div
-            className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between"
-            style={{
-              background: "rgba(var(--neuro-green-rgb),0.1)",
-              border: "1px solid rgba(var(--neuro-green-rgb),0.28)",
-            }}
-          >
-            <p className="text-sm leading-relaxed text-emerald-100/90">
-              {t.guest_banner}
-            </p>
-            <button
-              type="button"
-              onClick={exitGuestToAuth}
-              className="h-10 shrink-0 rounded-xl px-4 text-xs font-bold tracking-wider transition-all hover:brightness-125"
-              style={{
-                background: "rgba(var(--neuro-green-rgb),0.18)",
-                color: "#34D399",
-                border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
-              }}
-            >
-              {t.guest_register}
-            </button>
-          </div>
-        )}
-
-        {activePage === "dashboard" && (
-          <>
-            {(roundsPlayed < CALIBRATION_TARGET || showCalibrationComplete) && (
-              <CalibrationBanner
-                played={roundsPlayed}
-                completed={roundsPlayed >= CALIBRATION_TARGET}
-                onStart={goToCalibration}
-                onDismiss={() => setShowCalibrationComplete(false)}
-              />
-            )}
-
-            {/* ROW 1: Scores + Radar */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <div className="flex flex-col gap-5">
-                <CognitiveIndexCard index={displayIndex(profile)} />
-
-                <BrainAgeCard
-                  brainAge={brainAge}
-                  birthYearInput={birthYearInput}
-                  onBirthYearChange={(v) =>
-                    setBirthYearInput(v.replace(/\D/g, "").slice(0, 4))
-                  }
-                  onSubmit={submitBirthYear}
-                  saving={savingAge}
-                />
-              </div>
-
-              <ErrorBoundary area="dashboard:cognitive-matrix" variant="inline">
-                <Suspense fallback={<ChartCardFallback />}>
-                  <CognitiveMatrixCard
-                    data={cognitiveData}
-                    rounds={totalRounds(profile)}
-                  />
-                </Suspense>
-              </ErrorBoundary>
-            </div>
-          </>
-        )}
-
-        {activePage === "play" && (
-          <PlayArena
-            selectedGame={selectedGame}
-            t={t}
-            onSelect={setSelectedGame}
-            beginPlay={beginPlay}
-            makeGameHandler={makeGameHandler}
-          />
-        )}
-
-        {activePage === "dashboard" && (
-          <>
-            {/* ROW 2.5: Level / XP */}
-            <div className="grid grid-cols-1 gap-5">
-              <LevelCard
-                levelProgress={levelProgress}
-                levelColor={levelColor}
-                totalXp={profile.total_xp ?? 0}
-              />
-            </div>
-
-            {/* ROW 3: Streak */}
-            <div className="grid grid-cols-1 gap-5">
-              <StreakCard
-                streak={profile.synapse_streak}
-                sessionsThisMonth={activity.sessionsThisMonth}
-                xpToday={activity.xpToday}
-              />
-            </div>
-
-            {!isGuest && (
-              <QuestsPanel
-                refreshKey={gamificationKey}
-                onClaimed={() => {
-                  // XP thuong duoc cong o server, keo ho so moi ve de hien dung.
-                  void fetchProfile()
-                    .then((fresh) => {
-                      if (fresh) setProfile(fresh);
-                    })
-                    // Than ham rong -> tra ve void. Neu viet `() => undefined`
-                    // thi tsc phai tu suy kieu tra ve va bao TS7011.
-                    .catch(() => {});
-                }}
-              />
-            )}
-
-            {!isGuest && <AchievementsPanel refreshKey={gamificationKey} />}
-          </>
-        )}
-
-        {activePage === "history" &&
-          (isGuest ? (
+        {/* Page transition wrapper: key thay doi -> React unmount/remount -> re-trigger animation */}
+        <div key={activePage} className="page-enter">
+          {isGuest && (
             <div
-              className="rounded-2xl p-6 text-sm text-slate-300"
+              className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between"
               style={{
-                background: "rgba(var(--neuro-panel-rgb),0.62)",
-                border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+                background: "rgba(var(--neuro-green-rgb),0.1)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.28)",
               }}
             >
-              {t.guest_locked}
+              <p className="text-sm leading-relaxed text-emerald-100/90">
+                {t.guest_banner}
+              </p>
               <button
                 type="button"
                 onClick={exitGuestToAuth}
-                className="mt-4 block h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
+                className="h-10 shrink-0 rounded-xl px-4 text-xs font-bold tracking-wider transition-all hover:brightness-125"
                 style={{
-                  background: "rgba(var(--neuro-cyan-rgb),0.12)",
-                  color: "#00D4FF",
-                  border: "1px solid rgba(var(--neuro-cyan-rgb),0.3)",
+                  background: "rgba(var(--neuro-green-rgb),0.18)",
+                  color: "#34D399",
+                  border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
                 }}
               >
                 {t.guest_register}
               </button>
             </div>
-          ) : (
-            <HistoryPanel />
-          ))}
-        {activePage === "profile" && (
-          <ProfilePage
-            profile={profile}
-            t={t}
-            cognitiveIndex={displayIndex(profile)}
-            isGuest={isGuest}
-            isAdmin={isAdmin}
-            onProfileChange={setProfile}
-            onDeleted={() => {
-              setProfile(null);
-              setAdminPanelOpen(false);
-              setActivePage("dashboard");
-            }}
-            onRegister={exitGuestToAuth}
-            onOpenOnboarding={() => setOnboardingOpen(true)}
-            onLogout={onLogout}
-          />
-        )}
+          )}
+
+          {activePage === "dashboard" && (
+            <>
+              {(roundsPlayed < CALIBRATION_TARGET ||
+                showCalibrationComplete) && (
+                <CalibrationBanner
+                  played={roundsPlayed}
+                  completed={roundsPlayed >= CALIBRATION_TARGET}
+                  onStart={goToCalibration}
+                  onDismiss={() => setShowCalibrationComplete(false)}
+                />
+              )}
+
+              {/* ROW 1: Scores + Radar */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="flex flex-col gap-5">
+                  <CognitiveIndexCard index={displayIndex(profile)} />
+
+                  <BrainAgeCard
+                    brainAge={brainAge}
+                    birthYearInput={birthYearInput}
+                    onBirthYearChange={(v) =>
+                      setBirthYearInput(v.replace(/\D/g, "").slice(0, 4))
+                    }
+                    onSubmit={submitBirthYear}
+                    saving={savingAge}
+                  />
+                </div>
+
+                <ErrorBoundary
+                  area="dashboard:cognitive-matrix"
+                  variant="inline"
+                >
+                  <Suspense fallback={<ChartCardFallback />}>
+                    <CognitiveMatrixCard
+                      data={cognitiveData}
+                      rounds={totalRounds(profile)}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </>
+          )}
+
+          {activePage === "play" && (
+            <PlayArena
+              selectedGame={selectedGame}
+              t={t}
+              onSelect={setSelectedGame}
+              beginPlay={beginPlay}
+              makeGameHandler={makeGameHandler}
+            />
+          )}
+
+          {activePage === "dashboard" && (
+            <>
+              {/* ROW 2.5: Level / XP */}
+              <div className="grid grid-cols-1 gap-5">
+                <LevelCard
+                  levelProgress={levelProgress}
+                  levelColor={levelColor}
+                  totalXp={profile.total_xp ?? 0}
+                />
+              </div>
+
+              {/* ROW 3: Streak */}
+              <div className="grid grid-cols-1 gap-5">
+                <StreakCard
+                  streak={profile.synapse_streak}
+                  sessionsThisMonth={activity.sessionsThisMonth}
+                  xpToday={activity.xpToday}
+                />
+              </div>
+
+              {!isGuest && (
+                <QuestsPanel
+                  refreshKey={gamificationKey}
+                  onClaimed={() => {
+                    // XP thuong duoc cong o server, keo ho so moi ve de hien dung.
+                    void fetchProfile()
+                      .then((fresh) => {
+                        if (fresh) setProfile(fresh);
+                      })
+                      // Than ham rong -> tra ve void. Neu viet `() => undefined`
+                      // thi tsc phai tu suy kieu tra ve va bao TS7011.
+                      .catch(() => {});
+                  }}
+                />
+              )}
+
+              {!isGuest && <AchievementsPanel refreshKey={gamificationKey} />}
+            </>
+          )}
+
+          {activePage === "history" &&
+            (isGuest ? (
+              <div
+                className="rounded-2xl p-6 text-sm text-slate-300"
+                style={{
+                  background: "rgba(var(--neuro-panel-rgb),0.62)",
+                  border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+                }}
+              >
+                {t.guest_locked}
+                <button
+                  type="button"
+                  onClick={exitGuestToAuth}
+                  className="mt-4 block h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
+                  style={{
+                    background: "rgba(var(--neuro-cyan-rgb),0.12)",
+                    color: "#00D4FF",
+                    border: "1px solid rgba(var(--neuro-cyan-rgb),0.3)",
+                  }}
+                >
+                  {t.guest_register}
+                </button>
+              </div>
+            ) : (
+              <HistoryPanel />
+            ))}
+          {activePage === "profile" && (
+            <ProfilePage
+              profile={profile}
+              t={t}
+              cognitiveIndex={displayIndex(profile)}
+              isGuest={isGuest}
+              isAdmin={isAdmin}
+              onProfileChange={setProfile}
+              onDeleted={() => {
+                setProfile(null);
+                setAdminPanelOpen(false);
+                setActivePage("dashboard");
+              }}
+              onRegister={exitGuestToAuth}
+              onOpenOnboarding={() => setOnboardingOpen(true)}
+              onLogout={onLogout}
+            />
+          )}
+        </div>
+        {/* end .page-enter */}
       </main>
 
       {roundResult && (
