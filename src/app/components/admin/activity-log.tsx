@@ -21,7 +21,7 @@ export function ActivityLog({ lines }: { lines: string[] }) {
         style={{ borderBottom: `1px solid ${green}18` }}
       >
         <Terminal size={14} style={{ color: green }} />
-        <span className="text-xs font-bold tracking-widest text-white font-mono">
+        <span className="text-xs font-bold tracking-widest text-foreground font-mono">
           ACTIVITY LOG
         </span>
       </div>

@@ -32,12 +32,12 @@ export function AppHeader({
             boxShadow: "0 0 20px rgba(var(--neuro-cyan-rgb),0.4)",
           }}
         >
-          <Brain size={17} className="text-white" />
+          <Brain size={17} className="text-foreground" />
         </div>
-        <span className="hidden sm:inline text-lg font-bold tracking-[0.22em] text-white font-mono">
+        <span className="hidden sm:inline text-lg font-bold tracking-[0.22em] text-foreground font-mono">
           MINDGEM
         </span>
-        <span className="inline text-sm font-bold tracking-[0.14em] text-white font-mono sm:hidden">
+        <span className="inline text-sm font-bold tracking-[0.14em] text-foreground font-mono sm:hidden">
           MG
         </span>
         <span className="hidden sm:inline text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono bg-neuro-cyan/10 text-neuro-cyan border border-neuro-cyan/20">

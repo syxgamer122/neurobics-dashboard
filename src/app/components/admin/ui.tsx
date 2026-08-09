@@ -108,13 +108,13 @@ export function EnvField({
         </span>
         <button
           onClick={onToggle}
-          className="text-slate-500 hover:text-white transition-colors shrink-0"
+          className="text-slate-500 hover:text-foreground transition-colors shrink-0"
         >
           {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
         </button>
         <button
           onClick={onCopy}
-          className="text-slate-500 hover:text-white transition-colors shrink-0"
+          className="text-slate-500 hover:text-foreground transition-colors shrink-0"
         >
           {copied ? (
             <Check size={13} style={{ color: accent }} />

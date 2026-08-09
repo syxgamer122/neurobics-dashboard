@@ -14,7 +14,7 @@ export function CognitiveIndexCard({ index }: { index: number }) {
       <Label color="#00D4FF">{t.cognitive_index}</Label>
       <div className="flex items-baseline gap-2 mt-3 mb-1">
         <span
-          className="text-7xl font-bold text-white"
+          className="text-7xl font-bold text-foreground"
           style={{
             textShadow: "0 0 40px rgba(var(--neuro-cyan-rgb),0.55)",
           }}

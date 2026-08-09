@@ -29,17 +29,17 @@ export function LevelCard({
             boxShadow: `0 0 40px ${levelColor}44`,
           }}
         >
-          <span className="text-3xl font-bold text-white leading-none">
+          <span className="text-3xl font-bold text-foreground leading-none">
             {levelProgress.level}
           </span>
-          <span className="text-[8px] tracking-widest text-white/70 mt-0.5 font-mono">
+          <span className="text-[8px] tracking-widest text-foreground/70 mt-0.5 font-mono">
             LV
           </span>
         </div>
         <div className="flex-1 min-w-0">
           <Label color={levelColor}>{getLevelTitle(levelProgress.level)}</Label>
           <div className="flex items-baseline gap-2 mt-1 mb-2">
-            <span className="text-2xl font-bold text-white">
+            <span className="text-2xl font-bold text-foreground">
               {levelProgress.xpIntoLevel}
             </span>
             <span className="text-sm text-slate-500">

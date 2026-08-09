@@ -95,7 +95,7 @@ export function CognitiveMatrixCard({
             <div className="text-[10px] sm:text-xs text-slate-500 mb-0.5 truncate">
               {d.subject.slice(0, 3).toUpperCase()}
             </div>
-            <div className="text-xs sm:text-sm font-bold text-white tabular-nums">
+            <div className="text-xs sm:text-sm font-bold text-foreground tabular-nums">
               {d.value}
             </div>
             <div

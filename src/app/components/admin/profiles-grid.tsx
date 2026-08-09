@@ -28,7 +28,7 @@ export function ProfilesGrid({
       >
         <div className="flex items-center gap-2">
           <Database size={14} style={{ color: green }} />
-          <span className="text-xs font-bold tracking-widest text-white font-mono">
+          <span className="text-xs font-bold tracking-widest text-foreground font-mono">
             LIVE DATA GRID
           </span>
           <span
@@ -41,7 +41,7 @@ export function ProfilesGrid({
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-foreground/80 transition-colors disabled:opacity-50"
         >
           <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
           <span>Refresh</span>
@@ -162,7 +162,7 @@ export function ProfilesGrid({
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-white">
+                    <td className="px-4 py-2.5 text-xs text-foreground">
                       {(row.algebraic_logic_score ?? 0).toLocaleString()}
                     </td>
                     <td

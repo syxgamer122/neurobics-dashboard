@@ -65,7 +65,7 @@ export function AdminControls({
         style={{ borderBottom: `1px solid ${amber}22` }}
       >
         <ShieldCheck size={14} style={{ color: amber }} />
-        <span className="text-xs font-bold tracking-widest text-white font-mono">
+        <span className="text-xs font-bold tracking-widest text-foreground font-mono">
           ADMIN CONTROLS
         </span>
         {selectedUser ? (
@@ -184,7 +184,7 @@ export function AdminControls({
                   }
                   disabled={!!busy || !selectedUser}
                   placeholder="—"
-                  className="flex-1 min-w-0 px-2 py-1 rounded-md text-xs text-white outline-none"
+                  className="flex-1 min-w-0 px-2 py-1 rounded-md text-xs text-foreground outline-none"
                   style={{
                     background: "rgba(0,0,0,0.4)",
                     border: "1px solid rgba(255,255,255,0.08)",
@@ -209,7 +209,7 @@ export function AdminControls({
                 onChange={(event) => setGrantXp(event.target.value)}
                 disabled={!!busy || !selectedUser}
                 placeholder="—"
-                className="flex-1 min-w-0 px-2 py-1 rounded-md text-xs text-white outline-none"
+                className="flex-1 min-w-0 px-2 py-1 rounded-md text-xs text-foreground outline-none"
                 style={{
                   background: "rgba(0,0,0,0.4)",
                   border: `1px solid ${amber}33`,
@@ -282,7 +282,7 @@ export function AdminControls({
                   style={{ background: "rgba(0,0,0,0.35)" }}
                 >
                   <div className="text-[8px] text-slate-500">{key}</div>
-                  <div className="text-xs font-bold text-white">
+                  <div className="text-xs font-bold text-foreground">
                     {(value ?? 0).toLocaleString()}
                   </div>
                 </div>

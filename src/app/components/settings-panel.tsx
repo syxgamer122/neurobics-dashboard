@@ -236,7 +236,7 @@ export function SettingsPanel({
             style={{
               background: "linear-gradient(135deg, var(--neuro-cyan), #7C3AED)",
               border: "2px solid var(--background)",
-              color: "#fff",
+              color: "var(--foreground)",
             }}
             title={t.settings_avatar_change}
           >
@@ -255,7 +255,7 @@ export function SettingsPanel({
           />
         </div>
 
-        <div className="text-xl font-bold text-white mt-5">
+        <div className="text-xl font-bold text-foreground mt-5">
           {profile.username}
         </div>
         <div className="text-xs text-slate-500 mt-1">

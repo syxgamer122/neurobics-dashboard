@@ -133,7 +133,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       <div className="flex items-center justify-between mb-1 gap-2">
         <div className="flex items-center gap-2">
           <Award size={16} style={{ color: "#F59E0B" }} />
-          <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">
+          <span className="text-xs tracking-[0.25em] uppercase text-foreground font-mono">
             {s.title}
           </span>
         </div>
@@ -144,13 +144,13 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
           {unlockedCount}/{BADGES.length} {s.unlocked}
         </span>
       </div>
-      <p className="text-xs text-white/40 mb-3">
+      <p className="text-xs text-foreground/40 mb-3">
         {s.sub}
         {unlockedCount > 0 ? ` · +${xpEarned} ${s.xpEarned}` : ""}
       </p>
 
       {rows === null ? (
-        <div className="text-xs text-white/40 py-6 text-center">
+        <div className="text-xs text-foreground/40 py-6 text-center">
           {s.loading}
         </div>
       ) : (
@@ -185,7 +185,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
           </div>
 
           {visible.length === 0 ? (
-            <div className="text-xs text-white/35 py-6 text-center">
+            <div className="text-xs text-foreground/35 py-6 text-center">
               {s.empty}
             </div>
           ) : (
@@ -223,7 +223,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                           +{b.xp} XP
                         </span>
                       ) : (
-                        <Lock size={11} className="text-white/25" />
+                        <Lock size={11} className="text-foreground/25" />
                       )}
                     </div>
 
@@ -233,7 +233,7 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                     >
                       {name}
                     </div>
-                    <div className="text-xs text-white/35 leading-snug mb-2">
+                    <div className="text-xs text-foreground/35 leading-snug mb-2">
                       {desc}
                     </div>
 
@@ -265,7 +265,9 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                           {TIER_LABEL[b.tier][lang]}
                         </span>
                         {!got && pl && (
-                          <span className="text-xs text-white/40">{pl}</span>
+                          <span className="text-xs text-foreground/40">
+                            {pl}
+                          </span>
                         )}
                       </div>
                     </div>

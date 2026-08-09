@@ -383,12 +383,12 @@ export function MathSprintGame({
           {s.tag}
         </span>
       </div>
-      <div className="text-white text-lg mb-1">Math Sprint</div>
-      <p className="text-xs text-white/50 mb-4">{s.desc}</p>
+      <div className="text-foreground text-lg mb-1">Math Sprint</div>
+      <p className="text-xs text-foreground/50 mb-4">{s.desc}</p>
 
       {phase === "idle" && (
         <>
-          <div className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono">
+          <div className="text-xs text-foreground/40 mb-2 tracking-widest uppercase font-mono">
             {s.level}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
@@ -450,7 +450,7 @@ export function MathSprintGame({
           </div>
 
           <div
-            className="rounded-2xl py-8 mb-4 text-center text-3xl font-semibold text-white tracking-wide transition-colors"
+            className="rounded-2xl py-8 mb-4 text-center text-3xl font-semibold text-foreground tracking-wide transition-colors"
             style={{
               background:
                 flash === "ok"
@@ -499,7 +499,7 @@ export function MathSprintGame({
                   color: "#E2F6FF",
                 }}
               >
-                <span className="text-white/35 text-xs mr-2">{i + 1}</span>
+                <span className="text-foreground/35 text-xs mr-2">{i + 1}</span>
                 {c}
               </button>
             ))}

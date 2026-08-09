@@ -201,12 +201,12 @@ export function NBackGame({
           {s.tag}
         </span>
       </div>
-      <div className="text-white text-lg mb-1">N-Back</div>
-      <p className="text-xs text-white/50 mb-4">{s.desc}</p>
+      <div className="text-foreground text-lg mb-1">N-Back</div>
+      <p className="text-xs text-foreground/50 mb-4">{s.desc}</p>
 
       {phase === "idle" && (
         <>
-          <div className="text-xs text-white/40 mb-2 tracking-widest uppercase font-mono">
+          <div className="text-xs text-foreground/40 mb-2 tracking-widest uppercase font-mono">
             {s.level}
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">

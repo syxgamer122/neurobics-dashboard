@@ -48,7 +48,9 @@ export function SchulteControls({
           >
             {t.focus_training}
           </div>
-          <div className="text-base font-bold text-white">Schulte Table</div>
+          <div className="text-base font-bold text-foreground">
+            Schulte Table
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button

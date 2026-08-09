@@ -437,7 +437,9 @@ export function MentalRotationGame({
           >
             {t.mr_tag}
           </div>
-          <div className="text-base font-bold text-white">Mental Rotation</div>
+          <div className="text-base font-bold text-foreground">
+            Mental Rotation
+          </div>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -579,7 +581,7 @@ export function MentalRotationGame({
           >
             {saving ? t.saving : t.mr_complete}
           </div>
-          <div className="text-3xl font-bold text-white tabular-nums">
+          <div className="text-3xl font-bold text-foreground tabular-nums">
             {accuracyPct}%
           </div>
           <div className="text-xs text-slate-500">

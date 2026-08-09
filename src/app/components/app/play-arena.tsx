@@ -182,7 +182,7 @@ export function PlayArena({
           className="text-neuro-cyan shrink-0"
           style={{ filter: "drop-shadow(0 0 6px #00D4FF)" }}
         />
-        <span className="text-xs text-white tracking-[0.25em] uppercase font-mono">
+        <span className="text-xs text-foreground tracking-[0.25em] uppercase font-mono">
           {t.arena}
         </span>
         <div

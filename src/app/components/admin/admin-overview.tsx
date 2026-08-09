@@ -72,7 +72,7 @@ export function AdminOverview({
           <Activity size={13} style={{ color: blue }} />
         </div>
         <div className="flex items-baseline gap-1 mt-3">
-          <span className="text-2xl font-bold text-white">{latency}</span>
+          <span className="text-2xl font-bold text-foreground">{latency}</span>
           <span className="text-sm text-slate-400">ms</span>
         </div>
         <div className="mt-2 h-5 flex items-end gap-0.5 overflow-hidden">
@@ -100,7 +100,9 @@ export function AdminOverview({
           </span>
           <Cpu size={13} style={{ color: green }} />
         </div>
-        <div className="text-2xl font-bold text-white mt-3">{usersCount}</div>
+        <div className="text-2xl font-bold text-foreground mt-3">
+          {usersCount}
+        </div>
         {partial.partial && (
           <div
             className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold"

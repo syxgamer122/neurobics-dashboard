@@ -283,7 +283,7 @@ export function CorsiBlockGame({
           >
             {t.corsi_tag}
           </div>
-          <div className="text-base font-bold text-white">Corsi Block</div>
+          <div className="text-base font-bold text-foreground">Corsi Block</div>
         </div>
 
         <div
@@ -301,7 +301,7 @@ export function CorsiBlockGame({
       <div className="grid grid-cols-3 gap-3 mt-5">
         <div className="text-center">
           <div className="text-xs text-slate-500">{t.corsi_level}</div>
-          <div className="text-lg font-bold text-white">{span}</div>
+          <div className="text-lg font-bold text-foreground">{span}</div>
         </div>
         <div className="text-center">
           <div className="text-xs text-slate-500">{t.corsi_span}</div>
@@ -348,7 +348,9 @@ export function CorsiBlockGame({
           style={{ minHeight: 300 }}
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
-          <div className="text-lg font-bold text-white">{t.corsi_complete}</div>
+          <div className="text-lg font-bold text-foreground">
+            {t.corsi_complete}
+          </div>
           <div className="mt-2 text-4xl font-bold" style={{ color: ACCENT }}>
             {bestSpan}
           </div>

@@ -181,7 +181,7 @@ export function VisualSearchGame({
   if (status === "idle") {
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center">
-        <h2 className="text-2xl font-bold text-slate-100">
+        <h2 className="text-2xl font-bold text-foreground">
           {t.search_tag || "VISUAL SEARCH"}
         </h2>
         <div className="space-y-2 text-slate-400">
@@ -204,7 +204,7 @@ export function VisualSearchGame({
   if (status === "done") {
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center">
-        <h2 className="text-2xl font-bold text-slate-100">
+        <h2 className="text-2xl font-bold text-foreground">
           {t.search_complete || "HOÀN THÀNH"}
         </h2>
         <div className="grid grid-cols-2 gap-8 my-6">
@@ -245,10 +245,10 @@ export function VisualSearchGame({
             {t.search_target || "MỤC TIÊU"}
           </span>
           <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border-2 border-pink-500/50">
-            {TargetIcon && <TargetIcon className="w-6 h-6 text-slate-100" />}
+            {TargetIcon && <TargetIcon className="w-6 h-6 text-foreground" />}
           </div>
         </div>
-        <div className="text-xl font-bold text-slate-100">{score}</div>
+        <div className="text-xl font-bold text-foreground">{score}</div>
       </div>
 
       <div className="grid grid-cols-5 gap-2 sm:gap-3 w-full">
