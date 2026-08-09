@@ -55,7 +55,7 @@ export function AppHeader({
             className="w-8 h-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
             style={{
               background: profile.avatar_url
-                ? "#0B1228"
+                ? "var(--neuro-panel)"
                 : "linear-gradient(135deg, #A855F7, #7C3AED)",
             }}
           >
@@ -70,7 +70,7 @@ export function AppHeader({
             )}
           </div>
           <div className="hidden sm:block min-w-0">
-            <div className="text-xs font-semibold text-white truncate max-w-[9rem]">
+            <div className="text-xs font-semibold text-foreground truncate max-w-[9rem]">
               {profile.username}
             </div>
             <div className="text-xs text-slate-500">

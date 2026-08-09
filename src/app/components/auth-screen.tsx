@@ -163,8 +163,8 @@ export function AuthScreen({
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 text-slate-100 relative overflow-hidden"
-      style={{ fontFamily: "'Exo 2', sans-serif", background: "#050A18" }}
+      className="min-h-screen flex items-center justify-center px-4 text-foreground relative overflow-hidden bg-background"
+      style={{ fontFamily: "'Exo 2', sans-serif" }}
     >
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none">
@@ -227,7 +227,8 @@ export function AuthScreen({
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
             style={{
-              background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
+              background:
+                "linear-gradient(135deg, var(--neuro-cyan), var(--neuro-purple))",
               boxShadow: "0 0 26px rgba(var(--neuro-cyan-rgb),0.4)",
             }}
           >
@@ -275,7 +276,11 @@ export function AuthScreen({
                 : "none",
             }}
           >
-            <span style={{ color: usernameError ? "#F87171" : "#64748b" }}>
+            <span
+              style={{
+                color: usernameError ? "var(--neuro-red)" : "var(--slate-500)",
+              }}
+            >
               <User size={15} />
             </span>
             <input
@@ -286,7 +291,7 @@ export function AuthScreen({
               autoComplete="username"
               className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
               style={{
-                color: usernameError ? "#F87171" : "white",
+                color: usernameError ? "var(--neuro-red)" : "white",
               }}
             />
             {usernameError && (
@@ -313,12 +318,12 @@ export function AuthScreen({
               <div className="flex items-center gap-1.5">
                 <span
                   className="text-xs font-bold tracking-widest font-mono"
-                  style={{ color: "#F43F5E" }}
+                  style={{ color: "var(--neuro-red)" }}
                 >
                   ✕ DB_CONSTRAINT_VIOLATION
                 </span>
               </div>
-              <div className="text-xs" style={{ color: "#FCA5A5" }}>
+              <div className="text-xs" style={{ color: "var(--red-300)" }}>
                 ERROR: Username already taken. Please choose another.
               </div>
               <div className="text-xs text-red-800">
@@ -354,7 +359,7 @@ export function AuthScreen({
               style={{
                 background: "rgba(var(--neuro-amber-rgb),0.08)",
                 border: "1px solid rgba(var(--neuro-amber-rgb),0.28)",
-                color: "#FBBF24",
+                color: "var(--neuro-amber)",
               }}
             >
               {t.signup_no_email_warning ??
@@ -394,7 +399,7 @@ export function AuthScreen({
               className="text-xs px-3 py-2 rounded-lg"
               style={{
                 background: "rgba(var(--neuro-red-rgb),0.1)",
-                color: "#F87171",
+                color: "var(--neuro-red)",
                 border: "1px solid rgba(var(--neuro-red-rgb),0.25)",
               }}
             >
@@ -411,8 +416,10 @@ export function AuthScreen({
             }
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
-              background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-              color: "white",
+              background:
+                "linear-gradient(135deg, var(--neuro-cyan), var(--neuro-purple))",
+              border: "2px solid var(--background)",
+              color: "#fff",
               boxShadow: "0 0 22px rgba(var(--neuro-cyan-rgb),0.3)",
             }}
           >

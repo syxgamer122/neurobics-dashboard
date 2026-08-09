@@ -212,7 +212,7 @@ export function SettingsPanel({
             className="w-28 h-28 rounded-2xl overflow-hidden flex items-center justify-center text-3xl font-bold uppercase"
             style={{
               background: profile.avatar_url
-                ? "#0B1228"
+                ? "var(--neuro-panel)"
                 : "linear-gradient(135deg, #A855F7, #7C3AED)",
               boxShadow: "0 0 40px rgba(var(--neuro-purple-rgb),0.45)",
               ...mono,
@@ -234,8 +234,8 @@ export function SettingsPanel({
             onClick={() => fileRef.current?.click()}
             className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:brightness-125 disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-              border: "2px solid #050A18",
+              background: "linear-gradient(135deg, var(--neuro-cyan), #7C3AED)",
+              border: "2px solid var(--background)",
               color: "#fff",
             }}
             title={t.settings_avatar_change}
