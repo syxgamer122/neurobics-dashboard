@@ -20,12 +20,7 @@ import { AchievementsPanel } from "./components/achievements-panel";
 import { QuestsPanel } from "./components/quests-panel";
 import { AuthScreen } from "./components/auth-screen";
 import { FloatingDock } from "./components/floating-dock";
-import {
-  BrainAgeCard,
-  CognitiveIndexCard,
-  LevelCard,
-  StreakCard,
-} from "./components/dashboard";
+import { CognitiveIndexCard, LevelCard } from "./components/dashboard";
 
 import { RoundResultOverlay } from "./components/ui/round-result-overlay";
 
@@ -33,7 +28,7 @@ import { fetchProfile, cognitiveIndex, type Profile } from "./lib/api";
 import { useAppState } from "./hooks/use-app-state";
 import { useRoundSubmission } from "./hooks/use-round-submission";
 import { useOfflineSync } from "./hooks/use-offline-sync";
-import { RATING_MAX, calcBrainAge } from "./lib/scoring";
+import { RATING_MAX } from "./lib/scoring";
 import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
@@ -152,11 +147,6 @@ function AppInner() {
     setRoundResult,
     gamificationKey,
     setGamificationKey,
-    popStats,
-    birthYearInput,
-    setBirthYearInput,
-    submitBirthYear,
-    savingAge,
     onboardingOpen,
     setOnboardingOpen,
     showCalibrationComplete,
@@ -166,7 +156,6 @@ function AppInner() {
     goToCalibration,
     onLogout,
     exitGuestToAuth,
-    activity,
   } = useAppState(t);
 
   // Kích hoạt đồng bộ offline ngầm
@@ -222,14 +211,6 @@ function AppInner() {
   });
   const levelProgress = getLevelProgress(profile.total_xp ?? 0);
   const levelColor = getLevelColor(levelProgress.level);
-  const brainAge = calcBrainAge(
-    {
-      cognitiveIndex: cognitiveIndex(profile),
-      birthYear: profile.birth_year,
-      roundsPlayed: totalRounds(profile),
-    },
-    popStats,
-  );
 
   if (adminPanelOpen)
     return (
@@ -254,11 +235,6 @@ function AppInner() {
       style={{ fontFamily: "'Exo 2', sans-serif" }}
     >
       <style>{`
-        @keyframes streakGlow {
-          0%, 100% { box-shadow: 0 0 24px rgba(var(--neuro-amber-rgb),0.35); }
-          50% { box-shadow: 0 0 50px rgba(var(--neuro-amber-rgb),0.65), 0 0 100px rgba(var(--neuro-amber-rgb),0.18); }
-        }
-        .streak-glow { animation: streakGlow 1.8s ease-in-out infinite; }
       `}</style>
       <AmbientBackground />
 
@@ -322,16 +298,6 @@ function AppInner() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div className="flex flex-col gap-5">
                   <CognitiveIndexCard index={displayIndex(profile)} />
-
-                  <BrainAgeCard
-                    brainAge={brainAge}
-                    birthYearInput={birthYearInput}
-                    onBirthYearChange={(v) =>
-                      setBirthYearInput(v.replace(/\D/g, "").slice(0, 4))
-                    }
-                    onSubmit={submitBirthYear}
-                    saving={savingAge}
-                  />
                 </div>
 
                 <ErrorBoundary
@@ -361,21 +327,11 @@ function AppInner() {
 
           {activePage === "dashboard" && (
             <>
-              {/* ROW 2.5: Level / XP */}
               <div className="grid grid-cols-1 gap-5">
                 <LevelCard
                   levelProgress={levelProgress}
                   levelColor={levelColor}
                   totalXp={profile.total_xp ?? 0}
-                />
-              </div>
-
-              {/* ROW 3: Streak */}
-              <div className="grid grid-cols-1 gap-5">
-                <StreakCard
-                  streak={profile.synapse_streak}
-                  sessionsThisMonth={activity.sessionsThisMonth}
-                  xpToday={activity.xpToday}
                 />
               </div>
 

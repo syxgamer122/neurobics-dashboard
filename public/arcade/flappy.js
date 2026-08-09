@@ -13,7 +13,7 @@ let state = "idle"; // idle | playing | dead
 let bird,
   pipes,
   score,
-  bestScore = 0,
+  bestScore = parseInt(localStorage.getItem("flappyBest")) || 0,
   frame,
   particles;
 
@@ -55,12 +55,18 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener(
   "touchstart",
   (e) => {
+    if (e.target.id === "restart") return;
     e.preventDefault();
     flap();
   },
   { passive: false },
 );
-document.getElementById("restart").addEventListener("click", restart);
+const restartBtn = document.getElementById("restart");
+restartBtn.addEventListener("click", restart);
+restartBtn.addEventListener("touchstart", (e) => {
+  e.stopPropagation();
+  restart();
+});
 
 function restart() {
   state = "idle";
@@ -232,7 +238,10 @@ function loop() {
 
     if (checkCollision()) {
       state = "dead";
-      if (score > bestScore) bestScore = score;
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem("flappyBest", bestScore);
+      }
       const ov = document.getElementById("overlay");
       document.getElementById("title").textContent = "GAME OVER";
       document.getElementById("sub").textContent = `BEST: ${bestScore}`;

@@ -7,7 +7,7 @@ c.height = H;
 
 const GND = H - 60;
 let score = 0,
-  best = 0,
+  best = parseInt(localStorage.getItem("dinoBest")) || 0,
   speed = 4,
   frame = 0,
   alive = true,
@@ -42,12 +42,18 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener(
   "touchstart",
   (e) => {
+    if (e.target.id === "restart") return;
     e.preventDefault();
     jump();
   },
   { passive: false },
 );
-document.getElementById("restart").addEventListener("click", reset);
+const restartBtn = document.getElementById("restart");
+restartBtn.addEventListener("click", reset);
+restartBtn.addEventListener("touchstart", (e) => {
+  e.stopPropagation();
+  reset();
+});
 
 function spawnObstacle() {
   const sizes = [
@@ -201,7 +207,10 @@ function loop() {
     }
     if (collides(dino, obstacles[i])) {
       alive = false;
-      if (score > best) best = score;
+      if (score > best) {
+        best = score;
+        localStorage.setItem("dinoBest", best);
+      }
       document.getElementById("best").textContent = best;
       document.getElementById("final").textContent = score;
       document.getElementById("msg").style.display = "block";
