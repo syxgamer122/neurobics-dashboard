@@ -1,5 +1,4 @@
-import { type SubmittedRound } from "./api";
-import { type RoundGame } from "./game-registry";
+import { type RoundGame } from "./api";
 
 export interface OfflineRoundPayload {
   game: RoundGame;

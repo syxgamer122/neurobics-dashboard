@@ -31,7 +31,6 @@ import { RoundResultOverlay } from "./components/ui/round-result-overlay";
 
 import { fetchProfile, cognitiveIndex, type Profile } from "./lib/api";
 import { useAppState } from "./hooks/use-app-state";
-import { usePwaInstall } from "./hooks/use-pwa-install";
 import { useRoundSubmission } from "./hooks/use-round-submission";
 import { useOfflineSync } from "./hooks/use-offline-sync";
 import { RATING_MAX, calcBrainAge } from "./lib/scoring";
@@ -39,8 +38,6 @@ import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
 import { isGuestProfile } from "./lib/guest";
-import { useAppState } from "./hooks/use-app-state";
-
 // ─── Chunk tai theo nhu cau ─────────────────────────────────
 // admin-panel (~1000 dong, chi admin mo duoc) va radar recharts (~100KB)
 // truoc day nam trong bundle dau tien cua MOI nguoi dung. Gio tach rieng.
