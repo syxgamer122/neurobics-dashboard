@@ -143,6 +143,18 @@ export const GAME_REGISTRY = [
     sessionColumn: "trail_sessions",
     stageWidth: "md",
   },
+  {
+    id: "search",
+    title: "Visual Search",
+    accent: "#EC4899",
+    icon: "search",
+    tagKey: "search_tag",
+    descriptionKey: "search_desc",
+    primaryAxis: "focus",
+    secondaryAxis: "speed",
+    sessionColumn: "search_sessions",
+    stageWidth: "md",
+  },
 ] as const satisfies readonly {
   id: string;
   title: string;

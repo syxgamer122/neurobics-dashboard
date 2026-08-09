@@ -1,15 +1,8 @@
-import {
-  Suspense,
-  lazy,
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-} from "react";
+import { Suspense, lazy, useCallback } from "react";
 import { useLang } from "./lib/i18n";
 import { LangProvider } from "./lib/lang-provider";
 import { Loader2 } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { Toaster } from "sonner";
 
 import { AccessDeniedOverlay } from "./components/app/access-denied-overlay";
 import { AmbientBackground } from "./components/app/ambient-background";
@@ -26,7 +19,7 @@ import {
 import { AchievementsPanel } from "./components/achievements-panel";
 import { QuestsPanel } from "./components/quests-panel";
 import { AuthScreen } from "./components/auth-screen";
-import { FloatingDock, type DockPage } from "./components/floating-dock";
+import { FloatingDock } from "./components/floating-dock";
 import {
   BrainAgeCard,
   CognitiveIndexCard,
@@ -34,35 +27,16 @@ import {
   StreakCard,
 } from "./components/dashboard";
 
-import {
-  RoundResultOverlay,
-  type RoundResult,
-} from "./components/ui/round-result-overlay";
+import { RoundResultOverlay } from "./components/ui/round-result-overlay";
 
-import {
-  getAccessToken,
-  fetchProfile,
-  handleLogout,
-  saveBirthYear,
-  fetchPopulationStats,
-  cognitiveIndex,
-  fetchActivityStats,
-  type ActivityStats,
-  type Profile,
-  type RoundGame,
-} from "./lib/api";
+import { fetchProfile, cognitiveIndex, type Profile } from "./lib/api";
 import { useRoundSubmission } from "./hooks/use-round-submission";
-import {
-  RATING_MAX,
-  calcBrainAge,
-  DEFAULT_POPULATION,
-  type PopulationStats,
-} from "./lib/scoring";
+import { RATING_MAX, calcBrainAge } from "./lib/scoring";
 import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type AxisKey } from "./lib/axes";
-import { logError } from "./lib/logger";
 import { isGuestProfile } from "./lib/guest";
+import { useAppState } from "./hooks/use-app-state";
 
 // ─── Chunk tai theo nhu cau ─────────────────────────────────
 // admin-panel (~1000 dong, chi admin mo duoc) va radar recharts (~100KB)
@@ -159,120 +133,41 @@ export default function App() {
 
 function AppInner() {
   const { lang, toggle, t } = useLang();
-  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
-  const [accessDenied, setAccessDenied] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  // Snapshot for overlay prev-values — avoids stale closure after setProfile.
-  const profileRef = useRef<Profile | null>(null);
-  useEffect(() => {
-    profileRef.current = profile;
-  }, [profile]);
-  const [activePage, setActivePage] = useState<DockPage>("dashboard");
-  const [selectedGame, setSelectedGame] = useState<RoundGame | null>(null);
-  const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
-  // Tang len sau moi van de panel nhiem vu / thanh tuu tu tinh lai tien do.
-  const [gamificationKey, setGamificationKey] = useState(0);
-  // Real distribution of Cognitive Index across users — the baseline the brain
-  // age is ranked against. Seeded until enough calibrated players exist.
-  const [popStats, setPopStats] = useState<PopulationStats>(DEFAULT_POPULATION);
-  const [birthYearInput, setBirthYearInput] = useState("");
-  const [savingAge, setSavingAge] = useState(false);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
-  const [showCalibrationComplete, setShowCalibrationComplete] = useState(false);
-  const previousRoundsRef = useRef<number | null>(null);
-  // Hooks/effects chay truoc nhanh `if (!profile)`, nen thu hep null tai day.
-  // Tai khoan chua nap ho so co 0 van; khong dung `profile!` de che loi that.
-  const roundsPlayed = profile ? totalRounds(profile) : 0;
 
-  const onboardingStorageKey = (profileId: string) =>
-    `nb_onboarding_seen_${profileId}`;
-
-  const markOnboardingSeen = useCallback(() => {
-    if (profile?.id) {
-      try {
-        localStorage.setItem(onboardingStorageKey(profile.id), "1");
-      } catch {
-        // Private mode/storage bi chan: dong modal van phai hoat dong.
-      }
-    }
-    setOnboardingDismissed(true);
-    setOnboardingOpen(false);
-  }, [profile?.id]);
-
-  const goToCalibration = useCallback(() => {
-    markOnboardingSeen();
-    setSelectedGame(null);
-    setActivePage("play");
-  }, [markOnboardingSeen]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        if (token) {
-          const p = await fetchProfile();
-          setProfile(p);
-        }
-      } catch (err) {
-        logError("Session restore error:", err);
-      } finally {
-        setAuthChecked(true);
-      }
-    })();
-  }, []);
-
-  const refreshProfile = async () => {
-    try {
-      setProfile(await fetchProfile());
-    } catch (err) {
-      logError("Refresh profile error:", err);
-    }
-  };
-
-  // Load the population baseline once a session is active. Failure is silent:
-  // the seed distribution keeps the dial rendering. Khach: bo qua (khong co token).
-  // Gom ca ba dieu kien (co ho so / khong phai khach / id nao) vao MOT gia tri.
-  // Effect chi doc `popStatsKey`, nen deps liet ke dung nhung gi no dung —
-  // het canh bao exhaustive-deps ma hanh vi y het truoc: chay lai dung khi id
-  // doi hoac khi khach chuyen thanh tai khoan that.
-  // `?? "__no_id__"` chu KHONG phai `?? null`: guard cu chi hoi
-  // `!profile || isGuestProfile(profile)`, tuc ho so THAT ma thieu id thi van
-  // tai baseline. Dung `?? null` la tu them dieu kien moi va lam mat 20 lan
-  // goi fetchPopulationStats (do bang mo phong doi chieu 121 cap trang thai).
-  const popStatsKey =
-    profile && !isGuestProfile(profile) ? (profile.id ?? "__no_id__") : null;
-
-  useEffect(() => {
-    if (!popStatsKey) return;
-    (async () => {
-      try {
-        setPopStats(await fetchPopulationStats());
-      } catch (err) {
-        logError("Population stats unavailable, using seed baseline:", err);
-      }
-    })();
-  }, [popStatsKey]);
-
-  const submitBirthYear = async () => {
-    const year = parseInt(birthYearInput, 10);
-    const thisYear = new Date().getFullYear();
-    if (!Number.isFinite(year) || year < 1900 || year > thisYear) {
-      toast.error(t.birth_year_invalid);
-      return;
-    }
-    setSavingAge(true);
-    try {
-      setProfile(await saveBirthYear(year));
-      setBirthYearInput("");
-    } catch (err) {
-      logError("Save birth year failed:", err);
-      toast.error(t.save_failed);
-    } finally {
-      setSavingAge(false);
-    }
-  };
+  const {
+    adminPanelOpen,
+    setAdminPanelOpen,
+    accessDenied,
+    setAccessDenied,
+    authChecked,
+    profile,
+    setProfile,
+    profileRef,
+    refreshProfile,
+    activePage,
+    setActivePage,
+    selectedGame,
+    setSelectedGame,
+    roundResult,
+    setRoundResult,
+    gamificationKey,
+    setGamificationKey,
+    popStats,
+    birthYearInput,
+    setBirthYearInput,
+    submitBirthYear,
+    savingAge,
+    onboardingOpen,
+    setOnboardingOpen,
+    showCalibrationComplete,
+    setShowCalibrationComplete,
+    roundsPlayed,
+    markOnboardingSeen,
+    goToCalibration,
+    onLogout,
+    exitGuestToAuth,
+    activity,
+  } = useAppState(t);
 
   const axisLabels = useCallback(
     (): Record<AxisKey, string> => ({
@@ -295,84 +190,6 @@ function AppInner() {
     saveFailedLabel: t.save_failed,
     retrySendLabel: t.retry_send,
   });
-
-  const onLogout = async () => {
-    // Khach khong co session Supabase — chi xoa ho so ao.
-    if (!isGuestProfile(profile)) {
-      await handleLogout();
-    }
-    setProfile(null);
-    setAdminPanelOpen(false);
-    setSelectedGame(null);
-    setActivePage("dashboard");
-    setOnboardingOpen(false);
-    setOnboardingDismissed(false);
-  };
-
-  const exitGuestToAuth = () => {
-    setProfile(null);
-    setSelectedGame(null);
-    setActivePage("dashboard");
-    setOnboardingOpen(false);
-    setOnboardingDismissed(false);
-  };
-
-  const [activity, setActivity] = useState<ActivityStats>({
-    xpToday: 0,
-    sessionsThisMonth: 0,
-  });
-
-  // Khoa nap lai: phai chay lai khi id doi HOAC khi total_xp doi (vua choi xong
-  // mot van thi thong ke hoat dong da cu). Truoc day deps liet ke
-  // `profile?.total_xp` nhung than ham lai doc `profile`, nen ESLint doi them ca
-  // object `profile` — ma them vao thi moi lan refreshProfile() se goi lai API
-  // du XP khong doi. Gop thanh mot chuoi la cach giu dung nhip cu.
-  const activityKey =
-    profile?.id && !isGuestProfile(profile)
-      ? `${profile.id}:${String(profile.total_xp)}`
-      : null;
-
-  useEffect(() => {
-    if (!activityKey) {
-      setActivity({ xpToday: 0, sessionsThisMonth: 0 });
-      return;
-    }
-
-    fetchActivityStats()
-      .then(setActivity)
-      .catch((err) => logError("Activity stats failed:", err));
-  }, [activityKey]);
-
-  // Ho so la nguon su that: localStorage chi nho da xem huong dan, khong quyet
-  // dinh trang thai hieu chuan. Tai khoan duoi 5 van luon thay thanh tien do.
-  useEffect(() => {
-    if (!profile?.id) {
-      previousRoundsRef.current = null;
-      setOnboardingDismissed(false);
-      setOnboardingOpen(false);
-      return;
-    }
-
-    const previous = previousRoundsRef.current;
-    if (
-      previous !== null &&
-      previous < CALIBRATION_TARGET &&
-      roundsPlayed >= CALIBRATION_TARGET
-    ) {
-      setShowCalibrationComplete(true);
-    }
-    previousRoundsRef.current = roundsPlayed;
-
-    if (roundsPlayed >= CALIBRATION_TARGET || onboardingDismissed) return;
-    try {
-      if (localStorage.getItem(onboardingStorageKey(profile.id)) !== "1") {
-        setOnboardingOpen(true);
-      }
-    } catch {
-      // Khong doc duoc storage: hien onboarding, nguoi dung van co the dong.
-      setOnboardingOpen(true);
-    }
-  }, [profile?.id, roundsPlayed, onboardingDismissed]);
 
   if (!authChecked) {
     return (

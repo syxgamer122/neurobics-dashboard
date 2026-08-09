@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Sparkles,
   Zap,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 import type { RoundGame } from "../../lib/api";
@@ -75,11 +76,17 @@ const TrailMakingGame = lazy(() =>
     default: m.TrailMakingGame,
   })),
 );
+const VisualSearchGame = lazy(() =>
+  import("../../games/search-game").then((m) => ({
+    default: m.VisualSearchGame,
+  })),
+);
 
 const GAME_ICONS: Record<GameIconKey, LucideIcon> = {
   focus: Focus,
   grid: Grid3X3,
   zap: Zap,
+  search: Search,
   activity: Activity,
   brain: Brain,
   sparkles: Sparkles,
@@ -132,6 +139,9 @@ const GAME_COMPONENTS: Record<RoundGame, ComponentType<RegistryGameProps>> = {
   ),
   trail: ({ onComplete, onPlayStart }) => (
     <TrailMakingGame onComplete={onComplete} onPlayStart={onPlayStart} />
+  ),
+  search: ({ onComplete, onPlayStart }) => (
+    <VisualSearchGame onComplete={onComplete} onPlayStart={onPlayStart} />
   ),
 };
 
