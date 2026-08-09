@@ -54,9 +54,10 @@
         letter-spacing: 2px;
         margin-bottom: 4px;
       }
-      #restart {
+      #restart,
+      #exit {
         margin-top: 18px;
-        padding: 10px 28px;
+        padding: 10px 20px;
         background: rgba(168, 85, 247, 0.15);
         border: 1px solid #a855f7;
         color: #a855f7;
@@ -68,34 +69,61 @@
         pointer-events: all;
         transition: all 0.2s;
       }
-      #restart:hover {
+      #restart:hover,
+      #exit:hover {
         background: rgba(168, 85, 247, 0.3);
         box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
       }
+      .btn-row {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
       #score-display {
         position: absolute;
-        top: 16px;
+        top: 24px;
         left: 50%;
         transform: translateX(-50%);
+        background: rgba(30, 27, 75, 0.8);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        padding: 6px 16px;
+        border-radius: 99px;
         color: #f59e0b;
         font-family: monospace;
-        font-size: 22px;
+        font-size: 20px;
         font-weight: bold;
-        letter-spacing: 3px;
+        letter-spacing: 2px;
         text-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
         pointer-events: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        backdrop-filter: blur(4px);
       }
     </style>
   </head>
   <body>
-    <div id="score-display">0</div>
+    <div id="score-display">🌟 <span id="score-val">0</span></div>
     <canvas id="c"></canvas>
     <div id="overlay">
       <h2 id="title">FLAPPY BIRD</h2>
       <p id="sub">TAP / SPACE TO START</p>
       <p id="final" style="display: none; font-size: 16px; margin-top: 6px"></p>
-      <button id="restart" style="display: none">▶ PLAY AGAIN</button>
+      <div class="btn-row">
+        <button id="restart" style="display: none">PLAY AGAIN</button>
+        <button id="exit" style="display: none">⬅ THOÁT</button>
+      </div>
     </div>
     <script src="flappy.js"></script>
+    <script>
+      document.getElementById("exit").addEventListener("click", () => {
+        window.parent.postMessage({ type: "EXIT_GAME" }, "*");
+      });
+      document.getElementById("exit").addEventListener("touchstart", (e) => {
+        e.stopPropagation();
+        window.parent.postMessage({ type: "EXIT_GAME" }, "*");
+      });
+    </script>
   </body>
 </html>

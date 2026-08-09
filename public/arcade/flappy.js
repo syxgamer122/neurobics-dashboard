@@ -23,7 +23,7 @@ function initGame() {
   particles = [];
   score = 0;
   frame = 0;
-  document.getElementById("score-display").textContent = "0";
+  document.getElementById("score-val").textContent = "0";
 }
 
 function flap() {
@@ -75,6 +75,7 @@ function restart() {
   document.getElementById("sub").textContent = "TAP / SPACE TO START";
   document.getElementById("final").style.display = "none";
   document.getElementById("restart").style.display = "none";
+  document.getElementById("exit").style.display = "none";
   document.getElementById("overlay").style.display = "block";
 }
 
@@ -213,7 +214,7 @@ function loop() {
       if (!pipes[i].passed && pipes[i].x + PIPE_W < bird.x) {
         pipes[i].passed = true;
         score++;
-        document.getElementById("score-display").textContent = score;
+        document.getElementById("score-val").textContent = score;
       }
       if (pipes[i].x + PIPE_W < 0) pipes.splice(i, 1);
     }
@@ -248,6 +249,7 @@ function loop() {
       document.getElementById("final").textContent = `SCORE: ${score}`;
       document.getElementById("final").style.display = "block";
       document.getElementById("restart").style.display = "inline-block";
+      document.getElementById("exit").style.display = "inline-block";
       ov.style.display = "block";
       window.parent.postMessage({ type: "GAME_OVER", score }, "*");
     }
