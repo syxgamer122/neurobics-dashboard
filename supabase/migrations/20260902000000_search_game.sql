@@ -53,7 +53,7 @@ declare
   v_memory integer;
   v_recent integer;
 begin
-  if p_game not in ('schulte','sudoku','stroop','reaction','memory','nback','math','gonogo','mental','corsi','trail') then
+  if p_game not in ('schulte','sudoku','stroop','reaction','memory','nback','math','gonogo','mental','corsi','trail','search') then
     raise exception 'Invalid game';
   end if;
   if p_round_score < 0 or p_round_score > 1000 then

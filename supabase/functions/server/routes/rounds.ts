@@ -218,6 +218,105 @@ export function registerRoundRoutes(app: Hono): void {
     }
   });
 
+  // Gửi một mảng các ván chơi khi kết nối mạng được khôi phục.
+  app.post("/server/sync-offline-rounds", async (c) => {
+    try {
+      const user = await authenticatedUser(c);
+      const { rounds } = await c.req.json();
+      if (!Array.isArray(rounds))
+        return c.json({ error: "rounds must be an array" }, 400);
+
+      const results = [];
+      for (const round of rounds) {
+        const { game, telemetry, fingerprint, startedAt, clientElapsedMs } =
+          round;
+        const gameId = String(game);
+        if (!isGame(gameId)) {
+          results.push({ error: "Invalid game" });
+          continue;
+        }
+
+        // Tao 1 ticket thuc su tren DB de pass duoc submit_round_transaction
+        const { data: ticket, error: insertErr } = await adminClient
+          .from("round_tickets")
+          .insert({
+            user_id: user.id,
+            game: gameId,
+            started_at: startedAt || new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (insertErr || !ticket) {
+          results.push({ error: "Failed to create offline ticket" });
+          continue;
+        }
+
+        const cheat = inspectRound(gameId, telemetry, clientElapsedMs || 0);
+        // Them soft flag canh bao offline
+        cheat.flags.push({
+          severity: "soft",
+          msg: "Offline sync: timing verification bypassed",
+        });
+
+        if (hasHardFlag(cheat)) {
+          await adminClient
+            .from("round_tickets")
+            .update({ submitted_at: new Date().toISOString() })
+            .eq("id", ticket.id);
+          results.push({
+            error: "Round rejected: suspicious timing patterns.",
+            code: "anticheat_hard",
+          });
+          continue;
+        }
+
+        for (const f of softFlags(cheat)) {
+          await adminClient.rpc("record_cheat_flag", {
+            p_user_id: user.id,
+            p_game: gameId,
+            p_reason: f.msg,
+            p_severity: "soft",
+            p_details: f.detail ?? {},
+          });
+        }
+
+        const scored = scoreAndValidate(
+          gameId,
+          telemetry,
+          clientElapsedMs || 0,
+        );
+        const axisPayload = Object.fromEntries(
+          Object.entries(scored.axes).filter(([, value]) => value !== null),
+        );
+
+        const { data, error } = await adminClient.rpc(
+          "submit_round_transaction",
+          {
+            p_user_id: user.id,
+            p_ticket_id: String(ticket.id),
+            p_game: gameId,
+            p_axes: axisPayload,
+            p_round_score: scored.headline,
+            p_label: scored.label,
+            p_time_ms: Math.round(scored.timeMs),
+          },
+        );
+
+        if (error) {
+          results.push({ error: error.message });
+        } else {
+          results.push({ success: true, data });
+        }
+      }
+
+      return c.json({ results });
+    } catch (err) {
+      console.log(`Sync rounds error: ${err}`);
+      return c.json({ error: String(err) }, 500);
+    }
+  });
+
   // Legacy endpoint deliberately disabled: accepting roundScore directly from the
   // browser would bypass server-side telemetry scoring.
   app.post("/server/award-xp", (c) =>

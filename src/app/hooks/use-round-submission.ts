@@ -15,7 +15,8 @@ import type {
   RoundResult,
 } from "../components/ui/round-result-overlay";
 import { logError } from "../lib/logger";
-import { completeGuestRound, isGuestProfile } from "../lib/guest";
+import { completeLocalRound, isGuestProfile } from "../lib/guest";
+import { pushOfflineRound } from "../lib/offline-queue";
 
 function applyAxes(
   profile: Profile,
@@ -105,9 +106,21 @@ export function useRoundSubmission({
         if (existing && Date.parse(existing.expiresAt) > Date.now())
           return existing;
       }
-      const ticket = await startRound(game);
-      roundTicketsRef.current[game] = ticket;
-      return ticket;
+      try {
+        const ticket = await startRound(game);
+        roundTicketsRef.current[game] = ticket;
+        return ticket;
+      } catch (err) {
+        const now = Date.now();
+        const fake: RoundTicket = {
+          roundId: `offline-${game}-${now}`,
+          game,
+          startedAt: new Date(now).toISOString(),
+          expiresAt: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
+        };
+        roundTicketsRef.current[game] = fake;
+        return fake;
+      }
     },
     [profileRef],
   );
@@ -121,9 +134,8 @@ export function useRoundSubmission({
 
   const beginPlay = useCallback(
     (game: RoundGame) => {
-      if (isGuestProfile(profileRef.current)) {
-        guestPlayStartedAtRef.current[game] = performance.now();
-      }
+      // Bat ke guest hay auth, deu luu thoi gian bat dau de tinh offline elapsedMs
+      guestPlayStartedAtRef.current[game] = performance.now();
       void prepareRound(game).catch((err) =>
         logError("Play-start ticket prepare failed:", err),
       );
@@ -134,14 +146,15 @@ export function useRoundSubmission({
   const completeRound = useCallback(
     async (game: RoundGame, telemetry: unknown): Promise<SubmittedRound> => {
       const current = profileRef.current;
+      const started = guestPlayStartedAtRef.current[game];
+      const elapsedMs =
+        started != null
+          ? Math.max(500, Math.round(performance.now() - started))
+          : 60_000;
+
       // isGuestProfile la type predicate (p is Profile) — sau if, current khong con null.
       if (current && isGuestProfile(current)) {
-        const started = guestPlayStartedAtRef.current[game];
-        const elapsedMs =
-          started != null
-            ? Math.max(500, Math.round(performance.now() - started))
-            : 60_000;
-        const result = completeGuestRound(current, game, telemetry, elapsedMs);
+        const result = completeLocalRound(current, game, telemetry, elapsedMs);
         setProfile(result.profile);
         delete roundTicketsRef.current[game];
         delete guestPlayStartedAtRef.current[game];
@@ -158,13 +171,45 @@ export function useRoundSubmission({
         void prepareRound(game, { force: true }).catch(() => {});
         throw new Error("Round ticket expired. Start the game again.");
       }
+
+      if (ticket.roundId.startsWith("offline-")) {
+        pushOfflineRound({
+          game,
+          telemetry,
+          fingerprint: "offline",
+          startedAt: ticket.startedAt,
+          clientElapsedMs: elapsedMs,
+        });
+        const result = completeLocalRound(current!, game, telemetry, elapsedMs);
+        setProfile(result.profile);
+        delete roundTicketsRef.current[game];
+        delete guestPlayStartedAtRef.current[game];
+        return result;
+      }
+
       try {
         const result = await submitRound(ticket.roundId, game, telemetry);
         setProfile(result.profile);
         delete roundTicketsRef.current[game];
+        delete guestPlayStartedAtRef.current[game];
         return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+          pushOfflineRound({
+            game,
+            telemetry,
+            fingerprint: "offline-fallback",
+            startedAt: ticket.startedAt,
+            clientElapsedMs: elapsedMs,
+          });
+          const result = completeLocalRound(current!, game, telemetry, elapsedMs);
+          setProfile(result.profile);
+          delete roundTicketsRef.current[game];
+          delete guestPlayStartedAtRef.current[game];
+          return result;
+        }
+
         if (
           /already submitted|expired|ticket not found|round rejected/i.test(msg)
         )

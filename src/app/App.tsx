@@ -30,7 +30,10 @@ import {
 import { RoundResultOverlay } from "./components/ui/round-result-overlay";
 
 import { fetchProfile, cognitiveIndex, type Profile } from "./lib/api";
+import { useAppState } from "./hooks/use-app-state";
+import { usePwaInstall } from "./hooks/use-pwa-install";
 import { useRoundSubmission } from "./hooks/use-round-submission";
+import { useOfflineSync } from "./hooks/use-offline-sync";
 import { RATING_MAX, calcBrainAge } from "./lib/scoring";
 import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
@@ -168,6 +171,9 @@ function AppInner() {
     exitGuestToAuth,
     activity,
   } = useAppState(t);
+
+  // Kích hoạt đồng bộ offline ngầm
+  useOfflineSync();
 
   const axisLabels = useCallback(
     (): Record<AxisKey, string> => ({
