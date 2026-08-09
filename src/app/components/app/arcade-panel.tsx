@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Maximize2, Gamepad2 } from "lucide-react";
+import { X, Gamepad2 } from "lucide-react";
 
 export type ArcadeGame = {
   id: string;
