@@ -289,7 +289,7 @@ export function GoNoGoGame({
           >
             {t.gonogo_tag}
           </div>
-          <div className="text-base font-bold text-white">Go / No-Go</div>
+          <div className="text-base font-bold text-foreground">Go / No-Go</div>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -312,7 +312,7 @@ export function GoNoGoGame({
           <div className="text-[10px] text-slate-500 tracking-wider">
             {t.gonogo_trial}
           </div>
-          <div className="text-sm font-bold text-white">
+          <div className="text-sm font-bold text-foreground">
             {phase === "idle"
               ? `0/${TOTAL_TRIALS}`
               : `${Math.min(trial + 1, TOTAL_TRIALS)}/${TOTAL_TRIALS}`}
@@ -396,7 +396,7 @@ export function GoNoGoGame({
           className="mt-6 flex flex-col items-center justify-center"
           style={{ minHeight: 280 }}
         >
-          <div className="text-6xl font-bold text-white tabular-nums">
+          <div className="text-6xl font-bold text-foreground tabular-nums">
             {countdown}
           </div>
           <div className="mt-3 text-xs text-slate-500 tracking-widest font-mono">
@@ -463,7 +463,7 @@ export function GoNoGoGame({
           className="mt-6 flex flex-col items-center justify-center"
           style={{ minHeight: 280 }}
         >
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-foreground">
             {t.gonogo_complete}
           </div>
           <div className="mt-3 text-4xl font-bold" style={{ color: ACCENT }}>

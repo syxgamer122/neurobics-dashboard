@@ -283,7 +283,7 @@ export function StroopGame({
           >
             {t.stroop_tag}
           </div>
-          <div className="text-base font-bold text-white">Stroop Test</div>
+          <div className="text-base font-bold text-foreground">Stroop Test</div>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -441,7 +441,7 @@ export function StroopGame({
             <button
               type="button"
               onClick={beginRound}
-              className="rounded-xl px-8 py-3 font-black tracking-[0.15em] text-white transition-all duration-150 hover:brightness-110 font-mono"
+              className="rounded-xl px-8 py-3 font-black tracking-[0.15em] text-foreground transition-all duration-150 hover:brightness-110 font-mono"
               style={{
                 fontSize: 20,
                 background: "rgba(var(--neuro-green-rgb),0.16)",
@@ -455,7 +455,7 @@ export function StroopGame({
         ) : status === "countdown" ? (
           <div className="py-8 px-6 flex flex-col items-center gap-2">
             <span
-              className="font-black tracking-[0.15em] select-none text-white font-mono"
+              className="font-black tracking-[0.15em] select-none text-foreground font-mono"
               style={{
                 fontSize: 52,
               }}

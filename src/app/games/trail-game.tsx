@@ -201,7 +201,9 @@ export function TrailMakingGame({
           >
             {t.trail_tag}
           </div>
-          <div className="text-base font-bold text-white">Trail Making</div>
+          <div className="text-base font-bold text-foreground">
+            Trail Making
+          </div>
         </div>
 
         <div
@@ -219,7 +221,7 @@ export function TrailMakingGame({
       <div className="grid grid-cols-3 gap-3 mt-5">
         <div className="text-center">
           <div className="text-xs text-slate-500">{t.trail_progress}</div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-foreground">
             {progress}/{PAIRS * 2}
           </div>
         </div>
@@ -268,7 +270,9 @@ export function TrailMakingGame({
           style={{ minHeight: 320 }}
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
-          <div className="text-lg font-bold text-white">{t.trail_complete}</div>
+          <div className="text-lg font-bold text-foreground">
+            {t.trail_complete}
+          </div>
           <div className="mt-2 text-4xl font-bold" style={{ color: ACCENT }}>
             {seconds}s
           </div>

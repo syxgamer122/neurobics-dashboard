@@ -107,7 +107,7 @@ export function OnboardingOverlay({
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-white"
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-foreground"
           aria-label={t.onboarding_skip}
         >
           <X size={17} />
@@ -150,7 +150,7 @@ export function OnboardingOverlay({
         </p>
         <h2
           id="onboarding-title"
-          className="text-2xl font-bold text-white sm:text-3xl"
+          className="text-2xl font-bold text-foreground sm:text-3xl"
         >
           {titles[step]}
         </h2>
@@ -192,7 +192,7 @@ export function OnboardingOverlay({
                 <span className="font-bold tracking-wider text-slate-400 font-mono">
                   {t.calibration_label}
                 </span>
-                <span className="font-bold text-white">
+                <span className="font-bold text-foreground">
                   {Math.min(played, CALIBRATION_TARGET)}/{CALIBRATION_TARGET}
                 </span>
               </div>
@@ -226,7 +226,7 @@ export function OnboardingOverlay({
             <button
               type="button"
               onClick={() => setStep((value) => value - 1)}
-              className="inline-flex h-11 items-center gap-2 rounded-xl px-4 text-xs font-bold tracking-wider text-slate-400 transition-colors hover:text-white"
+              className="inline-flex h-11 items-center gap-2 rounded-xl px-4 text-xs font-bold tracking-wider text-slate-400 transition-colors hover:text-foreground"
             >
               <ChevronLeft size={15} /> {t.onboarding_back}
             </button>
@@ -244,7 +244,7 @@ export function OnboardingOverlay({
             <button
               type="button"
               onClick={() => setStep((value) => value + 1)}
-              className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-bold tracking-wider text-white transition-all hover:brightness-125"
+              className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-bold tracking-wider text-foreground transition-all hover:brightness-125"
               style={{
                 background: "linear-gradient(135deg, #00A8CC, #7C3AED)",
                 boxShadow: "0 0 24px rgba(var(--neuro-cyan-rgb),0.2)",
@@ -256,7 +256,7 @@ export function OnboardingOverlay({
             <button
               type="button"
               onClick={onStart}
-              className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-bold tracking-wider text-white transition-all hover:brightness-125"
+              className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-bold tracking-wider text-foreground transition-all hover:brightness-125"
               style={{
                 background: "linear-gradient(135deg, #10B981, #059669)",
                 boxShadow: "0 0 24px rgba(var(--neuro-green-rgb),0.25)",
@@ -318,10 +318,10 @@ export function CalibrationBanner({
 
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center justify-between gap-3">
-            <h2 className="font-bold text-white">
+            <h2 className="font-bold text-foreground">
               {completed ? t.calibration_complete_title : t.calibration_title}
             </h2>
-            <span className="shrink-0 text-sm font-bold text-white">
+            <span className="shrink-0 text-sm font-bold text-foreground">
               {current}/{CALIBRATION_TARGET}
             </span>
           </div>

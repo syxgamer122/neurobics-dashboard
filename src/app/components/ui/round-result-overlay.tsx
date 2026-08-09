@@ -141,7 +141,7 @@ export function RoundResultOverlay({
               >
                 {srSummary}
               </p>
-              <div className="text-xl font-bold text-white truncate">
+              <div className="text-xl font-bold text-foreground truncate">
                 {result.label}
               </div>
             </div>
@@ -217,7 +217,7 @@ export function RoundResultOverlay({
                     >
                       {s.label.toUpperCase()}
                     </span>
-                    <span className="text-sm font-bold tabular-nums text-white font-mono">
+                    <span className="text-sm font-bold tabular-nums text-foreground font-mono">
                       {s.round}
                       <span className="text-slate-500 font-normal">
                         {" "}

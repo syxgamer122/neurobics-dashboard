@@ -30,7 +30,7 @@ export function StreakCard({
               background: "linear-gradient(135deg, #F59E0B, #EF4444)",
             }}
           >
-            <Brain size={34} className="text-white" />
+            <Brain size={34} className="text-foreground" />
           </div>
           <div
             className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center"
@@ -39,12 +39,12 @@ export function StreakCard({
               boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.5)",
             }}
           >
-            <Flame size={13} className="text-white" />
+            <Flame size={13} className="text-foreground" />
           </div>
         </div>
         <div>
           <div
-            className="text-6xl font-bold text-white leading-none"
+            className="text-6xl font-bold text-foreground leading-none"
             style={{
               textShadow: "0 0 24px rgba(var(--neuro-amber-rgb),0.5)",
             }}

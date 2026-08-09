@@ -217,7 +217,9 @@ export function MemoryMatrixGame({
           >
             {t.mem_tag}
           </div>
-          <div className="text-base font-bold text-white">Memory Matrix</div>
+          <div className="text-base font-bold text-foreground">
+            Memory Matrix
+          </div>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -340,7 +342,9 @@ export function MemoryMatrixGame({
           style={{ minHeight: 280 }}
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
-          <div className="text-lg font-bold text-white mb-1">{t.game_over}</div>
+          <div className="text-lg font-bold text-foreground mb-1">
+            {t.game_over}
+          </div>
           <div className="text-sm text-slate-400">
             {t.mem_max_level}:{" "}
             <span className="text-[#F43F5E]">

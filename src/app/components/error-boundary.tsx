@@ -60,14 +60,14 @@ export class ErrorBoundary extends Component<Props, State> {
     // the bieu do vo se day toan bo phan con lai cua trang xuong duoi.
     const wrapperClass =
       this.props.variant === "inline"
-        ? "flex min-h-[320px] w-full items-center justify-center p-4 text-slate-200"
-        : "min-h-screen flex items-center justify-center bg-[#0B1020] p-6 text-slate-200";
+        ? "flex min-h-[320px] w-full items-center justify-center p-4 text-foreground/80"
+        : "min-h-screen flex items-center justify-center bg-[#0B1020] p-6 text-foreground/80";
 
     return (
       <div className={wrapperClass}>
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
           <p className="text-3xl">⚠️</p>
-          <h1 className="mt-2 text-lg font-semibold text-white">
+          <h1 className="mt-2 text-lg font-semibold text-foreground">
             Đã xảy ra lỗi ngoài dự kiến
           </h1>
           <p className="mt-2 text-sm text-slate-400">
@@ -88,7 +88,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={this.reload}
-              className="flex-1 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10"
+              className="flex-1 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-foreground/80 hover:bg-white/10"
             >
               Tải lại trang
             </button>

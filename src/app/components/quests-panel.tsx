@@ -88,7 +88,7 @@ function QuestRow({
       }}
     >
       <div className="flex items-center justify-between gap-3 mb-2">
-        <span className="text-xs text-white/85">{label}</span>
+        <span className="text-xs text-foreground/85">{label}</span>
         <span className="text-xs shrink-0" style={{ color: "#F59E0B" }}>
           +{quest.xp_reward} XP
         </span>
@@ -189,7 +189,7 @@ export function QuestsPanel({
       <div className="flex items-center justify-between mb-1 gap-2">
         <div className="flex items-center gap-2">
           <Target size={16} style={{ color: "#10B981" }} />
-          <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">
+          <span className="text-xs tracking-[0.25em] uppercase text-foreground font-mono">
             {s.title}
           </span>
         </div>
@@ -200,10 +200,10 @@ export function QuestsPanel({
           {completed}/{(quests ?? []).length} {s.done}
         </span>
       </div>
-      <p className="text-xs text-white/40 mb-4">{s.sub}</p>
+      <p className="text-xs text-foreground/40 mb-4">{s.sub}</p>
 
       {quests === null ? (
-        <div className="text-xs text-white/40 py-6 text-center">
+        <div className="text-xs text-foreground/40 py-6 text-center">
           {s.loading}
         </div>
       ) : (

@@ -63,7 +63,7 @@ export function GameTile({
       >
         {tag}
       </div>
-      <div className="text-lg font-bold text-white mt-1">{title}</div>
+      <div className="text-lg font-bold text-foreground mt-1">{title}</div>
       <div className="text-xs text-slate-400 mt-2 leading-relaxed">{desc}</div>
       <div
         className="mt-4 inline-flex items-center gap-2 text-xs font-semibold tracking-wider"

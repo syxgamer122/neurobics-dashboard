@@ -469,7 +469,7 @@ export function SudokuGame({
           >
             {t.logic_training}
           </div>
-          <div className="text-base font-bold text-white">Sudoku</div>
+          <div className="text-base font-bold text-foreground">Sudoku</div>
         </div>
         <div className="flex items-center gap-3">
           <div

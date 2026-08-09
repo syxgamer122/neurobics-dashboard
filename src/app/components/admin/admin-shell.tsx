@@ -13,7 +13,7 @@ export function AdminShell({
 }) {
   return (
     <div
-      className="min-h-screen text-slate-100"
+      className="min-h-screen text-foreground"
       style={{ background: "#04060D" }}
     >
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -53,7 +53,7 @@ export function AdminShell({
         <div className="flex items-center gap-4">
           <button
             onClick={onExit}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-foreground/80 transition-colors"
           >
             <ChevronLeft size={14} /> EXIT
           </button>
@@ -69,7 +69,7 @@ export function AdminShell({
             <Database size={16} style={{ color: green }} />
           </div>
           <div>
-            <div className="text-sm font-bold text-white tracking-[0.18em] font-mono">
+            <div className="text-sm font-bold text-foreground tracking-[0.18em] font-mono">
               ADMIN PANEL · DB CONTROL
             </div>
             <div className="text-xs text-slate-500 tracking-wider">

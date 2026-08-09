@@ -95,7 +95,7 @@ const Avatar = ({
     />
   ) : (
     <div
-      className="rounded-full flex items-center justify-center shrink-0 text-xs text-white/70"
+      className="rounded-full flex items-center justify-center shrink-0 text-xs text-foreground/70"
       style={{
         width: size,
         height: size,
@@ -177,11 +177,11 @@ export function FriendsPanel() {
     <div className="rounded-2xl p-5" style={panelStyle}>
       <div className="flex items-center gap-2 mb-1">
         <Users size={16} style={{ color: "#00D4FF" }} />
-        <span className="text-xs tracking-[0.25em] uppercase text-white font-mono">
+        <span className="text-xs tracking-[0.25em] uppercase text-foreground font-mono">
           {s.title}
         </span>
       </div>
-      <p className="text-xs text-white/40 mb-4">{s.sub}</p>
+      <p className="text-xs text-foreground/40 mb-4">{s.sub}</p>
 
       {/* Tìm người chơi */}
       <div
@@ -191,19 +191,19 @@ export function FriendsPanel() {
           border: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <Search size={13} className="text-white/35" />
+        <Search size={13} className="text-foreground/35" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={s.searchPh}
-          className="flex-1 bg-transparent outline-none text-xs text-white placeholder:text-white/30"
+          className="flex-1 bg-transparent outline-none text-xs text-foreground placeholder:text-foreground/30"
         />
       </div>
 
       {results !== null && (
         <div className="space-y-1.5 mb-4">
           {results.length === 0 ? (
-            <div className="text-xs text-white/35 py-2">{s.noResult}</div>
+            <div className="text-xs text-foreground/35 py-2">{s.noResult}</div>
           ) : (
             results.map((p) => (
               <div
@@ -212,7 +212,7 @@ export function FriendsPanel() {
                 style={{ background: "rgba(255,255,255,0.03)" }}
               >
                 <Avatar url={p.avatar_url} name={p.username} />
-                <span className="flex-1 text-xs text-white/85 truncate">
+                <span className="flex-1 text-xs text-foreground/85 truncate">
                   {p.username}
                 </span>
                 <span
@@ -242,7 +242,7 @@ export function FriendsPanel() {
       {/* Lời mời đến */}
       {incoming.length > 0 && (
         <div className="mb-4">
-          <div className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono">
+          <div className="text-xs tracking-widest uppercase text-foreground/35 mb-1.5 font-mono">
             {s.incoming}
           </div>
           <div className="space-y-1.5">
@@ -256,7 +256,7 @@ export function FriendsPanel() {
                 }}
               >
                 <Avatar url={f.avatar_url} name={f.username} />
-                <span className="flex-1 text-xs text-white/85 truncate">
+                <span className="flex-1 text-xs text-foreground/85 truncate">
                   {f.username}
                 </span>
                 <button
@@ -302,14 +302,14 @@ export function FriendsPanel() {
       {/* Đang chờ phản hồi */}
       {outgoing.length > 0 && (
         <div className="mb-4">
-          <div className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono">
+          <div className="text-xs tracking-widest uppercase text-foreground/35 mb-1.5 font-mono">
             {s.outgoing}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {outgoing.map((f) => (
               <span
                 key={f.friendship_id}
-                className="text-xs px-2.5 py-1 rounded-lg text-white/50"
+                className="text-xs px-2.5 py-1 rounded-lg text-foreground/50"
                 style={{
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.08)",
@@ -323,16 +323,16 @@ export function FriendsPanel() {
       )}
 
       {/* Bảng xếp hạng riêng */}
-      <div className="text-xs tracking-widest uppercase text-white/35 mb-1.5 font-mono">
+      <div className="text-xs tracking-widest uppercase text-foreground/35 mb-1.5 font-mono">
         {s.ranking}
       </div>
 
       {friends === null ? (
-        <div className="text-xs text-white/40 py-4 text-center">
+        <div className="text-xs text-foreground/40 py-4 text-center">
           {s.loading}
         </div>
       ) : accepted.length === 0 ? (
-        <div className="text-xs text-white/35 py-3">{s.empty}</div>
+        <div className="text-xs text-foreground/35 py-3">{s.empty}</div>
       ) : (
         <div className="space-y-1.5">
           {board.map((r, i) => (
@@ -359,9 +359,11 @@ export function FriendsPanel() {
                 {i === 0 ? <Crown size={12} /> : `#${i + 1}`}
               </span>
               <Avatar url={r.avatar_url} name={r.username} size={26} />
-              <span className="flex-1 text-xs text-white/85 truncate">
+              <span className="flex-1 text-xs text-foreground/85 truncate">
                 {r.username}
-                {r.is_me && <span className="text-white/35"> · {s.you}</span>}
+                {r.is_me && (
+                  <span className="text-foreground/35"> · {s.you}</span>
+                )}
               </span>
               <span className="text-xs" style={{ color: "#00D4FF" }}>
                 {Math.round(r.cognitive_index)}
@@ -370,7 +372,7 @@ export function FriendsPanel() {
                 <button
                   disabled={busy}
                   onClick={() => act(() => removeFriend(r.id), s.removed)}
-                  className="p-1 rounded-lg text-white/25 hover:text-[#F43F5E] transition-colors"
+                  className="p-1 rounded-lg text-foreground/25 hover:text-[#F43F5E] transition-colors"
                   title={s.removed}
                 >
                   <UserMinus size={12} />

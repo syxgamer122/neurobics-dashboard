@@ -232,9 +232,9 @@ export function AuthScreen({
               boxShadow: "0 0 26px rgba(var(--neuro-cyan-rgb),0.4)",
             }}
           >
-            <Brain size={22} className="text-white" />
+            <Brain size={22} className="text-foreground" />
           </div>
-          <div className="text-lg font-bold tracking-[0.22em] text-white font-mono">
+          <div className="text-lg font-bold tracking-[0.22em] text-foreground font-mono">
             MINDGEM
           </div>
           <div className="text-xs text-slate-500 mt-1">{t.auth_tagline}</div>
@@ -349,7 +349,7 @@ export function AuthScreen({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-400"
+              className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400"
             />
           </div>
 
@@ -381,7 +381,7 @@ export function AuthScreen({
                 value={recoveryCode}
                 onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
                 autoComplete="one-time-code"
-                className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-400 tracking-widest font-mono"
+                className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400 tracking-widest font-mono"
               />
             </div>
           )}
@@ -419,7 +419,7 @@ export function AuthScreen({
               background:
                 "linear-gradient(135deg, var(--neuro-cyan), var(--neuro-purple))",
               border: "2px solid var(--background)",
-              color: "#fff",
+              color: "var(--foreground)",
               boxShadow: "0 0 22px rgba(var(--neuro-cyan-rgb),0.3)",
             }}
           >
@@ -516,7 +516,7 @@ export function AuthScreen({
             <div className="text-emerald-300 font-semibold">
               {t.recovery_code_title ?? "Save your recovery code"}
             </div>
-            <div className="text-white/60 leading-relaxed">
+            <div className="text-foreground/60 leading-relaxed">
               {t.recovery_code_body ??
                 "This is the only way to reset your password. It will not be shown again."}
             </div>

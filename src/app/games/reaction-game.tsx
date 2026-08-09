@@ -181,7 +181,9 @@ export function ReactionTimeGame({
             {t.rx_tag}
           </div>
 
-          <div className="text-base font-bold text-white">Reaction Time</div>
+          <div className="text-base font-bold text-foreground">
+            Reaction Time
+          </div>
         </div>
 
         <div
@@ -199,7 +201,7 @@ export function ReactionTimeGame({
       <div className="grid grid-cols-3 gap-3 mt-5">
         <div className="text-center">
           <div className="text-xs text-slate-500">{t.rx_trial}</div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-foreground">
             {Math.min(rts.length + 1, TOTAL_TRIALS)}/{TOTAL_TRIALS}
           </div>
         </div>
@@ -253,7 +255,9 @@ export function ReactionTimeGame({
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
 
-          <div className="text-lg font-bold text-white">{t.rx_complete}</div>
+          <div className="text-lg font-bold text-foreground">
+            {t.rx_complete}
+          </div>
 
           <div className="mt-2 text-4xl font-bold text-neuro-green">
             {average} ms
@@ -277,7 +281,7 @@ export function ReactionTimeGame({
                 : "none",
           }}
         >
-          <div className="text-2xl font-bold text-white">{message}</div>
+          <div className="text-2xl font-bold text-foreground">{message}</div>
 
           {phase === "waiting" && (
             <div className="mt-3 text-xs text-slate-500">{t.rx_dont_press}</div>

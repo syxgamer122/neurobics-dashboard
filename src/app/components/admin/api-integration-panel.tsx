@@ -36,7 +36,7 @@ export function ApiIntegrationPanel() {
     <Panel accent={blue} className="lg:col-span-1">
       <div className="flex items-center gap-2 mb-4">
         <ShieldCheck size={14} style={{ color: blue }} />
-        <span className="text-xs font-bold tracking-widest text-white font-mono">
+        <span className="text-xs font-bold tracking-widest text-foreground font-mono">
           API INTEGRATION
         </span>
       </div>
