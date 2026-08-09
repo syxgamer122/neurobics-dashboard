@@ -2,6 +2,7 @@ import { Activity, Brain, LogOut } from "lucide-react";
 import type { Profile } from "../../lib/api";
 import type { Lang, Translation } from "../../lib/i18n";
 import { APP_VERSION_LABEL } from "../../lib/version";
+import { ThemeToggle } from "../theme-toggle";
 
 export function AppHeader({
   profile,
@@ -18,9 +19,8 @@ export function AppHeader({
 }) {
   return (
     <nav
-      className="relative z-10 flex items-center justify-between gap-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4"
+      className="relative z-10 flex items-center justify-between gap-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4 bg-background/50 backdrop-blur-md border-b border-border"
       style={{
-        borderBottom: "1px solid rgba(0,212,255,0.08)",
         paddingTop: "max(0.75rem, env(safe-area-inset-top))",
       }}
     >
@@ -40,14 +40,7 @@ export function AppHeader({
         <span className="inline text-sm font-bold tracking-[0.14em] text-white font-mono sm:hidden">
           MG
         </span>
-        <span
-          className="hidden sm:inline text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono"
-          style={{
-            background: "rgba(0,212,255,0.08)",
-            color: "#00D4FF",
-            border: "1px solid rgba(0,212,255,0.18)",
-          }}
-        >
+        <span className="hidden sm:inline text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono bg-neuro-cyan/10 text-neuro-cyan border border-neuro-cyan/20">
           {APP_VERSION_LABEL}
         </span>
       </div>
@@ -57,13 +50,7 @@ export function AppHeader({
           <Activity size={12} className="text-neuro-cyan" />
           <span>{t.league}</span>
         </div>
-        <div
-          className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl"
-          style={{
-            background: "rgba(13,20,45,0.6)",
-            border: "1px solid rgba(0,212,255,0.1)",
-          }}
-        >
+        <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-neuro-panel border border-neuro-cyan/10">
           <div
             className="w-8 h-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
             style={{
@@ -96,25 +83,17 @@ export function AppHeader({
           onClick={onToggleLanguage}
           title="Switch language"
           aria-label="Switch language"
-          className="h-10 min-w-10 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125"
-          style={{
-            background: "rgba(13,20,45,0.6)",
-            border: "1px solid rgba(0,212,255,0.15)",
-            color: "#00D4FF",
-          }}
+          className="h-10 min-w-10 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125 bg-neuro-panel border border-neuro-cyan/20 text-neuro-cyan"
         >
           {lang === "vi" ? "EN" : "VI"}
         </button>
+        <ThemeToggle />
         <button
           type="button"
           onClick={onLogout}
           title="Sign out"
           aria-label={t.sign_out}
-          className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-colors"
-          style={{
-            background: "rgba(13,20,45,0.6)",
-            border: "1px solid rgba(0,212,255,0.1)",
-          }}
+          className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center text-neuro-muted hover:text-foreground transition-colors bg-neuro-panel border border-neuro-cyan/10"
         >
           <LogOut size={15} />
         </button>

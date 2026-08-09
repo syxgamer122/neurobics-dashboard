@@ -6,13 +6,17 @@ import { ErrorBoundary } from "./app/components/error-boundary.tsx";
 import { captureEvent, initObservability } from "./app/lib/observability.ts";
 import "./styles/index.css";
 
+import { ThemeProvider } from "./app/components/theme-provider.tsx";
+
 // Bat loi toan cuc TRUOC khi render: neu App vo ngay lan render dau, su kien
 // van kip vao telemetry.
 initObservability();
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary area="app">
-    <App />
+    <ThemeProvider defaultTheme="system" storageKey="neurobics-theme">
+      <App />
+    </ThemeProvider>
   </ErrorBoundary>,
 );
 

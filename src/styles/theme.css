@@ -4,9 +4,59 @@
   --font-size: 16px;
   --font-sans: "Exo 2", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  /* Do mo cua cac panel kinh. Ha xuong o may yeu / man nho vi
-     backdrop-filter la mot trong nhung thuoc tinh dat nhat khi cuon. */
   --glass-blur: 18px;
+
+  --background: #f0f4f8;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0284c7;
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #9333ea;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(2, 132, 199, 0.15);
+  --input: #e2e8f0;
+  --input-background: #ffffff;
+  --switch-background: #cbd5e1;
+  --font-weight-medium: 600;
+  --font-weight-normal: 400;
+  --ring: #0284c7;
+  --chart-1: #0284c7;
+  --chart-2: #9333ea;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
+  --radius: 0.875rem;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0284c7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e2e8f0;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: rgba(2, 132, 199, 0.15);
+  --sidebar-ring: #0284c7;
+
+  /* Neuro brand tokens (Light Mode) */
+  --neuro-cyan: #0284c7;
+  --neuro-purple: #9333ea;
+  --neuro-green: #059669;
+  --neuro-amber: #d97706;
+  --neuro-red: #e11d48;
+  --neuro-ink: #f0f4f8;
+  --neuro-panel: #ffffff;
+  --neuro-muted: #64748b;
+  --neuro-subtle: #cbd5e1;
+}
+
+.dark {
   --background: #050a18;
   --foreground: #e2e8f4;
   --card: #0d1430;
@@ -18,7 +68,6 @@
   --secondary: #1a2240;
   --secondary-foreground: #e2e8f4;
   --muted: #111830;
-  /* WCAG: slate-400-ish on #050A18 instead of slate-600/700 */
   --muted-foreground: #94a3b8;
   --accent: #a855f7;
   --accent-foreground: #ffffff;
@@ -28,7 +77,7 @@
   --input: #1a2240;
   --input-background: #111830;
   --switch-background: #1a2240;
-  --font-weight-medium: 600;
+  --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #00d4ff;
   --chart-1: #00d4ff;
@@ -36,7 +85,6 @@
   --chart-3: #10b981;
   --chart-4: #f59e0b;
   --chart-5: #f43f5e;
-  --radius: 0.875rem;
   --sidebar: #080e20;
   --sidebar-foreground: #e2e8f4;
   --sidebar-primary: #00d4ff;
@@ -45,7 +93,8 @@
   --sidebar-accent-foreground: #e2e8f4;
   --sidebar-border: rgba(0, 212, 255, 0.1);
   --sidebar-ring: #00d4ff;
-  /* Neuro brand tokens */
+
+  /* Neuro brand tokens (Dark Mode) */
   --neuro-cyan: #00d4ff;
   --neuro-purple: #a855f7;
   --neuro-green: #10b981;
@@ -55,43 +104,6 @@
   --neuro-panel: #0d1430;
   --neuro-muted: #94a3b8;
   --neuro-subtle: #64748b;
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: #e2e8f4;
-  --sidebar-border: rgba(0, 212, 255, 0.1);
-  --sidebar-ring: #00d4ff;
 }
 
 @theme inline {
