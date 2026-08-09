@@ -10,6 +10,7 @@ export type ArcadeGame = {
   accentRgb: string;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ARCADE_GAMES: ArcadeGame[] = [
   {
     id: "dino",
