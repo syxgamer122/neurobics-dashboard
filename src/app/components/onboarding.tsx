@@ -31,7 +31,9 @@ function ProgressSegments({ played }: { played: number }) {
               background: complete
                 ? "linear-gradient(90deg, #00D4FF, #A855F7)"
                 : "rgba(148,163,184,0.15)",
-              boxShadow: complete ? "0 0 12px rgba(0,212,255,0.4)" : "none",
+              boxShadow: complete
+                ? "0 0 12px rgba(var(--neuro-cyan-rgb),0.4)"
+                : "none",
             }}
           />
         );
@@ -77,7 +79,7 @@ export function OnboardingOverlay({
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4"
       style={{
-        background: "rgba(5,10,24,0.94)",
+        background: "rgba(var(--neuro-ink-rgb),0.94)",
         backdropFilter: "blur(12px)",
       }}
       role="dialog"
@@ -88,10 +90,10 @@ export function OnboardingOverlay({
         className="relative w-full max-w-lg overflow-hidden rounded-3xl p-6 sm:p-8"
         style={{
           background:
-            "linear-gradient(145deg, rgba(13,20,45,0.98), rgba(7,12,29,0.98))",
-          border: "1px solid rgba(0,212,255,0.25)",
+            "linear-gradient(145deg, rgba(var(--neuro-panel-rgb),0.98), rgba(7,12,29,0.98))",
+          border: "1px solid rgba(var(--neuro-cyan-rgb),0.25)",
           boxShadow:
-            "0 30px 100px rgba(0,0,0,0.7), 0 0 60px rgba(0,212,255,0.1)",
+            "0 30px 100px rgba(0,0,0,0.7), 0 0 60px rgba(var(--neuro-cyan-rgb),0.1)",
         }}
       >
         <div
@@ -131,11 +133,13 @@ export function OnboardingOverlay({
           style={{
             color: step === 1 ? "#A855F7" : "#00D4FF",
             background:
-              step === 1 ? "rgba(168,85,247,0.13)" : "rgba(0,212,255,0.1)",
+              step === 1
+                ? "rgba(var(--neuro-purple-rgb),0.13)"
+                : "rgba(var(--neuro-cyan-rgb),0.1)",
             border:
               step === 1
-                ? "1px solid rgba(168,85,247,0.3)"
-                : "1px solid rgba(0,212,255,0.25)",
+                ? "1px solid rgba(var(--neuro-purple-rgb),0.3)"
+                : "1px solid rgba(var(--neuro-cyan-rgb),0.25)",
           }}
         >
           {icons[step]}
@@ -159,8 +163,8 @@ export function OnboardingOverlay({
             <div
               className="flex gap-3 rounded-xl p-3 text-xs leading-relaxed text-slate-400"
               style={{
-                background: "rgba(0,212,255,0.06)",
-                border: "1px solid rgba(0,212,255,0.14)",
+                background: "rgba(var(--neuro-cyan-rgb),0.06)",
+                border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
               }}
             >
               <ShieldCheck
@@ -180,8 +184,8 @@ export function OnboardingOverlay({
             <div
               className="rounded-2xl p-4"
               style={{
-                background: "rgba(5,10,24,0.55)",
-                border: "1px solid rgba(168,85,247,0.2)",
+                background: "rgba(var(--neuro-ink-rgb),0.55)",
+                border: "1px solid rgba(var(--neuro-purple-rgb),0.2)",
               }}
             >
               <div className="mb-3 flex items-center justify-between text-xs">
@@ -208,8 +212,8 @@ export function OnboardingOverlay({
             <div
               className="rounded-xl p-4 text-sm leading-relaxed text-emerald-200/85"
               style={{
-                background: "rgba(16,185,129,0.08)",
-                border: "1px solid rgba(16,185,129,0.22)",
+                background: "rgba(var(--neuro-green-rgb),0.08)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.22)",
               }}
             >
               {t.onboarding_quests_note}
@@ -243,7 +247,7 @@ export function OnboardingOverlay({
               className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-bold tracking-wider text-white transition-all hover:brightness-125"
               style={{
                 background: "linear-gradient(135deg, #00A8CC, #7C3AED)",
-                boxShadow: "0 0 24px rgba(0,212,255,0.2)",
+                boxShadow: "0 0 24px rgba(var(--neuro-cyan-rgb),0.2)",
               }}
             >
               {t.onboarding_next} <ChevronRight size={15} />
@@ -255,7 +259,7 @@ export function OnboardingOverlay({
               className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-bold tracking-wider text-white transition-all hover:brightness-125"
               style={{
                 background: "linear-gradient(135deg, #10B981, #059669)",
-                boxShadow: "0 0 24px rgba(16,185,129,0.25)",
+                boxShadow: "0 0 24px rgba(var(--neuro-green-rgb),0.25)",
               }}
             >
               <Play size={15} />{" "}
@@ -292,11 +296,11 @@ export function CalibrationBanner({
       className="rounded-2xl p-5 sm:p-6"
       style={{
         background: completed
-          ? "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(13,20,45,0.72))"
-          : "linear-gradient(135deg, rgba(0,212,255,0.09), rgba(168,85,247,0.08))",
+          ? "linear-gradient(135deg, rgba(var(--neuro-green-rgb),0.12), rgba(var(--neuro-panel-rgb),0.72))"
+          : "linear-gradient(135deg, rgba(var(--neuro-cyan-rgb),0.09), rgba(var(--neuro-purple-rgb),0.08))",
         border: completed
-          ? "1px solid rgba(16,185,129,0.3)"
-          : "1px solid rgba(0,212,255,0.22)",
+          ? "1px solid rgba(var(--neuro-green-rgb),0.3)"
+          : "1px solid rgba(var(--neuro-cyan-rgb),0.22)",
       }}
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -305,8 +309,8 @@ export function CalibrationBanner({
           style={{
             color: completed ? "#34D399" : "#00D4FF",
             background: completed
-              ? "rgba(16,185,129,0.12)"
-              : "rgba(0,212,255,0.1)",
+              ? "rgba(var(--neuro-green-rgb),0.12)"
+              : "rgba(var(--neuro-cyan-rgb),0.1)",
           }}
         >
           {completed ? <CheckCircle2 size={23} /> : <Gauge size={23} />}
@@ -336,11 +340,11 @@ export function CalibrationBanner({
           style={{
             color: completed ? "#34D399" : "#00D4FF",
             background: completed
-              ? "rgba(16,185,129,0.12)"
-              : "rgba(0,212,255,0.11)",
+              ? "rgba(var(--neuro-green-rgb),0.12)"
+              : "rgba(var(--neuro-cyan-rgb),0.11)",
             border: completed
-              ? "1px solid rgba(16,185,129,0.32)"
-              : "1px solid rgba(0,212,255,0.32)",
+              ? "1px solid rgba(var(--neuro-green-rgb),0.32)"
+              : "1px solid rgba(var(--neuro-cyan-rgb),0.32)",
           }}
         >
           {completed ? t.calibration_dismiss : t.calibration_play}

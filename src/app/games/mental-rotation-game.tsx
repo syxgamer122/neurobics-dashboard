@@ -26,7 +26,7 @@ type Trial = {
 };
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(13,20,45,0.62)",
+  background: "rgba(var(--neuro-panel-rgb),0.62)",
   border: `1px solid ${ACCENT}33`,
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
@@ -262,7 +262,7 @@ function ShapeView({
         style={{
           width: 148,
           height: 148,
-          background: "rgba(5,10,24,0.75)",
+          background: "rgba(var(--neuro-ink-rgb),0.75)",
           border: `1px solid ${ACCENT}33`,
           boxShadow: `inset 0 0 24px ${ACCENT}14`,
         }}
@@ -458,7 +458,7 @@ export function MentalRotationGame({
           <div
             className="rounded-xl p-3 mb-4 text-xs leading-relaxed text-slate-300 space-y-1"
             style={{
-              background: "rgba(5,10,24,0.55)",
+              background: "rgba(var(--neuro-ink-rgb),0.55)",
               border: `1px solid ${ACCENT}22`,
             }}
           >
@@ -507,9 +507,9 @@ export function MentalRotationGame({
               opacity: flash ? 0.55 : 1,
               outline:
                 flash === "ok"
-                  ? "2px solid rgba(16,185,129,0.7)"
+                  ? "2px solid rgba(var(--neuro-green-rgb),0.7)"
                   : flash === "bad"
-                    ? "2px solid rgba(244,63,94,0.7)"
+                    ? "2px solid rgba(var(--neuro-red-rgb),0.7)"
                     : "2px solid transparent",
               borderRadius: 16,
               padding: 8,
@@ -537,9 +537,9 @@ export function MentalRotationGame({
               onClick={() => answer(true)}
               className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
-                background: "rgba(16,185,129,0.14)",
+                background: "rgba(var(--neuro-green-rgb),0.14)",
                 color: "#34D399",
-                border: "1px solid rgba(16,185,129,0.4)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
               }}
             >
               <Check size={16} /> {t.mr_same}
@@ -550,9 +550,9 @@ export function MentalRotationGame({
               onClick={() => answer(false)}
               className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
-                background: "rgba(244,63,94,0.12)",
+                background: "rgba(var(--neuro-red-rgb),0.12)",
                 color: "#FB7185",
-                border: "1px solid rgba(244,63,94,0.4)",
+                border: "1px solid rgba(var(--neuro-red-rgb),0.4)",
               }}
             >
               <X size={16} /> {t.mr_mirror}

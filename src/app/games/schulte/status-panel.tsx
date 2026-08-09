@@ -42,8 +42,8 @@ export function SchulteStatusPanel({
               color: status === "done" ? "#10B981" : "#A855F7",
               textShadow:
                 status === "done"
-                  ? "0 0 24px rgba(16,185,129,0.5)"
-                  : "0 0 18px rgba(168,85,247,0.4)",
+                  ? "0 0 24px rgba(var(--neuro-green-rgb),0.5)"
+                  : "0 0 18px rgba(var(--neuro-purple-rgb),0.4)",
             }}
           >
             {formatSchulteTime(elapsed)}
@@ -71,7 +71,7 @@ export function SchulteStatusPanel({
                   className="w-3 h-3 rounded-full shrink-0"
                   style={{
                     background: target.color === "red" ? "#F43F5E" : "#A855F7",
-                    boxShadow: `0 0 8px ${target.color === "red" ? "rgba(244,63,94,0.7)" : "rgba(168,85,247,0.7)"}`,
+                    boxShadow: `0 0 8px ${target.color === "red" ? "rgba(var(--neuro-red-rgb),0.7)" : "rgba(var(--neuro-purple-rgb),0.7)"}`,
                   }}
                 />
               )}
@@ -79,7 +79,7 @@ export function SchulteStatusPanel({
                 className="text-4xl font-bold tabular-nums font-mono"
                 style={{
                   color: target?.color === "red" ? "#F43F5E" : "#A855F7",
-                  textShadow: `0 0 20px ${target?.color === "red" ? "rgba(244,63,94,0.65)" : "rgba(168,85,247,0.65)"}`,
+                  textShadow: `0 0 20px ${target?.color === "red" ? "rgba(var(--neuro-red-rgb),0.65)" : "rgba(var(--neuro-purple-rgb),0.65)"}`,
                 }}
               >
                 {status === "idle"
@@ -112,7 +112,7 @@ export function SchulteStatusPanel({
           style={{
             width: `${progress * 100}%`,
             background: "linear-gradient(90deg, #A855F7, #00D4FF)",
-            boxShadow: "0 0 8px rgba(168,85,247,0.5)",
+            boxShadow: "0 0 8px rgba(var(--neuro-purple-rgb),0.5)",
           }}
         />
       </div>

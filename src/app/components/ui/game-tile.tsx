@@ -27,7 +27,7 @@ export function GameTile({
       onMouseLeave={() => setHover(false)}
       className="text-left rounded-2xl p-6 flex flex-col transition-all duration-200"
       style={{
-        background: "rgba(13,20,45,0.62)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
         border: `1px solid ${accent}${hover ? "55" : "22"}`,
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",

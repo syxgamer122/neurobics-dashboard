@@ -66,7 +66,7 @@ function ChartCardFallback() {
       className="lg:col-span-2 rounded-2xl min-h-[320px] flex items-center justify-center"
       style={{
         background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(0,212,255,0.12)",
+        border: "1px solid rgba(var(--neuro-cyan-rgb),0.12)",
       }}
     >
       <Loader2 size={22} className="animate-spin text-neuro-cyan" />
@@ -255,8 +255,8 @@ function AppInner() {
     >
       <style>{`
         @keyframes streakGlow {
-          0%, 100% { box-shadow: 0 0 24px rgba(245,158,11,0.35); }
-          50% { box-shadow: 0 0 50px rgba(245,158,11,0.65), 0 0 100px rgba(245,158,11,0.18); }
+          0%, 100% { box-shadow: 0 0 24px rgba(var(--neuro-amber-rgb),0.35); }
+          50% { box-shadow: 0 0 50px rgba(var(--neuro-amber-rgb),0.65), 0 0 100px rgba(var(--neuro-amber-rgb),0.18); }
         }
         .streak-glow { animation: streakGlow 1.8s ease-in-out infinite; }
       `}</style>
@@ -283,8 +283,8 @@ function AppInner() {
           <div
             className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between"
             style={{
-              background: "rgba(16,185,129,0.1)",
-              border: "1px solid rgba(16,185,129,0.28)",
+              background: "rgba(var(--neuro-green-rgb),0.1)",
+              border: "1px solid rgba(var(--neuro-green-rgb),0.28)",
             }}
           >
             <p className="text-sm leading-relaxed text-emerald-100/90">
@@ -295,9 +295,9 @@ function AppInner() {
               onClick={exitGuestToAuth}
               className="h-10 shrink-0 rounded-xl px-4 text-xs font-bold tracking-wider transition-all hover:brightness-125"
               style={{
-                background: "rgba(16,185,129,0.18)",
+                background: "rgba(var(--neuro-green-rgb),0.18)",
                 color: "#34D399",
-                border: "1px solid rgba(16,185,129,0.4)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
               }}
             >
               {t.guest_register}
@@ -399,8 +399,8 @@ function AppInner() {
             <div
               className="rounded-2xl p-6 text-sm text-slate-300"
               style={{
-                background: "rgba(13,20,45,0.62)",
-                border: "1px solid rgba(0,212,255,0.14)",
+                background: "rgba(var(--neuro-panel-rgb),0.62)",
+                border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
               }}
             >
               {t.guest_locked}
@@ -409,9 +409,9 @@ function AppInner() {
                 onClick={exitGuestToAuth}
                 className="mt-4 block h-10 rounded-xl px-4 text-xs font-bold tracking-wider"
                 style={{
-                  background: "rgba(0,212,255,0.12)",
+                  background: "rgba(var(--neuro-cyan-rgb),0.12)",
                   color: "#00D4FF",
-                  border: "1px solid rgba(0,212,255,0.3)",
+                  border: "1px solid rgba(var(--neuro-cyan-rgb),0.3)",
                 }}
               >
                 {t.guest_register}

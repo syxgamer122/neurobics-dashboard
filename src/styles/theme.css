@@ -46,12 +46,19 @@
 
   /* Neuro brand tokens (Light Mode) */
   --neuro-cyan: #0284c7;
+  --neuro-cyan-rgb: 2, 132, 199;
   --neuro-purple: #9333ea;
+  --neuro-purple-rgb: 147, 51, 234;
   --neuro-green: #059669;
+  --neuro-green-rgb: 5, 150, 105;
   --neuro-amber: #d97706;
+  --neuro-amber-rgb: 217, 119, 6;
   --neuro-red: #e11d48;
+  --neuro-red-rgb: 225, 29, 72;
   --neuro-ink: #f0f4f8;
+  --neuro-ink-rgb: 240, 244, 248;
   --neuro-panel: #ffffff;
+  --neuro-panel-rgb: 255, 255, 255;
   --neuro-muted: #64748b;
   --neuro-subtle: #cbd5e1;
 }
@@ -96,12 +103,19 @@
 
   /* Neuro brand tokens (Dark Mode) */
   --neuro-cyan: #00d4ff;
+  --neuro-cyan-rgb: 0, 212, 255;
   --neuro-purple: #a855f7;
+  --neuro-purple-rgb: 168, 85, 247;
   --neuro-green: #10b981;
+  --neuro-green-rgb: 16, 185, 129;
   --neuro-amber: #f59e0b;
+  --neuro-amber-rgb: 245, 158, 11;
   --neuro-red: #f43f5e;
+  --neuro-red-rgb: 244, 63, 94;
   --neuro-ink: #050a18;
+  --neuro-ink-rgb: 5, 10, 24;
   --neuro-panel: #0d1430;
+  --neuro-panel-rgb: 13, 20, 45;
   --neuro-muted: #94a3b8;
   --neuro-subtle: #64748b;
 }

@@ -23,8 +23,8 @@ import { logError } from "../lib/logger";
 // File này chỉ lo hiển thị: nhóm, hạng, tiến độ và trạng thái khoá/mở.
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(10,16,36,0.55)",
-  border: "1px solid rgba(245,158,11,0.16)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
+  border: "1px solid rgba(var(--neuro-amber-rgb),0.16)",
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
@@ -172,9 +172,9 @@ export function AchievementsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   className="text-xs px-2.5 py-1 rounded-lg transition-all"
                   style={{
                     background: on
-                      ? "rgba(245,158,11,0.16)"
+                      ? "rgba(var(--neuro-amber-rgb),0.16)"
                       : "rgba(255,255,255,0.03)",
-                    border: `1px solid ${on ? "rgba(245,158,11,0.45)" : "rgba(255,255,255,0.07)"}`,
+                    border: `1px solid ${on ? "rgba(var(--neuro-amber-rgb),0.45)" : "rgba(255,255,255,0.07)"}`,
                     color: on ? "#F59E0B" : "rgba(255,255,255,0.55)",
                   }}
                 >

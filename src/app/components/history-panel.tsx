@@ -55,8 +55,8 @@ const AXES: { key: AxisColumn; short: string; color: string }[] = [
 ];
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(10,16,36,0.55)",
-  border: "1px solid rgba(0,212,255,0.14)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
+  border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
@@ -74,7 +74,7 @@ function ChartFallback() {
       className="mb-8 rounded-2xl min-h-[240px] animate-pulse"
       style={{
         background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(0,212,255,0.12)",
+        border: "1px solid rgba(var(--neuro-cyan-rgb),0.12)",
       }}
     />
   );

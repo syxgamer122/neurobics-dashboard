@@ -91,7 +91,7 @@ export function RoundResultOverlay({
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-3 sm:p-4"
       style={{
-        background: "rgba(5,10,24,0.88)",
+        background: "rgba(var(--neuro-ink-rgb),0.88)",
         backdropFilter: "blur(calc(var(--glass-blur, 18px) * 0.4444))",
         // Du cho dock + home indicator neu van hien (mac dinh se an dock khi overlay mo).
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
@@ -106,7 +106,7 @@ export function RoundResultOverlay({
         style={{
           // Gioi han chieu cao viewport — noi dung cuon, nut CONTINUE luon thay.
           maxHeight: "min(92vh, 720px)",
-          background: "rgba(13,20,45,0.95)",
+          background: "rgba(var(--neuro-panel-rgb),0.95)",
           border: `1px solid ${accent}33`,
           boxShadow: `0 0 60px ${accent}22, 0 8px 48px rgba(0,0,0,0.6)`,
         }}
@@ -261,12 +261,12 @@ export function RoundResultOverlay({
               className="flex items-center gap-3 px-4 py-3 rounded-xl"
               style={{
                 background: result.leveledUp
-                  ? "rgba(245,158,11,0.12)"
-                  : "rgba(16,185,129,0.10)",
+                  ? "rgba(var(--neuro-amber-rgb),0.12)"
+                  : "rgba(var(--neuro-green-rgb),0.10)",
                 border: `1px solid ${
                   result.leveledUp
-                    ? "rgba(245,158,11,0.35)"
-                    : "rgba(16,185,129,0.25)"
+                    ? "rgba(var(--neuro-amber-rgb),0.35)"
+                    : "rgba(var(--neuro-green-rgb),0.25)"
                 }`,
               }}
             >

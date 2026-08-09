@@ -57,10 +57,10 @@ export function SchulteControls({
             className="px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all duration-150"
             style={{
               background: showCenter
-                ? "rgba(168,85,247,0.18)"
+                ? "rgba(var(--neuro-purple-rgb),0.18)"
                 : "rgba(255,255,255,0.04)",
               color: showCenter ? "#A855F7" : "#475569",
-              border: `1px solid ${showCenter ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.08)"}`,
+              border: `1px solid ${showCenter ? "rgba(var(--neuro-purple-rgb),0.35)" : "rgba(255,255,255,0.08)"}`,
             }}
           >
             <Focus size={11} /> {t.fixation}
@@ -68,9 +68,9 @@ export function SchulteControls({
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
             style={{
-              background: "rgba(168,85,247,0.18)",
+              background: "rgba(var(--neuro-purple-rgb),0.18)",
               color: "#A855F7",
-              border: "1px solid rgba(168,85,247,0.28)",
+              border: "1px solid rgba(var(--neuro-purple-rgb),0.28)",
             }}
           >
             <Focus size={16} />
@@ -94,13 +94,15 @@ export function SchulteControls({
                 className="rounded-lg text-xs font-bold px-2.5 py-1 transition-all duration-150 disabled:opacity-40"
                 style={{
                   background: active
-                    ? "rgba(168,85,247,0.22)"
+                    ? "rgba(var(--neuro-purple-rgb),0.22)"
                     : "rgba(255,255,255,0.04)",
                   color: active ? "#A855F7" : "#475569",
                   border: active
-                    ? "1px solid rgba(168,85,247,0.5)"
+                    ? "1px solid rgba(var(--neuro-purple-rgb),0.5)"
                     : "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: active ? "0 0 12px rgba(168,85,247,0.28)" : "none",
+                  boxShadow: active
+                    ? "0 0 12px rgba(var(--neuro-purple-rgb),0.28)"
+                    : "none",
                 }}
               >
                 {s}×{s}
@@ -127,13 +129,15 @@ export function SchulteControls({
                 className="rounded-lg text-xs font-bold px-2.5 py-2 min-h-9 transition-all duration-150 disabled:opacity-40 flex items-center gap-1"
                 style={{
                   background: active
-                    ? "rgba(168,85,247,0.22)"
+                    ? "rgba(var(--neuro-purple-rgb),0.22)"
                     : "rgba(255,255,255,0.04)",
                   color: active ? "#A855F7" : "#475569",
                   border: active
-                    ? "1px solid rgba(168,85,247,0.5)"
+                    ? "1px solid rgba(var(--neuro-purple-rgb),0.5)"
                     : "1px solid rgba(255,255,255,0.07)",
-                  boxShadow: active ? "0 0 12px rgba(168,85,247,0.28)" : "none",
+                  boxShadow: active
+                    ? "0 0 12px rgba(var(--neuro-purple-rgb),0.28)"
+                    : "none",
                 }}
               >
                 {m.label}
@@ -156,8 +160,8 @@ export function SchulteControls({
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
           style={{
-            background: "rgba(168,85,247,0.12)",
-            border: "1px solid rgba(168,85,247,0.25)",
+            background: "rgba(var(--neuro-purple-rgb),0.12)",
+            border: "1px solid rgba(var(--neuro-purple-rgb),0.25)",
           }}
         >
           <Star size={11} style={{ color: "#A855F7" }} />
@@ -199,7 +203,7 @@ export function SchulteControls({
                 transition: "opacity 0.25s",
                 filter:
                   i < hearts
-                    ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))"
+                    ? "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.6))"
                     : "none",
               }}
             >

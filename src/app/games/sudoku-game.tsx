@@ -451,8 +451,8 @@ export function SudokuGame({
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
-        border: "1px solid rgba(0,212,255,0.2)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
+        border: "1px solid rgba(var(--neuro-cyan-rgb),0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
@@ -483,9 +483,9 @@ export function SudokuGame({
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
             style={{
-              background: "rgba(0,212,255,0.18)",
+              background: "rgba(var(--neuro-cyan-rgb),0.18)",
               color: "#00D4FF",
-              border: "1px solid rgba(0,212,255,0.28)",
+              border: "1px solid rgba(var(--neuro-cyan-rgb),0.28)",
             }}
           >
             <Grid3X3 size={16} />
@@ -598,11 +598,11 @@ export function SudokuGame({
           opacity: generating ? 0.35 : 1,
           pointerEvents: generating ? "none" : "auto",
           transition: "opacity 0.15s",
-          background: "rgba(0,212,255,0.55)",
+          background: "rgba(var(--neuro-cyan-rgb),0.55)",
           borderRadius: 12,
-          border: "1px solid rgba(0,212,255,0.6)",
+          border: "1px solid rgba(var(--neuro-cyan-rgb),0.6)",
           boxShadow:
-            "0 0 26px rgba(0,212,255,0.28), inset 0 0 18px rgba(0,212,255,0.12)",
+            "0 0 26px rgba(var(--neuro-cyan-rgb),0.28), inset 0 0 18px rgba(var(--neuro-cyan-rgb),0.12)",
         }}
       >
         {([0, 1, 2] as const).map((boxRow) =>
@@ -613,7 +613,7 @@ export function SudokuGame({
                 display: "grid",
                 gridTemplateColumns: "repeat(3, 1fr)",
                 gap: 2,
-                background: "rgba(0,212,255,0.14)",
+                background: "rgba(var(--neuro-cyan-rgb),0.14)",
                 borderRadius: 4,
                 overflow: "hidden",
               }}
@@ -633,10 +633,11 @@ export function SudokuGame({
                   let bg = isGiven
                     ? "rgba(6,11,26,0.96)"
                     : "rgba(14,22,46,0.96)";
-                  if (hl === "peer") bg = "rgba(0,212,255,0.09)";
-                  else if (hl === "samenum") bg = "rgba(0,212,255,0.2)";
-                  if (isSel) bg = "rgba(0,180,255,0.3)";
-                  if (err) bg = "rgba(244,63,94,0.22)";
+                  if (hl === "peer") bg = "rgba(var(--neuro-cyan-rgb),0.09)";
+                  else if (hl === "samenum")
+                    bg = "rgba(var(--neuro-cyan-rgb),0.2)";
+                  if (isSel) bg = "rgba(var(--neuro-cyan-rgb),0.3)";
+                  if (err) bg = "rgba(var(--neuro-red-rgb),0.22)";
 
                   // Pre-filled = bold white; user-entered = bright cyan.
                   let textColor = isGiven
@@ -666,11 +667,11 @@ export function SudokuGame({
                         border: isSel
                           ? "2px solid rgba(56,225,255,1)"
                           : err
-                            ? "1.5px solid rgba(244,63,94,0.7)"
+                            ? "1.5px solid rgba(var(--neuro-red-rgb),0.7)"
                             : "1px solid transparent",
                         transition: "background 0.1s, border-color 0.1s",
                         boxShadow: isSel
-                          ? "inset 0 0 14px rgba(0,212,255,0.4)"
+                          ? "inset 0 0 14px rgba(var(--neuro-cyan-rgb),0.4)"
                           : "none",
                         textShadow:
                           !isGiven && val
@@ -705,9 +706,9 @@ export function SudokuGame({
               aria-label={`${n}`}
               className="rounded-xl flex flex-col items-center justify-center min-h-12 sm:min-h-0 py-3 sm:py-2 transition-all duration-100 hover:brightness-125 disabled:opacity-25 disabled:hover:brightness-100"
               style={{
-                background: "rgba(0,212,255,0.1)",
+                background: "rgba(var(--neuro-cyan-rgb),0.1)",
                 color: "#38E1FF",
-                border: "1px solid rgba(0,212,255,0.25)",
+                border: "1px solid rgba(var(--neuro-cyan-rgb),0.25)",
                 fontSize: 18,
                 fontWeight: 700,
                 lineHeight: 1,
@@ -729,9 +730,9 @@ export function SudokuGame({
         disabled={saving || generating}
         className="mt-2.5 mx-auto w-full max-w-[420px] rounded-xl flex items-center justify-center gap-2 py-2.5 transition-all duration-100 hover:brightness-125 disabled:opacity-40"
         style={{
-          background: "rgba(0,212,255,0.08)",
+          background: "rgba(var(--neuro-cyan-rgb),0.08)",
           color: "#00D4FF",
-          border: "1px solid rgba(0,212,255,0.22)",
+          border: "1px solid rgba(var(--neuro-cyan-rgb),0.22)",
           fontSize: 11,
           letterSpacing: "0.15em",
         }}

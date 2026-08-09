@@ -13,7 +13,7 @@ export function GlassCard({
     <div
       className={`rounded-2xl ${className}`}
       style={{
-        background: "rgba(13,20,45,0.62)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
         border: `1px solid ${accent}18`,
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",

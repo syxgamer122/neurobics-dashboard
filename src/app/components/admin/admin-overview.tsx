@@ -105,8 +105,8 @@ export function AdminOverview({
           <div
             className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold"
             style={{
-              background: "rgba(245,158,11,0.14)",
-              border: "1px solid rgba(245,158,11,0.45)",
+              background: "rgba(var(--neuro-amber-rgb),0.14)",
+              border: "1px solid rgba(var(--neuro-amber-rgb),0.45)",
               color: "#FBBF24",
             }}
             title={`Nguon du phong: chi quet ${partial.scanned} nguoi choi dau tien.`}

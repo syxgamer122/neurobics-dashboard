@@ -265,8 +265,8 @@ export function StroopGame({
     <div
       className="rounded-2xl p-5 flex flex-col"
       style={{
-        background: "rgba(13,20,45,0.62)",
-        border: "1px solid rgba(234,179,8,0.2)",
+        background: "rgba(var(--neuro-panel-rgb),0.62)",
+        border: "1px solid rgba(var(--neuro-amber-rgb),0.2)",
         backdropFilter: "blur(var(--glass-blur, 18px))",
         WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
         boxShadow: "0 4px 44px rgba(0,0,0,0.45)",
@@ -288,9 +288,9 @@ export function StroopGame({
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{
-            background: "rgba(234,179,8,0.18)",
+            background: "rgba(var(--neuro-amber-rgb),0.18)",
             color: "#EAB308",
-            border: "1px solid rgba(234,179,8,0.28)",
+            border: "1px solid rgba(var(--neuro-amber-rgb),0.28)",
           }}
         >
           <Zap size={16} />
@@ -302,8 +302,8 @@ export function StroopGame({
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
           style={{
-            background: "rgba(234,179,8,0.12)",
-            border: "1px solid rgba(234,179,8,0.25)",
+            background: "rgba(var(--neuro-amber-rgb),0.12)",
+            border: "1px solid rgba(var(--neuro-amber-rgb),0.25)",
           }}
         >
           <Star size={11} style={{ color: "#EAB308" }} />
@@ -338,7 +338,7 @@ export function StroopGame({
                 transition: "opacity 0.25s",
                 filter:
                   i < hearts
-                    ? "drop-shadow(0 0 4px rgba(239,68,68,0.6))"
+                    ? "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.6))"
                     : "none",
               }}
             >
@@ -358,8 +358,8 @@ export function StroopGame({
               color: status === "done" ? "#10B981" : "#EAB308",
               textShadow:
                 status === "done"
-                  ? "0 0 24px rgba(16,185,129,0.5)"
-                  : "0 0 18px rgba(234,179,8,0.4)",
+                  ? "0 0 24px rgba(var(--neuro-green-rgb),0.5)"
+                  : "0 0 18px rgba(var(--neuro-amber-rgb),0.4)",
             }}
           >
             {fmtTime(elapsed)}
@@ -383,7 +383,7 @@ export function StroopGame({
             className="text-4xl font-bold tabular-nums font-mono"
             style={{
               color: "#EAB308",
-              textShadow: "0 0 20px rgba(234,179,8,0.55)",
+              textShadow: "0 0 20px rgba(var(--neuro-amber-rgb),0.55)",
             }}
           >
             {TOTAL - trialsLeft}/{TOTAL}
@@ -401,7 +401,7 @@ export function StroopGame({
           style={{
             width: `${progress * 100}%`,
             background: "linear-gradient(90deg, #EAB308, #F97316)",
-            boxShadow: "0 0 8px rgba(234,179,8,0.5)",
+            boxShadow: "0 0 8px rgba(var(--neuro-amber-rgb),0.5)",
           }}
         />
       </div>
@@ -419,15 +419,15 @@ export function StroopGame({
           minHeight: 120,
           background:
             flash === "correct"
-              ? "rgba(16,185,129,0.08)"
+              ? "rgba(var(--neuro-green-rgb),0.08)"
               : flash === "wrong"
-                ? "rgba(244,63,94,0.08)"
+                ? "rgba(var(--neuro-red-rgb),0.08)"
                 : "rgba(0,0,0,0.22)",
           border:
             flash === "correct"
-              ? "1px solid rgba(16,185,129,0.4)"
+              ? "1px solid rgba(var(--neuro-green-rgb),0.4)"
               : flash === "wrong"
-                ? "1px solid rgba(244,63,94,0.4)"
+                ? "1px solid rgba(var(--neuro-red-rgb),0.4)"
                 : "1px solid rgba(255,255,255,0.06)",
           transition: "background 0.15s, border-color 0.15s",
         }}
@@ -444,9 +444,9 @@ export function StroopGame({
               className="rounded-xl px-8 py-3 font-black tracking-[0.15em] text-white transition-all duration-150 hover:brightness-110 font-mono"
               style={{
                 fontSize: 20,
-                background: "rgba(16,185,129,0.16)",
-                border: "1.5px solid rgba(16,185,129,0.55)",
-                boxShadow: "0 0 22px rgba(16,185,129,0.25)",
+                background: "rgba(var(--neuro-green-rgb),0.16)",
+                border: "1.5px solid rgba(var(--neuro-green-rgb),0.55)",
+                boxShadow: "0 0 22px rgba(var(--neuro-green-rgb),0.25)",
               }}
             >
               START
@@ -556,9 +556,9 @@ export function StroopGame({
         aria-label={t.new_game}
         className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 hover:brightness-125"
         style={{
-          background: "rgba(234,179,8,0.14)",
+          background: "rgba(var(--neuro-amber-rgb),0.14)",
           color: "#EAB308",
-          border: "1px solid rgba(234,179,8,0.25)",
+          border: "1px solid rgba(var(--neuro-amber-rgb),0.25)",
         }}
       >
         <RefreshCw size={12} /> {t.new_game}

@@ -29,7 +29,7 @@ import { usePwaInstall } from "../hooks/use-pwa-install";
 const mono: React.CSSProperties = {};
 
 const cardStyle = (accent: string): React.CSSProperties => ({
-  background: "rgba(10,16,36,0.55)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
   border: `1px solid ${accent}33`,
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
@@ -60,8 +60,8 @@ function SectionTitle({
 function fieldStyle(): React.CSSProperties {
   return {
     ...mono,
-    background: "rgba(5,10,24,0.7)",
-    border: "1px solid rgba(0,212,255,0.18)",
+    background: "rgba(var(--neuro-ink-rgb),0.7)",
+    border: "1px solid rgba(var(--neuro-cyan-rgb),0.18)",
     color: "#E2E8F0",
   };
 }
@@ -214,7 +214,7 @@ export function SettingsPanel({
               background: profile.avatar_url
                 ? "#0B1228"
                 : "linear-gradient(135deg, #A855F7, #7C3AED)",
-              boxShadow: "0 0 40px rgba(168,85,247,0.45)",
+              boxShadow: "0 0 40px rgba(var(--neuro-purple-rgb),0.45)",
               ...mono,
             }}
           >
@@ -338,9 +338,9 @@ export function SettingsPanel({
                   onClick={() => void onSaveBirth()}
                   className="h-10 px-4 rounded-xl text-xs font-bold tracking-wider disabled:opacity-50"
                   style={{
-                    background: "rgba(0,212,255,0.12)",
+                    background: "rgba(var(--neuro-cyan-rgb),0.12)",
                     color: "#00D4FF",
-                    border: "1px solid rgba(0,212,255,0.35)",
+                    border: "1px solid rgba(var(--neuro-cyan-rgb),0.35)",
                   }}
                 >
                   {birthBusy ? (
@@ -374,12 +374,12 @@ export function SettingsPanel({
                       className="flex-1 h-10 rounded-xl text-xs font-bold tracking-wider transition-all"
                       style={{
                         background: active
-                          ? "rgba(0,212,255,0.18)"
-                          : "rgba(5,10,24,0.7)",
+                          ? "rgba(var(--neuro-cyan-rgb),0.18)"
+                          : "rgba(var(--neuro-ink-rgb),0.7)",
                         color: active ? "#00D4FF" : "#94A3B8",
                         border: active
-                          ? "1px solid rgba(0,212,255,0.45)"
-                          : "1px solid rgba(0,212,255,0.12)",
+                          ? "1px solid rgba(var(--neuro-cyan-rgb),0.45)"
+                          : "1px solid rgba(var(--neuro-cyan-rgb),0.12)",
                       }}
                     >
                       {code === "vi" ? t.settings_lang_vi : t.settings_lang_en}
@@ -401,8 +401,8 @@ export function SettingsPanel({
             <div
               className="flex items-center gap-3 rounded-xl p-3"
               style={{
-                background: "rgba(16,185,129,0.09)",
-                border: "1px solid rgba(16,185,129,0.25)",
+                background: "rgba(var(--neuro-green-rgb),0.09)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.25)",
               }}
             >
               <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
@@ -422,9 +422,9 @@ export function SettingsPanel({
                   onClick={() => void onInstall()}
                   className="mt-4 h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center gap-2 transition-all hover:brightness-125"
                   style={{
-                    background: "rgba(16,185,129,0.15)",
+                    background: "rgba(var(--neuro-green-rgb),0.15)",
                     color: "#34D399",
-                    border: "1px solid rgba(16,185,129,0.4)",
+                    border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
                   }}
                 >
                   <Download size={15} />
@@ -434,8 +434,8 @@ export function SettingsPanel({
                 <div
                   className="mt-4 rounded-xl p-3 text-xs leading-relaxed text-slate-300"
                   style={{
-                    background: "rgba(5,10,24,0.55)",
-                    border: "1px solid rgba(16,185,129,0.18)",
+                    background: "rgba(var(--neuro-ink-rgb),0.55)",
+                    border: "1px solid rgba(var(--neuro-green-rgb),0.18)",
                   }}
                 >
                   {isIos ? t.settings_install_ios : t.settings_install_manual}
@@ -499,9 +499,9 @@ export function SettingsPanel({
             onClick={() => void onChangePassword()}
             className="mt-4 h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center gap-2 disabled:opacity-40"
             style={{
-              background: "rgba(168,85,247,0.15)",
+              background: "rgba(var(--neuro-purple-rgb),0.15)",
               color: "#C084FC",
-              border: "1px solid rgba(168,85,247,0.4)",
+              border: "1px solid rgba(var(--neuro-purple-rgb),0.4)",
             }}
           >
             {pwBusy ? (
@@ -523,8 +523,8 @@ export function SettingsPanel({
           <div
             className="flex gap-3 p-3 rounded-xl mb-4"
             style={{
-              background: "rgba(244,63,94,0.08)",
-              border: "1px solid rgba(244,63,94,0.22)",
+              background: "rgba(var(--neuro-red-rgb),0.08)",
+              border: "1px solid rgba(var(--neuro-red-rgb),0.22)",
             }}
           >
             <AlertTriangle
@@ -558,9 +558,9 @@ export function SettingsPanel({
               onClick={() => void onDelete()}
               className="h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center justify-center gap-2 disabled:opacity-40"
               style={{
-                background: "rgba(244,63,94,0.18)",
+                background: "rgba(var(--neuro-red-rgb),0.18)",
                 color: "#FB7185",
-                border: "1px solid rgba(244,63,94,0.45)",
+                border: "1px solid rgba(var(--neuro-red-rgb),0.45)",
               }}
             >
               {deleteBusy ? (

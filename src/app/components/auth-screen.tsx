@@ -176,7 +176,7 @@ export function AuthScreen({
             width: 600,
             height: 600,
             background:
-              "radial-gradient(circle, rgba(0,212,255,0.10) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(var(--neuro-cyan-rgb),0.10) 0%, transparent 70%)",
           }}
         />
         <div
@@ -187,7 +187,7 @@ export function AuthScreen({
             width: 500,
             height: 500,
             background:
-              "radial-gradient(circle, rgba(168,85,247,0.10) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(var(--neuro-purple-rgb),0.10) 0%, transparent 70%)",
           }}
         />
         {/* Extra red glow when error */}
@@ -200,7 +200,7 @@ export function AuthScreen({
               width: 400,
               height: 400,
               background:
-                "radial-gradient(circle, rgba(239,68,68,0.08) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(var(--neuro-red-rgb),0.08) 0%, transparent 70%)",
             }}
           />
         )}
@@ -209,15 +209,15 @@ export function AuthScreen({
       <div
         className="relative z-10 w-full max-w-sm rounded-2xl p-8 transition-all duration-300"
         style={{
-          background: "rgba(13,20,45,0.75)",
+          background: "rgba(var(--neuro-panel-rgb),0.75)",
           border: usernameError
-            ? "1px solid rgba(239,68,68,0.45)"
-            : "1px solid rgba(0,212,255,0.16)",
+            ? "1px solid rgba(var(--neuro-red-rgb),0.45)"
+            : "1px solid rgba(var(--neuro-cyan-rgb),0.16)",
           backdropFilter: "blur(var(--glass-blur, 18px))",
           boxShadow: usernameError
-            ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(239,68,68,0.15)"
+            ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(var(--neuro-red-rgb),0.15)"
             : success
-              ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(16,185,129,0.2)"
+              ? "0 8px 60px rgba(0,0,0,0.5), 0 0 40px rgba(var(--neuro-green-rgb),0.2)"
               : "0 8px 60px rgba(0,0,0,0.5)",
           transition: "box-shadow 0.4s ease, border-color 0.4s ease",
         }}
@@ -228,7 +228,7 @@ export function AuthScreen({
             className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
             style={{
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-              boxShadow: "0 0 26px rgba(0,212,255,0.4)",
+              boxShadow: "0 0 26px rgba(var(--neuro-cyan-rgb),0.4)",
             }}
           >
             <Brain size={22} className="text-white" />
@@ -244,9 +244,9 @@ export function AuthScreen({
           <div
             className="mb-5 rounded-xl p-4 flex flex-col items-center gap-2 text-center"
             style={{
-              background: "rgba(16,185,129,0.08)",
-              border: "1px solid rgba(16,185,129,0.3)",
-              boxShadow: "0 0 20px rgba(16,185,129,0.15)",
+              background: "rgba(var(--neuro-green-rgb),0.08)",
+              border: "1px solid rgba(var(--neuro-green-rgb),0.3)",
+              boxShadow: "0 0 20px rgba(var(--neuro-green-rgb),0.15)",
             }}
           >
             <CheckCircle2 size={22} className="text-emerald-400" />
@@ -265,13 +265,13 @@ export function AuthScreen({
             className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-300"
             style={{
               background: usernameError
-                ? "rgba(239,68,68,0.08)"
+                ? "rgba(var(--neuro-red-rgb),0.08)"
                 : "rgba(0,0,0,0.3)",
               border: usernameError
-                ? "1px solid rgba(239,68,68,0.6)"
-                : "1px solid rgba(0,212,255,0.14)",
+                ? "1px solid rgba(var(--neuro-red-rgb),0.6)"
+                : "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
               boxShadow: usernameError
-                ? "0 0 16px rgba(239,68,68,0.25), inset 0 0 8px rgba(239,68,68,0.05)"
+                ? "0 0 16px rgba(var(--neuro-red-rgb),0.25), inset 0 0 8px rgba(var(--neuro-red-rgb),0.05)"
                 : "none",
             }}
           >
@@ -293,7 +293,9 @@ export function AuthScreen({
               <AlertTriangle
                 size={14}
                 className="text-red-400 shrink-0"
-                style={{ filter: "drop-shadow(0 0 4px rgba(239,68,68,0.8))" }}
+                style={{
+                  filter: "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
+                }}
               />
             )}
           </div>
@@ -303,9 +305,9 @@ export function AuthScreen({
             <div
               className="rounded-lg px-3 py-2.5 space-y-1"
               style={{
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                boxShadow: "0 0 12px rgba(239,68,68,0.1)",
+                background: "rgba(var(--neuro-red-rgb),0.06)",
+                border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
+                boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.1)",
               }}
             >
               <div className="flex items-center gap-1.5">
@@ -330,7 +332,7 @@ export function AuthScreen({
             className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
             style={{
               background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(0,212,255,0.14)",
+              border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
             }}
           >
             <span className="text-slate-500">
@@ -350,8 +352,8 @@ export function AuthScreen({
             <div
               className="text-xs leading-relaxed px-3 py-2 rounded-lg"
               style={{
-                background: "rgba(245,158,11,0.08)",
-                border: "1px solid rgba(245,158,11,0.28)",
+                background: "rgba(var(--neuro-amber-rgb),0.08)",
+                border: "1px solid rgba(var(--neuro-amber-rgb),0.28)",
                 color: "#FBBF24",
               }}
             >
@@ -365,7 +367,7 @@ export function AuthScreen({
               className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
               style={{
                 background: "rgba(0,0,0,0.3)",
-                border: "1px solid rgba(0,212,255,0.14)",
+                border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
               }}
             >
               <input
@@ -391,9 +393,9 @@ export function AuthScreen({
             <div
               className="text-xs px-3 py-2 rounded-lg"
               style={{
-                background: "rgba(239,68,68,0.1)",
+                background: "rgba(var(--neuro-red-rgb),0.1)",
                 color: "#F87171",
-                border: "1px solid rgba(239,68,68,0.25)",
+                border: "1px solid rgba(var(--neuro-red-rgb),0.25)",
               }}
             >
               {error}
@@ -411,7 +413,7 @@ export function AuthScreen({
             style={{
               background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
               color: "white",
-              boxShadow: "0 0 22px rgba(0,212,255,0.3)",
+              boxShadow: "0 0 22px rgba(var(--neuro-cyan-rgb),0.3)",
             }}
           >
             {busy ? (
@@ -437,9 +439,9 @@ export function AuthScreen({
               }}
               className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wider transition-all duration-200 disabled:opacity-60"
               style={{
-                background: "rgba(16,185,129,0.12)",
+                background: "rgba(var(--neuro-green-rgb),0.12)",
                 color: "#34D399",
-                border: "1px solid rgba(16,185,129,0.35)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.35)",
               }}
             >
               {t.guest_play}
@@ -500,8 +502,8 @@ export function AuthScreen({
           <div
             className="mt-4 p-3 rounded-xl text-xs space-y-2"
             style={{
-              background: "rgba(16,185,129,0.1)",
-              border: "1px solid rgba(16,185,129,0.35)",
+              background: "rgba(var(--neuro-green-rgb),0.1)",
+              border: "1px solid rgba(var(--neuro-green-rgb),0.35)",
             }}
           >
             <div className="text-emerald-300 font-semibold">
@@ -526,8 +528,8 @@ export function AuthScreen({
               }}
               className="w-full py-2 rounded-lg text-xs"
               style={{
-                background: "rgba(16,185,129,0.15)",
-                border: "1px solid rgba(16,185,129,0.4)",
+                background: "rgba(var(--neuro-green-rgb),0.15)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
                 color: "#6EE7B7",
               }}
             >

@@ -16,7 +16,7 @@ export function CognitiveIndexCard({ index }: { index: number }) {
         <span
           className="text-7xl font-bold text-white"
           style={{
-            textShadow: "0 0 40px rgba(0,212,255,0.55)",
+            textShadow: "0 0 40px rgba(var(--neuro-cyan-rgb),0.55)",
           }}
         >
           {index}
@@ -36,7 +36,7 @@ export function CognitiveIndexCard({ index }: { index: number }) {
           style={{
             width: `${(index / RATING_MAX) * 100}%`,
             background: "linear-gradient(90deg, #00D4FF, #A855F7)",
-            boxShadow: "0 0 14px rgba(0,212,255,0.6)",
+            boxShadow: "0 0 14px rgba(var(--neuro-cyan-rgb),0.6)",
             transition: "width 0.6s ease",
           }}
         />

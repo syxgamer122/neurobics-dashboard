@@ -49,7 +49,7 @@ export function SchulteGrid({
                   left: 0,
                   right: 0,
                   height: 1,
-                  background: "rgba(168,85,247,0.45)",
+                  background: "rgba(var(--neuro-purple-rgb),0.45)",
                   transform: "translateY(-50%)",
                 }}
               />
@@ -60,7 +60,7 @@ export function SchulteGrid({
                   top: 0,
                   bottom: 0,
                   width: 1,
-                  background: "rgba(168,85,247,0.45)",
+                  background: "rgba(var(--neuro-purple-rgb),0.45)",
                   transform: "translateX(-50%)",
                 }}
               />
@@ -75,7 +75,7 @@ export function SchulteGrid({
                   borderRadius: "50%",
                   background: "#A855F7",
                   boxShadow:
-                    "0 0 10px rgba(168,85,247,0.9), 0 0 20px rgba(168,85,247,0.4)",
+                    "0 0 10px rgba(var(--neuro-purple-rgb),0.9), 0 0 20px rgba(var(--neuro-purple-rgb),0.4)",
                 }}
               />
             </div>
@@ -100,10 +100,10 @@ export function SchulteGrid({
                   size === 6 ? 12 : size === 3 ? 22 : size === 4 ? 18 : 15,
                 background: isFlash
                   ? flashCell!.ok
-                    ? "rgba(16,185,129,0.32)"
-                    : "rgba(244,63,94,0.25)"
+                    ? "rgba(var(--neuro-green-rgb),0.32)"
+                    : "rgba(var(--neuro-red-rgb),0.25)"
                   : isDone
-                    ? "rgba(168,85,247,0.06)"
+                    ? "rgba(var(--neuro-purple-rgb),0.06)"
                     : "rgba(255,255,255,0.04)",
                 color: isFlash
                   ? flashCell!.ok
@@ -115,17 +115,17 @@ export function SchulteGrid({
                       ? "#F97316"
                       : "#e2e8f0",
                 border: isFlash
-                  ? `1px solid ${flashCell!.ok ? "rgba(16,185,129,0.55)" : "rgba(244,63,94,0.5)"}`
+                  ? `1px solid ${flashCell!.ok ? "rgba(var(--neuro-green-rgb),0.55)" : "rgba(var(--neuro-red-rgb),0.5)"}`
                   : isDone
-                    ? "1px solid rgba(16,185,129,0.25)"
+                    ? "1px solid rgba(var(--neuro-green-rgb),0.25)"
                     : isRed
                       ? "1px solid rgba(249,115,22,0.22)"
                       : "1px solid rgba(255,255,255,0.07)",
                 boxShadow:
                   isFlash && flashCell!.ok
-                    ? "0 0 18px rgba(16,185,129,0.42)"
+                    ? "0 0 18px rgba(var(--neuro-green-rgb),0.42)"
                     : isDone
-                      ? "0 0 8px rgba(16,185,129,0.12)"
+                      ? "0 0 8px rgba(var(--neuro-green-rgb),0.12)"
                       : undefined,
                 transform: isFlash
                   ? flashCell!.ok

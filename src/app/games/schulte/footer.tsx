@@ -41,9 +41,9 @@ export function SchulteFooter({
         onClick={() => onReset()}
         className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 hover:brightness-125"
         style={{
-          background: "rgba(168,85,247,0.14)",
+          background: "rgba(var(--neuro-purple-rgb),0.14)",
           color: "#A855F7",
-          border: "1px solid rgba(168,85,247,0.25)",
+          border: "1px solid rgba(var(--neuro-purple-rgb),0.25)",
         }}
       >
         <RefreshCw size={12} /> {t.new_game}

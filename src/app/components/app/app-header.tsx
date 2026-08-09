@@ -29,7 +29,7 @@ export function AppHeader({
           className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
           style={{
             background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-            boxShadow: "0 0 20px rgba(0,212,255,0.4)",
+            boxShadow: "0 0 20px rgba(var(--neuro-cyan-rgb),0.4)",
           }}
         >
           <Brain size={17} className="text-white" />

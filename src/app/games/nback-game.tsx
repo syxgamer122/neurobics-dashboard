@@ -23,8 +23,8 @@ const TARGET_RATE = 0.3;
 const LEVELS = [2, 3, 4, 5, 6] as const;
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(10,16,36,0.55)",
-  border: "1px solid rgba(168,85,247,0.18)",
+  background: "rgba(var(--neuro-ink-rgb),0.55)",
+  border: "1px solid rgba(var(--neuro-purple-rgb),0.18)",
   backdropFilter: "blur(var(--glass-blur, 18px))",
   WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
 };
@@ -219,10 +219,12 @@ export function NBackGame({
                 style={{
                   background:
                     n === lv
-                      ? "rgba(168,85,247,0.18)"
+                      ? "rgba(var(--neuro-purple-rgb),0.18)"
                       : "rgba(255,255,255,0.04)",
                   border: `1px solid ${
-                    n === lv ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.08)"
+                    n === lv
+                      ? "rgba(var(--neuro-purple-rgb),0.5)"
+                      : "rgba(255,255,255,0.08)"
                   }`,
                   color: n === lv ? "#A855F7" : "rgba(255,255,255,0.55)",
                 }}
@@ -235,8 +237,8 @@ export function NBackGame({
             onClick={start}
             className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 font-mono"
             style={{
-              background: "rgba(168,85,247,0.15)",
-              border: "1px solid rgba(168,85,247,0.45)",
+              background: "rgba(var(--neuro-purple-rgb),0.15)",
+              border: "1px solid rgba(var(--neuro-purple-rgb),0.45)",
               color: "#A855F7",
             }}
           >
@@ -266,12 +268,16 @@ export function NBackGame({
                   className="aspect-square rounded-xl transition-all duration-150"
                   style={{
                     background: on
-                      ? "rgba(168,85,247,0.55)"
+                      ? "rgba(var(--neuro-purple-rgb),0.55)"
                       : "rgba(255,255,255,0.04)",
                     border: `1px solid ${
-                      on ? "rgba(168,85,247,0.9)" : "rgba(255,255,255,0.07)"
+                      on
+                        ? "rgba(var(--neuro-purple-rgb),0.9)"
+                        : "rgba(255,255,255,0.07)"
                     }`,
-                    boxShadow: on ? "0 0 22px rgba(168,85,247,0.5)" : "none",
+                    boxShadow: on
+                      ? "0 0 22px rgba(var(--neuro-purple-rgb),0.5)"
+                      : "none",
                   }}
                 />
               );
@@ -286,16 +292,16 @@ export function NBackGame({
               opacity: warmup ? 0.4 : 1,
               background:
                 flash === "ok"
-                  ? "rgba(16,185,129,0.2)"
+                  ? "rgba(var(--neuro-green-rgb),0.2)"
                   : flash === "bad"
-                    ? "rgba(244,63,94,0.2)"
-                    : "rgba(168,85,247,0.15)",
+                    ? "rgba(var(--neuro-red-rgb),0.2)"
+                    : "rgba(var(--neuro-purple-rgb),0.15)",
               border: `1px solid ${
                 flash === "ok"
-                  ? "rgba(16,185,129,0.5)"
+                  ? "rgba(var(--neuro-green-rgb),0.5)"
                   : flash === "bad"
-                    ? "rgba(244,63,94,0.5)"
-                    : "rgba(168,85,247,0.45)"
+                    ? "rgba(var(--neuro-red-rgb),0.5)"
+                    : "rgba(var(--neuro-purple-rgb),0.45)"
               }`,
               color:
                 flash === "ok"
