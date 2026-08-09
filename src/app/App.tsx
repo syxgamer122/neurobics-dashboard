@@ -250,8 +250,8 @@ function AppInner() {
 
   return (
     <div
-      className="min-h-screen text-slate-100 overflow-x-hidden"
-      style={{ fontFamily: "'Exo 2', sans-serif", background: "#050A18" }}
+      className="min-h-screen bg-background text-foreground overflow-x-hidden"
+      style={{ fontFamily: "'Exo 2', sans-serif" }}
     >
       <style>{`
         @keyframes streakGlow {
