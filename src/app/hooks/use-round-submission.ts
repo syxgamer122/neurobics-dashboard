@@ -110,7 +110,7 @@ export function useRoundSubmission({
         const ticket = await startRound(game);
         roundTicketsRef.current[game] = ticket;
         return ticket;
-      } catch (_err) {
+      } catch {
         const now = Date.now();
         const fake: RoundTicket = {
           roundId: `offline-${game}-${now}`,
