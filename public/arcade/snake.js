@@ -15,7 +15,7 @@ let snake,
   nextDir,
   food,
   score,
-  best = 0,
+  best = parseInt(localStorage.getItem("snakeBest")) || 0,
   eatCount,
   gameLoop,
   foodPulse = 0,
@@ -94,7 +94,12 @@ document.addEventListener(
   { passive: true },
 );
 
-document.getElementById("restart").addEventListener("click", startGame);
+const restartBtn = document.getElementById("restart");
+restartBtn.addEventListener("click", startGame);
+restartBtn.addEventListener("touchstart", (e) => {
+  e.stopPropagation();
+  startGame();
+});
 
 function startGame() {
   initGame();
@@ -116,7 +121,10 @@ function tick() {
   if (snake.some((s) => s.x === head.x && s.y === head.y)) {
     alive = false;
     clearInterval(gameLoop);
-    if (score > best) best = score;
+    if (score > best) {
+      best = score;
+      localStorage.setItem("snakeBest", best);
+    }
     document.getElementById("best").textContent = best;
     const ov = document.getElementById("overlay");
     ov.querySelector("h2").textContent = "GAME OVER";
