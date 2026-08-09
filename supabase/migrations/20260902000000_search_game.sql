@@ -8,13 +8,13 @@ alter table public.training_sessions drop constraint if exists training_sessions
 alter table public.training_sessions add constraint training_sessions_game_check
 check (game in ('schulte', 'sudoku', 'stroop', 'reaction', 'memory', 'nback', 'math', 'gonogo', 'mental', 'corsi', 'trail', 'search'));
 
-alter table public.round_tickets drop constraint if exists check_round_ticket_game;
-alter table public.round_tickets add constraint check_round_ticket_game
+alter table public.round_tickets drop constraint if exists round_tickets_game_check;
+alter table public.round_tickets add constraint round_tickets_game_check
 check (game in ('schulte', 'sudoku', 'stroop', 'reaction', 'memory', 'nback', 'math', 'gonogo', 'mental', 'corsi', 'trail', 'search'));
 
-alter table public.xp_events drop constraint if exists check_xp_event_source;
-alter table public.xp_events add constraint check_xp_event_source
-check (source in ('daily_quest', 'weekly_quest', 'schulte', 'sudoku', 'stroop', 'reaction', 'memory', 'nback', 'math', 'gonogo', 'mental', 'corsi', 'trail', 'search'));
+alter table public.xp_events drop constraint if exists xp_events_game_check;
+alter table public.xp_events add constraint xp_events_game_check
+check (game in ('schulte', 'sudoku', 'stroop', 'reaction', 'memory', 'nback', 'math', 'gonogo', 'mental', 'corsi', 'trail', 'search', 'quest', 'achievement'));
 
 create or replace function public.submit_round_transaction(
   p_user_id uuid,
