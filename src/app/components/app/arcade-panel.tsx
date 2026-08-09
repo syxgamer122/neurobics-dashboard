@@ -158,7 +158,7 @@ function ArcadeModal({
 
       {/* iframe */}
       <iframe
-        src={`/arcade/${game.id}.html`}
+        src={`/arcade/${game.id}.html?v=2`}
         title={game.title}
         className="flex-1 w-full border-0"
         allow="autoplay"
