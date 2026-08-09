@@ -19,7 +19,10 @@ let snake,
   eatCount,
   gameLoop,
   foodPulse = 0,
-  alive = false;
+  alive = false,
+  goldFood = null,
+  goldTimer = 0,
+  walls = [];
 
 function rnd(n) {
   return Math.floor(Math.random() * n);
@@ -37,17 +40,54 @@ function initGame() {
   nextDir = { x: 1, y: 0 };
   score = 0;
   eatCount = 0;
+  walls = [];
+  goldFood = null;
+  goldTimer = 0;
   document.getElementById("score").textContent = "0";
   document.getElementById("lv").textContent = "1";
   spawnFood();
+}
+
+function isOccupied(pos) {
+  return (
+    snake.some((s) => s.x === pos.x && s.y === pos.y) ||
+    walls.some((w) => w.x === pos.x && w.y === pos.y) ||
+    (food && food.x === pos.x && food.y === pos.y) ||
+    (goldFood && goldFood.x === pos.x && goldFood.y === pos.y)
+  );
 }
 
 function spawnFood() {
   let pos;
   do {
     pos = { x: rnd(COLS), y: rnd(ROWS) };
-  } while (snake.some((s) => s.x === pos.x && s.y === pos.y));
-  food = pos;
+  } while (isOccupied(pos));
+
+  if (Math.random() < 0.15 && !goldFood) {
+    goldFood = pos;
+    goldTimer = 40; // lasts 40 ticks
+    // Still need normal food
+    do {
+      pos = { x: rnd(COLS), y: rnd(ROWS) };
+    } while (isOccupied(pos));
+    food = pos;
+  } else {
+    food = pos;
+  }
+
+  // Spawn walls if level >= 3
+  const lv = Math.floor(eatCount / 5) + 1;
+  if (lv >= 3 && Math.random() < 0.4 && walls.length < lv * 2) {
+    let wpos;
+    do {
+      wpos = { x: rnd(COLS), y: rnd(ROWS) };
+    } while (
+      isOccupied(wpos) ||
+      (Math.abs(wpos.x - snake[0].x) < 3 && Math.abs(wpos.y - snake[0].y) < 3)
+    );
+    // avoid spawning wall too close to head
+    walls.push(wpos);
+  }
 }
 
 function setDir(dx, dy) {
@@ -117,8 +157,11 @@ function tick() {
     y: (snake[0].y + dir.y + ROWS) % ROWS,
   };
 
-  // Self collision
-  if (snake.some((s) => s.x === head.x && s.y === head.y)) {
+  // Self or Wall collision
+  if (
+    snake.some((s) => s.x === head.x && s.y === head.y) ||
+    walls.some((w) => w.x === head.x && w.y === head.y)
+  ) {
     alive = false;
     clearInterval(gameLoop);
     if (score > best) {
@@ -128,18 +171,32 @@ function tick() {
     document.getElementById("best").textContent = best;
     const ov = document.getElementById("overlay");
     ov.querySelector("h2").textContent = "GAME OVER";
-    ov.querySelector("p").textContent = `SCORE: ${score}`;
-    ov.querySelectorAll("p")[1].textContent = `BEST: ${best}`;
-    document.getElementById("restart").textContent = "▶ PLAY AGAIN";
-    ov.style.display = "block";
+    ov.querySelectorAll("p")[1].textContent = `SCORE: ${score}`;
+    ov.querySelectorAll("p")[2].textContent = `BEST: ${best}`;
+    document.getElementById("restart").textContent = "PLAY AGAIN";
+    document.getElementById("exit").style.display = "inline-block";
+    ov.style.display = "flex";
     window.parent.postMessage({ type: "GAME_OVER", score }, "*");
     return;
   }
 
   snake.unshift(head);
-  if (head.x === food.x && head.y === food.y) {
+  let ate = false;
+
+  if (food && head.x === food.x && head.y === food.y) {
     score += 10;
     eatCount++;
+    ate = true;
+    food = null;
+  } else if (goldFood && head.x === goldFood.x && head.y === goldFood.y) {
+    score += 30;
+    goldFood = null;
+    goldTimer = 0;
+    // Don't increase eatCount for speedup, but maybe increase score
+    // And don't grow snake. Wait, `ate` is false, so it will pop tail. That's perfect for gold!
+  }
+
+  if (ate) {
     document.getElementById("score").textContent = score;
     const lv = Math.floor(eatCount / 5) + 1;
     document.getElementById("lv").textContent = lv;
@@ -147,55 +204,76 @@ function tick() {
     // Speed up
     if (eatCount % 5 === 0 && eatCount > 0) {
       clearInterval(gameLoop);
-      gameLoop = setInterval(tick, Math.max(80, 150 - lv * 10));
+      gameLoop = setInterval(tick, Math.max(70, 150 - lv * 12));
     }
   } else {
     snake.pop();
+  }
+
+  if (goldTimer > 0) {
+    goldTimer--;
+    if (goldTimer === 0) goldFood = null;
   }
   draw();
 }
 
 function draw() {
-  // Background
-  ctx.fillStyle = "#0f172a";
-  ctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.clearRect(0, 0, SIZE, SIZE);
 
   // Grid
-  ctx.strokeStyle = "rgba(30,41,59,0.8)";
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i <= COLS; i++) {
+  ctx.strokeStyle = "rgba(16,185,129,0.05)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= SIZE; i += CELL) {
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i, SIZE);
+    ctx.moveTo(0, i);
+    ctx.lineTo(SIZE, i);
+  }
+  ctx.stroke();
+
+  // Walls
+  ctx.fillStyle = "#64748b"; // slate
+  walls.forEach((w) => {
+    ctx.fillRect(w.x * CELL + 1, w.y * CELL + 1, CELL - 2, CELL - 2);
+    ctx.strokeStyle = "#475569";
+    ctx.strokeRect(w.x * CELL + 1, w.y * CELL + 1, CELL - 2, CELL - 2);
     ctx.beginPath();
-    ctx.moveTo(i * CELL, 0);
-    ctx.lineTo(i * CELL, SIZE);
+    ctx.moveTo(w.x * CELL + 1, w.y * CELL + CELL / 2);
+    ctx.lineTo(w.x * CELL + CELL - 1, w.y * CELL + CELL / 2);
     ctx.stroke();
+  });
+
+  // Food
+  if (food) {
+    const fx = food.x * CELL + CELL / 2;
+    const fy = food.y * CELL + CELL / 2;
+    foodPulse = (foodPulse + 0.1) % (Math.PI * 2);
+    const pulse = 1 + Math.sin(foodPulse) * 0.1;
+
+    ctx.fillStyle = "#ef4444";
+    ctx.shadowColor = "#ef4444";
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.moveTo(0, i * CELL);
-    ctx.lineTo(SIZE, i * CELL);
-    ctx.stroke();
+    ctx.arc(fx, fy, (CELL / 2 - 2) * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
-  // Food with pulse
-  foodPulse = (foodPulse + 0.08) % (Math.PI * 2);
-  const pulse = 1 + Math.sin(foodPulse) * 0.2;
-  const fx = food.x * CELL + CELL / 2,
-    fy = food.y * CELL + CELL / 2;
-  const fr = (CELL / 2 - 2) * pulse;
-  // Glow
-  const glow = ctx.createRadialGradient(fx, fy, 0, fx, fy, fr * 2.5);
-  glow.addColorStop(0, "rgba(244,63,94,0.5)");
-  glow.addColorStop(1, "transparent");
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(fx, fy, fr * 2.5, 0, Math.PI * 2);
-  ctx.fill();
-  // Food dot
-  const fg = ctx.createRadialGradient(fx - 2, fy - 2, 1, fx, fy, fr);
-  fg.addColorStop(0, "#fca5a5");
-  fg.addColorStop(1, "#f43f5e");
-  ctx.fillStyle = fg;
-  ctx.beginPath();
-  ctx.arc(fx, fy, fr, 0, Math.PI * 2);
-  ctx.fill();
+  // Golden Food
+  if (goldFood) {
+    const gfx = goldFood.x * CELL + CELL / 2;
+    const gfy = goldFood.y * CELL + CELL / 2;
+    const pulse = 1 + Math.cos(foodPulse * 2) * 0.2;
+
+    ctx.fillStyle = "#fbbf24";
+    ctx.shadowColor = "#fbbf24";
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(gfx, gfy, (CELL / 2 - 2) * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
 
   // Snake
   snake.forEach((seg, i) => {

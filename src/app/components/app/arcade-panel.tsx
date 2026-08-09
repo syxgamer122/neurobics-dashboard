@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Gamepad2 } from "lucide-react";
 
 export type ArcadeGame = {
@@ -121,9 +121,19 @@ function ArcadeModal({
   game: ArcadeGame;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "EXIT_GAME") {
+        onClose();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [onClose]);
+
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col animate-[fadeIn_0.2s_ease-out]"
+      className="fixed top-0 left-0 right-0 z-[70] flex flex-col animate-[fadeIn_0.2s_ease-out] h-[100dvh]"
       style={{ background: "rgba(0,0,0,0.95)" }}
     >
       {/* Topbar */}
