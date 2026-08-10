@@ -145,6 +145,11 @@ function startGame() {
   initGame();
   alive = true;
   document.getElementById("overlay").style.display = "none";
+  document.getElementById("title").textContent = "SNAKE";
+  document.getElementById("inst").style.display = "block";
+  document.getElementById("hint").style.display = "block";
+  document.getElementById("final").style.display = "none";
+  document.getElementById("final-best").style.display = "none";
   if (gameLoop) clearInterval(gameLoop);
   const speed = 150;
   gameLoop = setInterval(tick, speed);
@@ -170,9 +175,13 @@ function tick() {
     }
     document.getElementById("best").textContent = best;
     const ov = document.getElementById("overlay");
-    ov.querySelector("h2").textContent = "GAME OVER";
-    ov.querySelectorAll("p")[1].textContent = `SCORE: ${score}`;
-    ov.querySelectorAll("p")[2].textContent = `BEST: ${best}`;
+    document.getElementById("title").textContent = "GAME OVER";
+    document.getElementById("inst").style.display = "none";
+    document.getElementById("hint").style.display = "none";
+    document.getElementById("final").textContent = `SCORE: ${score}`;
+    document.getElementById("final").style.display = "block";
+    document.getElementById("final-best").textContent = `BEST: ${best}`;
+    document.getElementById("final-best").style.display = "block";
     document.getElementById("restart").textContent = "PLAY AGAIN";
     document.getElementById("exit").style.display = "inline-block";
     ov.style.display = "flex";

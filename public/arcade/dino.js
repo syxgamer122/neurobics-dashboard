@@ -69,6 +69,7 @@ document.addEventListener("keyup", (e) => {
   }
 });
 document.addEventListener(
+  "touchstart",
   (e) => {
     if (e.target.id === "restart" || e.target.id === "exit") return;
     tx = e.touches[0].clientX;
