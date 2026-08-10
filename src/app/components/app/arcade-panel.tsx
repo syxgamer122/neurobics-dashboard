@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { X, Gamepad2 } from "lucide-react";
+import { FlappyGame } from "../../games/flappy";
+import { DinoGame } from "../../games/dino";
+import { SnakeGame } from "../../games/snake";
 
 export type ArcadeGame = {
   id: string;
@@ -166,13 +169,12 @@ function ArcadeModal({
         </button>
       </div>
 
-      {/* iframe */}
-      <iframe
-        src={`/arcade/${game.id}.html?v=2`}
-        title={game.title}
-        className="flex-1 w-full border-0"
-        allow="autoplay"
-      />
+      {/* Game Area */}
+      <div className="flex-1 w-full relative">
+        {game.id === "flappy" && <FlappyGame onGameOver={() => {}} />}
+        {game.id === "dino" && <DinoGame onGameOver={() => {}} />}
+        {game.id === "snake" && <SnakeGame onGameOver={() => {}} />}
+      </div>
     </div>
   );
 }
