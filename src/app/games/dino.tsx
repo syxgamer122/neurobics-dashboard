@@ -283,7 +283,7 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       }
     };
 
-    const collides = (a: any, b: Obstacle) => {
+    const collides = (a: { x: number; y: number; w: number; h: number }, b: Obstacle) => {
       const { GND } = state.current;
       const by = b.type === "bird" ? GND - b.yOffset : GND - b.h;
       return (
