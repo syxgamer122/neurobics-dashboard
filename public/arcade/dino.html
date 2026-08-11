@@ -33,13 +33,16 @@
         best = parseInt(localStorage.getItem("dinoBest") || "0");
       let gameState = "idle"; // idle, playing, dead
       const GND_OFFSET = 60;
-      const dino = { x: 80, y: 0, w: 40, h: 50, vy: 0, onGround: true };
+      const dino = { x: 80, y: 0, w: 50, h: 60, vy: 0, onGround: true };
       let obstacles = []; // {x,w,h,type,frameOffset}
       let frame = 0,
         speed = 4;
       function resize() {
+          // Ensure canvas width stays within bounds
           W = Math.min(window.innerWidth, 800);
-          H = Math.min(window.innerHeight * 0.75, 300);
+          // Minimum height to keep dinosaur visible (ground offset + dino height + margin)
+          const MIN_HEIGHT = 130; // 60 (ground) + 50 (dino) + 20 margin
+          H = Math.max(MIN_HEIGHT, Math.min(window.innerHeight * 0.75, 300));
           canvas.width = W;
           canvas.height = H;
         }
@@ -152,7 +155,7 @@
         ctx.lineTo(W, GND_OFFSET + 2);
         ctx.stroke();
         // dino
-        ctx.fillStyle = "#10b981";
+        ctx.fillStyle = "#ffea00";
         ctx.fillRect(dino.x, dino.y - dino.h, dino.w, dino.h);
         // obstacles
         obstacles.forEach((o) => {
@@ -171,7 +174,7 @@
         ctx.font = "16px monospace";
         ctx.fillText("Score: " + score, 10, 20);
         if (gameState === "idle") {
-          ctx.fillStyle = "#10b981";
+          ctx.fillStyle = "#ffea00";
           ctx.font = "24px monospace";
           ctx.fillText("Press Space / Tap to Start", W / 2 - 120, H / 2);
         }
