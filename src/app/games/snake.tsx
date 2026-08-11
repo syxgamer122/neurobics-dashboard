@@ -164,14 +164,21 @@ export function SnakeGame({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const SIZE = Math.min(
-      Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) *
-        20,
-      400,
-    );
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    if (gameStateRef.current === "idle") initGame(SIZE);
+    const setCanvasSize = () => {
+      const SIZE = Math.min(
+        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) * 20,
+        400,
+      );
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      state.current.SIZE = SIZE;
+      state.current.COLS = SIZE / state.current.CELL;
+      state.current.ROWS = SIZE / state.current.CELL;
+      draw();
+    };
+    setCanvasSize();
+
+    if (gameStateRef.current === "idle") initGame(state.current.SIZE);
 
     let tx = 0,
       ty = 0;
@@ -193,8 +200,13 @@ export function SnakeGame({
         if (gameStateRef.current !== "playing") startGame();
       }
     };
-    canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
-    canvas.addEventListener("touchend", handleTouchEnd, { passive: true });
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
+
+    const handleResize = () => {
+      setCanvasSize();
+    };
+    window.addEventListener("resize", handleResize);
 
     const draw = () => {
       const s = state.current;
@@ -398,15 +410,17 @@ export function SnakeGame({
       clearTimeout(timeoutId);
       canvas.removeEventListener("touchstart", handleTouchStart);
       canvas.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("resize", handleResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onGameOver]);
 
   return (
-    <div className="relative w-full h-full bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
+    <div className="fixed inset-0 bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
       <canvas
         ref={canvasRef}
         className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]"
+        style={{ width: "100%", height: "100%" }}
       />
 
       {/* Top Bar */}
