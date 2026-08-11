@@ -15,13 +15,19 @@ type Cloud = {
   w: number;
 };
 
-export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void }) {
+export function DinoGame({
+  onGameOver,
+}: {
+  onGameOver?: (score: number) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(() => {
     return parseInt(localStorage.getItem("dinoBest") || "0");
   });
-  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">("idle");
+  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">(
+    "idle",
+  );
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
@@ -244,10 +250,26 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       ctx.ellipse(cl.x, cl.y, cl.w / 2, 12, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cl.x - cl.w * 0.2, cl.y + 4, cl.w * 0.3, 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        cl.x - cl.w * 0.2,
+        cl.y + 4,
+        cl.w * 0.3,
+        8,
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cl.x + cl.w * 0.2, cl.y + 2, cl.w * 0.25, 9, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        cl.x + cl.w * 0.2,
+        cl.y + 2,
+        cl.w * 0.25,
+        9,
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.fill();
     };
 
@@ -283,7 +305,10 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       }
     };
 
-    const collides = (a: { x: number; y: number; w: number; h: number }, b: Obstacle) => {
+    const collides = (
+      a: { x: number; y: number; w: number; h: number },
+      b: Obstacle,
+    ) => {
       const { GND } = state.current;
       const by = b.type === "bird" ? GND - b.yOffset : GND - b.h;
       return (
@@ -320,7 +345,11 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
           gs.dino.onGround = true;
         }
 
-        if (gs.frame % Math.max(50, 90 - Math.floor(scoreRef.current / 150)) === 0) spawnObstacle();
+        if (
+          gs.frame % Math.max(50, 90 - Math.floor(scoreRef.current / 150)) ===
+          0
+        )
+          spawnObstacle();
 
         for (let i = gs.obstacles.length - 1; i >= 0; i--) {
           gs.obstacles[i].x -= gs.speed;
@@ -360,29 +389,45 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
 
   return (
     <div className="relative w-full h-full bg-[#111827] flex items-center justify-center overflow-hidden select-none">
-      <canvas ref={canvasRef} className="block w-full h-full max-w-[800px] object-cover" />
+      <canvas
+        ref={canvasRef}
+        className="block w-full h-full max-w-[800px] object-cover"
+      />
 
       {/* Score */}
       <div className="absolute top-6 right-6 bg-[#1f2937]/80 border border-emerald-500/40 px-4 py-1.5 rounded-full flex gap-4 backdrop-blur-sm pointer-events-none shadow-[0_0_20px_rgba(16,185,129,0.3)] font-mono">
         <span className="text-emerald-500 font-bold tracking-widest drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">
           {score.toString().padStart(5, "0")}
         </span>
-        <span className="text-emerald-500/50">HI {bestScore.toString().padStart(5, "0")}</span>
+        <span className="text-emerald-500/50">
+          HI {bestScore.toString().padStart(5, "0")}
+        </span>
       </div>
 
       {/* Overlays */}
       {gameState === "idle" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" onClick={handleJump}>
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">T-REX RUNNER</h2>
-          <p className="text-emerald-400 font-mono tracking-widest animate-pulse">PRESS SPACE / TAP TO START</p>
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+          onClick={handleJump}
+        >
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+            T-REX RUNNER
+          </h2>
+          <p className="text-emerald-400 font-mono tracking-widest animate-pulse">
+            PRESS SPACE / TAP TO START
+          </p>
         </div>
       )}
 
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">GAME OVER</h2>
+          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">
+            GAME OVER
+          </h2>
           <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
-          <p className="text-white/60 font-mono mb-8 text-sm">BEST: {bestScore}</p>
+          <p className="text-white/60 font-mono mb-8 text-sm">
+            BEST: {bestScore}
+          </p>
           <button
             onClick={() => {
               setGameState("idle");

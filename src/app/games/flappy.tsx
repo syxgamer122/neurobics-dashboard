@@ -28,13 +28,19 @@ type Star = {
   collected: boolean;
 };
 
-export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => void }) {
+export function FlappyGame({
+  onGameOver,
+}: {
+  onGameOver?: (score: number) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(() => {
     return parseInt(localStorage.getItem("flappyBest") || "0");
   });
-  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">("idle");
+  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">(
+    "idle",
+  );
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
@@ -241,7 +247,10 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
       if (bird.y - bird.r <= 0 || bird.y + bird.r >= H) return true;
       for (const p of pipes) {
         if (bird.x + bird.r - 8 > p.x && bird.x - bird.r + 8 < p.x + PIPE_W) {
-          if (bird.y - bird.r + 8 < p.topH || bird.y + bird.r - 8 > p.topH + GAP)
+          if (
+            bird.y - bird.r + 8 < p.topH ||
+            bird.y + bird.r - 8 > p.topH + GAP
+          )
             return true;
         }
       }
@@ -288,11 +297,11 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
             for (let j = 0; j < 5; j++) {
               ctx.lineTo(
                 Math.cos(((18 + j * 72) * Math.PI) / 180) * 12,
-                -Math.sin(((18 + j * 72) * Math.PI) / 180) * 12
+                -Math.sin(((18 + j * 72) * Math.PI) / 180) * 12,
               );
               ctx.lineTo(
                 Math.cos(((54 + j * 72) * Math.PI) / 180) * 6,
-                -Math.sin(((54 + j * 72) * Math.PI) / 180) * 6
+                -Math.sin(((54 + j * 72) * Math.PI) / 180) * 6,
               );
             }
             ctx.closePath();
@@ -364,8 +373,14 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
   }, [onGameOver]);
 
   return (
-    <div className="relative w-full h-full bg-[#0c0a1a] flex items-center justify-center overflow-hidden touch-none select-none" onPointerDown={handleFlap}>
-      <canvas ref={canvasRef} className="block w-full h-full max-w-[420px] object-cover" />
+    <div
+      className="relative w-full h-full bg-[#0c0a1a] flex items-center justify-center overflow-hidden touch-none select-none"
+      onPointerDown={handleFlap}
+    >
+      <canvas
+        ref={canvasRef}
+        className="block w-full h-full max-w-[420px] object-cover"
+      />
 
       {/* Score */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1e1b4b]/80 border border-purple-500/40 px-4 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-sm pointer-events-none shadow-[0_0_20px_rgba(168,85,247,0.3)]">
@@ -378,16 +393,24 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
       {/* Overlays */}
       {gameState === "idle" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">FLAPPY BIRD</h2>
-          <p className="text-amber-400 font-mono tracking-widest animate-pulse">TAP / SPACE TO START</p>
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+            FLAPPY BIRD
+          </h2>
+          <p className="text-amber-400 font-mono tracking-widest animate-pulse">
+            TAP / SPACE TO START
+          </p>
         </div>
       )}
 
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">GAME OVER</h2>
+          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">
+            GAME OVER
+          </h2>
           <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
-          <p className="text-white/60 font-mono mb-8 text-sm">BEST: {bestScore}</p>
+          <p className="text-white/60 font-mono mb-8 text-sm">
+            BEST: {bestScore}
+          </p>
           <button
             onClick={() => {
               setGameState("idle");

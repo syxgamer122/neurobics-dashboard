@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 
-export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void }) {
+export function SnakeGame({
+  onGameOver,
+}: {
+  onGameOver?: (score: number) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(() => {
     return parseInt(localStorage.getItem("snakeBest") || "0");
   });
   const [level, setLevel] = useState(1);
-  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">("idle");
+  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">(
+    "idle",
+  );
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
@@ -72,7 +78,9 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
         wpos = { x: rnd(s.COLS), y: rnd(s.ROWS) };
       } while (
         isOccupied(wpos) ||
-        (s.snake.length > 0 && Math.abs(wpos.x - s.snake[0].x) < 3 && Math.abs(wpos.y - s.snake[0].y) < 3)
+        (s.snake.length > 0 &&
+          Math.abs(wpos.x - s.snake[0].x) < 3 &&
+          Math.abs(wpos.y - s.snake[0].y) < 3)
       );
       s.walls.push(wpos);
     }
@@ -119,8 +127,9 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
     if (gameStateRef.current === "idle" || gameStateRef.current === "dead") {
       setGameState("playing");
       const SIZE = Math.min(
-        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) * 20,
-        400
+        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) *
+          20,
+        400,
       );
       initGame(SIZE);
     }
@@ -156,14 +165,16 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
     if (!ctx) return;
 
     const SIZE = Math.min(
-      Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) * 20,
-      400
+      Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) *
+        20,
+      400,
     );
     canvas.width = SIZE;
     canvas.height = SIZE;
     if (gameStateRef.current === "idle") initGame(SIZE);
 
-    let tx = 0, ty = 0;
+    let tx = 0,
+      ty = 0;
     const handleTouchStart = (e: TouchEvent) => {
       tx = e.touches[0].clientX;
       ty = e.touches[0].clientY;
@@ -202,9 +213,19 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
 
       ctx.fillStyle = "#64748b";
       s.walls.forEach((w) => {
-        ctx.fillRect(w.x * s.CELL + 1, w.y * s.CELL + 1, s.CELL - 2, s.CELL - 2);
+        ctx.fillRect(
+          w.x * s.CELL + 1,
+          w.y * s.CELL + 1,
+          s.CELL - 2,
+          s.CELL - 2,
+        );
         ctx.strokeStyle = "#475569";
-        ctx.strokeRect(w.x * s.CELL + 1, w.y * s.CELL + 1, s.CELL - 2, s.CELL - 2);
+        ctx.strokeRect(
+          w.x * s.CELL + 1,
+          w.y * s.CELL + 1,
+          s.CELL - 2,
+          s.CELL - 2,
+        );
         ctx.beginPath();
         ctx.moveTo(w.x * s.CELL + 1, w.y * s.CELL + s.CELL / 2);
         ctx.lineTo(w.x * s.CELL + s.CELL - 1, w.y * s.CELL + s.CELL / 2);
@@ -254,7 +275,7 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
             0,
             sx + s.CELL / 2,
             sy + s.CELL / 2,
-            s.CELL
+            s.CELL,
           );
           hg.addColorStop(0, "rgba(52,211,153,0.4)");
           hg.addColorStop(1, "transparent");
@@ -263,7 +284,12 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
           ctx.arc(sx + s.CELL / 2, sy + s.CELL / 2, s.CELL, 0, Math.PI * 2);
           ctx.fill();
 
-          const hgrad = ctx.createLinearGradient(sx, sy, sx + s.CELL, sy + s.CELL);
+          const hgrad = ctx.createLinearGradient(
+            sx,
+            sy,
+            sx + s.CELL,
+            sy + s.CELL,
+          );
           hgrad.addColorStop(0, "#34d399");
           hgrad.addColorStop(1, "#10b981");
           ctx.fillStyle = hgrad;
@@ -337,7 +363,11 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
         s.eatCount++;
         ate = true;
         s.food = null;
-      } else if (s.goldFood && head.x === s.goldFood.x && head.y === s.goldFood.y) {
+      } else if (
+        s.goldFood &&
+        head.x === s.goldFood.x &&
+        head.y === s.goldFood.y
+      ) {
         setScore((sc) => sc + 30);
         s.goldFood = null;
         s.goldTimer = 0;
@@ -374,29 +404,51 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
 
   return (
     <div className="relative w-full h-full bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
-      <canvas ref={canvasRef} className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]" />
+      <canvas
+        ref={canvasRef}
+        className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]"
+      />
 
       {/* Top Bar */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-6 text-sm font-mono tracking-widest text-emerald-500/80 pointer-events-none">
-        <span>SCORE: <span className="text-emerald-400 font-bold">{score}</span></span>
-        <span>BEST: <span>{bestScore}</span></span>
-        <span>LV: <span className="text-amber-400">{level}</span></span>
+        <span>
+          SCORE: <span className="text-emerald-400 font-bold">{score}</span>
+        </span>
+        <span>
+          BEST: <span>{bestScore}</span>
+        </span>
+        <span>
+          LV: <span className="text-amber-400">{level}</span>
+        </span>
       </div>
 
       {/* Overlays */}
       {gameState === "idle" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" onClick={startGame}>
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">SNAKE</h2>
-          <p className="text-emerald-400 font-mono tracking-widest">ARROW KEYS / WASD</p>
-          <p className="text-emerald-400/50 font-mono text-xs mt-2 animate-pulse">MOBILE: SWIPE TO MOVE / TAP TO START</p>
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+          onClick={startGame}
+        >
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+            SNAKE
+          </h2>
+          <p className="text-emerald-400 font-mono tracking-widest">
+            ARROW KEYS / WASD
+          </p>
+          <p className="text-emerald-400/50 font-mono text-xs mt-2 animate-pulse">
+            MOBILE: SWIPE TO MOVE / TAP TO START
+          </p>
         </div>
       )}
 
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">GAME OVER</h2>
+          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">
+            GAME OVER
+          </h2>
           <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
-          <p className="text-white/60 font-mono mb-8 text-sm">BEST: {bestScore}</p>
+          <p className="text-white/60 font-mono mb-8 text-sm">
+            BEST: {bestScore}
+          </p>
           <button
             onClick={startGame}
             className="px-6 py-3 bg-emerald-500/20 border border-emerald-500 text-emerald-400 rounded-xl font-mono tracking-widest hover:bg-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all"
