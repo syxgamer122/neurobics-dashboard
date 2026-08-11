@@ -435,7 +435,7 @@ export function DinoGame({
             }}
             className="px-6 py-3 bg-emerald-500/20 border border-emerald-500 text-emerald-400 rounded-xl font-mono tracking-widest hover:bg-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all"
           >
-            PLAY AGAIN
+            {"PLAY AGAIN"}
           </button>
         </div>
       )}

@@ -418,7 +418,7 @@ export function FlappyGame({
             }}
             className="px-6 py-3 bg-purple-500/20 border border-purple-500 text-purple-400 rounded-xl font-mono tracking-widest hover:bg-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
           >
-            PLAY AGAIN
+            {"PLAY AGAIN"}
           </button>
         </div>
       )}
