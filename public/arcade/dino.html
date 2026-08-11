@@ -38,11 +38,13 @@
       let frame = 0,
         speed = 4;
       function resize() {
-        W = Math.min(window.innerWidth, 800);
-        H = Math.min(window.innerHeight * 0.75, 300);
-        canvas.width = W;
-        canvas.height = H;
-      }
+          W = Math.min(window.innerWidth, 800);
+          H = Math.min(window.innerHeight * 0.75, 300);
+          canvas.width = W;
+          canvas.height = H;
+        }
+        // Adjust on window resize
+        window.addEventListener('resize', resize);
       function reset() {
         resize();
         score = 0;
@@ -192,17 +194,19 @@
       }
       // input
       window.addEventListener("keydown", (e) => {
-        if (e.code === "Space" || e.code === "ArrowUp") {
+          if (e.code === "Space" || e.code === "ArrowUp") {
+            e.preventDefault();
+            if (gameState === "idle") gameState = "playing";
+            else if (gameState === "dead") { reset(); gameState = "idle"; }
+            else jump();
+          }
+        });
+        canvas.addEventListener("touchstart", (e) => {
           e.preventDefault();
           if (gameState === "idle") gameState = "playing";
-          jump();
-        }
-      });
-      canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        if (gameState === "idle") gameState = "playing";
-        jump();
-      });
+          else if (gameState === "dead") { reset(); gameState = "idle"; }
+          else jump();
+        });
       reset();
       requestAnimationFrame(loop);
     </script>
