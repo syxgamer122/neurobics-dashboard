@@ -257,7 +257,7 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
         const by = GND - o.yOffset;
         ctx.fillStyle = "#f43f5e";
         ctx.fillRect(o.x, by, o.w, o.h);
-        const wingY = (frame + o.frameOffset) % 20 < 10 ? -10 : 10;
+        const wingY = (frame + (o.frameOffset || 0)) % 20 < 10 ? -10 : 10;
         ctx.fillStyle = "#e11d48";
         ctx.beginPath();
         ctx.moveTo(o.x + 10, by + 10);
