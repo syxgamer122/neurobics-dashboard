@@ -392,7 +392,10 @@ export function FlappyGame({
 
       {/* Overlays */}
       {gameState === "idle" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto"
+          onClick={handleFlap}
+        >
           <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
             FLAPPY BIRD
           </h2>
