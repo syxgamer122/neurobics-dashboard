@@ -5,6 +5,29 @@ const GAP = 160;
 const GRAV = 0.45;
 const FLAP = -8;
 
+type Pipe = {
+  x: number;
+  topH: number;
+  passed: boolean;
+  vy: number;
+  initialTopH: number;
+};
+
+type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  color: string;
+};
+
+type Star = {
+  x: number;
+  y: number;
+  collected: boolean;
+};
+
 export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
@@ -24,9 +47,9 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
   // Mutable game state
   const state = useRef({
     bird: { x: 0, y: 0, vy: 0, r: 18, rot: 0 },
-    pipes: [] as any[],
-    particles: [] as any[],
-    collectStars: [] as any[],
+    pipes: [] as Pipe[],
+    particles: [] as Particle[],
+    collectStars: [] as Star[],
     frame: 0,
   });
 
@@ -78,8 +101,8 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
     if (!ctx) return;
 
     let rafId: number;
-    let W = Math.min(window.innerWidth, 420);
-    let H = Math.min(window.innerHeight, 620);
+    const W = Math.min(window.innerWidth, 420);
+    const H = Math.min(window.innerHeight, 620);
     canvas.width = W;
     canvas.height = H;
 
@@ -157,7 +180,7 @@ export function FlappyGame({ onGameOver }: { onGameOver?: (score: number) => voi
       ctx.restore();
     };
 
-    const drawPipe = (p: any) => {
+    const drawPipe = (p: Pipe) => {
       const accentColor = "#10b981";
       const bodyColor = "#059669";
       const tg = ctx.createLinearGradient(p.x, 0, p.x + PIPE_W, 0);

@@ -146,6 +146,7 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -154,7 +155,7 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let SIZE = Math.min(
+    const SIZE = Math.min(
       Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) * 20,
       400
     );
@@ -298,7 +299,7 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
       });
     };
 
-    let timeoutId: any;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const tick = () => {
       if (gameStateRef.current !== "playing") {
         draw();
@@ -368,6 +369,7 @@ export function SnakeGame({ onGameOver }: { onGameOver?: (score: number) => void
       canvas.removeEventListener("touchstart", handleTouchStart);
       canvas.removeEventListener("touchend", handleTouchEnd);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onGameOver]);
 
   return (

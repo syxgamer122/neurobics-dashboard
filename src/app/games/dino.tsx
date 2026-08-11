@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 
+type Obstacle = {
+  x: number;
+  w: number;
+  h: number;
+  yOffset: number;
+  type: "bird" | "cactus";
+  frameOffset?: number;
+};
+
+type Cloud = {
+  x: number;
+  y: number;
+  w: number;
+};
+
 export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
@@ -33,8 +48,8 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       onGround: true,
       ducking: false,
     },
-    obstacles: [] as any[],
-    clouds: [] as any[],
+    obstacles: [] as Obstacle[],
+    clouds: [] as Cloud[],
     W: 800,
     H: 300,
   });
@@ -127,8 +142,8 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
     if (!ctx) return;
 
     let rafId: number;
-    let W = Math.min(window.innerWidth, 800);
-    let H = Math.min(window.innerHeight * 0.75, 300);
+    const W = Math.min(window.innerWidth, 800);
+    const H = Math.min(window.innerHeight * 0.75, 300);
     canvas.width = W;
     canvas.height = H;
 
@@ -223,7 +238,7 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       }
     };
 
-    const drawCloud = (cl: any) => {
+    const drawCloud = (cl: Cloud) => {
       ctx.fillStyle = "rgba(55,65,81,0.6)";
       ctx.beginPath();
       ctx.ellipse(cl.x, cl.y, cl.w / 2, 12, 0, 0, Math.PI * 2);
@@ -236,7 +251,7 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       ctx.fill();
     };
 
-    const drawObstacle = (o: any) => {
+    const drawObstacle = (o: Obstacle) => {
       const { GND, frame } = state.current;
       if (o.type === "bird") {
         const by = GND - o.yOffset;
@@ -268,7 +283,7 @@ export function DinoGame({ onGameOver }: { onGameOver?: (score: number) => void 
       }
     };
 
-    const collides = (a: any, b: any) => {
+    const collides = (a: any, b: Obstacle) => {
       const { GND } = state.current;
       const by = b.type === "bird" ? GND - b.yOffset : GND - b.h;
       return (
