@@ -391,19 +391,19 @@ export function FlappyGame({
       </div>
 
       {/* Overlays */}
-        {gameState === "idle" && (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto"
-            onClick={handleFlap}
-          >
-            <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
-              FLAPPY BIRD
-            </h2>
-            <p className="text-amber-400 font-mono tracking-widest animate-pulse">
-              TAP / SPACE TO START
-            </p>
-          </div>
-        )}
+      {gameState === "idle" && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto"
+          onClick={handleFlap}
+        >
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+            FLAPPY BIRD
+          </h2>
+          <p className="text-amber-400 font-mono tracking-widest animate-pulse">
+            TAP / SPACE TO START
+          </p>
+        </div>
+      )}
 
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
