@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dino Runner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #111827;
+        color: #10b981;
+        font-family: monospace;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        margin: auto;
+        background: #111827;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      // Simple Dino runner – works on desktop & mobile
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      let W = 0,
+        H = 0;
+      let score = 0,
+        best = parseInt(localStorage.getItem("dinoBest") || "0");
+      let gameState = "idle"; // idle, playing, dead
+      const GND_OFFSET = 60;
+      const dino = { x: 80, y: 0, w: 40, h: 50, vy: 0, onGround: true };
+      let obstacles = []; // {x,w,h,type,frameOffset}
+      let frame = 0,
+        speed = 4;
+      function resize() {
+        W = Math.min(window.innerWidth, 800);
+        H = Math.min(window.innerHeight * 0.75, 300);
+        canvas.width = W;
+        canvas.height = H;
+      }
+      function reset() {
+        resize();
+        score = 0;
+        frame = 0;
+        speed = 4;
+        dino.y = H - GND_OFFSET;
+        dino.vy = 0;
+        dino.onGround = true;
+        obstacles = [];
+        gameState = "idle";
+      }
+      function jump() {
+        if (gameState !== "playing") return;
+        if (dino.onGround) {
+          dino.vy = -14;
+          dino.onGround = false;
+        }
+      }
+      function spawn() {
+        if (Math.random() < 0.3) {
+          // bird
+          obstacles.push({
+            x: W,
+            w: 30,
+            h: 20,
+            type: "bird",
+            frameOffset: Math.random() * 100,
+          });
+        } else {
+          // cactus
+          const sizes = [
+            [20, 40],
+            [25, 55],
+            [30, 45],
+            [20, 65],
+          ];
+          const s = sizes[Math.floor(Math.random() * sizes.length)];
+          const count = Math.random() < 0.3 ? 2 : 1;
+          obstacles.push({
+            x: W,
+            w: s[0] * count + (count > 1 ? 8 : 0),
+            h: s[1],
+            type: "cactus",
+          });
+        }
+      }
+      function update() {
+        if (gameState === "playing") {
+          frame++;
+          if (frame % Math.max(50, 90 - Math.floor(score / 150)) === 0) spawn();
+          // dino physics
+          dino.vy += 0.7;
+          dino.y += dino.vy;
+          if (dino.y >= H - GND_OFFSET) {
+            dino.y = H - GND_OFFSET;
+            dino.vy = 0;
+            dino.onGround = true;
+          }
+          // obstacles movement
+          for (let i = obstacles.length - 1; i >= 0; i--) {
+            const o = obstacles[i];
+            o.x -= speed;
+            if (o.x + o.w < 0) {
+              obstacles.splice(i, 1);
+              continue;
+            }
+            if (collide(dino, o)) {
+              gameState = "dead";
+              if (score > best) {
+                best = score;
+                localStorage.setItem("dinoBest", best);
+              } // store best
+              window.parent.postMessage({ type: "GAME_OVER", score }, "*");
+            }
+          }
+          score++;
+          speed = 4 + score / 200;
+        }
+      }
+      function collide(d, o) {
+        const GND = H - GND_OFFSET;
+        const obY = o.type === "bird" ? GND - o.frameOffset : GND - o.h;
+        return (
+          d.x < o.x + o.w &&
+          d.x + d.w > o.x &&
+          d.y - d.h < obY + o.h &&
+          d.y > obY
+        );
+      }
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        // clouds
+        ctx.fillStyle = "rgba(55,65,81,0.6)";
+        for (let i = 0; i < 2; i++) {
+          const cx = W * 0.3 + i * W * 0.4; // simple static clouds
+          ctx.beginPath();
+          ctx.ellipse(cx, 40, 40, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // ground line
+        ctx.strokeStyle = "#374151";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, GND_OFFSET + 2);
+        ctx.lineTo(W, GND_OFFSET + 2);
+        ctx.stroke();
+        // dino
+        ctx.fillStyle = "#10b981";
+        ctx.fillRect(dino.x, dino.y - dino.h, dino.w, dino.h);
+        // obstacles
+        obstacles.forEach((o) => {
+          if (o.type === "bird") {
+            const by = H - GND_OFFSET - o.frameOffset;
+            ctx.fillStyle = "#f43f5e";
+            ctx.fillRect(o.x, by, o.w, o.h);
+          } else {
+            const by = H - GND_OFFSET - o.h;
+            ctx.fillStyle = "#34d399";
+            ctx.fillRect(o.x, by, o.w, o.h);
+          }
+        });
+        // score overlay
+        ctx.fillStyle = "#10b981";
+        ctx.font = "16px monospace";
+        ctx.fillText("Score: " + score, 10, 20);
+        if (gameState === "idle") {
+          ctx.fillStyle = "#10b981";
+          ctx.font = "24px monospace";
+          ctx.fillText("Press Space / Tap to Start", W / 2 - 120, H / 2);
+        }
+        if (gameState === "dead") {
+          ctx.fillStyle = "rgba(0,0,0,0.6)";
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "#ff6666";
+          ctx.font = "28px monospace";
+          ctx.fillText("Game Over", W / 2 - 80, H / 2 - 20);
+          ctx.fillStyle = "#fff";
+          ctx.font = "20px monospace";
+          ctx.fillText("Score: " + score, W / 2 - 60, H / 2 + 10);
+          ctx.fillText("Tap to Play Again", W / 2 - 80, H / 2 + 40);
+        }
+      }
+      function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+      }
+      // input
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space" || e.code === "ArrowUp") {
+          e.preventDefault();
+          if (gameState === "idle") gameState = "playing";
+          jump();
+        }
+      });
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (gameState === "idle") gameState = "playing";
+        jump();
+      });
+      reset();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>
