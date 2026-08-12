@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { X, Gamepad2 } from "lucide-react";
-import { FlappyGame } from "../../games/flappy";
-import { DinoGame } from "../../games/dino";
-import { SnakeGame } from "../../games/snake";
+
+const FlappyGame = React.lazy(() => import("../../games/flappy").then(m => ({ default: m.FlappyGame })));
+const DinoGame = React.lazy(() => import("../../games/dino").then(m => ({ default: m.DinoGame })));
+const SnakeGame = React.lazy(() => import("../../games/snake").then(m => ({ default: m.SnakeGame })));
 
 export type ArcadeGame = {
   id: string;
@@ -171,9 +172,11 @@ function ArcadeModal({
 
       {/* Game Area */}
       <div className="flex-1 w-full relative">
-        {game.id === "flappy" && <FlappyGame onGameOver={() => {}} />}
-        {game.id === "dino" && <DinoGame onGameOver={() => {}} />}
-        {game.id === "snake" && <SnakeGame onGameOver={() => {}} />}
+        <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="w-8 h-8 border-2 border-neuro-cyan border-t-transparent rounded-full animate-spin"/></div>}>
+          {game.id === "flappy" && <FlappyGame onGameOver={() => {}} />}
+          {game.id === "dino" && <DinoGame onGameOver={() => {}} />}
+          {game.id === "snake" && <SnakeGame onGameOver={() => {}} />}
+        </Suspense>
       </div>
     </div>
   );
