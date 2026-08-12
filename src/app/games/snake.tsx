@@ -166,7 +166,8 @@ export function SnakeGame({
 
     const setCanvasSize = () => {
       const SIZE = Math.min(
-        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) * 20,
+        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) *
+          20,
         400,
       );
       canvas.width = SIZE;

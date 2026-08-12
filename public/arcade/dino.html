@@ -38,16 +38,16 @@
       let frame = 0,
         speed = 4;
       function resize() {
-          // Ensure canvas width stays within bounds
-          W = Math.min(window.innerWidth, 800);
-          // Minimum height to keep dinosaur visible (ground offset + dino height + margin)
-          const MIN_HEIGHT = 130; // 60 (ground) + 50 (dino) + 20 margin
-          H = Math.max(MIN_HEIGHT, Math.min(window.innerHeight * 0.75, 300));
-          canvas.width = W;
-          canvas.height = H;
-        }
-        // Adjust on window resize
-        window.addEventListener('resize', resize);
+        // Ensure canvas width stays within bounds
+        W = Math.min(window.innerWidth, 800);
+        // Minimum height to keep dinosaur visible (ground offset + dino height + margin)
+        const MIN_HEIGHT = 130; // 60 (ground) + 50 (dino) + 20 margin
+        H = Math.max(MIN_HEIGHT, Math.min(window.innerHeight * 0.75, 300));
+        canvas.width = W;
+        canvas.height = H;
+      }
+      // Adjust on window resize
+      window.addEventListener("resize", resize);
       function reset() {
         resize();
         score = 0;
@@ -197,19 +197,23 @@
       }
       // input
       window.addEventListener("keydown", (e) => {
-          if (e.code === "Space" || e.code === "ArrowUp") {
-            e.preventDefault();
-            if (gameState === "idle") gameState = "playing";
-            else if (gameState === "dead") { reset(); gameState = "idle"; }
-            else jump();
-          }
-        });
-        canvas.addEventListener("touchstart", (e) => {
+        if (e.code === "Space" || e.code === "ArrowUp") {
           e.preventDefault();
           if (gameState === "idle") gameState = "playing";
-          else if (gameState === "dead") { reset(); gameState = "idle"; }
-          else jump();
-        });
+          else if (gameState === "dead") {
+            reset();
+            gameState = "idle";
+          } else jump();
+        }
+      });
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (gameState === "idle") gameState = "playing";
+        else if (gameState === "dead") {
+          reset();
+          gameState = "idle";
+        } else jump();
+      });
       reset();
       requestAnimationFrame(loop);
     </script>
