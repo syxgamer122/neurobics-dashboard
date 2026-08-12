@@ -58,6 +58,7 @@ export function DinoGame({
     clouds: [] as Cloud[],
     W: 800,
     H: 300,
+    score: 0,
   });
 
   const initGame = (W: number, H: number) => {
@@ -84,6 +85,7 @@ export function DinoGame({
       ],
       W,
       H,
+      score: 0,
     };
     setScore(0);
   };
@@ -150,8 +152,12 @@ export function DinoGame({
     let rafId: number;
     const W = Math.min(window.innerWidth, 800);
     const H = Math.min(window.innerHeight * 0.75, 300);
-    canvas.width = W;
-    canvas.height = H;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.scale(dpr, dpr);
 
     initGame(W, H);
 
@@ -174,7 +180,7 @@ export function DinoGame({
 
     const spawnObstacle = () => {
       const gs = state.current;
-      const isBird = scoreRef.current > 100 && Math.random() < 0.3;
+      const isBird = state.current.score > 100 && Math.random() < 0.3;
       if (isBird) {
         const heights = [30, 50, 70];
         const h = heights[Math.floor(Math.random() * heights.length)];
@@ -334,8 +340,10 @@ export function DinoGame({
 
       if (currentGameState === "playing") {
         gs.frame++;
-        setScore((s) => s + 1);
-        gs.speed = 4 + scoreRef.current / 200;
+        gs.score++;
+        gs.speed = 4 + gs.score / 200;
+        // Sync to React state every 10 frames to reduce re-renders
+        if (gs.frame % 10 === 0) setScore(gs.score);
 
         gs.dino.vy += 0.7;
         gs.dino.y += gs.dino.vy;
@@ -345,10 +353,7 @@ export function DinoGame({
           gs.dino.onGround = true;
         }
 
-        if (
-          gs.frame % Math.max(50, 90 - Math.floor(scoreRef.current / 150)) ===
-          0
-        )
+        if (gs.frame % Math.max(50, 90 - Math.floor(gs.score / 150)) === 0)
           spawnObstacle();
 
         for (let i = gs.obstacles.length - 1; i >= 0; i--) {
@@ -360,7 +365,8 @@ export function DinoGame({
           }
           if (collides(gs.dino, gs.obstacles[i])) {
             setGameState("dead");
-            const finalScore = scoreRef.current;
+            setScore(gs.score); // final sync
+            const finalScore = gs.score;
             let currentBest = bestScoreRef.current;
             if (finalScore > currentBest) {
               currentBest = finalScore;

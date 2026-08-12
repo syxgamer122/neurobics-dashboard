@@ -57,6 +57,7 @@ export function FlappyGame({
     particles: [] as Particle[],
     collectStars: [] as Star[],
     frame: 0,
+    score: 0,
   });
 
   const initGame = (W: number, H: number) => {
@@ -66,6 +67,7 @@ export function FlappyGame({
       particles: [],
       collectStars: [],
       frame: 0,
+      score: 0,
     };
     setScore(0);
   };
@@ -109,8 +111,12 @@ export function FlappyGame({
     let rafId: number;
     const W = Math.min(window.innerWidth, 420);
     const H = Math.min(window.innerHeight, 620);
-    canvas.width = W;
-    canvas.height = H;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.scale(dpr, dpr);
 
     initGame(W, H);
 
@@ -258,6 +264,7 @@ export function FlappyGame({
     };
 
     const loop = () => {
+      ctx.clearRect(0, 0, W, H);
       drawBg();
       const currentGameState = gameStateRef.current;
       const gs = state.current;
@@ -280,7 +287,8 @@ export function FlappyGame({
           drawPipe(gs.pipes[i]);
           if (!gs.pipes[i].passed && gs.pipes[i].x + PIPE_W < gs.bird.x) {
             gs.pipes[i].passed = true;
-            setScore((s) => s + 1);
+            gs.score++;
+            if (gs.frame % 5 === 0) setScore(gs.score);
           }
           if (gs.pipes[i].x + PIPE_W < 0) gs.pipes.splice(i, 1);
         }
@@ -312,7 +320,8 @@ export function FlappyGame({
             const dy = gs.bird.y - s.y;
             if (Math.sqrt(dx * dx + dy * dy) < gs.bird.r + 12) {
               s.collected = true;
-              setScore((sc) => sc + 3);
+              gs.score += 3;
+              setScore(gs.score);
               for (let k = 0; k < 10; k++) {
                 gs.particles.push({
                   x: s.x,
@@ -347,7 +356,8 @@ export function FlappyGame({
 
         if (checkCollision()) {
           setGameState("dead");
-          const finalScore = scoreRef.current;
+          setScore(gs.score);
+          const finalScore = gs.score;
           let currentBest = bestScoreRef.current;
           if (finalScore > currentBest) {
             currentBest = finalScore;
@@ -375,7 +385,10 @@ export function FlappyGame({
   return (
     <div
       className="relative w-full h-full bg-[#0c0a1a] flex items-center justify-center overflow-hidden touch-none select-none"
-      onPointerDown={handleFlap}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        handleFlap();
+      }}
     >
       <canvas
         ref={canvasRef}

@@ -165,10 +165,12 @@ export function SnakeGame({
     if (!ctx) return;
 
     const setCanvasSize = () => {
-      const SIZE = Math.min(
-        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) *
-          20,
-        400,
+      const SIZE = Math.max(
+        200,
+        Math.floor(
+          Math.min(window.innerWidth - 16, window.innerHeight - 100, 400) /
+            state.current.CELL,
+        ) * state.current.CELL,
       );
       canvas.width = SIZE;
       canvas.height = SIZE;
@@ -184,10 +186,12 @@ export function SnakeGame({
     let tx = 0,
       ty = 0;
     const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
       tx = e.touches[0].clientX;
       ty = e.touches[0].clientY;
     };
     const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
       const dx = e.changedTouches[0].clientX - tx;
       const dy = e.changedTouches[0].clientY - ty;
       if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
@@ -421,7 +425,6 @@ export function SnakeGame({
       <canvas
         ref={canvasRef}
         className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]"
-        style={{ width: "100%", height: "100%" }}
       />
 
       {/* Top Bar */}
