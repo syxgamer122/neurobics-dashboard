@@ -289,7 +289,8 @@ export function FlappyGame({
           if (!gs.pipes[i].passed && gs.pipes[i].x + PIPE_W < gs.bird.x) {
             gs.pipes[i].passed = true;
             gs.score++;
-            if (scoreSpanRef.current) scoreSpanRef.current.innerText = gs.score.toString();
+            if (scoreSpanRef.current)
+              scoreSpanRef.current.innerText = gs.score.toString();
           }
           if (gs.pipes[i].x + PIPE_W < 0) gs.pipes.splice(i, 1);
         }
@@ -322,7 +323,8 @@ export function FlappyGame({
             if (Math.sqrt(dx * dx + dy * dy) < gs.bird.r + 12) {
               s.collected = true;
               gs.score += 3;
-              if (scoreSpanRef.current) scoreSpanRef.current.innerText = gs.score.toString();
+              if (scoreSpanRef.current)
+                scoreSpanRef.current.innerText = gs.score.toString();
               for (let k = 0; k < 10; k++) {
                 gs.particles.push({
                   x: s.x,
@@ -399,7 +401,10 @@ export function FlappyGame({
       {/* Score */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1e1b4b]/90 border border-purple-500/40 px-4 py-1.5 rounded-full flex items-center gap-2 pointer-events-none">
         <span className="text-xl">🌟</span>
-        <span ref={scoreSpanRef} className="text-amber-500 font-mono text-xl font-bold tracking-widest">
+        <span
+          ref={scoreSpanRef}
+          className="text-amber-500 font-mono text-xl font-bold tracking-widest"
+        >
           {score}
         </span>
       </div>
@@ -421,9 +426,7 @@ export function FlappyGame({
 
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2">
-            GAME OVER
-          </h2>
+          <h2 className="text-3xl font-bold text-rose-500 mb-2">GAME OVER</h2>
           <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
           <p className="text-white/60 font-mono mb-8 text-sm">
             BEST: {bestScore}

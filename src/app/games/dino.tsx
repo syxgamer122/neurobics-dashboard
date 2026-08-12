@@ -344,7 +344,9 @@ export function DinoGame({
         gs.score++;
         gs.speed = 4 + gs.score / 200;
         if (scoreSpanRef.current && gs.frame % 3 === 0) {
-          scoreSpanRef.current.innerText = Math.floor(gs.score).toString().padStart(5, "0");
+          scoreSpanRef.current.innerText = Math.floor(gs.score)
+            .toString()
+            .padStart(5, "0");
         }
 
         gs.dino.vy += 0.7;
@@ -404,7 +406,10 @@ export function DinoGame({
 
       {/* Score */}
       <div className="absolute top-6 right-6 bg-[#1f2937]/90 border border-emerald-500/40 px-4 py-1.5 rounded-full flex gap-4 pointer-events-none font-mono">
-        <span ref={scoreSpanRef} className="text-emerald-500 font-bold tracking-widest">
+        <span
+          ref={scoreSpanRef}
+          className="text-emerald-500 font-bold tracking-widest"
+        >
           {score.toString().padStart(5, "0")}
         </span>
         <span className="text-emerald-500/50">
@@ -429,9 +434,7 @@ export function DinoGame({
 
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2">
-            GAME OVER
-          </h2>
+          <h2 className="text-3xl font-bold text-rose-500 mb-2">GAME OVER</h2>
           <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
           <p className="text-white/60 font-mono mb-8 text-sm">
             BEST: {bestScore}
