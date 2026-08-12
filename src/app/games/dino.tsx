@@ -172,23 +172,6 @@ export function DinoGame({
 
     initGame(W, H);
 
-    let ty = 0;
-    const handleTouchStart = (e: TouchEvent) => {
-      ty = e.touches[0].clientY;
-    };
-    const handleTouchEnd = (e: TouchEvent) => {
-      const dy = e.changedTouches[0].clientY - ty;
-      if (dy > 30) {
-        handleDuck(true);
-        setTimeout(() => handleDuck(false), 500);
-      } else {
-        handleDuck(false);
-        handleJump();
-      }
-    };
-    canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
-    canvas.addEventListener("touchend", handleTouchEnd, { passive: true });
-
     const spawnObstacle = () => {
       const gs = state.current;
       const isBird = state.current.score > 100 && Math.random() < 0.3;
@@ -354,7 +337,7 @@ export function DinoGame({
         gs.score++;
         gs.speed = 4 + gs.score / 200;
         if (scoreSpanRef.current && gs.frame % 3 === 0) {
-          scoreSpanRef.current.innerText = Math.floor(gs.score)
+          scoreSpanRef.current.textContent = Math.floor(gs.score)
             .toString()
             .padStart(5, "0");
         }
@@ -402,13 +385,30 @@ export function DinoGame({
 
     return () => {
       cancelAnimationFrame(rafId);
-      canvas.removeEventListener("touchstart", handleTouchStart);
-      canvas.removeEventListener("touchend", handleTouchEnd);
     };
   }, [onGameOver]);
 
+  let pointerStartY = 0;
+
   return (
-    <div className="relative w-full h-full bg-[#111827] flex items-center justify-center overflow-hidden select-none">
+    <div 
+      className="relative w-full h-full bg-[#111827] flex items-center justify-center overflow-hidden select-none touch-none"
+      onPointerDown={(e) => {
+        // e.preventDefault() is implicitly handled by touch-none for scrolling,
+        // but we can also just capture the pointer start.
+        pointerStartY = e.clientY;
+      }}
+      onPointerUp={(e) => {
+        const dy = e.clientY - pointerStartY;
+        if (dy > 30) {
+          handleDuck(true);
+          setTimeout(() => handleDuck(false), 500);
+        } else {
+          handleDuck(false);
+          handleJump();
+        }
+      }}
+    >
       <canvas
         ref={canvasRef}
         className="block w-full h-full max-w-[800px] object-cover"

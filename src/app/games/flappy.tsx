@@ -162,17 +162,13 @@ export function FlappyGame({
       ctx.translate(bird.x, bird.y);
       ctx.rotate(bird.rot);
 
-      const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, bird.r + 8);
-      glow.addColorStop(0, "rgba(245,158,11,0.3)");
-      glow.addColorStop(1, "transparent");
+      const glow = "rgba(245,158,11,0.3)";
       ctx.fillStyle = glow;
       ctx.beginPath();
       ctx.arc(0, 0, bird.r + 8, 0, Math.PI * 2);
       ctx.fill();
 
-      const grad = ctx.createRadialGradient(-4, -4, 2, 0, 0, bird.r);
-      grad.addColorStop(0, "#fde68a");
-      grad.addColorStop(1, "#f59e0b");
+      const grad = "#f59e0b";
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(0, 0, bird.r, 0, Math.PI * 2);
@@ -206,10 +202,7 @@ export function FlappyGame({
     const drawPipe = (p: Pipe) => {
       const accentColor = "#10b981";
       const bodyColor = "#059669";
-      const tg = ctx.createLinearGradient(p.x, 0, p.x + PIPE_W, 0);
-      tg.addColorStop(0, "#065f46");
-      tg.addColorStop(0.5, bodyColor);
-      tg.addColorStop(1, "#064e3b");
+      const tg = bodyColor;
       ctx.fillStyle = tg;
       ctx.fillRect(p.x, 0, PIPE_W, p.topH);
       ctx.fillStyle = accentColor;
@@ -300,7 +293,7 @@ export function FlappyGame({
             gs.pipes[i].passed = true;
             gs.score++;
             if (scoreSpanRef.current)
-              scoreSpanRef.current.innerText = gs.score.toString();
+              scoreSpanRef.current.textContent = gs.score.toString();
           }
           if (gs.pipes[i].x + PIPE_W < 0) gs.pipes.splice(i, 1);
         }
@@ -334,7 +327,7 @@ export function FlappyGame({
               s.collected = true;
               gs.score += 3;
               if (scoreSpanRef.current)
-                scoreSpanRef.current.innerText = gs.score.toString();
+                scoreSpanRef.current.textContent = gs.score.toString();
               for (let k = 0; k < 10; k++) {
                 gs.particles.push({
                   x: s.x,
