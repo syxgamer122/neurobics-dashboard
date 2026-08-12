@@ -95,6 +95,16 @@ export function DinoGame({
     if (gameStateRef.current === "dead") return;
     if (gameStateRef.current === "idle") {
       setGameState("playing");
+      const gs = state.current;
+      gs.frame = 0;
+      gs.score = 0;
+      gs.obstacles = [];
+      gs.speed = 4;
+      gs.dino.y = gs.GND;
+      gs.dino.vy = 0;
+      gs.dino.onGround = true;
+      gs.dino.ducking = false;
+      if (scoreSpanRef.current) scoreSpanRef.current.innerText = "00000";
     }
     const { dino } = state.current;
     if (dino.onGround) {

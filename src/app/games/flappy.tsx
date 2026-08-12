@@ -77,6 +77,16 @@ export function FlappyGame({
     if (gameStateRef.current === "dead") return;
     if (gameStateRef.current === "idle") {
       setGameState("playing");
+      const gs = state.current;
+      gs.pipes = [];
+      gs.particles = [];
+      gs.collectStars = [];
+      gs.frame = 0;
+      gs.score = 0;
+      gs.bird.y = canvasRef.current ? canvasRef.current.clientHeight / 2 : 300;
+      gs.bird.vy = 0;
+      gs.bird.rot = 0;
+      if (scoreSpanRef.current) scoreSpanRef.current.innerText = "0";
     }
     const { bird, particles } = state.current;
     bird.vy = FLAP;
