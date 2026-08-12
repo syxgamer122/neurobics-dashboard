@@ -44,8 +44,9 @@ export function FlappyGame({
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
-  const scoreRef = useRef(0);
+  const scoreRef = useRef(score);
   scoreRef.current = score;
+  const scoreSpanRef = useRef<HTMLSpanElement>(null);
 
   const bestScoreRef = useRef(bestScore);
   bestScoreRef.current = bestScore;
@@ -288,7 +289,7 @@ export function FlappyGame({
           if (!gs.pipes[i].passed && gs.pipes[i].x + PIPE_W < gs.bird.x) {
             gs.pipes[i].passed = true;
             gs.score++;
-            if (gs.frame % 5 === 0) setScore(gs.score);
+            if (scoreSpanRef.current) scoreSpanRef.current.innerText = gs.score.toString();
           }
           if (gs.pipes[i].x + PIPE_W < 0) gs.pipes.splice(i, 1);
         }
@@ -321,7 +322,7 @@ export function FlappyGame({
             if (Math.sqrt(dx * dx + dy * dy) < gs.bird.r + 12) {
               s.collected = true;
               gs.score += 3;
-              setScore(gs.score);
+              if (scoreSpanRef.current) scoreSpanRef.current.innerText = gs.score.toString();
               for (let k = 0; k < 10; k++) {
                 gs.particles.push({
                   x: s.x,
@@ -396,9 +397,9 @@ export function FlappyGame({
       />
 
       {/* Score */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1e1b4b]/80 border border-purple-500/40 px-4 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-sm pointer-events-none shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1e1b4b]/90 border border-purple-500/40 px-4 py-1.5 rounded-full flex items-center gap-2 pointer-events-none">
         <span className="text-xl">🌟</span>
-        <span className="text-amber-500 font-mono text-xl font-bold tracking-widest drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]">
+        <span ref={scoreSpanRef} className="text-amber-500 font-mono text-xl font-bold tracking-widest">
           {score}
         </span>
       </div>
@@ -419,8 +420,8 @@ export function FlappyGame({
       )}
 
       {gameState === "dead" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 animate-[fadeIn_0.2s]">
+          <h2 className="text-3xl font-bold text-rose-500 mb-2">
             GAME OVER
           </h2>
           <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
