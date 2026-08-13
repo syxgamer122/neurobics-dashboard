@@ -12,7 +12,12 @@ import { ThemeProvider } from "./app/components/theme-provider.tsx";
 // van kip vao telemetry.
 initObservability();
 
-createRoot(document.getElementById("root")!).render(
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  throw new Error('Root element "#root" not found');
+}
+
+createRoot(rootEl).render(
   <ErrorBoundary area="app">
     <ThemeProvider defaultTheme="system" storageKey="neurobics-theme">
       <App />
@@ -28,8 +33,10 @@ createRoot(document.getElementById("root")!).render(
 // vu van hien w_games_7 thay vi nhan tieng Viet).
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
+    const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+
     navigator.serviceWorker
-      .register("/sw.js")
+      .register(swUrl)
       .then((reg) => {
         void reg.update();
         // Neu co ban waiting san, ep activate ngay.

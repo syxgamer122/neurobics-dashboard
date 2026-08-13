@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { CheckCircle, Loader2, RefreshCw, Route } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { TrailTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -16,7 +18,7 @@ import { logError } from "../lib/logger";
 
 const PAIRS = 12; // 1..12 + A..L = 24 diem
 const LETTERS = "ABCDEFGHIJKL";
-const MIN_DIST = 17; // khoang cach toi thieu giua hai tam, tinh theo %
+const MIN_DIST = 20; // khoang cach toi thieu giua hai tam, tinh theo %
 const ACCENT = "#84CC16";
 
 type TrailPhase = "idle" | "playing" | "done";
@@ -41,12 +43,18 @@ function buildTrail(): TrailNode[] {
   for (const label of labels) {
     let x = 50;
     let y = 50;
-    // Rejection sampling co gioi han: neu het luot thi chap nhan diem cuoi.
+    let success = false;
     for (let attempt = 0; attempt < 220; attempt++) {
       x = 8 + Math.random() * 84;
       y = 8 + Math.random() * 84;
       const clash = placed.some((p) => Math.hypot(p.x - x, p.y - y) < MIN_DIST);
-      if (!clash) break;
+      if (!clash) {
+        success = true;
+        break;
+      }
+    }
+    if (!success) {
+      return buildTrail();
     }
     placed.push({ x, y });
     nodes.push({ label, x, y });
@@ -62,11 +70,14 @@ export function TrailMakingGame({
   onComplete: (tel: TrailTelemetry) => Promise<void>;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
 
   const [phase, setPhase] = useState<TrailPhase>("idle");
   const [nodes, setNodes] = useState<TrailNode[]>([]);
   const [progress, setProgress] = useState(0); // so diem da noi dung
+  const progressRef = useRef(0);
+  const finishedRef = useRef(false);
   const [mistakes, setMistakes] = useState(0);
   const [wrongLabel, setWrongLabel] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -75,6 +86,7 @@ export function TrailMakingGame({
   const startedAtRef = useRef(0);
   const lastHitAtRef = useRef(0);
   const rtsRef = useRef<number[]>([]);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const wrongRef = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,11 +109,14 @@ export function TrailMakingGame({
     stopTimers();
 
     rtsRef.current = [];
+    inputTypesRef.current = new Set();
     wrongRef.current = 0;
     startedAtRef.current = 0;
     lastHitAtRef.current = 0;
+    finishedRef.current = false;
 
     setNodes(buildTrail());
+    progressRef.current = 0;
     setProgress(0);
     setMistakes(0);
     setWrongLabel(null);
@@ -109,15 +124,17 @@ export function TrailMakingGame({
     setPhase("playing");
   };
 
-  const resetGame = () => {
+  const resetGame = useCallback(() => {
     stopTimers();
     setPhase("idle");
     setNodes([]);
     setProgress(0);
+    progressRef.current = 0;
+    finishedRef.current = false;
     setMistakes(0);
     setWrongLabel(null);
     setElapsed(0);
-  };
+  }, [stopTimers]);
 
   const finishGame = useCallback(
     async (totalMs: number) => {
@@ -126,12 +143,17 @@ export function TrailMakingGame({
       setSaving(true);
 
       try {
+        let finalInput = "mouse";
+        if (inputTypesRef.current.has("touch")) finalInput = "touch";
+        else if (inputTypesRef.current.has("key")) finalInput = "key";
+
         await onComplete({
           timeMs: Math.max(1, Math.round(totalMs)),
           nodes: PAIRS * 2,
           mode: "B",
           wrongClicks: wrongRef.current,
           rts: rtsRef.current.slice(),
+          inputType: finalInput as InputType,
         });
       } catch (err) {
         logError("Trail Making completion: onComplete failed:", err);
@@ -142,12 +164,13 @@ export function TrailMakingGame({
     [onComplete, stopTimers],
   );
 
-  const handleNode = (label: string, index: number) => {
-    if (phase !== "playing") return;
+  const handleNode = (label: string, index: number, inputType?: InputType) => {
+    if (inputType) inputTypesRef.current.add(inputType);
+    if (phase !== "playing" || finishedRef.current) return;
 
     // Sai thu tu: ghi nhan, nhay do, KHONG tinh RT (bam bua khong duoc
     // thuong toc do — va cung khong pha median cua nhung buoc that).
-    if (index !== progress) {
+    if (index !== progressRef.current) {
       wrongRef.current += 1;
       setMistakes(wrongRef.current);
       setWrongLabel(label);
@@ -160,27 +183,35 @@ export function TrailMakingGame({
 
     // Dong ho bat dau tu cu bam DUNG dau tien, giong Schulte: khong tinh
     // thoi gian nguoi choi con dang doc de.
-    if (progress === 0) {
+    if (progressRef.current === 0) {
       startedAtRef.current = now;
       lastHitAtRef.current = now;
       tickRef.current = setInterval(() => {
         setElapsed(performance.now() - startedAtRef.current);
       }, 100);
     } else {
-      rtsRef.current.push(Math.max(1, Math.round(now - lastHitAtRef.current)));
+      const rawRt = now - lastHitAtRef.current;
+      rtsRef.current.push(Math.min(10000, Math.max(120, Math.round(rawRt))));
       lastHitAtRef.current = now;
     }
 
-    const next = progress + 1;
+    const next = progressRef.current + 1;
+    progressRef.current = next;
     setProgress(next);
 
     if (next >= nodes.length) {
+      finishedRef.current = true;
       void finishGame(now - startedAtRef.current);
     }
   };
 
   const nextLabel = phase === "playing" ? (nodes[progress]?.label ?? "") : "";
   const seconds = (elapsed / 1000).toFixed(1);
+
+  useGameLifecycle({
+    isActive: () => phase === "playing",
+    onLeave: resetGame,
+  });
 
   return (
     <div
@@ -329,15 +360,18 @@ export function TrailMakingGame({
                 <button
                   key={node.label}
                   type="button"
-                  onClick={() => handleNode(node.label, i)}
-                  className="absolute rounded-full font-mono font-bold transition-colors"
+                  {...press((type: InputType) =>
+                    handleNode(node.label, i, type),
+                  )}
+                  className="absolute rounded-full font-mono font-bold transition-colors game-surface active:scale-95"
                   style={{
                     left: `${node.x}%`,
                     top: `${node.y}%`,
                     transform: "translate(-50%, -50%)",
-                    width: 38,
-                    height: 38,
-                    fontSize: 13,
+                    width: 50,
+                    height: 50,
+                    fontSize: 15,
+                    touchAction: "manipulation",
                     background: isWrong
                       ? "rgba(var(--neuro-red-rgb),0.35)"
                       : done

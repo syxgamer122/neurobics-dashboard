@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { CheckCircle, Loader2, RefreshCw, Star, Zap } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { shuffleArray } from "../lib/sudoku-gen";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { StroopTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -57,6 +59,7 @@ export function StroopGame({
   onComplete: (tel: StroopTelemetry) => Promise<void>;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
   // 30 cau: du dai de bat met / mat tap trung, van ngan hon 2 phut neu choi tot.
   const TOTAL = 30;
@@ -76,15 +79,21 @@ export function StroopGame({
   // "countdown" chen giua idle va playing: truoc day stimulus hien ngay khi vao
   // man va dong ho chi chay tu click dau tien, nen cau 1 la "mien phi" (ngam bao
   // lau cung duoc) va RT cua no phai vut bo. Gio clock va RT deu tinh tu onset.
-  const [status, setStatus] = useState<
+  const [status, setStatusState] = useState<
     "idle" | "countdown" | "playing" | "done"
   >("idle");
+  const statusRef = useRef(status);
+  const setStatus = useCallback((s: typeof status) => {
+    statusRef.current = s;
+    setStatusState(s);
+  }, []);
   const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
   const [elapsed, setElapsed] = useState(0);
   const [flash, setFlash] = useState<"correct" | "wrong" | null>(null);
   const [saving, setSaving] = useState(false);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const wrongRef = useRef(0);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   /** So lan stimulus da hien (ke ca cau sai) — gui len server thay vi hardcode 20. */
   const shownRef = useRef(1);
   // Per-trial reaction times. Stroop interference shows up in the RT spread,
@@ -128,6 +137,7 @@ export function StroopGame({
     }
     clearTimers();
     wrongRef.current = 0;
+    inputTypesRef.current = new Set();
     shownRef.current = 1;
     rtsRef.current = [];
     lastTrialRef.current = null;
@@ -170,7 +180,7 @@ export function StroopGame({
         50,
       );
     }, COUNTDOWN_FROM * 1000);
-  }, [status, onPlayStart, later]);
+  }, [status, onPlayStart, later, setStatus]);
 
   // Declarative end-of-round: fires onComplete exactly once when the run ends —
   // either all trials cleared or hearts exhausted. Running in an effect means it
@@ -194,11 +204,16 @@ export function StroopGame({
     setSaving(true);
     (async () => {
       try {
+        let finalInput = "mouse";
+        if (inputTypesRef.current.has("touch")) finalInput = "touch";
+        else if (inputTypesRef.current.has("key")) finalInput = "key";
+
         await onComplete({
           timeMs: ms,
           totalStimuli: shownRef.current,
           wrongClicks: wrongRef.current,
           rts: [...rtsRef.current],
+          inputType: finalInput as InputType,
         });
       } catch (err) {
         logError("Stroop completion: onComplete failed:", err);
@@ -206,17 +221,20 @@ export function StroopGame({
         setSaving(false);
       }
     })();
-  }, [trialsLeft, hearts, status, onComplete]);
+  }, [trialsLeft, hearts, status, onComplete, setStatus]);
 
   const handleAnswer = useCallback(
-    (chosen: StroopColorId) => {
+    (chosen: StroopColorId, inputType?: InputType) => {
+      if (inputType) inputTypesRef.current.add(inputType);
+
       // Chi nhan cau tra loi khi van dang chay: idle/countdown thi chua co
       // stimulus hop le de cham diem.
       if (status !== "playing" || flash !== null) return;
 
       const now = Date.now();
       // RT = tu luc stimulus hien (lastTrialRef), KHONG gom thoi gian flash.
-      const rt = now - (lastTrialRef.current ?? now);
+      const rawRt = now - (lastTrialRef.current ?? now);
+      const rt = Math.min(10000, Math.max(120, rawRt));
 
       const correct = chosen === stimulus.inkId;
       setFlash(correct ? "correct" : "wrong");
@@ -252,6 +270,11 @@ export function StroopGame({
     },
     [status, flash, stimulus, hearts, trialsLeft, later],
   );
+
+  useGameLifecycle({
+    isActive: () => status === "playing" || status === "countdown",
+    onLeave: () => reset(),
+  });
 
   const fmtTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -494,12 +517,12 @@ export function StroopGame({
             <button
               key={cid}
               type="button"
-              onClick={() => {
-                if (status === "playing") handleAnswer(cid);
-              }}
+              {...press((type: InputType) => {
+                if (status === "playing") handleAnswer(cid, type);
+              })}
               disabled={flash !== null || status !== "playing"}
               aria-label={colorLabel(cid)}
-              className="rounded-xl flex flex-col items-center justify-center gap-1.5 min-h-14 sm:min-h-0 transition-all duration-150 disabled:opacity-60"
+              className="rounded-xl flex flex-col items-center justify-center gap-1.5 min-h-14 sm:min-h-0 transition-all duration-150 disabled:opacity-60 game-surface active:scale-95"
               style={{
                 padding: "12px 8px",
                 background: isCorrect

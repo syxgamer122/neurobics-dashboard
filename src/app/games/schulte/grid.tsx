@@ -6,6 +6,7 @@ import type {
   SchulteGameStatus,
   SchulteSize,
 } from "./model";
+import { usePress, type InputType } from "../../lib/use-press";
 
 export function SchulteGrid({
   grid,
@@ -22,8 +23,13 @@ export function SchulteGrid({
   flashCell: SchulteFlash;
   foundSet: ReadonlySet<number>;
   status: SchulteGameStatus;
-  onCellClick: (cell: SchulteCell, index: number) => void | Promise<void>;
+  onCellClick: (
+    cell: SchulteCell,
+    index: number,
+    inputType?: InputType,
+  ) => void | Promise<void>;
 }) {
+  const press = usePress();
   const { t } = useLang();
 
   return (
@@ -90,9 +96,9 @@ export function SchulteGrid({
           return (
             <button
               key={idx}
-              onClick={() => onCellClick(cell, idx)}
+              {...press((type: InputType) => onCellClick(cell, idx, type))}
               disabled={status === "done" || isDone}
-              className="rounded-xl font-bold flex items-center justify-center select-none transition-all duration-[120ms]"
+              className="rounded-xl font-bold flex items-center justify-center select-none transition-all duration-[120ms] game-surface active:scale-95"
               style={{
                 position: "relative",
                 aspectRatio: "1",

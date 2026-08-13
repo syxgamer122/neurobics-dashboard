@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Play, RotateCcw, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { MentalRotationTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -41,13 +43,14 @@ const panelStyle: React.CSSProperties = {
 type Cell = readonly [number, number];
 
 const SHAPE_CELLS: Cell[][] = [
-  // T tetromino (4 ô) — ngang trên, chân giữa
+  // T lệch (phá đối xứng bằng 1 ô)
   [
     [0, 0],
     [1, 0],
     [2, 0],
     [1, 1],
     [1, 2],
+    [2, 2],
   ],
   // L
   [
@@ -106,33 +109,31 @@ const SHAPE_CELLS: Cell[][] = [
     [0, 2],
     [0, 3],
   ],
-  // Y / branch
-  [
-    [1, 0],
-    [0, 1],
-    [1, 1],
-    [2, 1],
-    [1, 2],
-    [1, 3],
-  ],
-  // U
+  // W pentomino
   [
     [0, 0],
     [0, 1],
-    [0, 2],
+    [1, 1],
     [1, 2],
     [2, 2],
-    [2, 0],
-    [2, 1],
   ],
-  // Arrow up (chevron block)
+  // Z dài
   [
+    [0, 0],
     [1, 0],
+    [1, 1],
+    [1, 2],
+    [2, 2],
+    [3, 2],
+  ],
+  // L nghiêng 6 ô
+  [
     [0, 1],
     [1, 1],
-    [2, 1],
     [1, 2],
-    [1, 3],
+    [2, 0],
+    [2, 1],
+    [3, 0],
   ],
   // Plus lệch (không đối xứng)
   [
@@ -223,15 +224,26 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 }
 
 function buildTrials(total: number): Trial[] {
-  const out: Trial[] = [];
-  for (let i = 0; i < total; i++) {
-    out.push({
-      angle: ANGLES[i % ANGLES.length],
-      mirror: i % 2 === 1,
-      shapeId: i % SHAPE_PATHS.length,
-    });
-  }
-  return shuffleInPlace(out);
+  const mirrors = Array.from(
+    { length: total },
+    (_, i) => i < Math.floor(total / 2),
+  );
+  shuffleInPlace(mirrors);
+
+  // Pre-generate angles and shapes separately to avoid correlation with mirror status
+  const angles = Array.from(
+    { length: total },
+    () => ANGLES[Math.floor(Math.random() * ANGLES.length)],
+  );
+  const shapes = Array.from({ length: total }, () =>
+    Math.floor(Math.random() * SHAPE_PATHS.length),
+  );
+
+  return mirrors.map((mirror, i) => ({
+    mirror,
+    angle: angles[i],
+    shapeId: shapes[i],
+  }));
 }
 
 function ShapeView({
@@ -258,10 +270,10 @@ function ShapeView({
   return (
     <div className="flex flex-col items-center gap-2">
       <div
-        className="rounded-2xl flex items-center justify-center"
+        className="rounded-2xl flex items-center justify-center shrink-0"
         style={{
-          width: 148,
-          height: 148,
+          width: "min(42vw, 148px)",
+          height: "min(42vw, 148px)",
           background: "rgba(var(--neuro-ink-rgb),0.75)",
           border: `1px solid ${ACCENT}33`,
           boxShadow: `inset 0 0 24px ${ACCENT}14`,
@@ -301,6 +313,7 @@ export function MentalRotationGame({
   onComplete: (tel: MentalRotationTelemetry) => Promise<void> | void;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
   const [phase, setPhase] = useState<Phase>("idle");
   const [idx, setIdx] = useState(0);
@@ -315,6 +328,7 @@ export function MentalRotationGame({
   const anglesRef = useRef<number[]>([]);
   const mirrorsRef = useRef<boolean[]>([]);
   const correctFlagsRef = useRef<boolean[]>([]);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const statsRef = useRef({ correct: 0, wrong: 0 });
   const finishedRef = useRef(false);
   const lockRef = useRef(false);
@@ -337,8 +351,15 @@ export function MentalRotationGame({
     setSaving(true);
     const s = statsRef.current;
     try {
+      let finalInput = "mouse";
+      if (inputTypesRef.current.has("touch")) finalInput = "touch";
+      else if (inputTypesRef.current.has("key")) finalInput = "key";
+
       await onComplete({
-        timeMs: Math.max(1, Date.now() - startedAtRef.current),
+        timeMs: Math.max(
+          1,
+          rtsRef.current.reduce((a, b) => a + b, 0),
+        ),
         trials: TOTAL,
         correct: s.correct,
         wrong: s.wrong,
@@ -346,6 +367,7 @@ export function MentalRotationGame({
         mirrors: [...mirrorsRef.current],
         correctFlags: [...correctFlagsRef.current],
         rts: [...rtsRef.current],
+        inputType: finalInput as InputType,
       });
     } catch (err) {
       logError("Mental Rotation completion failed:", err);
@@ -364,6 +386,7 @@ export function MentalRotationGame({
     anglesRef.current = [];
     mirrorsRef.current = [];
     correctFlagsRef.current = [];
+    inputTypesRef.current = new Set();
     statsRef.current = { correct: 0, wrong: 0 };
     setStats(statsRef.current);
     setFlash(null);
@@ -373,17 +396,23 @@ export function MentalRotationGame({
     qStartRef.current = performance.now();
   };
 
-  const answer = (same: boolean) => {
+  const answer = (same: boolean, inputType?: InputType) => {
+    if (inputType) inputTypesRef.current.add(inputType);
     if (phase !== "playing" || lockRef.current || finishedRef.current) return;
-    lockRef.current = true;
 
     const trial = trialsRef.current[idx];
     if (!trial) return;
 
+    lockRef.current = true;
+
     // SAME = không gương; MIRROR = gương.
     const isSame = !trial.mirror;
     const ok = same === isSame;
-    const rt = Math.max(1, Math.round(performance.now() - qStartRef.current));
+    const rawRt = Math.max(
+      1,
+      Math.round(performance.now() - qStartRef.current),
+    );
+    const rt = Math.min(10000, Math.max(120, rawRt));
 
     rtsRef.current.push(rt);
     anglesRef.current.push(trial.angle);
@@ -426,6 +455,45 @@ export function MentalRotationGame({
     if (!n) return 0;
     return Math.round((stats.correct / n) * 100);
   }, [stats]);
+
+  const answerRef = useRef(answer);
+  answerRef.current = answer;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.isContentEditable
+      )
+        return;
+
+      if (phase !== "playing" || lockRef.current) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        answerRef.current(true, "key");
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        answerRef.current(false, "key");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [phase]);
+
+  useGameLifecycle({
+    isActive: () => phase === "playing",
+    onLeave: () => {
+      // Could pause, but since mental rotation is sequence based without timer limit
+      // we can just let it sit, or we could reset. We will leave it as is to just pause clock.
+      // Wait, qStartRef is used. We should probably just let it reset or ignore.
+      // Resetting is safest for data purity.
+      clearFlashTimer();
+      setPhase("idle");
+    },
+  });
 
   return (
     <div className="rounded-2xl p-5 flex flex-col" style={panelStyle}>
@@ -488,7 +556,7 @@ export function MentalRotationGame({
             <span>
               {t.mr_trial} {idx + 1}/{TOTAL}
             </span>
-            <span style={{ color: ACCENT }}>{trial.angle}°</span>
+            <span style={{ color: ACCENT }}>· · ·</span>
           </div>
           <div
             className="h-1 rounded-full overflow-hidden mb-4"
@@ -536,8 +604,8 @@ export function MentalRotationGame({
             <button
               type="button"
               disabled={!!flash}
-              onClick={() => answer(true)}
-              className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+              {...press((type: InputType) => answer(true, type))}
+              className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 game-surface active:scale-95"
               style={{
                 background: "rgba(var(--neuro-green-rgb),0.14)",
                 color: "#34D399",
@@ -549,8 +617,8 @@ export function MentalRotationGame({
             <button
               type="button"
               disabled={!!flash}
-              onClick={() => answer(false)}
-              className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+              {...press((type: InputType) => answer(false, type))}
+              className="min-h-14 rounded-xl py-3 text-xs font-bold tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 game-surface active:scale-95"
               style={{
                 background: "rgba(var(--neuro-red-rgb),0.12)",
                 color: "#FB7185",

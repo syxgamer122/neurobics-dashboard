@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Hand, Play, ShieldAlert } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { GoNoGoTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -53,6 +55,7 @@ export function GoNoGoGame({
   onComplete: (tel: GoNoGoTelemetry) => Promise<void> | void;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -68,12 +71,16 @@ export function GoNoGoGame({
     correctRejections: 0,
   });
 
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   const kindsRef = useRef<StimKind[]>([]);
   const trialRef = useRef(0);
   const respondedRef = useRef(false);
   const stimStartRef = useRef(0);
   const startedAtRef = useRef(0);
   const rtsRef = useRef<number[]>([]);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const statsRef = useRef({
     hits: 0,
     misses: 0,
@@ -91,7 +98,10 @@ export function GoNoGoGame({
   useEffect(() => clearTimers, [clearTimers]);
 
   const schedule = useCallback((fn: () => void, ms: number) => {
-    const id = setTimeout(fn, ms);
+    const id = setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      fn();
+    }, ms);
     timersRef.current.push(id);
     return id;
   }, []);
@@ -110,6 +120,10 @@ export function GoNoGoGame({
     const s = statsRef.current;
 
     try {
+      let finalInput = "mouse";
+      if (inputTypesRef.current.has("touch")) finalInput = "touch";
+      else if (inputTypesRef.current.has("key")) finalInput = "key";
+
       await onComplete({
         timeMs: Math.max(1, Date.now() - startedAtRef.current),
         trials: kinds.length,
@@ -120,6 +134,7 @@ export function GoNoGoGame({
         falseAlarms: s.falseAlarms,
         correctRejections: s.correctRejections,
         rts: rtsRef.current,
+        inputType: finalInput as InputType,
       });
     } catch (err) {
       logError("Go/No-Go completion failed:", err);
@@ -180,6 +195,7 @@ export function GoNoGoGame({
     finishedRef.current = false;
     kindsRef.current = buildKinds(TOTAL_TRIALS, NOGO_RATE);
     rtsRef.current = [];
+    inputTypesRef.current = new Set();
     statsRef.current = {
       hits: 0,
       misses: 0,
@@ -209,41 +225,87 @@ export function GoNoGoGame({
     schedule(tick, 700);
   };
 
-  const press = useCallback(() => {
-    if (phase !== "stim" || respondedRef.current || !stim) return;
-    respondedRef.current = true;
+  const handlePress = useCallback(
+    (inputType?: InputType) => {
+      if (inputType) inputTypesRef.current.add(inputType);
+      if (respondedRef.current) return;
 
-    const rt = Math.max(
-      1,
-      Math.round(performance.now() - stimStartRef.current),
-    );
+      // Anticipatory response during ISI
+      if (phase === "isi") {
+        respondedRef.current = true;
+        const kind = kindsRef.current[trialRef.current];
+        if (kind === "go") {
+          statsRef.current = {
+            ...statsRef.current,
+            misses: statsRef.current.misses + 1,
+          };
+        } else {
+          statsRef.current = {
+            ...statsRef.current,
+            falseAlarms: statsRef.current.falseAlarms + 1,
+          };
+        }
+        setFlash("bad");
+        setStats(statsRef.current);
 
-    if (stim === "go") {
-      rtsRef.current.push(rt);
-      statsRef.current = {
-        ...statsRef.current,
-        hits: statsRef.current.hits + 1,
-      };
-      setFlash("ok");
-    } else {
-      statsRef.current = {
-        ...statsRef.current,
-        falseAlarms: statsRef.current.falseAlarms + 1,
-      };
-      setFlash("bad");
-    }
-    setStats(statsRef.current);
-  }, [phase, stim]);
+        clearTimers();
+        setStim(null);
+
+        schedule(() => {
+          runTrial(trialRef.current + 1);
+        }, 200);
+
+        return;
+      }
+
+      if (phase !== "stim" || !stim) return;
+
+      respondedRef.current = true;
+
+      const rawRt = Math.max(
+        1,
+        Math.round(performance.now() - stimStartRef.current),
+      );
+      const rt = Math.min(10000, Math.max(120, rawRt));
+
+      if (stim === "go") {
+        rtsRef.current.push(rt);
+        statsRef.current = {
+          ...statsRef.current,
+          hits: statsRef.current.hits + 1,
+        };
+        setFlash("ok");
+      } else {
+        statsRef.current = {
+          ...statsRef.current,
+          falseAlarms: statsRef.current.falseAlarms + 1,
+        };
+        setFlash("bad");
+      }
+      setStats(statsRef.current);
+    },
+    [phase, stim, clearTimers, schedule, runTrial],
+  );
 
   // Space / click pad
-  const pressRef = useRef(press);
-  pressRef.current = press;
+  const pressRef = useRef(handlePress);
+  useEffect(() => {
+    pressRef.current = handlePress;
+  }, [handlePress]);
+
+  useGameLifecycle({
+    isActive: () => phaseRef.current === "isi" || phaseRef.current === "stim",
+    onLeave: () => {
+      reset();
+    },
+  });
+
   useEffect(() => {
     if (phase !== "stim" && phase !== "isi") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
-        pressRef.current();
+        pressRef.current("key");
       }
     };
     window.addEventListener("keydown", onKey);
@@ -408,8 +470,8 @@ export function GoNoGoGame({
       {(phase === "isi" || phase === "stim") && (
         <button
           type="button"
-          onClick={press}
-          className="mt-6 rounded-2xl flex flex-col items-center justify-center transition-all select-none"
+          {...press((type: InputType) => handlePress(type))}
+          className="mt-6 rounded-2xl flex flex-col items-center justify-center transition-all select-none game-surface active:scale-95"
           style={{
             minHeight: 280,
             background:

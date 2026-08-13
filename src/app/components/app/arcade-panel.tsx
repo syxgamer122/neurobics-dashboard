@@ -1,13 +1,13 @@
-import React, { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { X, Gamepad2 } from "lucide-react";
 
-const FlappyGame = React.lazy(() =>
+const FlappyGame = lazy(() =>
   import("../../games/flappy").then((m) => ({ default: m.FlappyGame })),
 );
-const DinoGame = React.lazy(() =>
+const DinoGame = lazy(() =>
   import("../../games/dino").then((m) => ({ default: m.DinoGame })),
 );
-const SnakeGame = React.lazy(() =>
+const SnakeGame = lazy(() =>
   import("../../games/snake").then((m) => ({ default: m.SnakeGame })),
 );
 

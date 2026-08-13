@@ -5,6 +5,8 @@ import {
   type SchulteBestKey,
 } from "../lib/api";
 import { logError } from "../lib/logger";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import type { InputType } from "../lib/use-press";
 import type { SchulteTelemetry } from "../lib/scoring";
 import {
   buildSchulteGrid,
@@ -37,12 +39,31 @@ export function SchulteTableGame({
   );
   const [sequence, setSequence] = useState(() => buildSchulteSeq(5, "classic"));
   const [seqIdx, setSeqIdx] = useState(0);
+  const seqIdxRef = useRef(seqIdx);
+  seqIdxRef.current = seqIdx;
+
   const [foundSet, setFoundSet] = useState<Set<number>>(new Set());
+  const foundSetRef = useRef(foundSet);
+  foundSetRef.current = foundSet;
+
   const [status, setStatus] = useState<"idle" | "playing" | "done">("idle");
+  const statusRef = useRef(status);
+  const setStatusSafe = useCallback((next: "idle" | "playing" | "done") => {
+    statusRef.current = next;
+    setStatus(next);
+  }, []);
   const [flashCell, setFlashCell] = useState<{
     idx: number;
     ok: boolean;
   } | null>(null);
+  const flashCellRef = useRef<{ idx: number; ok: boolean } | null>(null);
+  const setFlashCellSafe = useCallback(
+    (next: { idx: number; ok: boolean } | null) => {
+      flashCellRef.current = next;
+      setFlashCell(next);
+    },
+    [],
+  );
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
   /**
@@ -84,6 +105,8 @@ export function SchulteTableGame({
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wrongClicksRef = useRef(0);
+  const invalidTrialsRef = useRef<number[]>([]);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   // Nap local cache cho moi size x mode (guest/offline) + server theo cau hinh.
   useEffect(() => {
     const local: Partial<Record<SchulteBestKey, number>> = {};
@@ -158,20 +181,32 @@ export function SchulteTableGame({
       // Doi size/mode: best hien thi lay tu map theo cau hinh (khong can setState rieng).
       setGrid(buildSchulteGrid(ns, nm));
       setSequence(buildSchulteSeq(ns, nm));
+      seqIdxRef.current = 0;
       setSeqIdx(0);
-      setFoundSet(new Set());
-      setStatus("idle");
+      setFoundSet(() => {
+        const empty = new Set<number>();
+        foundSetRef.current = empty;
+        return empty;
+      });
+      setStatusSafe("idle");
       setElapsed(0);
-      setFlashCell(null);
+      setFlashCellSafe(null);
       setHearts(MAX_SCHULTE_HEARTS);
       wrongClicksRef.current = 0;
+      invalidTrialsRef.current = [];
+      inputTypesRef.current = new Set();
       completedRef.current = false;
       startRef.current = null;
       hitRtsRef.current = [];
       lastHitRef.current = null;
     },
-    [size, mode, clearTimers],
+    [size, mode, clearTimers, setStatusSafe, setFlashCellSafe],
   );
+
+  useGameLifecycle({
+    isActive: () => status === "playing",
+    onLeave: () => reset(),
+  });
 
   useEffect(
     () => () => {
@@ -200,7 +235,7 @@ export function SchulteTableGame({
     }
     const ms = Date.now() - (startRef.current ?? Date.now());
     setElapsed(ms);
-    setStatus("done");
+    setStatusSafe("done");
     if (won) mergeBest(size, mode, ms);
     setSaving(true);
     // Label chuan de RPC parse: "5×5 Classic" / "5×5 Reverse (failed)".
@@ -209,6 +244,10 @@ export function SchulteTableGame({
     }`;
     (async () => {
       try {
+        let finalInput = "mouse";
+        if (inputTypesRef.current.has("touch")) finalInput = "touch";
+        else if (inputTypesRef.current.has("key")) finalInput = "key";
+
         await onComplete({
           timeMs: ms,
           cells: size * size,
@@ -220,6 +259,8 @@ export function SchulteTableGame({
           // ve 400 "Invalid hitRts length", lam mat streak/quest/ticket.
           failed: lost && !won,
           intendedCells: size * size,
+          inputType: finalInput as InputType,
+          invalidTrials: invalidTrialsRef.current,
         });
         // Dong bo lai tu server sau khi training_sessions da ghi (user that).
         if (won) {
@@ -249,31 +290,37 @@ export function SchulteTableGame({
       }
     })();
   }, [
-    seqIdx,
-    sequence.length,
     status,
+    sequence.length,
+    seqIdx,
+    hearts,
     size,
     mode,
-    hearts,
     onComplete,
+    setStatusSafe,
     mergeBest,
   ]);
 
   const handleClick = useCallback(
-    async (cell: SchulteCell, idx: number) => {
+    async (cell: SchulteCell, idx: number, inputType?: InputType) => {
+      if (inputType) inputTypesRef.current.add(inputType);
       // Only lock input during a WRONG flash. A correct flash used to block the
       // next cell for 260ms × N hits and inflated Speed/Focus unfairly.
-      if (status === "done" || foundSet.has(idx) || flashCell?.ok === false)
+      if (
+        statusRef.current === "done" ||
+        foundSetRef.current.has(idx) ||
+        flashCellRef.current?.ok === false
+      )
         return;
 
-      const wasIdle = status === "idle";
-      const target = sequence[seqIdx];
+      const wasIdle = statusRef.current === "idle";
+      const target = sequence[seqIdxRef.current];
       const ok = cell.value === target.value && cell.color === target.color;
 
       // Idle: chi bat dong ho khi bam DUNG o dau tien — bam sai khong tinh gio.
       if (wasIdle && !ok) {
-        setFlashCell({ idx, ok: false });
-        later(() => setFlashCell(null), 380);
+        setFlashCellSafe({ idx, ok: false });
+        later(() => setFlashCellSafe(null), 380);
         return;
       }
 
@@ -281,19 +328,18 @@ export function SchulteTableGame({
         onPlayStart?.();
         startRef.current = Date.now();
         lastHitRef.current = startRef.current;
-        setStatus("playing");
+        setStatusSafe("playing");
         intervalRef.current = setInterval(
           () => setElapsed(Date.now() - (startRef.current ?? Date.now())),
           50,
         );
       }
 
-      setFlashCell({ idx, ok });
-      later(() => setFlashCell(null), ok ? 260 : 380);
+      setFlashCellSafe({ idx, ok });
+      later(() => setFlashCellSafe(null), ok ? 260 : 380);
       if (!ok) {
         wrongClicksRef.current += 1;
-        const newHearts = hearts - 1;
-        setHearts(newHearts);
+        setHearts((h) => Math.max(0, h - 1));
         // Het tim: effect completion se submit — khong reset im lang.
         return;
       }
@@ -307,17 +353,22 @@ export function SchulteTableGame({
       //    nen nguong MIN_RT_MS=120 khong ap dung o day;
       //  - numberArray() da nang moi gia tri len toi thieu 1ms;
       //  - withoutStartArtifact() tu loai mau dau khi tinh median/CV.
-      hitRtsRef.current.push(now - (lastHitRef.current ?? now));
+      const rawRt = now - (lastHitRef.current ?? now);
+      hitRtsRef.current.push(Math.min(10000, Math.max(120, rawRt)));
       lastHitRef.current = now;
 
       // Advance state only — the completion effect above watches seqIdx and fires
       // onComplete once the final number is reached.
-      const nf = new Set(foundSet);
-      nf.add(idx);
-      setFoundSet(nf);
-      setSeqIdx(seqIdx + 1);
+      setFoundSet((prev) => {
+        const nf = new Set(prev);
+        nf.add(idx);
+        foundSetRef.current = nf;
+        return nf;
+      });
+      seqIdxRef.current += 1;
+      setSeqIdx(seqIdxRef.current);
     },
-    [status, foundSet, sequence, seqIdx, hearts, later, flashCell, onPlayStart],
+    [sequence, later, onPlayStart, setFlashCellSafe, setStatusSafe],
   );
 
   const target = sequence[seqIdx];

@@ -1,22 +1,34 @@
 import { useEffect, useRef, useState } from "react";
+import { useOnHidden } from "../lib/game-utils";
 
 export function SnakeGame({
   onGameOver,
 }: {
   onGameOver?: (score: number) => void;
 }) {
+  const onGameOverRef = useRef(onGameOver);
+  onGameOverRef.current = onGameOver;
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(() => {
+    if (typeof window === "undefined") return 0;
     return parseInt(localStorage.getItem("snakeBest") || "0");
   });
   const [level, setLevel] = useState(1);
-  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">(
-    "idle",
-  );
+  const [gameState, setGameState] = useState<
+    "idle" | "playing" | "dead" | "paused"
+  >("idle");
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
+
+  useOnHidden(() => {
+    if (gameStateRef.current === "playing") {
+      gameStateRef.current = "paused";
+      setGameState("paused");
+    }
+  });
 
   const scoreRef = useRef(0);
   scoreRef.current = score;
@@ -32,7 +44,7 @@ export function SnakeGame({
     SIZE: 400,
     snake: [] as { x: number; y: number }[],
     dir: { x: 1, y: 0 },
-    nextDir: { x: 1, y: 0 },
+    dirQueue: [] as { x: number; y: number }[],
     food: null as { x: number; y: number } | null,
     goldFood: null as { x: number; y: number } | null,
     eatCount: 0,
@@ -86,32 +98,25 @@ export function SnakeGame({
     }
   };
 
-  const initGame = (SIZE: number) => {
-    const CELL = 20;
-    const COLS = SIZE / CELL;
-    const ROWS = SIZE / CELL;
-    const cx = Math.floor(COLS / 2);
-    const cy = Math.floor(ROWS / 2);
+  const initGame = () => {
+    const s = state.current;
+    const cx = Math.floor(s.COLS / 2);
+    const cy = Math.floor(s.ROWS / 2);
 
-    state.current = {
-      CELL,
-      COLS,
-      ROWS,
-      SIZE,
-      snake: [
-        { x: cx, y: cy },
-        { x: cx - 1, y: cy },
-        { x: cx - 2, y: cy },
-      ],
-      dir: { x: 1, y: 0 },
-      nextDir: { x: 1, y: 0 },
-      food: null,
-      goldFood: null,
-      eatCount: 0,
-      goldTimer: 0,
-      walls: [],
-      foodPulse: 0,
-    };
+    s.snake = [
+      { x: cx, y: cy },
+      { x: cx - 1, y: cy },
+      { x: cx - 2, y: cy },
+    ];
+    s.dir = { x: 1, y: 0 };
+    s.dirQueue = [];
+    s.food = null;
+    s.goldFood = null;
+    s.eatCount = 0;
+    s.goldTimer = 0;
+    s.walls = [];
+    s.foodPulse = 0;
+
     setScore(0);
     setLevel(1);
     spawnFood();
@@ -119,24 +124,33 @@ export function SnakeGame({
 
   const setDir = (dx: number, dy: number) => {
     const s = state.current;
-    if (dx === -s.dir.x && dy === -s.dir.y) return;
-    s.nextDir = { x: dx, y: dy };
+    const lastDir =
+      s.dirQueue.length > 0 ? s.dirQueue[s.dirQueue.length - 1] : s.dir;
+    if (dx === -lastDir.x && dy === -lastDir.y) return;
+    if (dx === lastDir.x && dy === lastDir.y) return;
+    s.dirQueue.push({ x: dx, y: dy });
   };
 
   const startGame = () => {
     if (gameStateRef.current === "idle" || gameStateRef.current === "dead") {
+      gameStateRef.current = "playing";
       setGameState("playing");
-      const SIZE = Math.min(
-        Math.floor(Math.min(window.innerWidth, window.innerHeight - 80) / 20) *
-          20,
-        400,
-      );
-      initGame(SIZE);
+      initGame();
+    } else if (gameStateRef.current === "paused") {
+      gameStateRef.current = "playing";
+      setGameState("playing");
     }
   };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.isContentEditable
+      )
+        return;
       const map: Record<string, [number, number]> = {
         ArrowUp: [0, -1],
         ArrowDown: [0, 1],
@@ -161,59 +175,10 @@ export function SnakeGame({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
     if (!ctx) return;
 
-    const setCanvasSize = () => {
-      const SIZE = Math.max(
-        200,
-        Math.floor(
-          Math.min(window.innerWidth - 16, window.innerHeight - 100, 400) /
-            state.current.CELL,
-        ) * state.current.CELL,
-      );
-      canvas.width = SIZE;
-      canvas.height = SIZE;
-      state.current.SIZE = SIZE;
-      state.current.COLS = SIZE / state.current.CELL;
-      state.current.ROWS = SIZE / state.current.CELL;
-      draw();
-    };
-    setCanvasSize();
-
-    if (gameStateRef.current === "idle") initGame(state.current.SIZE);
-
-    let tx = 0,
-      ty = 0;
-    const handleTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      tx = e.touches[0].clientX;
-      ty = e.touches[0].clientY;
-    };
-    const handleTouchEnd = (e: TouchEvent) => {
-      e.preventDefault();
-      const dx = e.changedTouches[0].clientX - tx;
-      const dy = e.changedTouches[0].clientY - ty;
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-        if (gameStateRef.current !== "playing") {
-          startGame();
-        } else {
-          if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? 1 : -1, 0);
-          else setDir(0, dy > 0 ? 1 : -1);
-        }
-      } else {
-        if (gameStateRef.current !== "playing") startGame();
-      }
-    };
-    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
-    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
-
-    const handleResize = () => {
-      setCanvasSize();
-    };
-    window.addEventListener("resize", handleResize);
-
-    const draw = () => {
+    function draw() {
       const s = state.current;
       ctx.clearRect(0, 0, s.SIZE, s.SIZE);
 
@@ -340,35 +305,98 @@ export function SnakeGame({
         }
         ctx.globalAlpha = 1;
       });
+    }
+
+    const setCanvasSize = () => {
+      const MAX_W = Math.min(window.innerWidth - 16, 400);
+      const MAX_H = Math.min(window.innerHeight - 100, 400);
+      const MIN_DIM = Math.min(MAX_W, MAX_H);
+      const CELL = Math.max(10, Math.floor(MIN_DIM / 20));
+      const SIZE = CELL * 20;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = SIZE * dpr;
+      canvas.height = SIZE * dpr;
+      canvas.style.width = SIZE + "px";
+      canvas.style.height = SIZE + "px";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+
+      state.current.SIZE = SIZE;
+      state.current.CELL = CELL;
+      state.current.COLS = 20;
+      state.current.ROWS = 20;
+      draw();
     };
+    setCanvasSize();
 
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      if (gameStateRef.current !== "playing") {
-        draw();
-        timeoutId = setTimeout(tick, 100);
-        return;
+    if (gameStateRef.current === "idle") initGame();
+
+    let tx = 0,
+      ty = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      tx = e.touches[0].clientX;
+      ty = e.touches[0].clientY;
+    };
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      const dx = e.changedTouches[0].clientX - tx;
+      const dy = e.changedTouches[0].clientY - ty;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        if (gameStateRef.current !== "playing") {
+          startGame();
+        } else {
+          if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? 1 : -1, 0);
+          else setDir(0, dy > 0 ? 1 : -1);
+        }
+      } else {
+        if (gameStateRef.current !== "playing") startGame();
       }
+    };
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
 
+    const handleResize = () => {
+      setCanvasSize();
+      if (gameStateRef.current !== "playing") {
+        if (gameStateRef.current === "paused") {
+          loop();
+        } else {
+          draw();
+        }
+      }
+    };
+    window.addEventListener("resize", handleResize);
+
+    let timeoutId: number;
+    function update() {
       const s = state.current;
-      s.dir = s.nextDir;
+      if (s.dirQueue.length > 0) {
+        s.dir = s.dirQueue.shift()!;
+      }
       const head = {
         x: (s.snake[0].x + s.dir.x + s.COLS) % s.COLS,
         y: (s.snake[0].y + s.dir.y + s.ROWS) % s.ROWS,
       };
 
+      const willEat =
+        (s.food && head.x === s.food.x && head.y === s.food.y) ||
+        (s.goldFood && head.x === s.goldFood.x && head.y === s.goldFood.y);
+
+      const collisionSnake = willEat ? s.snake : s.snake.slice(0, -1);
+
       if (
-        s.snake.some((seg) => seg.x === head.x && seg.y === head.y) ||
+        collisionSnake.some((seg) => seg.x === head.x && seg.y === head.y) ||
         s.walls.some((w) => w.x === head.x && w.y === head.y)
       ) {
+        gameStateRef.current = "dead";
         setGameState("dead");
         if (scoreRef.current > bestScoreRef.current) {
           setBestScore(scoreRef.current);
           localStorage.setItem("snakeBest", scoreRef.current.toString());
         }
-        if (onGameOver) onGameOver(scoreRef.current);
-        draw();
-        timeoutId = setTimeout(tick, 100);
+        if (onGameOverRef.current) onGameOverRef.current(scoreRef.current);
         return;
       }
 
@@ -402,14 +430,34 @@ export function SnakeGame({
         s.goldTimer--;
         if (s.goldTimer === 0) s.goldFood = null;
       }
+    }
 
+    function loop() {
+      if (gameStateRef.current !== "playing") {
+        if (gameStateRef.current === "paused") {
+          draw();
+          ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+          ctx.fillRect(0, 0, state.current.SIZE, state.current.SIZE);
+          ctx.fillStyle = "#10b981";
+          ctx.font = "bold 24px monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(
+            "PAUSED",
+            state.current.SIZE / 2,
+            state.current.SIZE / 2,
+          );
+        }
+        return;
+      }
+
+      update();
       draw();
+      const delay = Math.max(70, 150 - levelRef.current * 12);
+      timeoutId = window.setTimeout(loop, delay);
+    }
 
-      const speed = Math.max(70, 150 - levelRef.current * 12);
-      timeoutId = setTimeout(tick, speed);
-    };
-
-    timeoutId = setTimeout(tick, 100);
+    loop();
 
     return () => {
       clearTimeout(timeoutId);
@@ -421,13 +469,12 @@ export function SnakeGame({
   }, [onGameOver]);
 
   return (
-    <div className="fixed inset-0 bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
+    <div className="relative w-full h-full bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
       <canvas
         ref={canvasRef}
         className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]"
       />
 
-      {/* Top Bar */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-6 text-sm font-mono tracking-widest text-emerald-500/80 pointer-events-none">
         <span>
           SCORE: <span className="text-emerald-400 font-bold">{score}</span>
@@ -440,21 +487,18 @@ export function SnakeGame({
         </span>
       </div>
 
-      {/* Overlays */}
-      {gameState === "idle" && (
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto"
-          onClick={startGame}
-        >
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
-            SNAKE
-          </h2>
-          <p className="text-emerald-400 font-mono tracking-widest">
-            ARROW KEYS / WASD
-          </p>
-          <p className="text-emerald-400/50 font-mono text-xs mt-2 animate-pulse">
-            MOBILE: SWIPE TO MOVE / TAP TO START
-          </p>
+      {(gameState === "idle" || gameState === "paused") && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a]/80 z-10 backdrop-blur-[2px]">
+          <div className="text-emerald-400 text-4xl mb-6 font-bold tracking-widest drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+            {gameState === "paused" ? "PAUSED" : "SNAKE"}
+          </div>
+          <button
+            type="button"
+            onClick={startGame}
+            className="px-8 py-3 bg-emerald-500/10 border border-emerald-500 text-emerald-400 rounded-lg font-mono tracking-widest hover:bg-emerald-500/20 transition-all"
+          >
+            {gameState === "paused" ? "RESUME" : "START"}
+          </button>
         </div>
       )}
 

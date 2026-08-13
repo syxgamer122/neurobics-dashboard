@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Blocks, CheckCircle, Loader2, RefreshCw } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { CorsiTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -41,13 +43,20 @@ export function CorsiBlockGame({
   onComplete: (tel: CorsiTelemetry) => Promise<void>;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
 
-  const [phase, setPhase] = useState<CorsiPhase>("idle");
+  const [phase, setPhaseState] = useState<CorsiPhase>("idle");
+  const phaseRef = useRef<CorsiPhase>("idle");
+  const setPhase = useCallback((p: CorsiPhase) => {
+    phaseRef.current = p;
+    setPhaseState(p);
+  }, []);
   const [span, setSpan] = useState(START_SPAN);
   const [sequence, setSequence] = useState<number[]>([]);
   const [litIndex, setLitIndex] = useState<number | null>(null);
   const [tapped, setTapped] = useState<number[]>([]);
+  const tappedRef = useRef<number[]>([]);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
   const [bestSpan, setBestSpan] = useState(0);
   const [mistakes, setMistakes] = useState(0);
@@ -62,6 +71,7 @@ export function CorsiBlockGame({
   const recallMsRef = useRef(0);
   const bestSpanRef = useRef(0);
   const livesRef = useRef(0);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
 
   const lastTapAtRef = useRef(0);
   const recallStartRef = useRef(0);
@@ -75,7 +85,10 @@ export function CorsiBlockGame({
   useEffect(() => clearTimers, [clearTimers]);
 
   const later = useCallback((fn: () => void, ms: number) => {
-    const id = setTimeout(fn, ms);
+    const id = setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      fn();
+    }, ms);
     timersRef.current.push(id);
   }, []);
 
@@ -85,6 +98,7 @@ export function CorsiBlockGame({
       clearTimers();
       setPhase("watch");
       setTapped([]);
+      tappedRef.current = [];
       setLitIndex(null);
 
       seq.forEach((cell, i) => {
@@ -106,7 +120,7 @@ export function CorsiBlockGame({
         seq.length * (FLASH_MS + GAP_MS) + GAP_MS,
       );
     },
-    [clearTimers, later],
+    [clearTimers, later, setPhase],
   );
 
   const finishGame = useCallback(async () => {
@@ -115,6 +129,10 @@ export function CorsiBlockGame({
     setSaving(true);
 
     try {
+      let finalInput = "mouse";
+      if (inputTypesRef.current.has("touch")) finalInput = "touch";
+      else if (inputTypesRef.current.has("key")) finalInput = "key";
+
       await onComplete({
         timeMs: Math.max(1, Math.round(recallMsRef.current)),
         span: bestSpanRef.current,
@@ -123,13 +141,14 @@ export function CorsiBlockGame({
         taps: tapsRef.current,
         wrongClicks: wrongClicksRef.current,
         rts: rtsRef.current.slice(),
+        inputType: finalInput as InputType,
       });
     } catch (err) {
       logError("Corsi completion: onComplete failed:", err);
     } finally {
       setSaving(false);
     }
-  }, [clearTimers, onComplete]);
+  }, [clearTimers, onComplete, setPhase]);
 
   const startGame = () => {
     onPlayStart?.();
@@ -140,6 +159,7 @@ export function CorsiBlockGame({
     wrongClicksRef.current = 0;
     tapsRef.current = 0;
     rtsRef.current = [];
+    inputTypesRef.current = new Set();
     recallMsRef.current = 0;
     bestSpanRef.current = 0;
     livesRef.current = 0;
@@ -160,6 +180,7 @@ export function CorsiBlockGame({
     setPhase("idle");
     setSequence([]);
     setTapped([]);
+    tappedRef.current = [];
     setLitIndex(null);
     setLastCorrect(null);
     setSpan(START_SPAN);
@@ -214,11 +235,12 @@ export function CorsiBlockGame({
         playSequence(seq);
       }, 800);
     },
-    [finishGame, later, playSequence, span],
+    [finishGame, later, playSequence, span, setPhase],
   );
 
-  const handleCell = (cell: number) => {
-    if (phase !== "recall") return;
+  const handleCell = (cell: number, inputType?: InputType) => {
+    if (inputType) inputTypesRef.current.add(inputType);
+    if (phaseRef.current !== "recall") return;
 
     const now = performance.now();
     const gap = Math.max(1, Math.round(now - lastTapAtRef.current));
@@ -226,7 +248,8 @@ export function CorsiBlockGame({
     rtsRef.current.push(gap);
     tapsRef.current += 1;
 
-    const position = tapped.length;
+    const currentTapped = tappedRef.current;
+    const position = currentTapped.length;
     const expected = sequence[position];
 
     if (cell !== expected) {
@@ -235,11 +258,23 @@ export function CorsiBlockGame({
       return;
     }
 
-    const next = [...tapped, cell];
+    const next = [...currentTapped, cell];
+    tappedRef.current = next;
     setTapped(next);
 
     if (next.length === sequence.length) settleTrial(true);
   };
+
+  const statusText =
+    phase === "watch"
+      ? t.corsi_watch
+      : phase === "recall"
+        ? t.corsi_recall
+        : phase === "feedback"
+          ? lastCorrect
+            ? t.answer_correct
+            : t.answer_wrong
+          : "";
 
   const cellState = (cell: number): "lit" | "tapped" | "idle" => {
     if (phase === "watch" && litIndex === cell) return "lit";
@@ -253,16 +288,13 @@ export function CorsiBlockGame({
     return "idle";
   };
 
-  const statusText =
-    phase === "watch"
-      ? t.corsi_watch
-      : phase === "recall"
-        ? t.corsi_recall
-        : phase === "feedback"
-          ? lastCorrect
-            ? t.mr_correct
-            : t.mr_wrong
-          : "";
+  useGameLifecycle({
+    isActive: () =>
+      phaseRef.current === "watch" ||
+      phaseRef.current === "recall" ||
+      phaseRef.current === "feedback",
+    onLeave: resetGame,
+  });
 
   return (
     <div
@@ -384,8 +416,8 @@ export function CorsiBlockGame({
                   key={cell}
                   type="button"
                   disabled={!interactive}
-                  onClick={() => handleCell(cell)}
-                  className="rounded-xl transition-all"
+                  {...press((type: InputType) => handleCell(cell, type))}
+                  className="rounded-xl transition-all game-surface active:scale-95"
                   style={{
                     aspectRatio: "1 / 1",
                     background:

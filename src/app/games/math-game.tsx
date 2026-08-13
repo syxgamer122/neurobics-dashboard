@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Calculator, Check, Play, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { MathDifficulty, MathTelemetry } from "../lib/scoring";
 
 // ─── Math Sprint ──────────────────────────────────────────────────────────
@@ -212,9 +214,10 @@ export function MathSprintGame({
   onComplete,
   onPlayStart,
 }: {
-  onComplete: (telemetry: MathTelemetry) => void;
+  onComplete: (telemetry: MathTelemetry) => Promise<void> | void;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
   // Chuoi lay tu i18n.tsx; giu ten `s` de khong phai doi het cho dung.
   const s = {
@@ -229,43 +232,77 @@ export function MathSprintGame({
     medium: t.math_medium,
     hard: t.math_hard,
     adaptive: t.math_adaptive,
+    complete: t.math_complete,
+    accuracy: t.math_accuracy,
+    saving: t.math_saving,
+    play_again: t.math_play_again,
   };
 
   // Khớp MIN_RT_MS trong supabase/functions/_shared/round-scoring.ts.
   const MIN_RT_MS = 120;
 
   const [diff, setDiff] = useState<MathDifficulty>("medium");
-  const [phase, setPhase] = useState<"idle" | "playing">("idle");
+  const [phase, setPhase] = useState<"idle" | "playing" | "done">("idle");
   const [idx, setIdx] = useState(0);
   const [flash, setFlash] = useState<"ok" | "bad" | null>(null);
   const [stats, setStats] = useState({ correct: 0, wrong: 0 });
+  const [saving, setSaving] = useState(false);
+
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   const problemsRef = useRef<Problem[]>([]);
   const startedAtRef = useRef(0);
   const qStartRef = useRef(0);
   const rtsRef = useRef<number[]>([]);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const statsRef = useRef({ correct: 0, wrong: 0 });
   const finishedRef = useRef(false);
   const lockRef = useRef(false);
 
-  const finish = useCallback(() => {
+  const resetGame = () => {
+    if (flashTimerRef.current !== null) {
+      window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = null;
+    }
+    setPhase("idle");
+    setIdx(0);
+    finishedRef.current = true;
+    lockRef.current = true;
+  };
+
+  const finish = useCallback(async () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    setPhase("idle");
-    onComplete({
-      timeMs: Date.now() - startedAtRef.current,
-      difficulty: diff,
-      totalProblems: TOTAL,
-      correct: statsRef.current.correct,
-      wrong: statsRef.current.wrong,
-      rts: rtsRef.current,
-    });
+    setPhase("done");
+    setSaving(true);
+    try {
+      let finalInput = "mouse";
+      if (inputTypesRef.current.has("touch")) finalInput = "touch";
+      else if (inputTypesRef.current.has("key")) finalInput = "key";
+
+      await onComplete({
+        timeMs: Math.max(
+          1,
+          rtsRef.current.reduce((a, b) => a + b, 0),
+        ),
+        difficulty: diff,
+        totalProblems: TOTAL,
+        correct: statsRef.current.correct,
+        wrong: statsRef.current.wrong,
+        rts: rtsRef.current,
+        inputType: finalInput as InputType,
+      });
+    } finally {
+      setSaving(false);
+    }
   }, [diff, onComplete]);
 
   const start = () => {
     onPlayStart?.();
     problemsRef.current = buildSet(diff);
     rtsRef.current = [];
+    inputTypesRef.current = new Set();
     statsRef.current = { correct: 0, wrong: 0 };
     finishedRef.current = false;
     lockRef.current = false;
@@ -289,7 +326,9 @@ export function MathSprintGame({
     [],
   );
 
-  const answer = (choice: number) => {
+  const answer = (choice: number, inputType?: InputType) => {
+    if (inputType) inputTypesRef.current.add(inputType);
+
     if (phase !== "playing" || lockRef.current || finishedRef.current) return;
     lockRef.current = true;
 
@@ -300,7 +339,7 @@ export function MathSprintGame({
     // sàn: server chạy assertRtBounds() trên mảng này và từ chối cả ván nếu
     // có mẫu < MIN_RT_MS (120ms). Một cú bấm nhầm siêu nhanh không được phép
     // đánh rớt một ván hợp lệ.
-    rtsRef.current.push(Math.max(MIN_RT_MS, rt));
+    rtsRef.current.push(Math.min(10000, Math.max(MIN_RT_MS, rt)));
 
     if (ok) {
       statsRef.current = {
@@ -358,11 +397,16 @@ export function MathSprintGame({
       e.preventDefault();
       const p = problemsRef.current[idx];
       if (!p) return;
-      answerRef.current(p.choices[i]);
+      answerRef.current(p.choices[i], "key");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, idx]);
+
+  useGameLifecycle({
+    isActive: () => phaseRef.current === "playing",
+    onLeave: resetGame,
+  });
 
   const problem = problemsRef.current[idx];
   const levels: { id: MathDifficulty; label: string }[] = [
@@ -491,8 +535,8 @@ export function MathSprintGame({
             {problem.choices.map((c, i) => (
               <button
                 key={`${idx}-${c}-${i}`}
-                onClick={() => answer(c)}
-                className="py-3 rounded-xl text-sm transition-all"
+                {...press((type: InputType) => answer(c, type))}
+                className="py-3 rounded-xl text-sm transition-all game-surface active:scale-95"
                 style={{
                   background: "rgba(56,189,248,0.08)",
                   border: "1px solid rgba(56,189,248,0.28)",
@@ -517,6 +561,44 @@ export function MathSprintGame({
             </span>
           </div>
         </>
+      )}
+
+      {phase === "done" && (
+        <div
+          className="mt-6 flex flex-col items-center justify-center text-center"
+          style={{ minHeight: 280 }}
+        >
+          <div className="text-lg font-bold text-foreground">{s.complete}</div>
+          <div className="mt-3 text-4xl font-bold" style={{ color: ACCENT }}>
+            {Math.round((stats.correct / TOTAL) * 100)}%
+          </div>
+          <div className="mt-1 text-xs text-slate-500">{s.accuracy}</div>
+          <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-slate-400">
+            <span>
+              {s.correct}: <b className="text-emerald-400">{stats.correct}</b>/
+              {TOTAL}
+            </span>
+            <span>
+              {s.wrong}: <b className="text-rose-400">{stats.wrong}</b>
+            </span>
+          </div>
+          {saving ? (
+            <div className="mt-5 text-xs text-slate-500">{s.saving}</div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPhase("idle")}
+              className="mt-5 px-6 py-2 rounded-xl text-xs font-bold tracking-widest font-mono transition-all"
+              style={{
+                background: "rgba(56,189,248,0.15)",
+                border: "1px solid rgba(56,189,248,0.45)",
+                color: ACCENT,
+              }}
+            >
+              {s.play_again}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
