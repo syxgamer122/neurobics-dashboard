@@ -45,6 +45,7 @@ export function createGuestProfile(username = "Khách"): GuestProfile {
     id: GUEST_PROFILE_ID,
     username,
     cfop_spatial_record: null,
+    spatial_score: 0,
     algebraic_logic_score: 0,
     memory_score: 0,
     speed_score: 0,
@@ -94,25 +95,36 @@ export function completeLocalRound(
   const scored = scoreAndValidate(game, telemetry, serverElapsed);
   const axes = scored.axes as AxisRatings;
 
+  const isGuest = isGuestProfile(profile);
   const next: Profile = { ...profile };
-  (Object.keys(AXIS_META) as AxisKey[]).forEach((key) => {
-    const round = axes[key];
-    if (round == null) return;
-    writeAxis(next, key, pullUpRating(readAxis(profile, key), round));
-  });
 
   const sessCol = GAME_BY_ID[game].sessionColumn;
   const prevSess = Number(next[sessCol] ?? 0) || 0;
-  (next as Record<string, unknown>)[sessCol] = prevSess + 1;
+  const xpAwarded = calculateRoundXp(scored.headline, prevSess);
 
-  const xpAwarded = calculateRoundXp(scored.headline);
-  const prevXp = Math.max(0, Number(next.total_xp) || 0);
-  const totalXp = prevXp + xpAwarded;
-  next.total_xp = totalXp;
-  next.last_active_date = new Date().toISOString().slice(0, 10);
+  if (isGuest) {
+    (Object.keys(AXIS_META) as AxisKey[]).forEach((key) => {
+      const round = axes[key];
+      if (round == null) return;
+      writeAxis(next, key, pullUpRating(readAxis(profile, key), round));
+    });
 
+    (next as Record<string, unknown>)[sessCol] = prevSess + 1;
+
+    const prevXp = Math.max(0, Number(next.total_xp) || 0);
+    const totalXp = prevXp + xpAwarded;
+    next.total_xp = totalXp;
+    next.last_active_date = new Date().toISOString().slice(0, 10);
+  }
+
+  const finalTotalXp = isGuest
+    ? Number(next.total_xp) || 0
+    : Number(profile.total_xp) || 0;
+  const prevXp = isGuest
+    ? Math.max(0, Number(profile.total_xp) || 0)
+    : finalTotalXp;
+  const level = levelFromXp(finalTotalXp);
   const prevLevel = levelFromXp(prevXp);
-  const level = levelFromXp(totalXp);
 
   return {
     profile: next,
@@ -120,9 +132,10 @@ export function completeLocalRound(
     headline: scored.headline,
     label: scored.label,
     timeMs: scored.timeMs,
-    xpAwarded,
-    totalXp,
+    xpAwarded: isGuest ? xpAwarded : 0,
+    totalXp: finalTotalXp,
     level,
-    leveledUp: level > prevLevel,
+    leveledUp: isGuest ? level > prevLevel : false,
+    provisional: !isGuest,
   };
 }

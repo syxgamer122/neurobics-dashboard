@@ -1,6 +1,7 @@
 import type { Hono } from "npm:hono@4.12.27";
 import { adminClient } from "../config.ts";
 import { authenticatedUser } from "../security.ts";
+import { logServerEvent } from "../_shared/observability.ts";
 
 export function registerAccountRoutes(app: Hono): void {
   // ─── Delete own account (auth user + profile + avatars) ─────────────────────
@@ -21,7 +22,11 @@ export function registerAccountRoutes(app: Hono): void {
             .remove(listed.map((f) => `${userId}/${f.name}`));
         }
       } catch (storageErr) {
-        console.log(`Delete-account storage cleanup: ${storageErr}`);
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `Delete-account storage cleanup: ${storageErr}`,
+        });
       }
 
       // 2) Xoa auth user TRUOC. FK ON DELETE CASCADE se don profile va bang con.
@@ -36,13 +41,19 @@ export function registerAccountRoutes(app: Hono): void {
         .delete()
         .eq("id", userId);
       if (profileErr)
-        console.log(
-          `Delete-account profile fallback failed: ${profileErr.message}`,
-        );
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `Delete-account profile fallback failed: ${profileErr.message}`,
+        });
 
       return c.json({ ok: true });
     } catch (err) {
-      console.log(`Delete account error: ${err}`);
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Delete account error: ${err}`,
+      });
       const msg = err instanceof Error ? err.message : String(err);
       const status =
         msg.includes("authorization") || msg.includes("session") ? 401 : 400;

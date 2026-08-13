@@ -208,7 +208,8 @@ export function useRoundSubmission({
             startedAt: ticket.startedAt,
             clientElapsedMs: elapsedMs,
           });
-          if (!pushed) throw new Error("Offline queue full. Cannot save round.");
+          if (!pushed)
+            throw new Error("Offline queue full. Cannot save round.");
           if (!current) throw new Error("Profile not loaded.");
           const result = completeLocalRound(
             current,
@@ -224,7 +225,9 @@ export function useRoundSubmission({
 
         const msg = err instanceof Error ? err.message : String(err);
         if (
-          /already submitted|expired|ticket not found|round rejected|anticheat_hard/i.test(msg)
+          /already submitted|expired|ticket not found|round rejected|anticheat_hard/i.test(
+            msg,
+          )
         )
           delete roundTicketsRef.current[game];
         throw err;
@@ -263,9 +266,10 @@ export function useRoundSubmission({
       } catch (err) {
         logError(`${game} submit failed:`, err);
         const msg = err instanceof Error ? err.message : String(err);
-        const ticketGone = /already submitted|expired|ticket not found|round rejected|anticheat_hard/i.test(
-          msg,
-        );
+        const ticketGone =
+          /already submitted|expired|ticket not found|round rejected|anticheat_hard/i.test(
+            msg,
+          );
 
         if (!ticketGone) {
           toast.error(saveFailedLabel, {

@@ -11,6 +11,7 @@ import {
   type ActivityStats,
   type RoundGame,
   isNetworkErrorLike,
+  currentUserId,
 } from "../lib/api";
 import { DEFAULT_POPULATION, type PopulationStats } from "../lib/scoring";
 import { totalSessions } from "../lib/sessions";
@@ -46,7 +47,11 @@ export function useAppState(t: Translation) {
           if (userId && p.id === userId) {
             localStorage.setItem(
               CACHED_PROFILE_KEY,
-              JSON.stringify({ userId: p.id, profile: p, at: new Date().toISOString() })
+              JSON.stringify({
+                userId: p.id,
+                profile: p,
+                at: new Date().toISOString(),
+              }),
             );
           }
         })();
@@ -110,13 +115,18 @@ export function useAppState(t: Translation) {
               try {
                 const userId = await currentUserId();
                 const cachedStr = localStorage.getItem(CACHED_PROFILE_KEY);
-                const cached = cachedStr ? (JSON.parse(cachedStr) as CachedProfile) : null;
-                if (cached?.userId === userId && Date.now() - Date.parse(cached.at) < CACHE_TTL_MS) {
+                const cached = cachedStr
+                  ? (JSON.parse(cachedStr) as CachedProfile)
+                  : null;
+                if (
+                  cached?.userId === userId &&
+                  Date.now() - Date.parse(cached.at) < CACHE_TTL_MS
+                ) {
                   setProfile(cached.profile);
                   return;
                 }
               } catch (e) {
-                console.error("Failed to parse cached profile", e);
+                logError("Failed to parse cached profile", e);
               }
             }
             throw err;
@@ -149,7 +159,9 @@ export function useAppState(t: Translation) {
   }, [refreshProfile]);
 
   const popStatsKey =
-    profileState && !isGuestProfile(profileState) ? (profileState.id ?? "__no_id__") : null;
+    profileState && !isGuestProfile(profileState)
+      ? (profileState.id ?? "__no_id__")
+      : null;
 
   useEffect(() => {
     if (!popStatsKey) return;
@@ -165,7 +177,7 @@ export function useAppState(t: Translation) {
   const submitBirthYear = async () => {
     const year = parseInt(birthYearInput, 10);
     const thisYear = new Date().getFullYear();
-    if (!Number.isFinite(year) || year < 1900 || year > thisYear) {
+    if (!Number.isFinite(year) || year < 1900 || year > thisYear - 13) {
       toast.error(t.birth_year_invalid);
       return;
     }

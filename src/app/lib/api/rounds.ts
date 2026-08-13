@@ -35,6 +35,7 @@ export type SubmittedRound = {
   totalXp: number;
   level: number;
   leveledUp: boolean;
+  provisional?: boolean;
 };
 
 /** Obtain a short-lived, one-use round ticket before play. */
@@ -56,8 +57,10 @@ export async function submitRound(
   return { ...result, profile: sanitizeProfile(result.profile) };
 }
 
+import { type OfflineRoundPayload, type SyncResult } from "../offline-queue";
+
 export async function syncOfflineRounds(payload: {
-  rounds: unknown[];
-}): Promise<{ results: unknown[] }> {
-  return serverPost<{ results: unknown[] }>("sync-offline-rounds", payload);
+  rounds: OfflineRoundPayload[];
+}): Promise<{ results: SyncResult[] }> {
+  return serverPost<{ results: SyncResult[] }>("sync-offline-rounds", payload);
 }

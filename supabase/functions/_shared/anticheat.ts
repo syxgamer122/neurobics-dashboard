@@ -70,8 +70,19 @@ function inspectReaction(t: Telemetry): CheatFlag[] {
   const out: CheatFlag[] = [];
   const min = Math.min(...rts);
   const med = median(rts);
-  if (min < HUMAN_FLOOR_MS)
-    out.push(flag("Reaction faster than human floor", "hard", { min }));
+  const below = rts.filter((r) => r < HUMAN_FLOOR_MS);
+  if (
+    below.length >= 3 ||
+    (rts.length > 0 && below.length / rts.length >= 0.25)
+  )
+    out.push(
+      flag("Multiple reactions below human floor", "hard", {
+        below: below.length,
+        total: rts.length,
+      }),
+    );
+  else if (below.length > 0)
+    out.push(flag("Isolated sub-floor reaction", "soft", { min }));
   if (med < 130)
     out.push(flag("Reaction median impossibly low", "hard", { med }));
   if (cv(rts) < ROBOT_CV)
@@ -139,14 +150,16 @@ function inspectMemory(t: Telemetry): CheatFlag[] {
   if (!Number.isFinite(timeMs) || !Number.isFinite(cleared)) return [];
   // Chua vuot duoc cap nao => khong co "nhip do" de danh gia. Truoc day van nay
   // bi chia cho maxLevel=1 va reject 422 oan, nguoi choi mat streak/quest.
-  if (cleared < 1) return [];
+  if (cleared < 3) return [];
 
   // timeMs cua Memory la RECALL-ONLY (da tru pha memorize), nen nguong 1200ms
   // moi cap — dat tu thoi timeMs con la wall-clock ca van — la qua cao.
   // ~600ms cho moi cap la san hop ly cho rieng pha recall.
-  const per = timeMs / cleared;
-  if (per < 600)
-    return [flag("Memory pace impossibly fast", "hard", { per, cleared })];
+  const taps = Number(t?.totalTaps);
+  const perTap =
+    Number.isFinite(taps) && taps > 0 ? timeMs / taps : timeMs / cleared / 3;
+  if (perTap < 90)
+    return [flag("Memory pace impossibly fast", "hard", { perTap })];
   return [];
 }
 
@@ -155,8 +168,23 @@ function inspectMemory(t: Telemetry): CheatFlag[] {
  * anticipation). Server khong con hard-reject ca van vi mot mau nhu vay — mau
  * do bi loai khoi thong ke ben round-scoring, con day chi ghi soft flag.
  */
-function inspectSubThreshold(t: Telemetry): CheatFlag[] {
-  const rts = nums(t?.rts);
+function inspectSubThreshold(t: Telemetry, game: Game): CheatFlag[] {
+  const RT_FIELD: Record<Game, string> = {
+    schulte: "hitRts",
+    sudoku: "moveRts",
+    stroop: "rts",
+    reaction: "rts",
+    memory: "rts",
+    nback: "rts",
+    math: "rts",
+    gonogo: "rts",
+    mental: "rts",
+    corsi: "rts",
+    trail: "rts",
+    search: "rts",
+  };
+  const field = RT_FIELD[game] || "rts";
+  const rts = nums((t as any)?.[field] ?? t?.rts);
   if (!rts.length) return [];
   const borderline = rts.filter((r) => r >= HUMAN_FLOOR_MS && r < 120);
   if (!borderline.length) return [];
@@ -350,12 +378,13 @@ function inspectSearch(t: Telemetry): CheatFlag[] {
   const flags: CheatFlag[] = [];
   const score = Number(t?.score);
   const rts = nums(t?.rts);
-  if (score > 120) {
-    flags.push(flag("search: score exceeds human limits", "hard", { score }));
+  const SEARCH_HUMAN_MAX = 80;
+  if (score > SEARCH_HUMAN_MAX) {
+    flags.push(flag("search: score exceeds human limits", "soft", { score }));
   }
   if (rts.length >= 10 && cv(rts) < ROBOT_CV) {
     flags.push(
-      flag("search: mechanically steady pace (robot)", "hard", {
+      flag("search: mechanically steady pace (robot)", "soft", {
         cv: cv(rts),
       }),
     );
@@ -390,7 +419,7 @@ export function inspectRound(
   return {
     flags: [
       ...inspectShared(t, serverElapsedMs),
-      ...inspectSubThreshold(t),
+      ...inspectSubThreshold(t, game),
       ...GAME_INSPECTORS[game](t),
     ],
   };

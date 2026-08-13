@@ -7,6 +7,7 @@ import {
 } from "../config.ts";
 import { authenticatedUser, requireAdmin } from "../security.ts";
 import { logServerEvent, requestIdFor } from "../_shared/observability.ts";
+import { AXIS_COLUMNS } from "../_shared/axes.ts";
 
 export function registerAdminRoutes(app: Hono): void {
   app.post("/server/admin-grant", async (c) => {
@@ -25,16 +26,8 @@ export function registerAdminRoutes(app: Hono): void {
         throw readError ?? new Error("Target not found");
       // supabase-js tra ve union co GenericStringError -> ep ve record de doc cot dong.
       const targetRow = target as unknown as Record<string, unknown>;
-      // Khop src/app/lib/axes.ts
-      const columns: Record<string, string> = {
-        logic: "algebraic_logic_score",
-        memory: "memory_score",
-        speed: "speed_score",
-        focus: "focus_score",
-        spatial: "cfop_spatial_record",
-      };
       const patch: Record<string, number> = {};
-      for (const [key, column] of Object.entries(columns)) {
+      for (const [key, column] of Object.entries(AXIS_COLUMNS)) {
         if (axes[key] === undefined || !Number.isFinite(Number(axes[key])))
           continue;
         const amount = Number(axes[key]),
@@ -72,7 +65,11 @@ export function registerAdminRoutes(app: Hono): void {
           { p_user: targetId },
         );
         if (syncError)
-          console.log(`Admin grant badge sync failed: ${syncError.message}`);
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `Admin grant badge sync failed: ${syncError.message}`,
+          });
       }
 
       logServerEvent({
@@ -158,7 +155,11 @@ export function registerAdminRoutes(app: Hono): void {
             .remove(listed.map((f) => `${targetId}/${f.name}`));
         }
       } catch (storageErr) {
-        console.log(`admin-delete-user storage: ${storageErr}`);
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `admin-delete-user storage: ${storageErr}`,
+        });
       }
 
       // Xoa auth truoc; FK ON DELETE CASCADE don profile va cac bang con.
@@ -166,18 +167,17 @@ export function registerAdminRoutes(app: Hono): void {
         await adminClient.auth.admin.deleteUser(targetId);
       if (authErr) throw authErr;
       // Fallback cho DB cu chua co cascade. Service role nen idempotent.
-      await adminClient
-        .from("account_recovery")
-        .delete()
-        .eq("user_id", targetId);
+
       const { error: profileErr } = await adminClient
         .from("profiles")
         .delete()
         .eq("id", targetId);
       if (profileErr)
-        console.log(
-          `admin-delete-user profile fallback: ${profileErr.message}`,
-        );
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `admin-delete-user profile fallback: ${profileErr.message}`,
+        });
       return c.json({ ok: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

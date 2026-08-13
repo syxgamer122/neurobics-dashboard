@@ -4,7 +4,6 @@ import {
   createRateLimiter,
   requestIdFor,
   sanitizeClientEvents,
-  setEventSink,
 } from "../../_shared/observability.ts";
 import { adminClient } from "../config.ts";
 
@@ -13,14 +12,6 @@ export function registerTelemetryRoutes(app: Hono): void {
   // Trinh duyet gui loi/su kien da lam sach ve day. Khong can dang nhap: loi hay
   // xay ra TRUOC khi co session (man hinh trang, bundle cu, mang chet).
   // Ba lop chan lam dung: gioi han 60 lo/phut/IP, body <= 32KB, <= 20 su kien/lo.
-  setEventSink((rows) => {
-    void adminClient
-      .from("observability_events")
-      .insert(rows)
-      .then(({ error }) => {
-        if (error) console.log(`observability insert failed: ${error.message}`);
-      });
-  });
 
   const telemetryLimiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
 

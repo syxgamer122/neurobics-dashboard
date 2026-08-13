@@ -9,6 +9,8 @@
  *   4. chuỗi an toàn "Nhiệm vụ" / "Quest" (không bao giờ trả lại code)
  */
 
+import { GAME_REGISTRY } from "./game-registry";
+
 export type QuestLang = "vi" | "en";
 
 export const QUEST_LABELS: Record<string, { vi: string; en: string }> = {
@@ -57,19 +59,9 @@ export const QUEST_LABELS: Record<string, { vi: string; en: string }> = {
   },
 };
 
-const QUEST_GAME_NAMES: Record<string, string> = {
-  schulte: "Schulte",
-  sudoku: "Sudoku",
-  stroop: "Stroop",
-  reaction: "Reaction",
-  memory: "Memory",
-  nback: "N-Back",
-  math: "Math Sprint",
-  gonogo: "Go / No-Go",
-  mental: "Mental Rotation",
-  corsi: "Corsi Block",
-  trail: "Trail Making",
-};
+const QUEST_GAME_NAMES: Record<string, string> = Object.fromEntries(
+  GAME_REGISTRY.map((game) => [game.id, game.title]),
+);
 
 /** Dịch mã nhiệm vụ thành câu đọc được từ cấu trúc mã. */
 export function humanizeQuestCode(code: string, lang: QuestLang): string {

@@ -15,30 +15,6 @@ function hex(bytes: ArrayBuffer): string {
     .join("");
 }
 
-/** HMAC cho ma recovery moi. Ma cu SHA-256 van duoc verify de khong khoa user cu. */
-export async function recoveryHmac(
-  username: string,
-  code: string,
-): Promise<string> {
-  const secret = Deno.env.get("RECOVERY_HMAC_SECRET");
-  if (!secret || secret.length < 32)
-    throw new Error("RECOVERY_HMAC_SECRET is not configured securely.");
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return hex(
-    await crypto.subtle.sign(
-      "HMAC",
-      key,
-      new TextEncoder().encode(`${username}:${code}`),
-    ),
-  );
-}
-
 export async function consumeRateLimit(
   key: string,
   limit: number,
@@ -51,16 +27,6 @@ export async function consumeRateLimit(
   });
   if (error) throw new Error(`Rate-limit unavailable: ${error.message}`);
   return data === true;
-}
-
-/** Mã khôi phục dạng XXXX-XXXX-XXXX (dễ chép tay), chỉ hiện 1 lần lúc đăng ký. */
-export function mintRecoveryCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  let raw = "";
-  for (let i = 0; i < 12; i++) raw += alphabet[bytes[i] % alphabet.length];
-  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
 }
 
 export function clientIp(c: Context): string {

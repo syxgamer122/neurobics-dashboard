@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { getOfflineQueue, syncOfflineQueue } from "../lib/offline-queue";
 import { syncOfflineRounds } from "../lib/api";
+import { logError } from "../lib/logger";
 
 export function useOfflineSync() {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -33,7 +34,7 @@ export function useOfflineSync() {
         await syncOfflineQueue(syncOfflineRounds);
         window.dispatchEvent(new Event("offline-sync-complete"));
       } catch (err) {
-        console.error("Auto sync failed:", err);
+        logError("Auto sync failed:", err);
       } finally {
         syncingRef.current = false;
         setIsSyncing(false);
@@ -48,7 +49,7 @@ export function useOfflineSync() {
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline-queue-updated", onQueueUpdated);
-    
+
     // Thu sync ngay luc khoi dong neu co mang
     if (navigator.onLine) {
       void handleOnline();

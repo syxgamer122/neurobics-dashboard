@@ -3,7 +3,7 @@
  * XP measures engagement; Level is derived from total XP.
  */
 
-export const MAX_XP_PER_ROUND = 35;
+export const MAX_XP_PER_ROUND = 60;
 // Daily XP cap enforced server-side only.
 
 /** XP needed to reach a given level (cumulative). */
@@ -58,9 +58,17 @@ export function getLevelColor(level: number): string {
   return "#94A3B8";
 }
 
-/** XP earned for a single round, based on round score (0-1000). */
-export function calculateRoundXp(roundScore: number): number {
+/**
+ * XP earned for a single round.
+ * High scores reward significantly more XP, but fatigue kicks in after many rounds today.
+ */
+export function calculateRoundXp(
+  roundScore: number,
+  roundIndexForGameToday: number = 0,
+): number {
   const score = Math.max(0, Math.min(1000, Math.round(roundScore)));
-  const performanceBonus = Math.floor(score / 50);
-  return Math.min(MAX_XP_PER_ROUND, 15 + performanceBonus);
+  const base = 15;
+  const perf = (score / 1000) * 45; // Max 60
+  const fatigue = Math.max(0.1, 1 - roundIndexForGameToday * 0.15);
+  return Math.max(2, Math.round((base + perf) * fatigue));
 }

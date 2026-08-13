@@ -6,7 +6,11 @@ import {
 } from "../../_shared/anticheat.ts";
 import { AppError } from "../../_shared/errors.ts";
 import { isGame, scoreAndValidate } from "../../_shared/round-scoring.ts";
-import { logServerEvent, requestIdFor } from "../../_shared/observability.ts";
+import {
+  beginRequest,
+  logServerEvent,
+  requestIdFor,
+} from "../../_shared/observability.ts";
 import { adminClient, MAX_TICKET_STARTS_PER_MINUTE } from "../config.ts";
 import { authenticatedUser } from "../security.ts";
 
@@ -59,15 +63,21 @@ export function registerRoundRoutes(app: Hono): void {
         expiresAt: data.expires_at,
       });
     } catch (err) {
-      console.log(`Start round error: ${err}`);
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Start round error: ${err}`,
+      });
       if (err instanceof AppError) {
         return c.json({ error: err.message, code: err.code }, err.status);
       }
-      logServerEvent({ event: "start_round.unhandled", level: "error", message: err instanceof Error ? err.message : String(err), requestId: requestIdFor(c.req.raw) });
-      return c.json(
-        { error: "Could not start round" },
-        500,
-      );
+      logServerEvent({
+        event: "start_round.unhandled",
+        level: "error",
+        message: err instanceof Error ? err.message : String(err),
+        requestId: requestIdFor(c.req.raw),
+      });
+      return c.json({ error: "Could not start round" }, 500);
     }
   });
 
@@ -109,7 +119,11 @@ export function registerRoundRoutes(app: Hono): void {
           .eq("id", ticket.id)
           .is("submitted_at", null);
         if (burnError) {
-          console.log(`Hard-rejected ticket burn failed: ${burnError.message}`);
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `Hard-rejected ticket burn failed: ${burnError.message}`,
+          });
           return c.json({ error: "Round could not be finalized." }, 503);
         }
 
@@ -126,7 +140,11 @@ export function registerRoundRoutes(app: Hono): void {
             },
           );
           if (hardErr)
-            console.log(`Hard cheat flag failed: ${hardErr.message}`);
+            logServerEvent({
+              event: "server.log",
+              level: "error",
+              message: `Hard cheat flag failed: ${hardErr.message}`,
+            });
         }
         logServerEvent({
           event: "anticheat.hard_reject",
@@ -155,7 +173,12 @@ export function registerRoundRoutes(app: Hono): void {
           p_severity: "soft",
           p_details: f.detail ?? {},
         });
-        if (softErr) console.log(`Soft cheat flag failed: ${softErr.message}`);
+        if (softErr)
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `Soft cheat flag failed: ${softErr.message}`,
+          });
       }
 
       // Ghi dấu vân thiết bị (không chặn ván nếu RPC lỗi).
@@ -164,7 +187,12 @@ export function registerRoundRoutes(app: Hono): void {
           p_user_id: user.id,
           p_fingerprint: fingerprint.slice(0, 200),
         });
-        if (fpErr) console.log(`link_device failed: ${fpErr.message}`);
+        if (fpErr)
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `link_device failed: ${fpErr.message}`,
+          });
       }
 
       const scored = scoreAndValidate(gameId, telemetry, serverElapsedMs);
@@ -200,7 +228,11 @@ export function registerRoundRoutes(app: Hono): void {
         })),
       });
     } catch (err) {
-      console.log(`Submit round error: ${err}`);
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Submit round error: ${err}`,
+      });
       const message =
         err instanceof Error
           ? err.message
@@ -222,7 +254,12 @@ export function registerRoundRoutes(app: Hono): void {
         status = 401;
       else if (lower.includes("already submitted")) status = 409;
 
-      logServerEvent({ event: "submit_round.unhandled", level: "error", message: err instanceof Error ? err.message : String(err), requestId: requestIdFor(c.req.raw) });
+      logServerEvent({
+        event: "submit_round.unhandled",
+        level: "error",
+        message: err instanceof Error ? err.message : String(err),
+        requestId: requestIdFor(c.req.raw),
+      });
       return c.json({ error: "Round could not be saved." }, 500);
     }
   });
@@ -244,23 +281,43 @@ export function registerRoundRoutes(app: Hono): void {
 
       const results = [];
       for (const round of rounds) {
-        const { game, telemetry, fingerprint, startedAt, clientElapsedMs, clientRoundId } = round;
+        const {
+          game,
+          telemetry,
+          fingerprint,
+          startedAt,
+          clientElapsedMs,
+          clientRoundId,
+        } = round;
         const gameId = String(game);
         if (!isGame(gameId) || !clientRoundId) {
-          results.push({ clientRoundId: clientRoundId || "unknown", status: "error", error: "Invalid payload" });
+          results.push({
+            clientRoundId: clientRoundId || "unknown",
+            status: "error",
+            error: "Invalid payload",
+          });
           continue;
         }
 
         try {
           const startedMs = Date.parse(startedAt ?? "");
-          if (!Number.isFinite(startedMs) ||
-              startedMs > Date.now() + 60_000 ||
-              Date.now() - startedMs > MAX_OFFLINE_AGE_MS) {
-            results.push({ clientRoundId, status: "rejected", error: "Stale or invalid startedAt" });
+          if (
+            !Number.isFinite(startedMs) ||
+            startedMs > Date.now() + 60_000 ||
+            Date.now() - startedMs > MAX_OFFLINE_AGE_MS
+          ) {
+            results.push({
+              clientRoundId,
+              status: "rejected",
+              error: "Stale or invalid startedAt",
+            });
             continue;
           }
 
-          const elapsed = Math.min(Math.max(Number(clientElapsedMs) || 0, 500), 2 * 3600_000);
+          const elapsed = Math.min(
+            Math.max(Number(clientElapsedMs) || 0, 500),
+            2 * 3600_000,
+          );
 
           // 1. Check for existing ticket by client_round_id for exact idempotency
           const { data: existing } = await adminClient
@@ -285,82 +342,83 @@ export function registerRoundRoutes(app: Hono): void {
                 user_id: user.id,
                 game: gameId,
                 started_at: new Date(startedMs).toISOString(),
-                client_round_id: clientRoundId
+                client_round_id: clientRoundId,
               })
               .select("id")
               .single();
 
-          if (insertErr || !newTicket) {
-            results.push({ clientRoundId, status: "error", error: "Failed to create offline ticket" });
+            if (insertErr || !newTicket) {
+              results.push({
+                clientRoundId,
+                status: "error",
+                error: "Failed to create offline ticket",
+              });
+              continue;
+            }
+            ticket = newTicket;
+          }
+
+          const cheat = inspectRound(gameId, telemetry, elapsed);
+          // Them soft flag canh bao offline
+          cheat.flags.push({
+            severity: "soft",
+            msg: "Offline sync: timing verification bypassed",
+          });
+
+          if (hasHardFlag(cheat)) {
+            await adminClient
+              .from("round_tickets")
+              .update({ submitted_at: new Date().toISOString() })
+              .eq("id", ticket.id);
+            results.push({
+              clientRoundId,
+              status: "rejected",
+              error: "Round rejected: suspicious timing patterns.",
+              code: "anticheat_hard",
+            });
             continue;
           }
-          ticket = newTicket;
-        }
 
-        const cheat = inspectRound(gameId, telemetry, elapsed);
-        // Them soft flag canh bao offline
-        cheat.flags.push({
-          severity: "soft",
-          msg: "Offline sync: timing verification bypassed",
-        });
+          for (const f of softFlags(cheat)) {
+            await adminClient.rpc("record_cheat_flag", {
+              p_user_id: user.id,
+              p_game: gameId,
+              p_reason: f.msg,
+              p_severity: "soft",
+              p_details: f.detail ?? {},
+            });
+          }
 
-        if (hasHardFlag(cheat)) {
-          await adminClient
-            .from("round_tickets")
-            .update({ submitted_at: new Date().toISOString() })
-            .eq("id", ticket.id);
-          results.push({
-            clientRoundId,
-            status: "rejected",
-            error: "Round rejected: suspicious timing patterns.",
-            code: "anticheat_hard",
-          });
-          continue;
-        }
+          const scored = scoreAndValidate(gameId, telemetry, elapsed);
+          const axisPayload = Object.fromEntries(
+            Object.entries(scored.axes).filter(([, value]) => value !== null),
+          );
 
-        for (const f of softFlags(cheat)) {
-          await adminClient.rpc("record_cheat_flag", {
-            p_user_id: user.id,
-            p_game: gameId,
-            p_reason: f.msg,
-            p_severity: "soft",
-            p_details: f.detail ?? {},
-          });
-        }
+          const { data, error } = await adminClient.rpc(
+            "submit_round_transaction",
+            {
+              p_user_id: user.id,
+              p_ticket_id: String(ticket.id),
+              p_game: gameId,
+              p_axes: axisPayload,
+              p_round_score: scored.headline,
+              p_label: scored.label,
+              p_time_ms: Math.round(scored.timeMs),
+            },
+          );
 
-        const scored = scoreAndValidate(
-          gameId,
-          telemetry,
-          elapsed,
-        );
-        const axisPayload = Object.fromEntries(
-          Object.entries(scored.axes).filter(([, value]) => value !== null),
-        );
+          if (error) {
+            results.push({
+              clientRoundId,
+              status: "error",
+              error: error.message,
+            });
+            continue;
+          }
 
-        const { data, error } = await adminClient.rpc(
-          "submit_round_transaction",
-          {
-            p_user_id: user.id,
-            p_ticket_id: String(ticket.id),
-            p_game: gameId,
-            p_axes: axisPayload,
-            p_round_score: scored.headline,
-            p_label: scored.label,
-            p_time_ms: Math.round(scored.timeMs),
-          },
-        );
-
-        if (error) {
-          results.push({
-            clientRoundId,
-            status: "error",
-            error: error.message,
-          });
-          continue;
-        }
-
-        results.push({ clientRoundId, status: "ok" });
+          results.push({ clientRoundId, status: "ok" });
         } catch (err) {
+          const requestId = requestIdFor(c.req.raw) ?? beginRequest(c.req.raw);
           logServerEvent({
             event: "offline_sync.round_failed",
             level: "warn",
@@ -369,13 +427,21 @@ export function registerRoundRoutes(app: Hono): void {
             requestId: requestIdFor(c.req.raw),
             message: err instanceof Error ? err.message : String(err),
           });
-          results.push({ clientRoundId, status: "rejected", error: "Round could not be validated" });
+          results.push({
+            clientRoundId,
+            status: "rejected",
+            error: "Round could not be validated",
+          });
         }
       }
 
       return c.json({ results });
     } catch (err) {
-      console.log(`Sync rounds error: ${err}`);
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Sync rounds error: ${err}`,
+      });
       return c.json({ error: String(err) }, 500);
     }
   });

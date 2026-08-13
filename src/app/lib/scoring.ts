@@ -169,12 +169,10 @@ export function daysSince(
  * measurement instead of a trophy: stop training and the number drifts back.
  * Bounded by DECAY_FLOOR_RATIO so a long break never erases a player entirely.
  */
-export function decayRating(value: number, idleDays: number): number {
-  const v = sanitizeRating(value);
-  if (v <= 0 || idleDays <= DECAY_GRACE_DAYS) return v;
-  const weeks = (idleDays - DECAY_GRACE_DAYS) / 7;
-  const decayed = v * Math.pow(1 - DECAY_PER_WEEK, weeks);
-  return clampRating(Math.max(decayed, v * DECAY_FLOOR_RATIO));
+export function decayRating(value: number, _idleDays: number): number {
+  // Decay without peak tracking causes score erosion upon write-back.
+  // Disabled (returns original value) until peak tracking is implemented.
+  return sanitizeRating(value);
 }
 
 // ─── Small stats helpers ───────────────────────────────────────────────
@@ -520,6 +518,17 @@ export type BrainAgeInput = {
  * peers. Someone who is 55 and outperforms 90% of users is told they are ~43,
  * not "18" — the number now means something relative to their own life stage.
  */
+export function blendPopulation(pop: PopulationStats): PopulationStats {
+  if (pop.n >= MIN_POPULATION * 4) return pop;
+  // Shrinkage ki?u Bayes: m?u cng nh? cng nghing v? phn ph?i m?i.
+  const w = Math.max(0, Math.min(1, pop.n / (MIN_POPULATION * 4)));
+  return {
+    mean: w * pop.mean + (1 - w) * DEFAULT_POPULATION.mean,
+    sd: Math.max(60, w * pop.sd + (1 - w) * DEFAULT_POPULATION.sd),
+    n: pop.n,
+  };
+}
+
 export function calcBrainAge(
   { cognitiveIndex, birthYear, roundsPlayed }: BrainAgeInput,
   pop: PopulationStats = DEFAULT_POPULATION,
@@ -536,7 +545,8 @@ export function calcBrainAge(
   }
 
   const realAge = Math.max(5, Math.min(120, now.getFullYear() - birthYear));
-  const percentile = percentileOf(cognitiveIndex, pop);
+  const blendedPop = blendPopulation(pop);
+  const percentile = percentileOf(cognitiveIndex, blendedPop);
 
   // Centre the percentile so the median player sits exactly at their real age.
   const advantage = (percentile - 0.5) * 2 * MAX_AGE_SWING;

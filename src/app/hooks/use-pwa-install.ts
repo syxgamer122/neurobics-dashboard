@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -13,8 +13,6 @@ type InstallOutcome = "accepted" | "dismissed" | "unavailable";
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let installed = false;
 const listeners = new Set<() => void>();
-
-const emit = () => listeners.forEach((listener) => listener());
 
 function detectStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -33,10 +31,33 @@ function detectIos(): boolean {
   );
 }
 
-// Khoi tao listener ngay khi module duoc import. Neu doi den luc mo trang Ho so,
-// su kien beforeinstallprompt co the da phat xong va nut Cai dat se khong hien.
+let currentSnapshot = {
+  canInstall: false,
+  isInstalled: false,
+  isIos: false,
+};
+
+function updateSnapshot() {
+  const canInstall = deferredPrompt !== null;
+  const isInstalled = installed || detectStandalone();
+  const isIos = detectIos();
+  if (
+    currentSnapshot.canInstall !== canInstall ||
+    currentSnapshot.isInstalled !== isInstalled ||
+    currentSnapshot.isIos !== isIos
+  ) {
+    currentSnapshot = { canInstall, isInstalled, isIos };
+  }
+}
+
+const emit = () => {
+  updateSnapshot();
+  listeners.forEach((listener) => listener());
+};
+
 if (typeof window !== "undefined") {
   installed = detectStandalone();
+  updateSnapshot();
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
@@ -51,16 +72,20 @@ if (typeof window !== "undefined") {
   });
 }
 
-export function usePwaInstall() {
-  const [, refresh] = useState(0);
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
 
-  useEffect(() => {
-    const listener = () => refresh((value) => value + 1);
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, []);
+const getSnapshot = () => currentSnapshot;
+const getServerSnapshot = () => ({
+  canInstall: false,
+  isInstalled: false,
+  isIos: false,
+});
+
+export function usePwaInstall() {
+  const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const install = useCallback(async (): Promise<InstallOutcome> => {
     const prompt = deferredPrompt;
@@ -68,7 +93,6 @@ export function usePwaInstall() {
 
     await prompt.prompt();
     const choice = await prompt.userChoice;
-    // Moi BeforeInstallPromptEvent chi duoc dung mot lan, ke ca khi nguoi dung tu choi.
     deferredPrompt = null;
     if (choice.outcome === "accepted") installed = true;
     emit();
@@ -76,9 +100,7 @@ export function usePwaInstall() {
   }, []);
 
   return {
-    canInstall: deferredPrompt !== null,
-    isInstalled: installed || detectStandalone(),
-    isIos: detectIos(),
+    ...state,
     install,
   };
 }

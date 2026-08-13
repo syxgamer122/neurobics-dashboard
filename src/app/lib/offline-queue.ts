@@ -1,4 +1,5 @@
 import { type RoundGame } from "./api";
+import { logError } from "./logger";
 
 export interface OfflineRoundPayload {
   clientRoundId: string;
@@ -30,7 +31,12 @@ export function writeOfflineQueue(q: OfflineRoundPayload[]): void {
   window.dispatchEvent(new Event("offline-queue-updated"));
 }
 
-export function pushOfflineRound(round: Omit<OfflineRoundPayload, "clientRoundId" | "schemaVersion" | "createdAt">): boolean {
+export function pushOfflineRound(
+  round: Omit<
+    OfflineRoundPayload,
+    "clientRoundId" | "schemaVersion" | "createdAt"
+  >,
+): boolean {
   try {
     const queue = getOfflineQueue();
     if (queue.length >= MAX_QUEUE) {
@@ -45,7 +51,7 @@ export function pushOfflineRound(round: Omit<OfflineRoundPayload, "clientRoundId
     writeOfflineQueue(queue);
     return true;
   } catch (err) {
-    console.error("Failed to push to offline queue:", err);
+    logError("Failed to push to offline queue:", err);
     return false;
   }
 }
@@ -55,7 +61,10 @@ export function clearOfflineQueue(): void {
   window.dispatchEvent(new Event("offline-queue-updated"));
 }
 
-export type SyncResult = { clientRoundId: string; status: "ok" | "duplicate" | "rejected" | "error" };
+export type SyncResult = {
+  clientRoundId: string;
+  status: "ok" | "duplicate" | "rejected" | "error";
+};
 
 // Hàm đồng bộ lên server khi có mạng
 export async function syncOfflineQueue(
@@ -71,20 +80,27 @@ export async function syncOfflineQueue(
     const batch = queueSnapshot.slice(0, 25);
     const response = await syncEndpoint({ rounds: batch });
     const results = response.results || [];
-    
+
     // Only remove items that are ok, duplicate, or rejected. Keep others (e.g. error/timeout).
     const settledIds = new Set(
       results
-        .filter((r) => r.status === "ok" || r.status === "duplicate" || r.status === "rejected")
-        .map((r) => r.clientRoundId)
+        .filter(
+          (r) =>
+            r.status === "ok" ||
+            r.status === "duplicate" ||
+            r.status === "rejected",
+        )
+        .map((r) => r.clientRoundId),
     );
 
     // Re-read queue before writing to avoid race condition (losing rounds played during await)
     const freshQueue = getOfflineQueue();
-    const newQueue = freshQueue.filter((item) => !settledIds.has(item.clientRoundId));
+    const newQueue = freshQueue.filter(
+      (item) => !settledIds.has(item.clientRoundId),
+    );
     writeOfflineQueue(newQueue);
   } catch (err) {
-    console.error("Failed to sync offline queue:", err);
+    logError("Failed to sync offline queue:", err);
     throw err;
   }
 }

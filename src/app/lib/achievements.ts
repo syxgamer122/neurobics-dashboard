@@ -8,6 +8,8 @@
  * Migration tương ứng: supabase/migrations/20260825_achievement_depth.sql
  */
 
+import { GAME_IDS } from "./game-registry";
+
 export type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "diamond";
 
 export type BadgeCategory =
@@ -263,8 +265,8 @@ export const BADGES: Badge[] = [
     xp: 80,
     tier: "silver",
     category: "breadth",
-    vi: ["Toàn năng", "Chơi đủ 9 trò"],
-    en: ["All-Rounder", "Play all 9 games"],
+    vi: ["Toàn năng", `Chơi đủ ${GAME_IDS.length} trò`],
+    en: ["All-Rounder", `Play all ${GAME_IDS.length} games`],
   },
   {
     code: "all_games_10",
@@ -452,7 +454,7 @@ export const BADGES: Badge[] = [
   },
   {
     code: "nback_deep",
-    icon: "🕱️",
+    icon: "🧬",
     xp: 200,
     tier: "platinum",
     category: "game",

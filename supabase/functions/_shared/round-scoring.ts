@@ -53,7 +53,11 @@ export function scoreAndValidate(
     serverElapsedMs < 500 ||
     serverElapsedMs > 2 * 60 * 60 * 1000
   ) {
-    throw new AppError("Round duration is invalid or expired", 422, "invalid_duration");
+    throw new AppError(
+      "Round duration is invalid or expired",
+      422,
+      "invalid_duration",
+    );
   }
 
   assertCountBounds(game, telemetry);
@@ -66,7 +70,11 @@ export function scoreAndValidate(
   const scored = SCORERS[game](asTelemetry(telemetry));
   // Client time may exclude fixed animations/waits, but cannot exceed server by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000) {
-    throw new AppError("Telemetry time exceeds server round time", 422, "invalid_duration");
+    throw new AppError(
+      "Telemetry time exceeds server round time",
+      422,
+      "invalid_duration",
+    );
   }
   return scored;
 }
