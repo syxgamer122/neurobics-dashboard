@@ -93,7 +93,6 @@ export type FriendRank = {
   avatar_url: string | null;
   cognitive_index: number;
   total_xp: number;
-  synapse_streak: number;
   is_me: boolean;
 };
 
@@ -112,7 +111,6 @@ export async function fetchFriendLeaderboard(): Promise<FriendRank[]> {
     avatar_url: (row.avatar_url as string | null) ?? null,
     cognitive_index: Number(row.cognitive_index ?? 0),
     total_xp: Number(row.total_xp ?? 0),
-    synapse_streak: Number(row.synapse_streak ?? 0),
     is_me: Boolean(row.is_me),
   }));
 }

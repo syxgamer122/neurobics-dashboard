@@ -67,7 +67,7 @@ export function registerRoundRoutes(app: Hono): void {
   });
 
   // One finish request: validate telemetry, score on server, atomically save axes,
-  // session, streak and XP, then return the fresh profile for immediate rendering.
+  // session, and XP, then return the fresh profile for immediate rendering.
   app.post("/server/submit-round", async (c) => {
     try {
       const user = await authenticatedUser(c);

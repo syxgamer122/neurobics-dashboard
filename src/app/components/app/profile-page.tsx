@@ -40,14 +40,7 @@ export function ProfilePage({
             color="#00D4FF"
           />
         </GlassCard>
-        <GlassCard accent="#F59E0B" className="p-5">
-          <StatMini
-            label={t.synapse_streak}
-            value={String(profile.synapse_streak)}
-            unit={t.days}
-            color="#F59E0B"
-          />
-        </GlassCard>
+
         <GlassCard accent="#A855F7" className="p-5">
           <StatMini
             label={t.clearance}

@@ -109,7 +109,7 @@ describe("can bang phan thuong", () => {
 
   it("TOTAL_BADGE_XP dung bang tong", () => {
     expect(TOTAL_BADGE_XP).toBe(BADGES.reduce((s, b) => s + b.xp, 0));
-    expect(TOTAL_BADGE_XP).toBe(8200);
+    expect(TOTAL_BADGE_XP).toBe(7040);
   });
 });
 
@@ -158,7 +158,7 @@ describe("anh chup danh muc", () => {
   // Chot so luong hien tai. Them badge moi la viec binh thuong — khi do sua
   // con so o day cho khop, coi nhu mot buoc xac nhan co y thuc.
   it("co dung 55 badge", () => {
-    expect(BADGES).toHaveLength(55);
+    expect(BADGES).toHaveLength(48);
   });
 
   it("phan bo theo nhom", () => {
@@ -166,7 +166,7 @@ describe("anh chup danh muc", () => {
     for (const b of BADGES) dem[b.category] = (dem[b.category] ?? 0) + 1;
     expect(dem).toEqual({
       volume: 7,
-      streak: 7,
+
       level: 6,
       mastery: 7,
       breadth: 3,
@@ -179,11 +179,11 @@ describe("anh chup danh muc", () => {
     const dem: Record<string, number> = {};
     for (const b of BADGES) dem[b.tier] = (dem[b.tier] ?? 0) + 1;
     expect(dem).toEqual({
-      bronze: 4,
-      silver: 16,
-      gold: 19,
-      platinum: 10,
-      diamond: 6,
+      bronze: 3,
+      silver: 14,
+      gold: 17,
+      platinum: 9,
+      diamond: 5,
     });
   });
 

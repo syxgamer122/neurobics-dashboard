@@ -133,7 +133,6 @@ export function AdminOverview({
                 {selectedUser.username}
               </div>
               <div className="text-xs text-slate-500 mt-0.5">
-                streak {selectedUser.synapse_streak}d ·{" "}
                 {selectedUser.algebraic_logic_score} pts
               </div>
             </div>

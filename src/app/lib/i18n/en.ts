@@ -3,7 +3,6 @@ import { vi } from "./vi.ts";
 
 export const en: typeof vi = {
   league: "MASTERMIND LEAGUE",
-  day_streak: "day streak",
 
   cognitive_index: "Cognitive Index Score",
   balanced_avg: "5-axis average",
@@ -29,7 +28,6 @@ export const en: typeof vi = {
   cog_matrix_sub: (sessions: number) =>
     `5-domain neural assessment · ${sessions} sessions`,
   live: "LIVE",
-  synapse_streak: "Synapse Streak",
   this_month: "This Month",
   xp_today: "XP Today",
   level_label: "LEVEL",
@@ -79,8 +77,6 @@ export const en: typeof vi = {
   mem_max_level: "Max Level",
   game_over: "GAME OVER",
   abort_restart: "ABORT & RESTART",
-  streak_week_label: "Current streak (up to 7 dots)",
-  streak_tz_note: "Resets 00:00 GMT+7",
   heart_full: "Life remaining",
   heart_empty: "Life lost",
   cell_label: "Cell",

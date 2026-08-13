@@ -144,8 +144,7 @@ const DAY_MS = 86_400_000;
  * Whole days between an ISO `YYYY-MM-DD` date and now. Negative clamps to 0.
  *
  * `last_active_date` duoc ghi bang vnDateString() — tuc NGAY LICH Viet Nam
- * (UTC+7). Neu parse moc do o UTC thi decay va streak dung hai dinh nghia
- * "ngay" khac nhau, lech toi 7 gio. Parse ca hai dau o +07:00 cho thong nhat.
+ * (UTC+7). Parse ca hai dau o +07:00 cho thong nhat.
  */
 export const VN_UTC_OFFSET = "+07:00";
 
@@ -249,7 +248,7 @@ export type SudokuTelemetry = BaseTelemetry & {
    * diem Speed cho nguoi bam bua.
    */
   wrongMoveRts?: number[];
-  /** true khi thua het mang — van submit de ghi streak/quest/ticket. */
+  /** true khi thua het mang — van submit de ghi quest/ticket. */
   failed?: boolean;
   /** So o de lo THUC TE cua de nay (>= muc chuan neu generator het budget). */
   actualClues?: number;

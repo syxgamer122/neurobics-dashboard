@@ -266,7 +266,7 @@ export function AdminControls({
             </span>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed mb-3">
-            Xóa toàn bộ điểm số và streak về 0.
+            Xóa toàn bộ điểm số về 0.
           </p>
           {selectedUser && (
             <div className="grid grid-cols-4 gap-1 mb-3 text-center">

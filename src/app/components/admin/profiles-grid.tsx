@@ -3,7 +3,7 @@ import { totalSessions, type Profile } from "../../lib/api";
 import { ADMIN_COLORS } from "./constants";
 import { Panel } from "./ui";
 
-const { green, blue, amber, red, purple } = ADMIN_COLORS;
+const { green, amber, red, purple } = ADMIN_COLORS;
 
 export function ProfilesGrid({
   rows,
@@ -89,7 +89,6 @@ export function ProfilesGrid({
                   "Memory",
                   "Speed",
                   "Focus",
-                  "Streak",
                   "Sessions",
                 ].map((column) => (
                   <th
@@ -183,9 +182,7 @@ export function ProfilesGrid({
                     >
                       {(row.focus_score ?? 0).toLocaleString()}
                     </td>
-                    <td className="px-4 py-2.5 text-xs" style={{ color: blue }}>
-                      {row.synapse_streak}
-                    </td>
+
                     <td className="px-4 py-2.5 text-xs text-slate-500">
                       {totalSessions(row)}
                     </td>
