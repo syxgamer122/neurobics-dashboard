@@ -226,6 +226,13 @@ export function registerRoundRoutes(app: Hono): void {
       if (!Array.isArray(rounds))
         return c.json({ error: "rounds must be an array" }, 400);
 
+      const MAX_SYNC_BATCH = 25;
+      const MAX_OFFLINE_AGE_MS = 7 * 24 * 3600_000;
+
+      if (rounds.length > MAX_SYNC_BATCH) {
+        return c.json({ error: "Too many rounds in one batch" }, 413);
+      }
+
       const results = [];
       for (const round of rounds) {
         const { game, telemetry, fingerprint, startedAt, clientElapsedMs, clientRoundId } = round;
@@ -235,35 +242,44 @@ export function registerRoundRoutes(app: Hono): void {
           continue;
         }
 
-        const fallbackStartedAt = startedAt || new Date().toISOString();
+        try {
+          const startedMs = Date.parse(startedAt ?? "");
+          if (!Number.isFinite(startedMs) ||
+              startedMs > Date.now() + 60_000 ||
+              Date.now() - startedMs > MAX_OFFLINE_AGE_MS) {
+            results.push({ clientRoundId, status: "rejected", error: "Stale or invalid startedAt" });
+            continue;
+          }
 
-        // 1. Check for existing ticket with same game + user + started_at to avoid duplicates
-        const { data: existing } = await adminClient
-          .from("round_tickets")
-          .select("id, submitted_at")
-          .eq("user_id", user.id)
-          .eq("game", gameId)
-          .eq("started_at", fallbackStartedAt)
-          .single();
+          const elapsed = Math.min(Math.max(Number(clientElapsedMs) || 0, 500), 2 * 3600_000);
 
-        if (existing?.submitted_at) {
-          results.push({ clientRoundId, status: "duplicate" });
-          continue;
-        }
-
-        let ticket = existing;
-
-        if (!ticket) {
-          // Tao 1 ticket thuc su tren DB de pass duoc submit_round_transaction
-          const { data: newTicket, error: insertErr } = await adminClient
+          // 1. Check for existing ticket by client_round_id for exact idempotency
+          const { data: existing } = await adminClient
             .from("round_tickets")
-            .insert({
-              user_id: user.id,
-              game: gameId,
-              started_at: fallbackStartedAt,
-            })
-            .select("id")
-            .single();
+            .select("id, submitted_at")
+            .eq("user_id", user.id)
+            .eq("client_round_id", clientRoundId)
+            .maybeSingle();
+
+          if (existing?.submitted_at) {
+            results.push({ clientRoundId, status: "duplicate" });
+            continue;
+          }
+
+          let ticket = existing;
+
+          if (!ticket) {
+            // Tao 1 ticket thuc su tren DB
+            const { data: newTicket, error: insertErr } = await adminClient
+              .from("round_tickets")
+              .insert({
+                user_id: user.id,
+                game: gameId,
+                started_at: new Date(startedMs).toISOString(),
+                client_round_id: clientRoundId
+              })
+              .select("id")
+              .single();
 
           if (insertErr || !newTicket) {
             results.push({ clientRoundId, status: "error", error: "Failed to create offline ticket" });
@@ -272,7 +288,7 @@ export function registerRoundRoutes(app: Hono): void {
           ticket = newTicket;
         }
 
-        const cheat = inspectRound(gameId, telemetry, clientElapsedMs || 0);
+        const cheat = inspectRound(gameId, telemetry, elapsed);
         // Them soft flag canh bao offline
         cheat.flags.push({
           severity: "soft",
@@ -306,7 +322,7 @@ export function registerRoundRoutes(app: Hono): void {
         const scored = scoreAndValidate(
           gameId,
           telemetry,
-          clientElapsedMs || 0,
+          elapsed,
         );
         const axisPayload = Object.fromEntries(
           Object.entries(scored.axes).filter(([, value]) => value !== null),
@@ -335,6 +351,17 @@ export function registerRoundRoutes(app: Hono): void {
         }
 
         results.push({ clientRoundId, status: "ok" });
+        } catch (err) {
+          logServerEvent({
+            event: "offline_sync.round_failed",
+            level: "warn",
+            game: gameId,
+            userId: user.id,
+            requestId: requestIdFor(c.req.raw),
+            message: err instanceof Error ? err.message : String(err),
+          });
+          results.push({ clientRoundId, status: "rejected", error: "Round could not be validated" });
+        }
       }
 
       return c.json({ results });

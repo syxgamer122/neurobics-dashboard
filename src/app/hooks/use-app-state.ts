@@ -22,6 +22,13 @@ import type { DockPage } from "../components/floating-dock";
 import type { RoundResult } from "../components/ui/round-result-overlay";
 
 export const CACHED_PROFILE_KEY = "mindgem.cached_profile";
+const CACHE_TTL_MS = 7 * 24 * 3600_000;
+
+type CachedProfile = {
+  userId: string;
+  profile: Profile;
+  at: string;
+};
 
 export function useAppState(t: Translation) {
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
@@ -33,8 +40,19 @@ export function useAppState(t: Translation) {
   const setProfile = useCallback((p: Profile | null) => {
     setProfileState(p);
     try {
-      if (p) localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(p));
-      else localStorage.removeItem(CACHED_PROFILE_KEY);
+      if (p) {
+        (async () => {
+          const userId = await currentUserId();
+          if (userId && p.id === userId) {
+            localStorage.setItem(
+              CACHED_PROFILE_KEY,
+              JSON.stringify({ userId: p.id, profile: p, at: new Date().toISOString() })
+            );
+          }
+        })();
+      } else {
+        localStorage.removeItem(CACHED_PROFILE_KEY);
+      }
     } catch {
       // Ignore quota/private mode errors
     }
@@ -90,13 +108,15 @@ export function useAppState(t: Translation) {
           } catch (err) {
             if (isNetworkErrorLike(err)) {
               try {
-                const cached = localStorage.getItem(CACHED_PROFILE_KEY);
-                if (cached) {
-                  setProfile(JSON.parse(cached));
+                const userId = await currentUserId();
+                const cachedStr = localStorage.getItem(CACHED_PROFILE_KEY);
+                const cached = cachedStr ? (JSON.parse(cachedStr) as CachedProfile) : null;
+                if (cached?.userId === userId && Date.now() - Date.parse(cached.at) < CACHE_TTL_MS) {
+                  setProfile(cached.profile);
                   return;
                 }
-              } catch {
-                /* ignore */
+              } catch (e) {
+                console.error("Failed to parse cached profile", e);
               }
             }
             throw err;
