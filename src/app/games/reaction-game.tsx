@@ -83,7 +83,7 @@ export function ReactionTimeGame({
     scheduleTrial();
   };
 
-  const finishGame = async (completedRts: number[]) => {
+  const finishGame = useCallback(async (completedRts: number[]) => {
     clearTimers();
     setPhase("done");
     setSaving(true);
@@ -104,7 +104,7 @@ export function ReactionTimeGame({
     } finally {
       setSaving(false);
     }
-  };
+  }, [clearTimers, onComplete, setPhase]);
 
   const handlePadPress = useCallback(
     (inputType: InputType, ts: number) => {
@@ -144,7 +144,7 @@ export function ReactionTimeGame({
         nextTimerRef.current = setTimeout(scheduleTrial, 900);
       }
     },
-    [rts, setPhase, t.rx_too_soon_msg, scheduleTrial],
+    [rts, setPhase, t.rx_too_soon_msg, scheduleTrial, finishGame],
   );
 
   const padProps = press(handlePadPress);

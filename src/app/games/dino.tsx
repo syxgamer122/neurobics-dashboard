@@ -57,7 +57,9 @@ export function DinoGame({
 
   useEffect(() => {
     return () => {
-      if (duckTimeoutRef.current) clearTimeout(duckTimeoutRef.current);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const timeoutId = duckTimeoutRef.current;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
