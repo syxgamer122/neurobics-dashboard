@@ -177,14 +177,16 @@ export function useRoundSubmission({
       }
 
       if (ticket.roundId.startsWith("offline-")) {
-        pushOfflineRound({
+        const pushed = pushOfflineRound({
           game,
           telemetry,
           fingerprint: "offline",
           startedAt: ticket.startedAt,
           clientElapsedMs: elapsedMs,
         });
-        const result = completeLocalRound(current!, game, telemetry, elapsedMs);
+        if (!pushed) throw new Error("Offline queue full. Cannot save round.");
+        if (!current) throw new Error("Profile not loaded.");
+        const result = completeLocalRound(current, game, telemetry, elapsedMs);
         setProfile(result.profile);
         delete roundTicketsRef.current[game];
         delete guestPlayStartedAtRef.current[game];
@@ -199,15 +201,17 @@ export function useRoundSubmission({
         return result;
       } catch (err) {
         if (isNetworkErrorLike(err)) {
-          pushOfflineRound({
+          const pushed = pushOfflineRound({
             game,
             telemetry,
             fingerprint: "offline-fallback",
             startedAt: ticket.startedAt,
             clientElapsedMs: elapsedMs,
           });
+          if (!pushed) throw new Error("Offline queue full. Cannot save round.");
+          if (!current) throw new Error("Profile not loaded.");
           const result = completeLocalRound(
-            current!,
+            current,
             game,
             telemetry,
             elapsedMs,
@@ -220,7 +224,7 @@ export function useRoundSubmission({
 
         const msg = err instanceof Error ? err.message : String(err);
         if (
-          /already submitted|expired|ticket not found|round rejected/i.test(msg)
+          /already submitted|expired|ticket not found|round rejected|anticheat_hard/i.test(msg)
         )
           delete roundTicketsRef.current[game];
         throw err;
@@ -259,7 +263,7 @@ export function useRoundSubmission({
       } catch (err) {
         logError(`${game} submit failed:`, err);
         const msg = err instanceof Error ? err.message : String(err);
-        const ticketGone = /already submitted|expired|ticket not found/i.test(
+        const ticketGone = /already submitted|expired|ticket not found|round rejected|anticheat_hard/i.test(
           msg,
         );
 

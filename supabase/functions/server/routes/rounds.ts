@@ -4,6 +4,7 @@ import {
   inspectRound,
   softFlags,
 } from "../../_shared/anticheat.ts";
+import { AppError } from "../../_shared/errors.ts";
 import { isGame, scoreAndValidate } from "../../_shared/round-scoring.ts";
 import { logServerEvent, requestIdFor } from "../../_shared/observability.ts";
 import { adminClient, MAX_TICKET_STARTS_PER_MINUTE } from "../config.ts";
@@ -59,9 +60,13 @@ export function registerRoundRoutes(app: Hono): void {
       });
     } catch (err) {
       console.log(`Start round error: ${err}`);
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.status);
+      }
+      logServerEvent({ event: "start_round.unhandled", level: "error", message: err instanceof Error ? err.message : String(err), requestId: requestIdFor(c.req.raw) });
       return c.json(
-        { error: err instanceof Error ? err.message : String(err) },
-        401,
+        { error: "Could not start round" },
+        500,
       );
     }
   });
@@ -137,7 +142,7 @@ export function registerRoundRoutes(app: Hono): void {
           {
             error: "Round rejected: suspicious timing patterns.",
             code: "anticheat_hard",
-            flags: hard.map((f) => f.msg),
+            flags: ["timing_patterns_rejected"],
           },
           422,
         );
@@ -202,19 +207,23 @@ export function registerRoundRoutes(app: Hono): void {
           : typeof err === "object" && err !== null && "message" in err
             ? String((err as { message: unknown }).message)
             : JSON.stringify(err);
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.status);
+      }
+
       const lower = message.toLowerCase();
       // Hono chi nhan ContentfulStatusCode, khong nhan number chung chung.
-      let status: 400 | 401 | 409 = 400;
+      let status: 400 | 401 | 409 | 422 | 500 = 400;
       if (
         lower.includes("authorization") ||
         lower.includes("session") ||
-        lower.includes("expired") ||
-        lower.includes("invalid or expired") ||
         lower.includes("missing authorization")
       )
         status = 401;
       else if (lower.includes("already submitted")) status = 409;
-      return c.json({ error: message }, status);
+
+      logServerEvent({ event: "submit_round.unhandled", level: "error", message: err instanceof Error ? err.message : String(err), requestId: requestIdFor(c.req.raw) });
+      return c.json({ error: "Round could not be saved." }, 500);
     }
   });
 

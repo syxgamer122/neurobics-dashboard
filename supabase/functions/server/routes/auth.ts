@@ -25,26 +25,14 @@ export function registerAuthRoutes(app: Hono): void {
     try {
       const ip = clientIp(c);
       const ipHash = await sha256(`mindgem-signup:${ip}`);
-      // Chi HOI xem con luot khong, khong tru luot o day. Viec tru duoc doi
-      // den luc tai khoan that su duoc tao, o cuoi ham nay.
-      const { data: allowed, error: rateError } = await adminClient.rpc(
-        "check_signup_rate_limit",
-        {
-          p_key: ipHash,
-          p_limit: SIGNUP_LIMIT,
-          p_window_seconds: SIGNUP_WINDOW_SECONDS,
-        },
+      // Kiem tra va tieu thu rate limit ngay de chong TOCTOU (flood)
+      const allowed = await consumeRateLimit(
+        ipHash,
+        SIGNUP_LIMIT,
+        SIGNUP_WINDOW_SECONDS,
       );
 
-      if (rateError) {
-        console.log(`Signup rate-limit error: ${rateError.message}`);
-        return c.json(
-          {
-            error: "Signup is temporarily unavailable. Please try again later.",
-          },
-          503,
-        );
-      }
+
       if (allowed !== true) {
         return c.json(
           {
@@ -77,15 +65,7 @@ export function registerAuthRoutes(app: Hono): void {
         );
       }
 
-      // Dem moi lan da qua captcha (ke ca fail) — chan do username vo han.
-      const { error: recordEarlyErr } = await adminClient.rpc(
-        "record_signup_attempt",
-        { p_key: ipHash, p_window_seconds: SIGNUP_WINDOW_SECONDS },
-      );
-      if (recordEarlyErr)
-        console.log(
-          `Signup rate-limit record failed: ${recordEarlyErr.message}`,
-        );
+      // Dem thanh cong thuc su cho rate limit thu 2 (thay vi dung record_signup_attempt som)
 
       const normalized = String(username).trim().toLowerCase();
       const pw = String(password);
@@ -278,6 +258,15 @@ export function registerAuthRoutes(app: Hono): void {
         );
       }
 
+      const eq = (a: string, b: string) => {
+        if (a.length !== b.length) return false;
+        let diff = 0;
+        for (let i = 0; i < a.length; i++) {
+          diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+        }
+        return diff === 0;
+      };
+
       const codeUpper = String(recoveryCode).trim().toUpperCase();
       const codeRaw = String(recoveryCode).trim();
       const candidate = await recoveryHmac(normalized, codeUpper);
@@ -297,12 +286,12 @@ export function registerAuthRoutes(app: Hono): void {
         `neurobics-recovery:${normalized}:${codeRaw}`,
       );
       if (
-        candidate !== rec.code_hash &&
-        candidateRaw !== rec.code_hash &&
-        legacyMindgem !== rec.code_hash &&
-        legacyMindgemRaw !== rec.code_hash &&
-        legacyNeuro !== rec.code_hash &&
-        legacyNeuroRaw !== rec.code_hash
+        !eq(candidate, rec.code_hash) &&
+        !eq(candidateRaw, rec.code_hash) &&
+        !eq(legacyMindgem, rec.code_hash) &&
+        !eq(legacyMindgemRaw, rec.code_hash) &&
+        !eq(legacyNeuro, rec.code_hash) &&
+        !eq(legacyNeuroRaw, rec.code_hash)
       ) {
         return c.json(
           { error: "Invalid recovery code or username.", code: "bad_recovery" },
@@ -310,18 +299,25 @@ export function registerAuthRoutes(app: Hono): void {
         );
       }
 
-      const { error: upErr } = await adminClient.auth.admin.updateUserById(
-        prof.id,
-        { password: String(newPassword) },
-      );
+      const { error: upErr } = await adminClient.auth.admin.updateUserById(prof.id, {
+        password: String(newPassword),
+      });
       if (upErr) throw upErr;
 
-      await adminClient
-        .from("account_recovery")
-        .delete()
-        .eq("user_id", prof.id);
+      // Da moi phien dang mo hien tai
+      await adminClient.auth.admin.signOut(prof.id, "global");
 
-      return c.json({ ok: true });
+      // Xoay ma moi, tra ve dung 1 lan de user giu
+      const nextCode = mintRecoveryCode();
+      const nextHash = await recoveryHmac(normalized, nextCode);
+      
+      await adminClient.from("account_recovery").upsert({
+        user_id: prof.id,
+        code_hash: nextHash,
+        created_at: new Date().toISOString(),
+      });
+
+      return c.json({ ok: true, recoveryCode: nextCode });
     } catch (err) {
       console.log(`Recover password error: ${err}`);
       return c.json(

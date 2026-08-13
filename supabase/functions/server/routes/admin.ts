@@ -6,6 +6,7 @@ import {
   XP_MAX,
 } from "../config.ts";
 import { authenticatedUser, requireAdmin } from "../security.ts";
+import { logServerEvent, requestIdFor } from "../_shared/observability.ts";
 
 export function registerAdminRoutes(app: Hono): void {
   app.post("/server/admin-grant", async (c) => {
@@ -73,6 +74,16 @@ export function registerAdminRoutes(app: Hono): void {
         if (syncError)
           console.log(`Admin grant badge sync failed: ${syncError.message}`);
       }
+
+      logServerEvent({
+        event: "admin.grant",
+        level: "warn",
+        persist: true,
+        userId: user.id,
+        requestId: requestIdFor(c.req.raw),
+        context: { targetId, mode, axes, xp, actor: user.id },
+      });
+
       return c.json({ profile: data });
     } catch (err) {
       return c.json(
@@ -105,6 +116,16 @@ export function registerAdminRoutes(app: Hono): void {
         .select(PROFILE_COLS)
         .single();
       if (error) throw error;
+
+      logServerEvent({
+        event: "admin.reset",
+        level: "warn",
+        persist: true,
+        userId: user.id,
+        requestId: requestIdFor(c.req.raw),
+        context: { targetId, actor: user.id },
+      });
+
       return c.json({ profile: data });
     } catch (err) {
       return c.json(

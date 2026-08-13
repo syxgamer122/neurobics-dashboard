@@ -1,6 +1,7 @@
 // Server-side source of truth for round validation and cognitive scoring.
 import { asTelemetry } from "./scoring/core.ts";
 import type { Game, ScoredRound, Telemetry } from "./scoring/core.ts";
+import { AppError } from "./errors.ts";
 import {
   scoreMath,
   scoreMemory,
@@ -52,7 +53,7 @@ export function scoreAndValidate(
     serverElapsedMs < 500 ||
     serverElapsedMs > 2 * 60 * 60 * 1000
   ) {
-    throw new Error("Round duration is invalid or expired");
+    throw new AppError("Round duration is invalid or expired", 422, "invalid_duration");
   }
 
   assertCountBounds(game, telemetry);
@@ -65,7 +66,7 @@ export function scoreAndValidate(
   const scored = SCORERS[game](asTelemetry(telemetry));
   // Client time may exclude fixed animations/waits, but cannot exceed server by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000) {
-    throw new Error("Telemetry time exceeds server round time");
+    throw new AppError("Telemetry time exceeds server round time", 422, "invalid_duration");
   }
   return scored;
 }
