@@ -43,6 +43,7 @@ export type Profile = {
   // The 5 cognitive axes are proficiency ratings in [0, 1000] (upward-only
   // moving averages), NOT cumulative point totals.
   cfop_spatial_record: number | null; // spatial proficiency rating
+  spatial_score: number; // Normalized fallback
   algebraic_logic_score: number; // logic proficiency rating
   memory_score: number; // memory proficiency rating
   speed_score: number; // speed proficiency rating
@@ -125,6 +126,7 @@ export function sanitizeProfile(p: Profile): Profile {
   const sessionCounts = Object.fromEntries(
     SESSION_COLUMNS.map((column) => [column, Number(p[column] ?? 0) || 0]),
   ) as Record<SessionColumn, number>;
+  const spatialScoreRaw = p.spatial_score ?? p.cfop_spatial_record ?? 0;
   return {
     ...p,
     ...sessionCounts,
@@ -133,6 +135,7 @@ export function sanitizeProfile(p: Profile): Profile {
     speed_score: sanitizeRating(p.speed_score),
     memory_score: sanitizeRating(p.memory_score),
     cfop_spatial_record: sanitizeRating(p.cfop_spatial_record),
+    spatial_score: sanitizeRating(spatialScoreRaw),
   };
 }
 
@@ -159,6 +162,7 @@ export function hydrateProfile(p: Profile): Profile {
     speed_score: decayRating(clean.speed_score, idle),
     memory_score: decayRating(clean.memory_score, idle),
     cfop_spatial_record: decayRating(clean.cfop_spatial_record ?? 0, idle),
+    spatial_score: decayRating(clean.spatial_score ?? 0, idle),
   };
 }
 

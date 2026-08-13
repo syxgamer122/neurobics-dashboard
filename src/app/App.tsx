@@ -110,10 +110,7 @@ function buildCognitiveData(
     { subject: L.memory, value: toPct(p.memory_score) },
     { subject: L.focus, value: toPct(p.focus_score) },
     { subject: L.logic, value: toPct(p.algebraic_logic_score) },
-    {
-      subject: L.spatial,
-      value: toPct(p.spatial_score ?? p.cfop_spatial_record ?? 0),
-    },
+    { subject: L.spatial, value: toPct(p.spatial_score) },
     { subject: L.speed, value: toPct(p.speed_score) },
   ];
 }
