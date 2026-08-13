@@ -8,7 +8,7 @@ export function SnakeGame({
 }) {
   const onGameOverRef = useRef(onGameOver);
   onGameOverRef.current = onGameOver;
-  
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(() => {
@@ -145,7 +145,12 @@ export function SnakeGame({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable) return;
+      if (
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.isContentEditable
+      )
+        return;
       const map: Record<string, [number, number]> = {
         ArrowUp: [0, -1],
         ArrowDown: [0, 1],
@@ -437,7 +442,11 @@ export function SnakeGame({
           ctx.font = "bold 24px monospace";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("PAUSED", state.current.SIZE / 2, state.current.SIZE / 2);
+          ctx.fillText(
+            "PAUSED",
+            state.current.SIZE / 2,
+            state.current.SIZE / 2,
+          );
         }
         return;
       }

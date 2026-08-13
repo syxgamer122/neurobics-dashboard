@@ -222,7 +222,9 @@ export function VisualSearchGame({
     if (iconIdx === targetIconIdx) {
       if (lastHitRef.current !== null) {
         const rawRt = performance.now() - lastHitRef.current;
-        hitRtsRef.current.push(Math.min(10000, Math.max(120, Math.round(rawRt))));
+        hitRtsRef.current.push(
+          Math.min(10000, Math.max(120, Math.round(rawRt))),
+        );
       }
       setScore((s) => {
         const next = s + 1;

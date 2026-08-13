@@ -234,7 +234,11 @@ export function MemoryMatrixGame({
   }, []);
 
   useGameLifecycle({
-    isActive: () => status === "memorize" || status === "recall" || status === "success" || status === "fail",
+    isActive: () =>
+      status === "memorize" ||
+      status === "recall" ||
+      status === "success" ||
+      status === "fail",
     onLeave: () => reset(),
   });
 

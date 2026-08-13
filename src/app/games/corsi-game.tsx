@@ -289,7 +289,10 @@ export function CorsiBlockGame({
   };
 
   useGameLifecycle({
-    isActive: () => phaseRef.current === "watch" || phaseRef.current === "recall" || phaseRef.current === "feedback",
+    isActive: () =>
+      phaseRef.current === "watch" ||
+      phaseRef.current === "recall" ||
+      phaseRef.current === "feedback",
     onLeave: resetGame,
   });
 

@@ -23,7 +23,11 @@ export function SchulteGrid({
   flashCell: SchulteFlash;
   foundSet: ReadonlySet<number>;
   status: SchulteGameStatus;
-  onCellClick: (cell: SchulteCell, index: number, inputType?: InputType) => void | Promise<void>;
+  onCellClick: (
+    cell: SchulteCell,
+    index: number,
+    inputType?: InputType,
+  ) => void | Promise<void>;
 }) {
   const press = usePress();
   const { t } = useLang();

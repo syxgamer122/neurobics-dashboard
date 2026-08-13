@@ -125,7 +125,12 @@ export function FlappyGame({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable) return;
+      if (
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.isContentEditable
+      )
+        return;
       if (e.code === "Space") {
         e.preventDefault();
         if (gameStateRef.current === "paused") {
@@ -148,23 +153,23 @@ export function FlappyGame({
 
     let rafId: number;
     let lastTime: number | null = null;
-    
+
     let W = Math.min(window.innerWidth, 420);
     let H = Math.min(window.innerHeight, 620);
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
-    
+
     const updateCanvasSize = () => {
       const newW = Math.min(window.innerWidth, 420);
       const newH = Math.min(window.innerHeight, 620);
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      
+
       const gs = state.current;
       const oldH = H || newH;
       const ratio = newH / oldH;
-      
+
       W = newW;
       H = newH;
-      
+
       if (ratio !== 1 && gs.pipes.length > 0) {
         gs.bird.y *= ratio;
         gs.pipes.forEach((p) => {
@@ -183,7 +188,7 @@ export function FlappyGame({
       canvas.style.height = H + "px";
       ctx.scale(dpr, dpr);
     };
-    
+
     updateCanvasSize();
     window.addEventListener("resize", updateCanvasSize);
     window.addEventListener("orientationchange", updateCanvasSize);

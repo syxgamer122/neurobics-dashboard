@@ -12,14 +12,20 @@ export function usePress() {
   return useMemo(() => {
     return (onPress: (type: InputType, ts: number) => void) => ({
       onPointerDown: (e: React.PointerEvent) => {
-        if (e.target instanceof HTMLElement && (e.target.tagName === 'BUTTON' || e.target.closest('button'))) {
-            e.preventDefault(); 
+        if (
+          e.target instanceof HTMLElement &&
+          (e.target.tagName === "BUTTON" || e.target.closest("button"))
+        ) {
+          e.preventDefault();
         }
         onPress((e.pointerType || "mouse") as InputType, e.timeStamp);
       },
       onClick: (e: React.MouseEvent) => {
-        if (e.target instanceof HTMLElement && (e.target.tagName === 'BUTTON' || e.target.closest('button'))) {
-            e.preventDefault();
+        if (
+          e.target instanceof HTMLElement &&
+          (e.target.tagName === "BUTTON" || e.target.closest("button"))
+        ) {
+          e.preventDefault();
         }
       },
     });

@@ -225,64 +225,67 @@ export function GoNoGoGame({
     schedule(tick, 700);
   };
 
-  const handlePress = useCallback((inputType?: InputType) => {
-    if (inputType) inputTypesRef.current.add(inputType);
-    if (respondedRef.current) return;
+  const handlePress = useCallback(
+    (inputType?: InputType) => {
+      if (inputType) inputTypesRef.current.add(inputType);
+      if (respondedRef.current) return;
 
-    // Anticipatory response during ISI
-    if (phase === "isi") {
+      // Anticipatory response during ISI
+      if (phase === "isi") {
+        respondedRef.current = true;
+        const kind = kindsRef.current[trialRef.current];
+        if (kind === "go") {
+          statsRef.current = {
+            ...statsRef.current,
+            misses: statsRef.current.misses + 1,
+          };
+        } else {
+          statsRef.current = {
+            ...statsRef.current,
+            falseAlarms: statsRef.current.falseAlarms + 1,
+          };
+        }
+        setFlash("bad");
+        setStats(statsRef.current);
+
+        clearTimers();
+        setStim(null);
+
+        schedule(() => {
+          runTrial(trialRef.current + 1);
+        }, 200);
+
+        return;
+      }
+
+      if (phase !== "stim" || !stim) return;
+
       respondedRef.current = true;
-      const kind = kindsRef.current[trialRef.current];
-      if (kind === "go") {
+
+      const rawRt = Math.max(
+        1,
+        Math.round(performance.now() - stimStartRef.current),
+      );
+      const rt = Math.min(10000, Math.max(120, rawRt));
+
+      if (stim === "go") {
+        rtsRef.current.push(rt);
         statsRef.current = {
           ...statsRef.current,
-          misses: statsRef.current.misses + 1,
+          hits: statsRef.current.hits + 1,
         };
+        setFlash("ok");
       } else {
         statsRef.current = {
           ...statsRef.current,
           falseAlarms: statsRef.current.falseAlarms + 1,
         };
+        setFlash("bad");
       }
-      setFlash("bad");
       setStats(statsRef.current);
-
-      clearTimers();
-      setStim(null);
-
-      schedule(() => {
-        runTrial(trialRef.current + 1);
-      }, 200);
-
-      return;
-    }
-
-    if (phase !== "stim" || !stim) return;
-
-    respondedRef.current = true;
-
-    const rawRt = Math.max(
-      1,
-      Math.round(performance.now() - stimStartRef.current),
-    );
-    const rt = Math.min(10000, Math.max(120, rawRt));
-
-    if (stim === "go") {
-      rtsRef.current.push(rt);
-      statsRef.current = {
-        ...statsRef.current,
-        hits: statsRef.current.hits + 1,
-      };
-      setFlash("ok");
-    } else {
-      statsRef.current = {
-        ...statsRef.current,
-        falseAlarms: statsRef.current.falseAlarms + 1,
-      };
-      setFlash("bad");
-    }
-    setStats(statsRef.current);
-  }, [phase, stim, clearTimers, schedule, runTrial]);
+    },
+    [phase, stim, clearTimers, schedule, runTrial],
+  );
 
   // Space / click pad
   const pressRef = useRef(handlePress);
@@ -294,7 +297,7 @@ export function GoNoGoGame({
     isActive: () => phaseRef.current === "isi" || phaseRef.current === "stim",
     onLeave: () => {
       reset();
-    }
+    },
   });
 
   useEffect(() => {

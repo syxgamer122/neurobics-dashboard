@@ -27,7 +27,7 @@ export function DinoGame({
 }) {
   const onGameOverRef = useRef(onGameOver);
   onGameOverRef.current = onGameOver;
-  
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(() =>
@@ -162,7 +162,12 @@ export function DinoGame({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable) return;
+      if (
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.isContentEditable
+      )
+        return;
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
         if (gameStateRef.current === "paused") {
@@ -221,7 +226,7 @@ export function DinoGame({
       if (gs.dino.onGround) {
         gs.dino.y = gs.GND;
       } else {
-        gs.dino.y += (gs.GND - oldGND);
+        gs.dino.y += gs.GND - oldGND;
       }
     };
 

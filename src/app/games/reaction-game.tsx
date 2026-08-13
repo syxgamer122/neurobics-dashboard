@@ -83,28 +83,31 @@ export function ReactionTimeGame({
     scheduleTrial();
   };
 
-  const finishGame = useCallback(async (completedRts: number[]) => {
-    clearTimers();
-    setPhase("done");
-    setSaving(true);
+  const finishGame = useCallback(
+    async (completedRts: number[]) => {
+      clearTimers();
+      setPhase("done");
+      setSaving(true);
 
-    try {
-      let finalInput = "mouse";
-      if (inputTypesRef.current.has("touch")) finalInput = "touch";
-      else if (inputTypesRef.current.has("key")) finalInput = "key";
+      try {
+        let finalInput = "mouse";
+        if (inputTypesRef.current.has("touch")) finalInput = "touch";
+        else if (inputTypesRef.current.has("key")) finalInput = "key";
 
-      await onComplete({
-        timeMs: 0,
-        rts: completedRts,
-        falseStarts: falseStartsRef.current,
-        inputType: finalInput as InputType,
-      });
-    } catch (err) {
-      logError("Reaction completion: onComplete failed:", err);
-    } finally {
-      setSaving(false);
-    }
-  }, [clearTimers, onComplete, setPhase]);
+        await onComplete({
+          timeMs: 0,
+          rts: completedRts,
+          falseStarts: falseStartsRef.current,
+          inputType: finalInput as InputType,
+        });
+      } catch (err) {
+        logError("Reaction completion: onComplete failed:", err);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [clearTimers, onComplete, setPhase],
+  );
 
   const handlePadPress = useCallback(
     (inputType: InputType, ts: number) => {
@@ -348,4 +351,3 @@ export function ReactionTimeGame({
     </div>
   );
 }
-

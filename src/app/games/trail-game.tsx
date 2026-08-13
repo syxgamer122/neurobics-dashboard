@@ -360,7 +360,9 @@ export function TrailMakingGame({
                 <button
                   key={node.label}
                   type="button"
-                  {...press((type: InputType) => handleNode(node.label, i, type))}
+                  {...press((type: InputType) =>
+                    handleNode(node.label, i, type),
+                  )}
                   className="absolute rounded-full font-mono font-bold transition-colors game-surface active:scale-95"
                   style={{
                     left: `${node.x}%`,

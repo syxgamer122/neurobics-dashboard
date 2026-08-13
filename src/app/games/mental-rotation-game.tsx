@@ -408,7 +408,10 @@ export function MentalRotationGame({
     // SAME = không gương; MIRROR = gương.
     const isSame = !trial.mirror;
     const ok = same === isSame;
-    const rawRt = Math.max(1, Math.round(performance.now() - qStartRef.current));
+    const rawRt = Math.max(
+      1,
+      Math.round(performance.now() - qStartRef.current),
+    );
     const rt = Math.min(10000, Math.max(120, rawRt));
 
     rtsRef.current.push(rt);
@@ -459,7 +462,12 @@ export function MentalRotationGame({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable) return;
+      if (
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.isContentEditable
+      )
+        return;
 
       if (phase !== "playing" || lockRef.current) return;
       if (e.key === "ArrowLeft") {
@@ -484,7 +492,7 @@ export function MentalRotationGame({
       // Resetting is safest for data purity.
       clearFlashTimer();
       setPhase("idle");
-    }
+    },
   });
 
   return (
@@ -665,4 +673,3 @@ export function MentalRotationGame({
     </div>
   );
 }
-
