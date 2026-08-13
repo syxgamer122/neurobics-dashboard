@@ -26,6 +26,14 @@
 
 // ─── Scale ───────────────────────────────────────────────────────────────
 
+export type BaseTelemetry = {
+  inputType?: "touch" | "mouse" | "key" | "pen";
+  interrupted?: boolean;
+  invalidTrials?: number[];
+  clampedLow?: number;
+  clampedHigh?: number;
+};
+
 export const RATING_MIN = 0;
 export const RATING_MAX = 1000;
 
@@ -206,7 +214,7 @@ export function lapseRate(xs: number[], threshold = 2.5): number {
 
 // ─── Telemetry captured by each game ──────────────────────────────────────
 
-export type SchulteTelemetry = {
+export type SchulteTelemetry = BaseTelemetry & {
   timeMs: number;
   cells: number;
   wrongClicks: number;
@@ -223,7 +231,7 @@ export type SchulteTelemetry = {
   intendedCells?: number;
 };
 
-export type SudokuTelemetry = {
+export type SudokuTelemetry = BaseTelemetry & {
   timeMs: number;
   difficulty: string;
   mistakes: number;
@@ -249,7 +257,7 @@ export type SudokuTelemetry = {
   budgetExceeded?: boolean;
 };
 
-export type StroopTelemetry = {
+export type StroopTelemetry = BaseTelemetry & {
   timeMs: number;
   totalStimuli: number;
   wrongClicks: number;
@@ -295,7 +303,7 @@ export type AxisRatings = {
 // Reaction Time đo tốc độ phản ứng trực tiếp. Focus được tính từ độ ổn định
 // giữa các lượt và bị giảm nếu người chơi bấm sớm.
 
-export type ReactionTelemetry = {
+export type ReactionTelemetry = BaseTelemetry & {
   timeMs: number;
   rts: number[];
   falseStarts: number;
@@ -308,7 +316,7 @@ export type ReactionTelemetry = {
 // chứ không phải nhịp chơi — nên Speed và Focus để null thay vì bịa ra từ một
 // tín hiệu thời gian đã bị nhiễu.
 
-export type MemoryTelemetry = {
+export type MemoryTelemetry = BaseTelemetry & {
   timeMs: number;
   /**
    * Cap cao nhat DA VUOT QUA. Truoc day client gui Math.max(1, ...) nen thua
@@ -329,7 +337,7 @@ export type MemoryTelemetry = {
 // ─── Math Sprint ────────────────────────────────────────────────────────
 export type MathDifficulty = "easy" | "medium" | "hard" | "adaptive";
 
-export type MathTelemetry = {
+export type MathTelemetry = BaseTelemetry & {
   timeMs: number;
   difficulty: MathDifficulty;
   totalProblems: number;
@@ -339,7 +347,7 @@ export type MathTelemetry = {
   rts: number[];
 };
 
-export type NBackTelemetry = {
+export type NBackTelemetry = BaseTelemetry & {
   timeMs: number;
   /** Mức N đang chơi (2-back, 3-back...). */
   n: number;
@@ -360,7 +368,7 @@ export type NBackTelemetry = {
 // Focus đo ức chế phản xạ (false alarm phạt nặng). Speed lấy median RT hit GO.
 // Logic / Memory / Spatial = null.
 
-export type GoNoGoTelemetry = {
+export type GoNoGoTelemetry = BaseTelemetry & {
   timeMs: number;
   /** Tổng số trial (GO + NOGO). */
   trials: number;
@@ -381,7 +389,7 @@ export type GoNoGoTelemetry = {
 // ─── Mental Rotation → Spatial (chính), Speed (phụ) ─────────────────────────
 // Same vs mirror, góc xoay 0–300°. Spatial thuần; Speed từ RT có kiểm soát.
 
-export type MentalRotationTelemetry = {
+export type MentalRotationTelemetry = BaseTelemetry & {
   timeMs: number;
   trials: number;
   correct: number;
@@ -402,7 +410,7 @@ export type MentalRotationTelemetry = {
 // Speed/Focus = null có chủ đích: pha hiển thị có thời lượng CỐ ĐỊNH nên đồng hồ
 // không phản ánh nhịp chơi thật, giống Memory Matrix.
 
-export type CorsiTelemetry = {
+export type CorsiTelemetry = BaseTelemetry & {
   /** Chỉ tính pha BẤM LẠI, đã trừ toàn bộ thời gian chiếu chuỗi. */
   timeMs: number;
   /** Chuỗi dài nhất tái hiện đúng hoàn toàn. 0 = trượt ngay chuỗi đầu. */
@@ -423,7 +431,7 @@ export type CorsiTelemetry = {
 // Nối 1 → A → 2 → B → 3 → C... Mỗi bước là một lần quét thị giác cộng chuyển bộ
 // quy tắc. Nhịp giữa các bước đo tốc độ xử lý; độ đều và số lần bấm nhầm đo chú ý.
 
-export type TrailTelemetry = {
+export type TrailTelemetry = BaseTelemetry & {
   /** Tính từ cú bấm ĐÚNG đầu tiên đến điểm cuối (giống Schulte). */
   timeMs: number;
   /** Tổng số điểm trên bản đồ. */

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Activity, CheckCircle, Clock, Loader2, RefreshCw } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { ReactionTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -13,15 +15,23 @@ export function ReactionTimeGame({
   onComplete: (tel: ReactionTelemetry) => Promise<void>;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
   // 10 lan: median on dinh hon 5 lan, giam nhieu do 1 mau le.
   const TOTAL_TRIALS = 10;
 
   type ReactionPhase = "idle" | "waiting" | "ready" | "result" | "done";
 
-  const [phase, setPhase] = useState<ReactionPhase>("idle");
+  const [phase, setPhaseState] = useState<ReactionPhase>("idle");
+  const phaseRef = useRef(phase);
+  const setPhase = useCallback((p: ReactionPhase) => {
+    phaseRef.current = p;
+    setPhaseState(p);
+  }, []);
   const [rts, setRts] = useState<number[]>([]);
   const [falseStarts, setFalseStarts] = useState(0);
+
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const [currentRt, setCurrentRt] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -60,15 +70,16 @@ export function ReactionTimeGame({
       setPhase("ready");
       setMessage(t.rx_now);
     }, delay);
-  }, [clearTimers, t]);
+  }, [clearTimers, t, setPhase]);
 
   const startGame = () => {
     onPlayStart?.();
-    clearTimers();
+    setPhase("waiting");
     setRts([]);
     setFalseStarts(0);
     falseStartsRef.current = 0;
     setCurrentRt(null);
+    inputTypesRef.current = new Set();
     scheduleTrial();
   };
 
@@ -78,10 +89,15 @@ export function ReactionTimeGame({
     setSaving(true);
 
     try {
+      let finalInput = "mouse";
+      if (inputTypesRef.current.has("touch")) finalInput = "touch";
+      else if (inputTypesRef.current.has("key")) finalInput = "key";
+
       await onComplete({
-        timeMs: completedRts.reduce((sum, rt) => sum + rt, 0),
+        timeMs: 0,
         rts: completedRts,
         falseStarts: falseStartsRef.current,
+        inputType: finalInput as InputType,
       });
     } catch (err) {
       logError("Reaction completion: onComplete failed:", err);
@@ -90,47 +106,50 @@ export function ReactionTimeGame({
     }
   };
 
-  const handlePadClick = () => {
-    if (phase === "waiting") {
-      if (waitTimerRef.current) {
-        clearTimeout(waitTimerRef.current);
-        waitTimerRef.current = null;
+  const handlePadPress = useCallback(
+    (inputType: InputType, ts: number) => {
+      inputTypesRef.current.add(inputType);
+
+      if (phaseRef.current === "waiting") {
+        if (waitTimerRef.current) {
+          clearTimeout(waitTimerRef.current);
+          waitTimerRef.current = null;
+        }
+
+        const newFalseStarts = falseStartsRef.current + 1;
+        falseStartsRef.current = newFalseStarts;
+        setFalseStarts(newFalseStarts);
+        setPhase("result");
+        setMessage(t.rx_too_soon_msg);
+
+        nextTimerRef.current = setTimeout(scheduleTrial, 900);
+        return;
       }
 
-      const newFalseStarts = falseStartsRef.current + 1;
-      falseStartsRef.current = newFalseStarts;
-      setFalseStarts(newFalseStarts);
+      if (phaseRef.current !== "ready") return;
+
+      const rawRt = Math.max(1, Math.round(ts - readyAtRef.current));
+      const reactionMs = Math.min(10000, Math.max(120, rawRt));
+
+      const completedRts = [...rts, reactionMs];
+
+      setRts(completedRts);
+      setCurrentRt(reactionMs);
       setPhase("result");
-      setMessage(t.rx_too_soon_msg);
+      setMessage(`${reactionMs} ms`);
 
-      nextTimerRef.current = setTimeout(scheduleTrial, 900);
-      return;
-    }
+      if (completedRts.length >= TOTAL_TRIALS) {
+        nextTimerRef.current = setTimeout(() => finishGame(completedRts), 900);
+      } else {
+        nextTimerRef.current = setTimeout(scheduleTrial, 900);
+      }
+    },
+    [rts, setPhase, t.rx_too_soon_msg, scheduleTrial],
+  );
 
-    if (phase !== "ready") return;
+  const padProps = press(handlePadPress);
 
-    const reactionMs = Math.max(
-      1,
-      Math.round(performance.now() - readyAtRef.current),
-    );
-
-    const completedRts = [...rts, reactionMs];
-
-    setRts(completedRts);
-    setCurrentRt(reactionMs);
-    setPhase("result");
-    setMessage(`${reactionMs} ms`);
-
-    if (completedRts.length >= TOTAL_TRIALS) {
-      nextTimerRef.current = setTimeout(() => {
-        finishGame(completedRts);
-      }, 800);
-    } else {
-      nextTimerRef.current = setTimeout(scheduleTrial, 1000);
-    }
-  };
-
-  const resetGame = () => {
+  const resetGame = useCallback(() => {
     clearTimers();
     setPhase("idle");
     setRts([]);
@@ -138,12 +157,27 @@ export function ReactionTimeGame({
     falseStartsRef.current = 0;
     setCurrentRt(null);
     setMessage("");
-  };
+  }, [clearTimers, setPhase]);
 
-  const average =
-    rts.length > 0
-      ? Math.round(rts.reduce((sum, rt) => sum + rt, 0) / rts.length)
-      : 0;
+  useGameLifecycle({
+    isActive: () =>
+      phaseRef.current === "waiting" ||
+      phaseRef.current === "ready" ||
+      phaseRef.current === "result",
+    onLeave: () => {
+      resetGame();
+    },
+  });
+
+  const median = (() => {
+    if (rts.length === 0) return 0;
+    const sorted = [...rts].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      return Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+    }
+    return sorted[mid];
+  })();
 
   const padBackground =
     phase === "ready"
@@ -207,9 +241,9 @@ export function ReactionTimeGame({
         </div>
 
         <div className="text-center">
-          <div className="text-xs text-slate-500">{t.rx_average}</div>
+          <div className="text-xs text-slate-500">{t.rx_median}</div>
           <div className="text-lg font-bold text-neuro-green">
-            {average || "--"} ms
+            {median || "--"} ms
           </div>
         </div>
 
@@ -226,7 +260,7 @@ export function ReactionTimeGame({
       {phase === "idle" ? (
         <div
           className="mt-6 flex flex-col items-center justify-center"
-          style={{ minHeight: 280 }}
+          style={{ minHeight: "clamp(240px, calc(100svh - 400px), 420px)" }}
         >
           <Clock size={46} className="text-neuro-green mb-5" />
 
@@ -251,7 +285,7 @@ export function ReactionTimeGame({
       ) : phase === "done" ? (
         <div
           className="mt-6 flex flex-col items-center justify-center"
-          style={{ minHeight: 280 }}
+          style={{ minHeight: "clamp(240px, calc(100svh - 400px), 420px)" }}
         >
           <CheckCircle size={48} className="text-emerald-400 mb-4" />
 
@@ -260,19 +294,19 @@ export function ReactionTimeGame({
           </div>
 
           <div className="mt-2 text-4xl font-bold text-neuro-green">
-            {average} ms
+            {median} ms
           </div>
 
-          <div className="mt-1 text-xs text-slate-500">{t.rx_avg_label}</div>
+          <div className="mt-1 text-xs text-slate-500">{t.rx_median_label}</div>
         </div>
       ) : (
         <button
-          onClick={handlePadClick}
+          {...padProps}
           className={`mt-6 rounded-2xl flex flex-col items-center justify-center transition-all ${
             phase === "ready" ? "animate-pulse" : ""
-          }`}
+          } game-surface active:scale-95`}
           style={{
-            minHeight: 280,
+            minHeight: "clamp(240px, calc(100svh - 400px), 420px)",
             background: padBackground,
             border: padBorder,
             boxShadow:
@@ -314,3 +348,4 @@ export function ReactionTimeGame({
     </div>
   );
 }
+

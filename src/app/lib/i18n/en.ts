@@ -110,6 +110,8 @@ export const en: typeof vi = {
   rx_avg_label: "Average reaction time",
   rx_trial: "TRIAL",
   rx_average: "AVERAGE",
+  rx_median_label: "Median reaction time",
+  rx_median: "MEDIAN",
   rx_too_soon: "TOO SOON",
 
   // Sudoku
@@ -293,6 +295,10 @@ export const en: typeof vi = {
   math_medium: "Medium",
   math_hard: "Hard",
   math_adaptive: "Adaptive",
+  math_complete: "Sprint Complete!",
+  math_accuracy: "Accuracy",
+  math_saving: "Saving...",
+  math_play_again: "PLAY AGAIN",
 
   // N-Back — in-round strings
   nback_hint:

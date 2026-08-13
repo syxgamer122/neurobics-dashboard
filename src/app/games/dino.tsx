@@ -1,4 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  readIntStorage,
+  writeBestHigher,
+  useOnHidden,
+} from "../lib/game-utils";
 
 type Obstacle = {
   x: number;
@@ -20,14 +25,17 @@ export function DinoGame({
 }: {
   onGameOver?: (score: number) => void;
 }) {
+  const onGameOverRef = useRef(onGameOver);
+  onGameOverRef.current = onGameOver;
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
-  const [bestScore, setBestScore] = useState(() => {
-    return parseInt(localStorage.getItem("dinoBest") || "0");
-  });
-  const [gameState, setGameState] = useState<"idle" | "playing" | "dead">(
-    "idle",
+  const [bestScore, setBestScore] = useState(() =>
+    readIntStorage("dinoBest", 0),
   );
+  const [gameState, setGameState] = useState<
+    "idle" | "playing" | "dead" | "paused"
+  >("idle");
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
@@ -38,6 +46,20 @@ export function DinoGame({
 
   const bestScoreRef = useRef(bestScore);
   bestScoreRef.current = bestScore;
+  const duckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useOnHidden(() => {
+    if (gameStateRef.current === "playing") {
+      gameStateRef.current = "paused";
+      setGameState("paused");
+    }
+  });
+
+  useEffect(() => {
+    return () => {
+      if (duckTimeoutRef.current) clearTimeout(duckTimeoutRef.current);
+    };
+  }, []);
 
   // Mutable game state
   const state = useRef({
@@ -60,6 +82,8 @@ export function DinoGame({
     W: 800,
     H: 300,
     score: 0,
+    spawnIn: 60,
+    groundOffset: 0,
   });
 
   const initGame = (W: number, H: number) => {
@@ -87,13 +111,17 @@ export function DinoGame({
       W,
       H,
       score: 0,
+      spawnIn: 60,
+      groundOffset: 0,
     };
     setScore(0);
   };
 
   const handleJump = () => {
-    if (gameStateRef.current === "dead") return;
+    if (gameStateRef.current === "dead" || gameStateRef.current === "paused")
+      return;
     if (gameStateRef.current === "idle") {
+      gameStateRef.current = "playing";
       setGameState("playing");
       const gs = state.current;
       gs.frame = 0;
@@ -131,8 +159,15 @@ export function DinoGame({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable) return;
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
+        if (gameStateRef.current === "paused") {
+          gameStateRef.current = "playing";
+          setGameState("playing");
+          return;
+        }
         handleDuck(false);
         handleJump();
       }
@@ -161,22 +196,46 @@ export function DinoGame({
     if (!ctx) return;
 
     let rafId: number;
-    const W = Math.min(window.innerWidth, 800);
-    const H = Math.min(window.innerHeight * 0.75, 300);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = W + "px";
-    canvas.style.height = H + "px";
-    ctx.scale(dpr, dpr);
+    let lastTime: number | null = null;
+    let W = Math.min(window.innerWidth, 800);
+    let H = Math.min(window.innerHeight * 0.75, 300);
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    const updateCanvasSize = () => {
+      W = Math.min(window.innerWidth, 800);
+      H = Math.min(window.innerHeight * 0.75, 300);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+      ctx.scale(dpr, dpr);
+
+      const gs = state.current;
+      gs.W = W;
+      gs.H = H;
+      const oldGND = gs.GND;
+      gs.GND = H - 60;
+      if (gs.dino.onGround) {
+        gs.dino.y = gs.GND;
+      } else {
+        gs.dino.y += (gs.GND - oldGND);
+      }
+    };
+
+    updateCanvasSize();
+    window.addEventListener("resize", updateCanvasSize);
+    window.addEventListener("orientationchange", updateCanvasSize);
 
     initGame(W, H);
 
     const spawnObstacle = () => {
       const gs = state.current;
-      const isBird = state.current.score > 100 && Math.random() < 0.3;
+      const isBird = gs.score > 100 && Math.random() < 0.3;
       if (isBird) {
-        const heights = [30, 50, 70];
+        const BIRD_MUST_JUMP = [12, 22, 34];
+        const BIRD_MUST_DUCK = [52, 58, 64];
+        const heights = Math.random() < 0.5 ? BIRD_MUST_JUMP : BIRD_MUST_DUCK;
         const h = heights[Math.floor(Math.random() * heights.length)];
         gs.obstacles.push({
           x: gs.W + 20,
@@ -230,7 +289,7 @@ export function DinoGame({
     };
 
     const drawGround = () => {
-      const { GND, W, frame, speed } = state.current;
+      const { GND, W } = state.current;
       ctx.strokeStyle = "#374151";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -238,8 +297,9 @@ export function DinoGame({
       ctx.lineTo(W, GND + 2);
       ctx.stroke();
       ctx.fillStyle = "#374151";
+      const gs = state.current;
       for (let i = 0; i < W; i += 30) {
-        const x = (((i - frame * speed * 0.5) % W) + W) % W;
+        const x = (((i - gs.groundOffset) % W) + W) % W;
         ctx.fillRect(x, GND + 6, 4, 2);
       }
     };
@@ -305,108 +365,174 @@ export function DinoGame({
       }
     };
 
-    const collides = (
-      a: { x: number; y: number; w: number; h: number },
-      b: Obstacle,
-    ) => {
-      const { GND } = state.current;
-      const by = b.type === "bird" ? GND - b.yOffset : GND - b.h;
-      return (
-        a.x + 8 < b.x + b.w &&
-        a.x + a.w - 8 > b.x &&
-        a.y - a.h + 8 < by + b.h &&
-        a.y > by + 4
-      );
+    type Box = { left: number; right: number; top: number; bottom: number };
+
+    const dinoBox = (d: typeof state.current.dino): Box => ({
+      left: d.x + 6,
+      right: d.x + d.w - 6,
+      top: d.y - d.h + 4,
+      bottom: d.y - 2,
+    });
+
+    const obstacleBox = (o: Obstacle, GND: number): Box =>
+      o.type === "bird"
+        ? {
+            left: o.x + 4,
+            right: o.x + o.w - 4,
+            top: GND - o.yOffset + 3,
+            bottom: GND - o.yOffset + o.h - 3,
+          }
+        : {
+            left: o.x + 3,
+            right: o.x + o.w - 3,
+            top: GND - o.h + 2,
+            bottom: GND,
+          };
+
+    const overlaps = (a: Box, b: Box) =>
+      a.left < b.right &&
+      a.right > b.left &&
+      a.top < b.bottom &&
+      a.bottom > b.top;
+
+    const hitsDino = (d: typeof state.current.dino, o: Obstacle, GND: number) =>
+      overlaps(dinoBox(d), obstacleBox(o, GND));
+
+    const STEP_MS = 1000 / 60;
+    const MAX_STEPS = 5;
+    let acc = 0;
+
+    const die = () => {
+      gameStateRef.current = "dead";
+      setGameState("dead");
+      const gs = state.current;
+      setScore(gs.score);
+      writeBestHigher("dinoBest", gs.score);
+      setBestScore((prev) => Math.max(prev, gs.score));
+      if (onGameOverRef.current) onGameOverRef.current(gs.score);
     };
 
-    const loop = () => {
+    const step = () => {
+      const gs = state.current;
+      gs.frame += 1;
+      gs.score += 1;
+      gs.speed = Math.min(14, 4 + gs.score / 200);
+
+      gs.dino.vy += 0.7;
+      gs.dino.y += gs.dino.vy;
+      if (gs.dino.y >= gs.GND) {
+        gs.dino.y = gs.GND;
+        gs.dino.vy = 0;
+        gs.dino.onGround = true;
+      }
+
+      gs.spawnIn -= 1;
+      if (gs.spawnIn <= 0) {
+        spawnObstacle();
+        const sc = Math.floor(gs.score / 150);
+        gs.spawnIn = Math.max(50, 90 - sc) + Math.floor(Math.random() * 26);
+      }
+
+      gs.groundOffset += gs.speed * 0.5;
+
+      for (let i = gs.obstacles.length - 1; i >= 0; i--) {
+        const o = gs.obstacles[i];
+        o.x -= gs.speed;
+        if (o.x + o.w < 0) {
+          gs.obstacles.splice(i, 1);
+          continue;
+        }
+        if (hitsDino(gs.dino, o, gs.GND)) {
+          die();
+          return;
+        }
+      }
+    };
+
+    const loop = (timestamp: number) => {
+      if (lastTime === null) lastTime = timestamp;
+      const frameMs = Math.min(timestamp - lastTime, 50); // cap 50ms
+      lastTime = timestamp;
+
       ctx.clearRect(0, 0, W, H);
       const gs = state.current;
       const currentGameState = gameStateRef.current;
 
-      gs.clouds.forEach((cl) => {
-        cl.x -= gs.speed * 0.3;
-        if (cl.x + cl.w / 2 < 0) cl.x = W + cl.w;
-        drawCloud(cl);
-      });
+      if (currentGameState === "playing") {
+        gs.clouds.forEach((cl) => {
+          cl.x -= gs.speed * 0.3 * (frameMs / 16.666);
+          if (cl.x + cl.w / 2 < 0) cl.x = W + cl.w;
+        });
 
+        acc += frameMs;
+        let steps = 0;
+        while (acc >= STEP_MS && steps < MAX_STEPS) {
+          step();
+          acc -= STEP_MS;
+          steps += 1;
+          if (gameStateRef.current !== "playing") break;
+        }
+        if (steps >= MAX_STEPS) acc = 0;
+      } else {
+        acc = 0;
+      }
+
+      gs.clouds.forEach((cl) => drawCloud(cl));
       drawGround();
 
-      if (currentGameState === "playing") {
-        gs.frame++;
-        gs.score++;
-        gs.speed = 4 + gs.score / 200;
-        if (scoreSpanRef.current && gs.frame % 3 === 0) {
-          scoreSpanRef.current.textContent = Math.floor(gs.score)
-            .toString()
-            .padStart(5, "0");
-        }
-
-        gs.dino.vy += 0.7;
-        gs.dino.y += gs.dino.vy;
-        if (gs.dino.y >= gs.GND) {
-          gs.dino.y = gs.GND;
-          gs.dino.vy = 0;
-          gs.dino.onGround = true;
-        }
-
-        if (gs.frame % Math.max(50, 90 - Math.floor(gs.score / 150)) === 0)
-          spawnObstacle();
-
-        for (let i = gs.obstacles.length - 1; i >= 0; i--) {
-          gs.obstacles[i].x -= gs.speed;
-          drawObstacle(gs.obstacles[i]);
-          if (gs.obstacles[i].x + gs.obstacles[i].w < 0) {
-            gs.obstacles.splice(i, 1);
-            continue;
-          }
-          if (collides(gs.dino, gs.obstacles[i])) {
-            setGameState("dead");
-            setScore(gs.score); // final sync
-            const finalScore = gs.score;
-            let currentBest = bestScoreRef.current;
-            if (finalScore > currentBest) {
-              currentBest = finalScore;
-              setBestScore(finalScore);
-              localStorage.setItem("dinoBest", finalScore.toString());
-            }
-            if (onGameOver) onGameOver(finalScore);
-          }
-        }
-      } else if (currentGameState === "dead") {
+      if (currentGameState === "dead" || currentGameState === "paused") {
+        gs.obstacles.forEach((o) => drawObstacle(o));
+      } else {
         gs.obstacles.forEach((o) => drawObstacle(o));
       }
 
       drawDino();
+
+      if (scoreSpanRef.current && Math.floor(gs.frame) % 3 === 0) {
+        scoreSpanRef.current.textContent = Math.floor(gs.score)
+          .toString()
+          .padStart(5, "0");
+      }
+
       rafId = requestAnimationFrame(loop);
     };
 
     rafId = requestAnimationFrame(loop);
 
     return () => {
+      window.removeEventListener("resize", updateCanvasSize);
+      window.removeEventListener("orientationchange", updateCanvasSize);
       cancelAnimationFrame(rafId);
     };
-  }, [onGameOver]);
+  }, []);
 
-  let pointerStartY = 0;
+  const pointerStartY = useRef(0);
 
   return (
-    <div 
+    <div
       className="relative w-full h-full bg-[#111827] flex items-center justify-center overflow-hidden select-none touch-none"
       onPointerDown={(e) => {
         // e.preventDefault() is implicitly handled by touch-none for scrolling,
         // but we can also just capture the pointer start.
-        pointerStartY = e.clientY;
+        pointerStartY.current = e.clientY;
+      }}
+      onPointerMove={(e) => {
+        if (e.buttons > 0 || e.pointerType === "touch") {
+          const dy = e.clientY - pointerStartY.current;
+          if (dy > 40) {
+            handleDuck(true);
+          }
+        }
       }}
       onPointerUp={(e) => {
-        const dy = e.clientY - pointerStartY;
-        if (dy > 30) {
-          handleDuck(true);
-          setTimeout(() => handleDuck(false), 500);
-        } else {
-          handleDuck(false);
+        const dy = e.clientY - pointerStartY.current;
+        if (dy <= 40) {
           handleJump();
         }
+        handleDuck(false);
+      }}
+      onPointerCancel={() => {
+        handleDuck(false);
       }}
     >
       <canvas
@@ -442,12 +568,31 @@ export function DinoGame({
         </div>
       )}
 
+      {gameState === "paused" && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/50 backdrop-blur-sm"
+          onClick={() => {
+            gameStateRef.current = "playing";
+            setGameState("playing");
+          }}
+        >
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+            PAUSED
+          </h2>
+          <p className="text-emerald-400 font-mono tracking-widest animate-pulse">
+            TAP TO RESUME
+          </p>
+        </div>
+      )}
+
       {gameState === "dead" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 animate-[fadeIn_0.2s]">
           <h2 className="text-3xl font-bold text-rose-500 mb-2">GAME OVER</h2>
-          <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
+          <p className="text-white/80 font-mono mb-4 text-lg">
+            SCORE: {Math.floor(score)}
+          </p>
           <p className="text-white/60 font-mono mb-8 text-sm">
-            BEST: {bestScore}
+            BEST: {Math.floor(bestScore)}
           </p>
           <button
             onClick={() => {

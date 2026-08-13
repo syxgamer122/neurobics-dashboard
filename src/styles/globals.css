@@ -1,0 +1,30 @@
+/* Touch interactions */
+.game-surface {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: contain;
+}
+
+html, body { 
+  overscroll-behavior-y: none; /* Block pull-to-refresh */
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { 
+    animation-duration: 0.01ms !important; 
+    transition-duration: 0.01ms !important; 
+  }
+}
+
+/* Fix mobile hover sticking */
+@media (hover: none) {
+  .hover\:scale-105:hover {
+    transform: none;
+  }
+  .hover\:brightness-125:hover {
+    filter: none;
+  }
+}

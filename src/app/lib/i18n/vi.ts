@@ -108,9 +108,11 @@ export const vi = {
   rx_start: "BẮT ĐẦU TEST",
   rx_restart: "CHƠI LẠI",
   rx_complete: "HOÀN THÀNH TEST",
-  rx_avg_label: "Thời gian phản xạ trung bình",
+  rx_avg_label: "Thời gian phản xạ trung vị",
   rx_trial: "LẦN",
-  rx_average: "TRUNG BÌNH",
+  rx_average: "TRUNG VỊ",
+  rx_median_label: "Thời gian phản xạ trung vị",
+  rx_median: "TRUNG VỊ",
   rx_too_soon: "BẤM SỚM",
 
   // Sudoku
@@ -300,6 +302,10 @@ export const vi = {
   math_medium: "Vừa",
   math_hard: "Khó",
   math_adaptive: "Thích ứng",
+  math_complete: "Hoàn thành Sprint!",
+  math_accuracy: "Độ chính xác",
+  math_saving: "Đang lưu...",
+  math_play_again: "CHƠI LẠI",
 
   // N-Back — chuoi trong man choi (gom tu TXT cuc bo)
   nback_hint: "Bấm KHỚP khi ô đang sáng trùng với ô đã hiện N lượt trước.",

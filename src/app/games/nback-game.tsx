@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Brain, Play, Target } from "lucide-react";
 import { useLang } from "../lib/i18n";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { NBackTelemetry } from "../lib/scoring";
 
 // ─── N-Back ───────────────────────────────────────────────────────────────
@@ -32,8 +34,26 @@ const panelStyle: React.CSSProperties = {
 /** Chuỗi vị trí có khoảng 30% lượt trùng khớp, phần còn lại chắc chắn không trùng. */
 function buildSequence(n: number, trials: number): number[] {
   const seq: number[] = [];
+
+  // Decide which indices will be targets. The first n indices cannot be targets.
+  const targetCount = Math.round((trials - n) * TARGET_RATE);
+  const possibleIndices = [];
+  for (let i = n; i < trials; i++) {
+    possibleIndices.push(i);
+  }
+
+  // Shuffle possibleIndices
+  for (let i = possibleIndices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [possibleIndices[i], possibleIndices[j]] = [
+      possibleIndices[j],
+      possibleIndices[i],
+    ];
+  }
+  const targetIndices = new Set(possibleIndices.slice(0, targetCount));
+
   for (let i = 0; i < trials; i++) {
-    if (i >= n && Math.random() < TARGET_RATE) {
+    if (targetIndices.has(i)) {
       seq.push(seq[i - n]);
       continue;
     }
@@ -52,6 +72,7 @@ export function NBackGame({
   onComplete: (telemetry: NBackTelemetry) => void;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
   // Chuoi lay tu i18n.tsx; giu ten `s` de khong phai doi het cho dung.
   const s = {
@@ -74,29 +95,53 @@ export function NBackGame({
   const [flash, setFlash] = useState<"ok" | "bad" | null>(null);
   const [stats, setStats] = useState({ hits: 0, misses: 0, falseAlarms: 0 });
 
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   const seqRef = useRef<number[]>([]);
   const respondedRef = useRef(false);
   const trialStartRef = useRef(0);
   const startedAtRef = useRef(0);
   const rtsRef = useRef<number[]>([]);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const statsRef = useRef({ hits: 0, misses: 0, falseAlarms: 0 });
   const finishedRef = useRef(false);
+
+  const resetGame = () => {
+    setPhase("idle");
+    setActive(null);
+    finishedRef.current = true;
+  };
 
   const finish = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setPhase("idle");
     setActive(null);
+
+    let finalInput = "mouse";
+    if (inputTypesRef.current.has("touch")) finalInput = "touch";
+    else if (inputTypesRef.current.has("key")) finalInput = "key";
+
     onComplete({
-      timeMs: Date.now() - startedAtRef.current,
+      timeMs: Math.max(
+        1,
+        rtsRef.current.reduce((a, b) => a + b, 0),
+      ),
       n,
       trials: TRIALS,
       hits: statsRef.current.hits,
       misses: statsRef.current.misses,
       falseAlarms: statsRef.current.falseAlarms,
       rts: rtsRef.current,
+      inputType: finalInput as InputType,
     });
   }, [n, onComplete]);
+
+  useGameLifecycle({
+    isActive: () => phaseRef.current === "playing",
+    onLeave: resetGame,
+  });
 
   // Vòng lặp lượt chơi: mỗi lượt tự hẹn giờ tắt ô và chuyển lượt kế tiếp.
   useEffect(() => {
@@ -137,6 +182,7 @@ export function NBackGame({
     onPlayStart?.();
     seqRef.current = buildSequence(n, TRIALS);
     rtsRef.current = [];
+    inputTypesRef.current = new Set();
     statsRef.current = { hits: 0, misses: 0, falseAlarms: 0 };
     finishedRef.current = false;
     startedAtRef.current = Date.now();
@@ -146,7 +192,9 @@ export function NBackGame({
     setPhase("playing");
   };
 
-  const press = () => {
+  const handlePress = (inputType?: InputType) => {
+    if (inputType) inputTypesRef.current.add(inputType);
+    if (phase !== "playing") return;
     // Mỗi lượt chỉ nhận một phản hồi, bấm thêm không bị tính là bấm nhầm.
     // trial < n là warmup: chưa thể có target nên không tính false alarm.
     // Nút MATCH đã disabled, chặn luôn ở đây cho phím Space.
@@ -157,7 +205,8 @@ export function NBackGame({
     const isTarget = trial >= n && seq[trial] === seq[trial - n];
 
     if (isTarget) {
-      rtsRef.current.push(performance.now() - trialStartRef.current);
+      const rawRt = performance.now() - trialStartRef.current;
+      rtsRef.current.push(Math.min(10000, Math.max(120, rawRt)));
       statsRef.current = {
         ...statsRef.current,
         hits: statsRef.current.hits + 1,
@@ -174,14 +223,14 @@ export function NBackGame({
 
   // Phím cách để bấm khớp cho nhanh tay.
   // Handler đọc press() qua ref => listener chỉ gắn/gỡ khi đổi phase.
-  const pressRef = useRef(press);
-  pressRef.current = press;
+  const pressRef = useRef(handlePress);
+  pressRef.current = handlePress;
   useEffect(() => {
     if (phase !== "playing") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
-        pressRef.current();
+        pressRef.current("key");
       }
     };
     window.addEventListener("keydown", onKey);
@@ -285,9 +334,9 @@ export function NBackGame({
           </div>
 
           <button
-            onClick={press}
+            {...press((type: InputType) => handlePress(type))}
             disabled={warmup}
-            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 transition-all font-mono"
+            className="w-full py-3 rounded-xl text-xs tracking-widest flex items-center justify-center gap-2 transition-all font-mono game-surface active:scale-95"
             style={{
               opacity: warmup ? 0.4 : 1,
               background:

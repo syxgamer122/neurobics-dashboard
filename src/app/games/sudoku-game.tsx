@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { CheckCircle, Grid3X3, Loader2, RefreshCw, Star } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { generateSudoku } from "../lib/sudoku-gen";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { SudokuTelemetry } from "../lib/scoring";
 import { logError, logWarn } from "../lib/logger";
 
@@ -138,6 +140,7 @@ export function SudokuGame({
     [],
   );
 
+  const press = usePress();
   const { t } = useLang();
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const level = SUDOKU_LEVELS.find((l) => l.id === difficulty)!;
@@ -158,12 +161,24 @@ export function SudokuGame({
     ),
   );
   const [selected, setSelected] = useState<[number, number] | null>(null);
-  const [status, setStatus] = useState<"idle" | "playing" | "done">("idle");
+  const selectedRef = useRef<[number, number] | null>(null);
+  selectedRef.current = selected;
+  const [status, setStatusState] = useState<"idle" | "playing" | "done">(
+    "idle",
+  );
+  const statusRef = useRef(status);
+  const setStatus = useCallback((s: "idle" | "playing" | "done") => {
+    statusRef.current = s;
+    setStatusState(s);
+  }, []);
+  const inputLockedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
   const [mistakes, setMistakes] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const latestReqRef = useRef(0);
   const MAX_MISTAKES = 3;
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const clearTimers = useCallback(() => {
     timeoutsRef.current.forEach(clearTimeout);
@@ -204,16 +219,19 @@ export function SudokuGame({
   // Build a fresh board for the given difficulty and reset all play state.
   const startBoard = useCallback(
     (diff: Difficulty) => {
+      const reqId = ++latestReqRef.current;
       if (timerRef.current) clearInterval(timerRef.current);
       clearTimers();
       const lvl = SUDOKU_LEVELS.find((l) => l.id === diff)!;
       // Sinh đề off-thread qua Web Worker (fallback main thread nếu worker lỗi).
       setGenerating(true);
+      selectedRef.current = null;
       setSelected(null);
       setStatus("idle");
       setElapsed(0);
       setMistakes(0);
       completedRef.current = false;
+      inputLockedRef.current = false;
       startRef.current = null;
       placementsRef.current = 0;
       moveRtsRef.current = [];
@@ -224,8 +242,10 @@ export function SudokuGame({
       wrongCellsRef.current = new Set();
       actualCluesRef.current = null;
       budgetExceededRef.current = false;
+      inputTypesRef.current = new Set();
       void generateSudokuAsync(lvl.clues)
         .then((nd) => {
+          if (latestReqRef.current !== reqId) return;
           actualCluesRef.current = nd.actualClues;
           budgetExceededRef.current = nd.budgetExceeded;
           setPuzzleData(nd);
@@ -234,18 +254,22 @@ export function SudokuGame({
         .catch((err) => {
           // Request bi thay boi request moi hon => bo qua, khong ve de cu len.
           if (isSuperseded(err)) return;
+          if (latestReqRef.current !== reqId) return;
           logError("Sudoku generate failed:", err);
           const nd = generateSudoku(lvl.clues);
+          if (latestReqRef.current !== reqId) return;
           actualCluesRef.current = nd.actualClues;
           budgetExceededRef.current = nd.budgetExceeded;
           setPuzzleData(nd);
           setUserGrid(nd.puzzle.map((r) => [...r]));
         })
         .finally(() => {
-          setGenerating(false);
+          if (latestReqRef.current === reqId) {
+            setGenerating(false);
+          }
         });
     },
-    [generateSudokuAsync, clearTimers],
+    [generateSudokuAsync, clearTimers, setStatus],
   );
 
   // First board via worker (avoid sync generateSudoku on mount).
@@ -260,7 +284,7 @@ export function SudokuGame({
   // Win (board full) HOAC thua (het mang): submit telemetry — khong reset im lang.
   useEffect(() => {
     if (completedRef.current) return;
-    if (status !== "playing") return;
+    if (statusRef.current !== "playing") return;
     const solved = userGrid.every((row, ri) =>
       row.every((v, ci) => v === solution[ri][ci]),
     );
@@ -275,6 +299,10 @@ export function SudokuGame({
     setSaving(true);
     (async () => {
       try {
+        let finalInput = "mouse";
+        if (inputTypesRef.current.has("touch")) finalInput = "touch";
+        else if (inputTypesRef.current.has("key")) finalInput = "key";
+
         await onComplete({
           timeMs: ms,
           difficulty,
@@ -288,6 +316,7 @@ export function SudokuGame({
           // Gui so clue THAT: neu generator het budget, de de hon nhan do kho.
           actualClues: actualCluesRef.current ?? undefined,
           budgetExceeded: budgetExceededRef.current,
+          inputType: finalInput as InputType,
         });
       } catch (err) {
         logError("Sudoku completion: onComplete failed:", err);
@@ -295,7 +324,7 @@ export function SudokuGame({
         setSaving(false);
       }
     })();
-  }, [userGrid, solution, status, difficulty, mistakes, onComplete]);
+  }, [userGrid, solution, difficulty, mistakes, onComplete, setStatus]);
 
   const reset = useCallback(
     () => startBoard(difficulty),
@@ -318,7 +347,7 @@ export function SudokuGame({
   );
 
   const ensureStarted = useCallback(() => {
-    if (status === "idle") {
+    if (statusRef.current === "idle") {
       onPlayStart?.();
       startRef.current = Date.now();
       lastMoveRef.current = startRef.current;
@@ -328,17 +357,23 @@ export function SudokuGame({
         500,
       );
     }
-  }, [status, onPlayStart]);
+  }, [onPlayStart, setStatus]);
 
   const inputNumber = useCallback(
-    async (n: number) => {
-      if (!selected || status === "done") return;
-      const [r, c] = selected;
+    (n: number, inputType?: InputType) => {
+      if (inputType) inputTypesRef.current.add(inputType);
+      if (
+        !selectedRef.current ||
+        statusRef.current === "done" ||
+        inputLockedRef.current
+      )
+        return;
+      const [r, c] = selectedRef.current;
       if (puzzle[r][c] !== null) return;
       // Ignore re-tapping the same digit already in the cell (no RT/placement bump).
       if (userGrid[r][c] === n) return;
 
-      // O da dung: dem re-entry (mat dau suy luan) roi chan — dung pha o.
+      // O da dung: dem re-entry (mat dau suy luan) roi chan - dung pha o.
       if (userGrid[r][c] === solution[r][c]) {
         reEntriesRef.current += 1;
         return;
@@ -348,7 +383,8 @@ export function SudokuGame({
 
       const cellKey = `${r},${c}`;
       const now = Date.now();
-      const rt = now - (lastMoveRef.current ?? now);
+      const rawRt = now - (lastMoveRef.current ?? now);
+      const rt = Math.min(10000, Math.max(120, rawRt));
       lastMoveRef.current = now;
 
       const isWrong = n !== solution[r][c];
@@ -364,6 +400,7 @@ export function SudokuGame({
         const ng = userGrid.map((row) => [...row]);
         ng[r][c] = n;
         setUserGrid(ng);
+        inputLockedRef.current = true;
         later(() => {
           setUserGrid((prev) =>
             prev.map((row, ri) =>
@@ -372,6 +409,7 @@ export function SudokuGame({
               ),
             ),
           );
+          inputLockedRef.current = false;
           // Het mang: effect completion se submit — khong reset im lang.
         }, 600);
         return;
@@ -385,16 +423,7 @@ export function SudokuGame({
       ng[r][c] = n;
       setUserGrid(ng);
     },
-    [
-      selected,
-      status,
-      puzzle,
-      userGrid,
-      solution,
-      mistakes,
-      ensureStarted,
-      later,
-    ],
+    [puzzle, userGrid, solution, mistakes, ensureStarted, later],
   );
 
   // Keyboard support
@@ -402,11 +431,16 @@ export function SudokuGame({
     const handler = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       const n = parseInt(e.key);
-      if (n >= 1 && n <= 9) inputNumber(n);
+      if (n >= 1 && n <= 9) inputNumber(n, "key");
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [inputNumber]);
+
+  useGameLifecycle({
+    isActive: () => status === "playing",
+    onLeave: () => reset(),
+  });
 
   // Count only correctly placed digits (wrong entries don't consume a number)
   const counts = Array.from({ length: 9 }, (_, i) =>
@@ -650,9 +684,13 @@ export function SudokuGame({
                   return (
                     <button
                       key={`${r}-${c}`}
-                      onClick={() => {
-                        if (status !== "done") setSelected([r, c]);
-                      }}
+                      {...press((type: InputType) => {
+                        if (type) inputTypesRef.current.add(type);
+                        if (status !== "done") {
+                          selectedRef.current = [r, c];
+                          setSelected([r, c]);
+                        }
+                      })}
                       style={{
                         aspectRatio: "1",
                         background: bg,
@@ -701,10 +739,10 @@ export function SudokuGame({
             <button
               key={n}
               type="button"
-              onClick={() => inputNumber(n)}
+              {...press((type: InputType) => inputNumber(n, type))}
               disabled={status === "done" || done}
               aria-label={`${n}`}
-              className="rounded-xl flex flex-col items-center justify-center min-h-12 sm:min-h-0 py-3 sm:py-2 transition-all duration-100 hover:brightness-125 disabled:opacity-25 disabled:hover:brightness-100"
+              className="rounded-xl flex flex-col items-center justify-center min-h-14 sm:min-h-12 py-3 sm:py-2 transition-all duration-100 hover:brightness-125 disabled:opacity-25 disabled:hover:brightness-100 game-surface active:scale-95"
               style={{
                 background: "rgba(var(--neuro-cyan-rgb),0.1)",
                 color: "#38E1FF",

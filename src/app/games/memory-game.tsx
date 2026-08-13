@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Brain, CheckCircle, Loader2, RefreshCw, Star } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { shuffleArray } from "../lib/sudoku-gen";
+import { useGameLifecycle } from "../lib/use-game-lifecycle";
+import { usePress, type InputType } from "../lib/use-press";
 import type { MemoryTelemetry } from "../lib/scoring";
 import { logError } from "../lib/logger";
 
@@ -14,6 +16,7 @@ export function MemoryMatrixGame({
   onComplete: (tel: MemoryTelemetry) => Promise<void>;
   onPlayStart?: () => void;
 }) {
+  const press = usePress();
   const { t } = useLang();
   const MAX_HEARTS = 3;
 
@@ -21,11 +24,41 @@ export function MemoryMatrixGame({
   const [hearts, setHearts] = useState(MAX_HEARTS);
   const heartsRef = useRef(MAX_HEARTS);
   const wrongClicksRef = useRef(0);
-  const [status, setStatus] = useState<
+  const [status, setStatusState] = useState<
     "idle" | "memorize" | "recall" | "success" | "fail" | "done"
   >("idle");
+  const statusRef = useRef(status);
+  const setStatusSafe = useCallback(
+    (
+      next:
+        | "idle"
+        | "memorize"
+        | "recall"
+        | "success"
+        | "fail"
+        | "done"
+        | ((
+            prev: "idle" | "memorize" | "recall" | "success" | "fail" | "done",
+          ) => "idle" | "memorize" | "recall" | "success" | "fail" | "done"),
+    ) => {
+      if (typeof next === "function") {
+        setStatusState((prev) => {
+          const result = next(prev);
+          statusRef.current = result;
+          return result;
+        });
+      } else {
+        statusRef.current = next;
+        setStatusState(next);
+      }
+    },
+    [],
+  );
+
   const [targets, setTargets] = useState<number[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
   // Khong giu wrongClicks trong state: khong cho nao render doc no, va so lieu
@@ -36,10 +69,9 @@ export function MemoryMatrixGame({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const maxClearedRef = useRef(0);
-  // Wall-clock UI still uses startRef; scoring telemetry uses recall-only ms
-  // so memorize flash delays do not inflate timeMs.
   const recallMsRef = useRef(0);
   const recallStartRef = useRef<number | null>(null);
+  const inputTypesRef = useRef<Set<InputType>>(new Set());
 
   /** Huỷ mọi hẹn giờ đang treo để ván cũ không can thiệp vào ván mới. */
   const clearTimers = useCallback(() => {
@@ -71,8 +103,9 @@ export function MemoryMatrixGame({
       Array.from({ length: totalCells }, (_, i) => i),
     ).slice(0, targetCount);
     setTargets(newTargets);
+    selectedRef.current = [];
     setSelected([]);
-    setStatus("memorize");
+    setStatusSafe("memorize");
 
     if (level === 1 && !startRef.current) {
       onPlayStart?.();
@@ -87,7 +120,7 @@ export function MemoryMatrixGame({
 
     later(
       () => {
-        setStatus((prev) => {
+        setStatusSafe((prev) => {
           if (prev !== "memorize") return prev;
           recallStartRef.current = Date.now();
           return "recall";
@@ -95,7 +128,15 @@ export function MemoryMatrixGame({
       },
       1500 + targetCount * 100,
     );
-  }, [level, targetCount, totalCells, clearTimers, later, onPlayStart]);
+  }, [
+    level,
+    targetCount,
+    totalCells,
+    clearTimers,
+    later,
+    onPlayStart,
+    setStatusSafe,
+  ]);
 
   const reset = () => {
     clearTimers();
@@ -108,15 +149,21 @@ export function MemoryMatrixGame({
     heartsRef.current = MAX_HEARTS;
     wrongClicksRef.current = 0;
     setHearts(MAX_HEARTS);
-    setStatus("idle");
+    selectedRef.current = [];
+    inputTypesRef.current = new Set();
+    setSelected([]);
+    setStatusSafe("idle");
     setElapsed(0);
     startRef.current = null;
   };
 
-  const handleCellClick = (idx: number) => {
-    if (status !== "recall" || selected.includes(idx)) return;
+  const handleCellClick = (idx: number, inputType?: InputType) => {
+    if (inputType) inputTypesRef.current.add(inputType);
+    if (statusRef.current !== "recall" || selectedRef.current.includes(idx))
+      return;
 
-    const newSelected = [...selected, idx];
+    const newSelected = [...selectedRef.current, idx];
+    selectedRef.current = newSelected;
     setSelected(newSelected);
 
     if (!targets.includes(idx)) {
@@ -130,26 +177,25 @@ export function MemoryMatrixGame({
         recallMsRef.current += Date.now() - recallStartRef.current;
         recallStartRef.current = null;
       }
-      setStatus("fail");
+      setStatusSafe("fail");
 
       if (newHearts <= 0) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         intervalRef.current = null;
         later(() => {
-          setStatus("done");
+          setStatusSafe("done");
           setSaving(true);
+          let finalInput = "mouse";
+          if (inputTypesRef.current.has("touch")) finalInput = "touch";
+          else if (inputTypesRef.current.has("key")) finalInput = "key";
+
           void onComplete({
-            // CHI tinh pha recall (da tru thoi gian memorize) — anticheat phai
-            // dung nguong recall-only, khong phai nguong wall-clock ca van.
             timeMs: recallMsRef.current,
-            // KHÔNG nâng sàn lên 1 nữa: thua ngay cấp 1 nghĩa là chưa vượt
-            // được cấp nào, phải được chấm 0 thay vì được tính như đã qua cấp 1.
-            // (Truoc day van gui Math.max(1, ...) — trai nguoc chinh comment nay
-            //  — khien inspectMemory chia cho 1 va reject 422 oan.)
             maxLevel: maxClearedRef.current,
             clearedLevels: maxClearedRef.current,
             failed: true,
             wrongClicks: wrongClicksRef.current,
+            inputType: finalInput as InputType,
           })
             .catch((err) => {
               logError("Memory completion: onComplete failed:", err);
@@ -167,7 +213,7 @@ export function MemoryMatrixGame({
         recallMsRef.current += Date.now() - recallStartRef.current;
         recallStartRef.current = null;
       }
-      setStatus("success");
+      setStatusSafe("success");
       maxClearedRef.current = Math.max(maxClearedRef.current, level);
       later(() => setLevel((l) => l + 1), 600);
     }
@@ -179,7 +225,6 @@ export function MemoryMatrixGame({
     }
   }, [level, generateLevel]);
 
-  // Dọn sạch khi rời trang: nếu không, đồng hồ đếm và các hẹn giờ vẫn chạy tiếp.
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -187,6 +232,11 @@ export function MemoryMatrixGame({
       timeoutsRef.current = [];
     };
   }, []);
+
+  useGameLifecycle({
+    isActive: () => status === "memorize" || status === "recall" || status === "success" || status === "fail",
+    onLeave: () => reset(),
+  });
 
   const fmtTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -347,9 +397,7 @@ export function MemoryMatrixGame({
           </div>
           <div className="text-sm text-slate-400">
             {t.mem_max_level}:{" "}
-            <span className="text-[#F43F5E]">
-              {Math.max(1, maxClearedRef.current)}
-            </span>
+            <span className="text-[#F43F5E]">{maxClearedRef.current}</span>
           </div>
         </div>
       ) : (
@@ -401,8 +449,8 @@ export function MemoryMatrixGame({
                   aria-label={`${t.cell_label ?? "Cell"} ${idx + 1}`}
                   aria-pressed={isSelected}
                   disabled={status !== "recall"}
-                  onClick={() => handleCellClick(idx)}
-                  className="rounded-lg transition-all duration-200"
+                  {...press((type: InputType) => handleCellClick(idx, type))}
+                  className="rounded-lg transition-all duration-200 game-surface active:scale-95"
                   style={{
                     background: bg,
                     border: border,

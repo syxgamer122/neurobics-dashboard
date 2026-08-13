@@ -24,7 +24,7 @@ import { CognitiveIndexCard, LevelCard } from "./components/dashboard";
 
 import { RoundResultOverlay } from "./components/ui/round-result-overlay";
 
-import { fetchProfile, cognitiveIndex, type Profile } from "./lib/api";
+import { cognitiveIndex, type Profile } from "./lib/api";
 import { useAppState } from "./hooks/use-app-state";
 import { useRoundSubmission } from "./hooks/use-round-submission";
 import { useOfflineSync } from "./hooks/use-offline-sync";
@@ -194,7 +194,10 @@ function AppInner() {
   if (!profile) {
     return (
       <AuthScreen
-        onAuthed={async (p) => (p ? setProfile(p) : refreshProfile())}
+        onAuthed={(p) => {
+          if (p) setProfile(p);
+          else void refreshProfile();
+        }}
       />
     );
   }
@@ -212,7 +215,7 @@ function AppInner() {
   const levelProgress = getLevelProgress(profile.total_xp ?? 0);
   const levelColor = getLevelColor(levelProgress.level);
 
-  if (adminPanelOpen)
+  if (adminPanelOpen && isAdmin)
     return (
       <ErrorBoundary area="admin-panel">
         <Suspense fallback={<FullScreenFallback />}>
@@ -234,8 +237,6 @@ function AppInner() {
       className="min-h-screen bg-background text-foreground overflow-x-hidden"
       style={{ fontFamily: "'Exo 2', sans-serif" }}
     >
-      <style>{`
-      `}</style>
       <AmbientBackground />
 
       <AppHeader
@@ -339,14 +340,7 @@ function AppInner() {
                 <QuestsPanel
                   refreshKey={gamificationKey}
                   onClaimed={() => {
-                    // XP thuong duoc cong o server, keo ho so moi ve de hien dung.
-                    void fetchProfile()
-                      .then((fresh) => {
-                        if (fresh) setProfile(fresh);
-                      })
-                      // Than ham rong -> tra ve void. Neu viet `() => undefined`
-                      // thi tsc phai tu suy kieu tra ve va bao TS7011.
-                      .catch(() => {});
+                    void refreshProfile();
                   }}
                 />
               )}
@@ -410,7 +404,7 @@ function AppInner() {
         />
       )}
 
-      {onboardingOpen && (
+      {onboardingOpen && !roundResult && (
         <OnboardingOverlay
           username={profile.username}
           played={roundsPlayed}
@@ -435,7 +429,7 @@ function AppInner() {
         />
       )}
 
-      {accessDenied && (
+      {accessDenied && !roundResult && !onboardingOpen && (
         <AccessDeniedOverlay
           profile={profile}
           t={t}
