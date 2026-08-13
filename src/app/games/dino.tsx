@@ -55,13 +55,14 @@ export function DinoGame({
     }
   });
 
-  useEffect(() => {
-    return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const timeoutId = duckTimeoutRef.current;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+  const clearDuckTimeout = useCallback(() => {
+    if (duckTimeoutRef.current !== null) {
+      clearTimeout(duckTimeoutRef.current);
+      duckTimeoutRef.current = null;
+    }
   }, []);
+
+  useEffect(() => clearDuckTimeout, [clearDuckTimeout]);
 
   // Mutable game state
   const state = useRef({

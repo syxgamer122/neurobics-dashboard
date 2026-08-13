@@ -110,7 +110,10 @@ function buildCognitiveData(
     { subject: L.memory, value: toPct(p.memory_score) },
     { subject: L.focus, value: toPct(p.focus_score) },
     { subject: L.logic, value: toPct(p.algebraic_logic_score) },
-    { subject: L.spatial, value: toPct(p.cfop_spatial_record) },
+    {
+      subject: L.spatial,
+      value: toPct(p.spatial_score ?? p.cfop_spatial_record ?? 0),
+    },
     { subject: L.speed, value: toPct(p.speed_score) },
   ];
 }
@@ -255,8 +258,7 @@ function AppInner() {
             "max(10rem, calc(7.5rem + env(safe-area-inset-bottom)))",
         }}
       >
-        {/* Page transition wrapper: key thay doi -> React unmount/remount -> re-trigger animation */}
-        <div key={activePage} className="page-enter">
+        <div className="page-enter">
           {isGuest && (
             <div
               className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between"

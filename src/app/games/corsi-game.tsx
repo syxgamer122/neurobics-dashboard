@@ -54,6 +54,11 @@ export function CorsiBlockGame({
   }, []);
   const [span, setSpan] = useState(START_SPAN);
   const [sequence, setSequence] = useState<number[]>([]);
+  const sequenceRef = useRef<number[]>([]);
+  const setSequenceSafe = useCallback((seq: number[]) => {
+    sequenceRef.current = seq;
+    setSequence(seq);
+  }, []);
   const [litIndex, setLitIndex] = useState<number | null>(null);
   const [tapped, setTapped] = useState<number[]>([]);
   const tappedRef = useRef<number[]>([]);
@@ -72,6 +77,20 @@ export function CorsiBlockGame({
   const bestSpanRef = useRef(0);
   const livesRef = useRef(0);
   const inputTypesRef = useRef<Set<InputType>>(new Set());
+
+  const resetRunMetrics = useCallback(() => {
+    trialsRef.current = 0;
+    correctTrialsRef.current = 0;
+    wrongClicksRef.current = 0;
+    tapsRef.current = 0;
+    rtsRef.current = [];
+    recallMsRef.current = 0;
+    bestSpanRef.current = 0;
+    livesRef.current = 0;
+    inputTypesRef.current = new Set();
+    lastTapAtRef.current = 0;
+    recallStartRef.current = 0;
+  }, []);
 
   const lastTapAtRef = useRef(0);
   const recallStartRef = useRef(0);
@@ -153,16 +172,7 @@ export function CorsiBlockGame({
   const startGame = () => {
     onPlayStart?.();
     clearTimers();
-
-    trialsRef.current = 0;
-    correctTrialsRef.current = 0;
-    wrongClicksRef.current = 0;
-    tapsRef.current = 0;
-    rtsRef.current = [];
-    inputTypesRef.current = new Set();
-    recallMsRef.current = 0;
-    bestSpanRef.current = 0;
-    livesRef.current = 0;
+    resetRunMetrics();
 
     setSpan(START_SPAN);
     setBestSpan(0);
@@ -170,15 +180,16 @@ export function CorsiBlockGame({
     setLastCorrect(null);
 
     const seq = randomSequence(START_SPAN);
-    setSequence(seq);
+    setSequenceSafe(seq);
     trialsRef.current = 1;
     playSequence(seq);
   };
 
   const resetGame = () => {
     clearTimers();
+    resetRunMetrics();
     setPhase("idle");
-    setSequence([]);
+    setSequenceSafe([]);
     setTapped([]);
     tappedRef.current = [];
     setLitIndex(null);
@@ -212,7 +223,7 @@ export function CorsiBlockGame({
         later(() => {
           setSpan(nextSpan);
           const seq = randomSequence(nextSpan);
-          setSequence(seq);
+          setSequenceSafe(seq);
           trialsRef.current += 1;
           playSequence(seq);
         }, 700);
@@ -230,12 +241,12 @@ export function CorsiBlockGame({
       // Con luot thu lai o cung do dai: chuoi moi, cung chieu dai.
       later(() => {
         const seq = randomSequence(span);
-        setSequence(seq);
+        setSequenceSafe(seq);
         trialsRef.current += 1;
         playSequence(seq);
       }, 800);
     },
-    [finishGame, later, playSequence, span, setPhase],
+    [finishGame, later, playSequence, span, setPhase, setSequenceSafe],
   );
 
   const handleCell = (cell: number, inputType?: InputType) => {
@@ -250,7 +261,8 @@ export function CorsiBlockGame({
 
     const currentTapped = tappedRef.current;
     const position = currentTapped.length;
-    const expected = sequence[position];
+    const seq = sequenceRef.current;
+    const expected = seq[position];
 
     if (cell !== expected) {
       wrongClicksRef.current += 1;
@@ -262,7 +274,7 @@ export function CorsiBlockGame({
     tappedRef.current = next;
     setTapped(next);
 
-    if (next.length === sequence.length) settleTrial(true);
+    if (next.length === seq.length) settleTrial(true);
   };
 
   const statusText =
