@@ -55,17 +55,10 @@ export async function saveBirthYear(birthYear: number): Promise<Profile> {
   return hydrateProfile(data as Profile);
 }
 
-/**
- * Records activity for "today" in Vietnam time and updates the streak:
- *  - same VN day as last_active_date        → streak unchanged (already counted)
- *  - exactly 1 VN calendar day later         → streak + 1
- *  - more than 1 day later (or first ever)   → streak reset to 1
- * Writes both synapse_streak and last_active_date back to the row.
- */
 // ─── Admin controls (active user) ───────────────────────────────────────────────
 
 /**
- * Wipes all cognitive metrics and the streak back to 0 for the active user.
+ * Wipes all cognitive metrics back to 0 for the active user.
  * Forcefully zeroes ALL 5 axis columns (including cfop_spatial_record) so legacy
  * accounts with pre-migration cumulative values >1000 can be re-baselined — the
  * upward-only pullUpRating can never bring them back down on its own.
@@ -82,7 +75,6 @@ export async function resetActiveUserScores(): Promise<Profile> {
       speed_score: 0,
       focus_score: 0,
       cfop_spatial_record: 0,
-      synapse_streak: 0,
       ...(Object.fromEntries(
         SESSION_COLUMNS.map((column) => [column, 0]),
       ) as Record<SessionColumn, number>),

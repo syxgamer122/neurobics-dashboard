@@ -1,7 +1,7 @@
 /**
  * Che do khach (choi thu) — toan bo cuc bo, khong goi server auth/round.
  *
- * Muc dich: de nguoi moi cam nhan game truoc khi dang ky. Diem, XP, streak chi
+ * Muc dich: de nguoi moi cam nhan game truoc khi dang ky. Diem, XP chi
  * nam trong bo nho trinh duyet cua phien nay; reload/dong tab co the mat.
  */
 import type { Profile } from "./api";
@@ -44,7 +44,6 @@ export function createGuestProfile(username = "Khách"): GuestProfile {
   return {
     id: GUEST_PROFILE_ID,
     username,
-    synapse_streak: 0,
     cfop_spatial_record: null,
     algebraic_logic_score: 0,
     memory_score: 0,

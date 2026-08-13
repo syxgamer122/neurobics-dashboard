@@ -256,7 +256,7 @@ export function SchulteTableGame({
           modeLabel,
           // Van thua dung giua chung => hitRts NGAN hon cells. Phai bao cho
           // server biet, neu khong no bat buoc hitRts.length === cells va tra
-          // ve 400 "Invalid hitRts length", lam mat streak/quest/ticket.
+          // ve 400 "Invalid hitRts length", lam mat quest/ticket.
           failed: lost && !won,
           intendedCells: size * size,
           inputType: finalInput as InputType,

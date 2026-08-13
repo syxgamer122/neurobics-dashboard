@@ -94,7 +94,6 @@ export function registerAdminRoutes(app: Hono): void {
         speed_score: 0,
         focus_score: 0,
         cfop_spatial_record: 0,
-        synapse_streak: 0,
         ...EMPTY_SESSION_PATCH,
         total_xp: 0,
         last_active_date: null,

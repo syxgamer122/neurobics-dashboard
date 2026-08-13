@@ -73,9 +73,6 @@ export function AppHeader({
             <div className="text-xs font-semibold text-foreground truncate max-w-[9rem]">
               {profile.username}
             </div>
-            <div className="text-xs text-slate-500">
-              {profile.synapse_streak} {t.day_streak}
-            </div>
           </div>
         </div>
         <button

@@ -60,7 +60,7 @@ export function adminAddPoints(
   });
 }
 
-/** Reset all scores + streak of any user to 0 (all 5 axes forcefully zeroed). */
+/** Reset all scores of any user to 0 (all 5 axes forcefully zeroed). */
 export async function adminResetScores(targetId: string): Promise<Profile> {
   const result = await serverPost<{ profile: Profile }>("admin-reset", {
     targetId,

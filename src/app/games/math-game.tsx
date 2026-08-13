@@ -200,8 +200,8 @@ function buildSet(diff: MathDifficulty): Problem[] {
   if (diff !== "adaptive") {
     return Array.from({ length: TOTAL }, () => makeProblem(diff));
   }
-  // Ramp de -> vua -> kho (8 cau moi tang). Khong doi do kho giua cau theo
-  // streak thoi gian thuc de diem van so sanh duoc giua cac van adaptive.
+  // Ramp de -> vua -> kho (8 cau moi tang). Khong doi do kho giua cau
+  // de diem van so sanh duoc giua cac van adaptive.
   const out: Problem[] = [];
   for (let i = 0; i < TOTAL; i++) {
     const tier: MathDifficulty = i < 8 ? "easy" : i < 16 ? "medium" : "hard";

@@ -3,7 +3,6 @@
 export const vi = {
   // Nav
   league: "GIẢI ĐẤU TRÍ TUỆ",
-  day_streak: "ngày liên tiếp",
 
   // Dashboard
   cognitive_index: "Chỉ Số Nhận Thức",
@@ -29,7 +28,6 @@ export const vi = {
   cog_matrix_sub: (sessions: number) =>
     `Đánh giá 5 lĩnh vực thần kinh · ${sessions} phiên`,
   live: "TRỰC TIẾP",
-  synapse_streak: "Chuỗi Ngày Luyện Não",
   this_month: "Tháng Này",
   xp_today: "XP Hôm Nay",
   level_label: "CẤP ĐỘ",
@@ -81,8 +79,6 @@ export const vi = {
   mem_max_level: "Cấp cao nhất",
   game_over: "KẾT THÚC",
   abort_restart: "HUỶ & CHƠI LẠI",
-  streak_week_label: "Chuỗi hiện tại (tối đa 7 ô)",
-  streak_tz_note: "Reset 00:00 GMT+7",
   heart_full: "Còn mạng",
   heart_empty: "Mất mạng",
   cell_label: "Ô",

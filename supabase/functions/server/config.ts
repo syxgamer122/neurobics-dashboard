@@ -27,7 +27,7 @@ const SESSION_SELECT = SESSION_COLUMNS.join(", ");
 export const EMPTY_SESSION_PATCH = Object.fromEntries(
   SESSION_COLUMNS.map((column) => [column, 0]),
 );
-export const PROFILE_COLS = `id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, synapse_streak, total_xp, last_active_date, ${SESSION_SELECT}, created_at`;
+export const PROFILE_COLS = `id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, total_xp, last_active_date, ${SESSION_SELECT}, created_at`;
 // Ca nha thuong dung chung mot duong mang, nen mot dia chi phai du cho
 // vai nguoi cung dang ky.
 export const SIGNUP_LIMIT = 10;

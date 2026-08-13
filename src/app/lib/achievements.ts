@@ -11,7 +11,7 @@
 export type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "diamond";
 
 export type BadgeCategory =
-  "volume" | "streak" | "level" | "mastery" | "breadth" | "score" | "game";
+  "volume" | "level" | "mastery" | "breadth" | "score" | "game";
 
 export type Badge = {
   code: string;
@@ -50,7 +50,7 @@ export const TIER_LABEL: Record<BadgeTier, { vi: string; en: string }> = {
 
 export const CATEGORY_ORDER: BadgeCategory[] = [
   "volume",
-  "streak",
+
   "level",
   "mastery",
   "breadth",
@@ -61,7 +61,7 @@ export const CATEGORY_ORDER: BadgeCategory[] = [
 export const CATEGORY_LABEL: Record<BadgeCategory, { vi: string; en: string }> =
   {
     volume: { vi: "Số ván", en: "Volume" },
-    streak: { vi: "Chuyên cần", en: "Consistency" },
+
     level: { vi: "Cấp độ", en: "Level" },
     mastery: { vi: "Chỉ số", en: "Mastery" },
     breadth: { vi: "Toàn diện", en: "Breadth" },
@@ -133,71 +133,6 @@ export const BADGES: Badge[] = [
     category: "volume",
     vi: ["Nghìn trận", "Chơi 1000 ván"],
     en: ["Thousand Trials", "Play 1000 rounds"],
-  },
-
-  // ─── Chuyên cần ───────────────────────────────────────────────
-  {
-    code: "streak_3",
-    icon: "📅",
-    xp: 30,
-    tier: "bronze",
-    category: "streak",
-    vi: ["Ba ngày liền", "Chuỗi 3 ngày"],
-    en: ["Three in a Row", "3-day streak"],
-  },
-  {
-    code: "streak_7",
-    icon: "🗓️",
-    xp: 60,
-    tier: "silver",
-    category: "streak",
-    vi: ["Trọn tuần", "Chuỗi 7 ngày"],
-    en: ["Full Week", "7-day streak"],
-  },
-  {
-    code: "streak_14",
-    icon: "🧭",
-    xp: 90,
-    tier: "silver",
-    category: "streak",
-    vi: ["Hai tuần không nghỉ", "Chuỗi 14 ngày"],
-    en: ["Fortnight", "14-day streak"],
-  },
-  {
-    code: "streak_30",
-    icon: "🏆",
-    xp: 150,
-    tier: "gold",
-    category: "streak",
-    vi: ["Thép đã tôi", "Chuỗi 30 ngày"],
-    en: ["Iron Will", "30-day streak"],
-  },
-  {
-    code: "streak_60",
-    icon: "🔱",
-    xp: 250,
-    tier: "platinum",
-    category: "streak",
-    vi: ["Không lay chuyển", "Chuỗi 60 ngày"],
-    en: ["Unshaken", "60-day streak"],
-  },
-  {
-    code: "streak_100",
-    icon: "👑",
-    xp: 400,
-    tier: "diamond",
-    category: "streak",
-    vi: ["Trăm ngày", "Chuỗi 100 ngày"],
-    en: ["Hundred Days", "100-day streak"],
-  },
-  {
-    code: "days_60",
-    icon: "📖",
-    xp: 180,
-    tier: "gold",
-    category: "streak",
-    vi: ["Dài hơi", "Luyện trong 60 ngày khác nhau"],
-    en: ["Long Haul", "Train on 60 different days"],
   },
 
   // ─── Cấp độ ─────────────────────────────────────────────────
