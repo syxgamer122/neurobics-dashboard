@@ -228,28 +228,48 @@ export function registerRoundRoutes(app: Hono): void {
 
       const results = [];
       for (const round of rounds) {
-        const { game, telemetry, fingerprint, startedAt, clientElapsedMs } =
-          round;
+        const { game, telemetry, fingerprint, startedAt, clientElapsedMs, clientRoundId } = round;
         const gameId = String(game);
-        if (!isGame(gameId)) {
-          results.push({ error: "Invalid game" });
+        if (!isGame(gameId) || !clientRoundId) {
+          results.push({ clientRoundId: clientRoundId || "unknown", status: "error", error: "Invalid payload" });
           continue;
         }
 
-        // Tao 1 ticket thuc su tren DB de pass duoc submit_round_transaction
-        const { data: ticket, error: insertErr } = await adminClient
+        const fallbackStartedAt = startedAt || new Date().toISOString();
+
+        // 1. Check for existing ticket with same game + user + started_at to avoid duplicates
+        const { data: existing } = await adminClient
           .from("round_tickets")
-          .insert({
-            user_id: user.id,
-            game: gameId,
-            started_at: startedAt || new Date().toISOString(),
-          })
-          .select("id")
+          .select("id, submitted_at")
+          .eq("user_id", user.id)
+          .eq("game", gameId)
+          .eq("started_at", fallbackStartedAt)
           .single();
 
-        if (insertErr || !ticket) {
-          results.push({ error: "Failed to create offline ticket" });
+        if (existing?.submitted_at) {
+          results.push({ clientRoundId, status: "duplicate" });
           continue;
+        }
+
+        let ticket = existing;
+
+        if (!ticket) {
+          // Tao 1 ticket thuc su tren DB de pass duoc submit_round_transaction
+          const { data: newTicket, error: insertErr } = await adminClient
+            .from("round_tickets")
+            .insert({
+              user_id: user.id,
+              game: gameId,
+              started_at: fallbackStartedAt,
+            })
+            .select("id")
+            .single();
+
+          if (insertErr || !newTicket) {
+            results.push({ clientRoundId, status: "error", error: "Failed to create offline ticket" });
+            continue;
+          }
+          ticket = newTicket;
         }
 
         const cheat = inspectRound(gameId, telemetry, clientElapsedMs || 0);
@@ -265,6 +285,8 @@ export function registerRoundRoutes(app: Hono): void {
             .update({ submitted_at: new Date().toISOString() })
             .eq("id", ticket.id);
           results.push({
+            clientRoundId,
+            status: "rejected",
             error: "Round rejected: suspicious timing patterns.",
             code: "anticheat_hard",
           });
@@ -304,10 +326,15 @@ export function registerRoundRoutes(app: Hono): void {
         );
 
         if (error) {
-          results.push({ error: error.message });
-        } else {
-          results.push({ success: true, data });
+          results.push({
+            clientRoundId,
+            status: "error",
+            error: error.message,
+          });
+          continue;
         }
+
+        results.push({ clientRoundId, status: "ok" });
       }
 
       return c.json({ results });

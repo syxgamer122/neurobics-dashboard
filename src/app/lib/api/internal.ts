@@ -107,6 +107,12 @@ export function describeError(err: unknown, context: string): string {
   return `${context}: ${IS_DEV ? String(err) : "Unexpected error"}`;
 }
 
+/** Check if an error is likely due to network/offline conditions. */
+export function isNetworkErrorLike(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /Failed to fetch|NetworkError|FetchError|Load failed|offline|network/i.test(msg);
+}
+
 // Select all columns so the app keeps working before/after the ALTER TABLE
 // migration adds memory_score, speed_score, focus_score, last_active_date.
 export const PROFILE_COLS =

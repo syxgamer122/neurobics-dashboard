@@ -7,6 +7,7 @@ import {
   type RoundGame,
   type RoundTicket,
   type SubmittedRound,
+  isNetworkErrorLike,
 } from "../lib/api";
 import { sanitizeRating, pullUpRating, type AxisRatings } from "../lib/scoring";
 import { AXIS_META, type AxisKey } from "../lib/axes";
@@ -110,7 +111,10 @@ export function useRoundSubmission({
         const ticket = await startRound(game);
         roundTicketsRef.current[game] = ticket;
         return ticket;
-      } catch {
+      } catch (err) {
+        if (!isNetworkErrorLike(err)) {
+          throw err;
+        }
         const now = Date.now();
         const fake: RoundTicket = {
           roundId: `offline-${game}-${now}`,
@@ -194,8 +198,7 @@ export function useRoundSubmission({
         delete guestPlayStartedAtRef.current[game];
         return result;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        if (isNetworkErrorLike(err)) {
           pushOfflineRound({
             game,
             telemetry,
@@ -215,6 +218,7 @@ export function useRoundSubmission({
           return result;
         }
 
+        const msg = err instanceof Error ? err.message : String(err);
         if (
           /already submitted|expired|ticket not found|round rejected/i.test(msg)
         )

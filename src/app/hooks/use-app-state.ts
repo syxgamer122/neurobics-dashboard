@@ -10,6 +10,7 @@ import {
   type Profile,
   type ActivityStats,
   type RoundGame,
+  isNetworkErrorLike,
 } from "../lib/api";
 import { DEFAULT_POPULATION, type PopulationStats } from "../lib/scoring";
 import { totalSessions } from "../lib/sessions";
@@ -87,8 +88,7 @@ export function useAppState(t: Translation) {
             const p = await fetchProfile();
             setProfile(p);
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("FetchError") || msg.includes("network")) {
+            if (isNetworkErrorLike(err)) {
               try {
                 const cached = localStorage.getItem(CACHED_PROFILE_KEY);
                 if (cached) {
@@ -110,13 +110,23 @@ export function useAppState(t: Translation) {
     })();
   }, [setProfile]);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     try {
       setProfile(await fetchProfile());
     } catch (err) {
       logError("Refresh profile error:", err);
     }
-  };
+  }, [setProfile]);
+
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      void refreshProfile();
+    };
+    window.addEventListener("offline-sync-complete", handleSyncComplete);
+    return () => {
+      window.removeEventListener("offline-sync-complete", handleSyncComplete);
+    };
+  }, [refreshProfile]);
 
   const popStatsKey =
     profileState && !isGuestProfile(profileState) ? (profileState.id ?? "__no_id__") : null;
