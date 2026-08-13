@@ -20,16 +20,28 @@ import { type Translation } from "../lib/i18n";
 import type { DockPage } from "../components/floating-dock";
 import type { RoundResult } from "../components/ui/round-result-overlay";
 
+export const CACHED_PROFILE_KEY = "mindgem.cached_profile";
+
 export function useAppState(t: Translation) {
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileState, setProfileState] = useState<Profile | null>(null);
   const profileRef = useRef<Profile | null>(null);
 
+  const setProfile = useCallback((p: Profile | null) => {
+    setProfileState(p);
+    try {
+      if (p) localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(p));
+      else localStorage.removeItem(CACHED_PROFILE_KEY);
+    } catch {
+      // Ignore quota/private mode errors
+    }
+  }, []);
+
   useEffect(() => {
-    profileRef.current = profile;
-  }, [profile]);
+    profileRef.current = profileState;
+  }, [profileState]);
 
   const [activePage, setActivePage] = useState<DockPage>("dashboard");
   const [selectedGame, setSelectedGame] = useState<RoundGame | null>(null);
@@ -43,22 +55,22 @@ export function useAppState(t: Translation) {
   const [showCalibrationComplete, setShowCalibrationComplete] = useState(false);
   const previousRoundsRef = useRef<number | null>(null);
 
-  const roundsPlayed = profile ? totalSessions(profile) : 0;
+  const roundsPlayed = profileState ? totalSessions(profileState) : 0;
 
   const onboardingStorageKey = (profileId: string) =>
     `nb_onboarding_seen_${profileId}`;
 
   const markOnboardingSeen = useCallback(() => {
-    if (profile?.id) {
+    if (profileState?.id) {
       try {
-        localStorage.setItem(onboardingStorageKey(profile.id), "1");
+        localStorage.setItem(onboardingStorageKey(profileState.id), "1");
       } catch {
         // Thu muc luu the co the bi khoa o private mode.
       }
     }
     setOnboardingDismissed(true);
     setOnboardingOpen(false);
-  }, [profile?.id]);
+  }, [profileState?.id]);
 
   const goToCalibration = useCallback(() => {
     markOnboardingSeen();
@@ -71,8 +83,24 @@ export function useAppState(t: Translation) {
       try {
         const token = await getAccessToken();
         if (token) {
-          const p = await fetchProfile();
-          setProfile(p);
+          try {
+            const p = await fetchProfile();
+            setProfile(p);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("FetchError") || msg.includes("network")) {
+              try {
+                const cached = localStorage.getItem(CACHED_PROFILE_KEY);
+                if (cached) {
+                  setProfile(JSON.parse(cached));
+                  return;
+                }
+              } catch {
+                /* ignore */
+              }
+            }
+            throw err;
+          }
         }
       } catch (err) {
         logError("Session restore error:", err);
@@ -80,7 +108,7 @@ export function useAppState(t: Translation) {
         setAuthChecked(true);
       }
     })();
-  }, []);
+  }, [setProfile]);
 
   const refreshProfile = async () => {
     try {
@@ -91,7 +119,7 @@ export function useAppState(t: Translation) {
   };
 
   const popStatsKey =
-    profile && !isGuestProfile(profile) ? (profile.id ?? "__no_id__") : null;
+    profileState && !isGuestProfile(profileState) ? (profileState.id ?? "__no_id__") : null;
 
   useEffect(() => {
     if (!popStatsKey) return;
@@ -124,7 +152,7 @@ export function useAppState(t: Translation) {
   };
 
   const onLogout = async () => {
-    if (!isGuestProfile(profile)) {
+    if (!isGuestProfile(profileState)) {
       await handleLogout();
     }
     setProfile(null);
@@ -149,8 +177,8 @@ export function useAppState(t: Translation) {
   });
 
   const activityKey =
-    profile?.id && !isGuestProfile(profile)
-      ? `${profile.id}:${String(profile.total_xp)}`
+    profileState?.id && !isGuestProfile(profileState)
+      ? `${profileState.id}:${String(profileState.total_xp)}`
       : null;
 
   useEffect(() => {
@@ -164,7 +192,7 @@ export function useAppState(t: Translation) {
   }, [activityKey]);
 
   useEffect(() => {
-    if (!profile?.id) {
+    if (!profileState?.id) {
       previousRoundsRef.current = null;
       setOnboardingDismissed(false);
       setOnboardingOpen(false);
@@ -183,13 +211,13 @@ export function useAppState(t: Translation) {
 
     if (roundsPlayed >= CALIBRATION_TARGET || onboardingDismissed) return;
     try {
-      if (localStorage.getItem(onboardingStorageKey(profile.id)) !== "1") {
+      if (localStorage.getItem(onboardingStorageKey(profileState.id)) !== "1") {
         setOnboardingOpen(true);
       }
     } catch {
       setOnboardingOpen(true);
     }
-  }, [profile?.id, roundsPlayed, onboardingDismissed]);
+  }, [profileState?.id, roundsPlayed, onboardingDismissed]);
 
   return {
     adminPanelOpen,
@@ -197,7 +225,7 @@ export function useAppState(t: Translation) {
     accessDenied,
     setAccessDenied,
     authChecked,
-    profile,
+    profile: profileState,
     setProfile,
     profileRef,
     refreshProfile,
