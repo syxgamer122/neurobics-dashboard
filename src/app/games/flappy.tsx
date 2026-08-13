@@ -512,7 +512,7 @@ export function FlappyGame({
 
   return (
     <div
-      className="relative w-full h-full bg-[#0c0a1a] flex items-center justify-center overflow-hidden touch-none select-none"
+      className="absolute inset-0 bg-[#0c0a1a] flex items-center justify-center overflow-hidden touch-none select-none"
       onPointerDown={(e) => {
         e.preventDefault();
         handleFlap();

@@ -142,10 +142,7 @@ function ArcadeModal({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed top-0 left-0 right-0 z-[70] flex flex-col animate-[fadeIn_0.2s_ease-out] h-[100dvh]"
-      style={{ background: "rgba(0,0,0,0.95)" }}
-    >
+    <div className="fixed inset-0 z-[70] flex flex-col animate-[fadeIn_0.2s_ease-out] bg-black/95">
       {/* Topbar */}
       <div
         className="flex items-center gap-3 px-4 py-3 shrink-0"

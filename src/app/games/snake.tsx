@@ -469,7 +469,7 @@ export function SnakeGame({
   }, [onGameOver]);
 
   return (
-    <div className="relative w-full h-full bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
+    <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
       <canvas
         ref={canvasRef}
         className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]"

@@ -517,7 +517,7 @@ export function DinoGame({
 
   return (
     <div
-      className="relative w-full h-full bg-[#111827] flex items-center justify-center overflow-hidden select-none touch-none"
+      className="absolute inset-0 bg-[#111827] flex items-center justify-center overflow-hidden select-none touch-none"
       onPointerDown={(e) => {
         // e.preventDefault() is implicitly handled by touch-none for scrolling,
         // but we can also just capture the pointer start.
