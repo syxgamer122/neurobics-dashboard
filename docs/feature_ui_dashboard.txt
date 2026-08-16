@@ -221,7 +221,7 @@ Các phân vùng chức năng chính bao gồm:
 - Chế độ Khách (Guest Mode): Kiểm tra qua `isGuestProfile(profile)`. Điểm số và tiến trình ván chơi được đồng bộ lên máy chủ y hệt người dùng thông thường (ADR-0007). Các tính năng cộng đồng như History và Quests bị vô hiệu hoá, Settings chỉ hiển thị các tuỳ chọn cơ bản cho đến khi nâng cấp tài khoản.
 - Quyền Admin (Clearance Ω-1):
   + Chỉ hiển thị nút "God Mode" / Admin Panel trên FloatingDock nếu `profile.role === "admin"`.
-  + Nếu người dùng không có quyền Admin cố tình truy cập tab "god", hệ thống chặn ngay lập tức và hiển thị `AccessDeniedOverlay` với mã cảnh báo "AUTHORIZATION LEVEL: INSUFFICIENT".
+  + Nếu người dùng không có quyền Admin nhưng truy cập thông qua Direct URL (thay vì click nút), hệ thống chặn ngay lập tức và hiển thị `AccessDeniedOverlay` với mã cảnh báo "AUTHORIZATION LEVEL: INSUFFICIENT".
 
 6.2. Validation dữ liệu phía Client (Client-side Validation):
 - Avatar Upload: Kiểm tra file type (`image/jpeg`, `image/png`, `image/webp`, `image/gif`), giới hạn dung lượng file tối đa 2 MB trước khi gửi.
@@ -236,4 +236,4 @@ Các phân vùng chức năng chính bao gồm:
 
 
 
-* CHÚ THÍCH: Mặc dù hệ thống đã rebrand thành MindGem, các key lưu trữ (localStorage, sessionStorage) như `[brand]-ui-theme`, `[brand].cached_profile`, `[brand].offline_queue`, `[brand].obs.session` được giữ nguyên tên cũ để không làm mất session và dữ liệu của người dùng hiện tại.*
+* CHÚ THÍCH: Mặc dù hệ thống đã rebrand thành MindGem, các key lưu trữ (localStorage, sessionStorage) mang tiền tố legacy của thương hiệu cũ (ví dụ `[brand]-ui-theme`, `[brand].cached_profile`, `[brand].offline_queue`, `[brand].obs.session`) được giữ nguyên tên vĩnh viễn (permanent) để không làm mất session và dữ liệu của người dùng hiện tại. Mã nguồn mới khi truy xuất các key này phải thông qua lớp tương thích (compat layer).*

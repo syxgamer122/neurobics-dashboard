@@ -300,9 +300,10 @@ Supabase: `supabase.auth.updateUser({ email, password })`. Dữ liệu sẽ tự
 8.2. DATA EXPORT COMPLIANCE (GDPR/CCPA)
 -------------------------------------------------------------------------------
 Để tuân thủ quyền riêng tư, hệ thống cung cấp API `/server/account/export`. 
-- Khi gọi Endpoint này, Edge Function sẽ đóng gói toàn bộ `profiles`, 
-`round_tickets`, và `training_sessions` thành định dạng JSON và trả về cho 
-người dùng để tải xuống toàn bộ dữ liệu cá nhân của mình.
+- Khi gọi Endpoint này, Edge Function sẽ đóng gói toàn bộ dữ liệu cá nhân bao gồm `profiles`, 
+`round_tickets`, `training_sessions`, `user_achievements`, `user_quests`, `xp_events`, 
+và `friendships` thành định dạng JSON và trả về cho người dùng tải xuống.
+- Quá trình xuất dữ liệu sẽ được ghi nhận vào `admin_audit` để lưu vết thao tác.
 - Data Retention Policy (P2): Bổ sung pg_cron dọn dẹp hệ thống. Tài khoản Guest được tạo quá 30 ngày nhưng không có bất kỳ ván chơi nào (chưa từng nộp điểm) sẽ bị tự động thanh lọc khỏi Database.
 
 

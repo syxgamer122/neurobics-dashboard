@@ -26,7 +26,9 @@ Các khả năng chính của tính năng Admin:
 - Xóa tài khoản vĩnh viễn (Danger Zone / Delete User): Xóa hoàn toàn người dùng 
   bao gồm Avatar lưu trữ ở Supabase Storage, Auth Account trong Supabase Auth 
   và thông tin Profile trong cơ sở dữ liệu Postgres.
-- MFA Required (Bảo mật 2FA): Yêu cầu quản trị viên phải xác thực 2 bước (MFA). Mọi hành động chỉnh sửa/xóa đều phải qua hàm `requireAdmin` kiểm tra `aal === "aal2"` trong JWT.
+- MFA Required (Bảo mật 2FA): Yêu cầu quản trị viên phải xác thực 2 bước (MFA). Mọi hành 
+  động chỉnh sửa/xóa đều phải qua hàm `requireAdmin` kiểm tra `aal === "aal2"` trong JWT.
+  *Lưu ý: Hiện chưa có luồng enroll MFA cho admin trên giao diện, admin cần enroll qua Supabase Dashboard trước khi requireAdmin(c) có hiệu lực.*
 - Nhật ký hoạt động (Activity Log): Theo dõi log thao tác console client-side của phiên bản Admin hiện hành.
 
 
