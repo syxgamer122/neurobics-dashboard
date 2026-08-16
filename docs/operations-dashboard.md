@@ -136,14 +136,3 @@ WHERE severity = 'hard'
 ORDER BY random() LIMIT 50;
 ```
 
-
-### 3.1. False Positive Rate (Mẫu ngẫu nhiên - Mục tiêu < 0.5%)
-```sql
--- Cron hàng tuần: nạp mẫu
-INSERT INTO cheat_flag_review_queue (flag_id, sampled_at)
-SELECT id, now() FROM cheat_flags
-WHERE severity = 'hard'
-  AND created_at > now() - interval '7 days'
-  AND review_status IS NULL
-ORDER BY random() LIMIT 50;
-```
