@@ -6,11 +6,11 @@ phan biet du lieu cu va moi — **khong bao gio re-score du lieu cu bang logic m
 
 ---
 
-## 1. Ba version constant
+## 1. Bốn version constant
 
 | Constant | File | Giá trị hiện tại | Ý nghĩa |
 | --- | --- | --- | --- |
-| `SCORER_VERSIONS` | `supabase/functions/_shared/scoring/core.ts` | Map | Phiên bản công thức tính điểm cho từng game (vd: `schulte: 2`) |
+| `SCORER_VERSIONS` | `supabase/functions/_shared/scoring/core.ts` | Map | Phiên bản công thức tính điểm cho từng game (vd: `schulte: 1`) |
 | `INSPECTOR_VERSIONS` | `supabase/functions/_shared/anticheat.ts` | Map | Phiên bản luật anti-cheat: thresholds, tập luật kiểm tra cho từng game |
 | `SHARED_INSPECTOR_VERSION` | `supabase/functions/_shared/anticheat.ts` | `1` | Phiên bản luật anti-cheat dùng chung cho tất cả các game |
 | `TELEMETRY_SCHEMA_VERSION` | `supabase/functions/_shared/scoring/core.ts` | `1` | Phiên bản cấu trúc telemetry payload: fields, kiểu dữ liệu, shape |
@@ -46,16 +46,16 @@ Bump khi thay doi cau truc telemetry payload ma client gui len:
 
 ## 2. Khi nao bump — bang tra nhanh
 
-| Tinh huong | SCORER | INSPECTOR | TELEMETRY_SCHEMA |
-| SHARED_INSPECTOR | Không bump | Khi sửa logic inspectShared / inspectSubThreshold |
-| --- | --- | --- | --- |
-| Them game moi | ✅ bump | ✅ bump | — |
-| Doi cong thuc scoring game co | ✅ bump | — | — |
-| Doi threshold anti-cheat | — | ✅ bump | — |
-| Them telemetry field anh huong scoring | ✅ bump | — | ✅ bump |
-| Them telemetry field chi dung cho analytics | — | — | ✅ bump |
-| Bug fix khong doi output | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump |
-| Refactor code, giu nguyen output | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump |
+| Tinh huong | SCORER | INSPECTOR | TELEMETRY_SCHEMA | SHARED_INSPECTOR |
+| --- | --- | --- | --- | --- |
+| Sửa logic inspectShared / inspectSubThreshold | — | — | — | ✅ bump |
+| Them game moi | ✅ bump | ✅ bump | — | Không bump |
+| Doi cong thuc scoring game co | ✅ bump | — | — | — |
+| Doi threshold anti-cheat | — | ✅ bump | — | — |
+| Them telemetry field anh huong scoring | ✅ bump | — | ✅ bump | — |
+| Them telemetry field chi dung cho analytics | — | — | ✅ bump | — |
+| Bug fix khong doi output | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump |
+| Refactor code, giu nguyen output | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump |
 
 > **Nguyen tac:** chi bump khi **ket qua quan sat duoc** (diem so, cheat flag, hoac
 > shape cua payload) thay doi. Refactor noi bo khong bump.

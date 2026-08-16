@@ -18,7 +18,7 @@ This file is the single source of truth for all known issues and tech debt acros
 | KI-12 | P2 | Fixed in Phase 13 | `decayRating` trong `scoring.ts` chưa lưu đỉnh thực tế, dễ gây xói mòn về 0 thay vì giữ sàn 35% đỉnh. | feature_games_scoring.txt |
 | KI-13 | P2 | Fixed in Phase 8 | Database Performance: Cần lưu latency histogram thật thay vì average. | feature_observability.txt |
 | KI-14 | P2 | Fixed in Phase 14 | Chấm điểm provisional offline làm lộ hằng số anticheat ra bundle client. Nên giấu hoặc bỏ số provisional khi offline. | feature_games_scoring.txt |
-| KI-15 | P3 | Open | E2E Offline Sync Testing: Cần Playwright test mô phỏng ngắt mạng và verify sync. | CI/CD |
+| KI-15 | P3 | Fixed in Phase 15 | E2E Offline Sync Testing: Đã có Playwright test mô phỏng ngắt mạng và verify sync. | CI/CD |
 | KI-16 | P3 | Open | Dynamic Feature Flags Admin UI: Cần UI Admin bật/tắt `feature_flags`. | feature_admin.txt |
 | KI-17 | P3 | Open | A11y: Thiếu prefers-reduced-motion và focus-trap cho các màn overlay/glassmorphism. | accessibility.md |
 | KI-18 | P3 | Fixed in Phase 15 | Brain Age đang so sánh toàn cục, thiếu phân tầng độ tuổi. | feature_games_scoring.txt |

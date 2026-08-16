@@ -19,7 +19,7 @@ Nhằm mục đích tuân thủ bảo mật, thao tác của admin được lưu
 - **Xử lý**: Xóa tự động các row cũ hơn 365 ngày.
 
 ## 4. Tài khoản Guest Bỏ Hoang
-Khách (Guest) được tạo bằng cơ chế Fake Email Auth (ADR-0001), do đó tồn tại ở cả 2 bảng `auth.users` và `public.profiles`.
+Khách (Guest) được cấp phát tự động bởi server (Server Provisioned Guest - ADR-0007), do đó tồn tại ở cả 2 bảng `auth.users` và `public.profiles`.
 - **Định nghĩa "Bỏ hoang"**:
   - `role = 'guest'`
   - Không có hoạt động nào sau lần reset/tạo tài khoản gần nhất (`NOT EXISTS (SELECT 1 FROM public.training_sessions WHERE created_at > stats_epoch)` thay vì `total_xp = 0`).

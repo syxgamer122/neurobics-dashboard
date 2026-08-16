@@ -292,10 +292,11 @@ Lưu ý MFA: Hiện chưa có luồng enroll MFA cho admin trên giao diện, ad
 
 8.1. CẬP NHẬT KIẾN TRÚC PROD. GUEST RECOVERY (ADR-0009)
 -------------------------------------------------------------------------------
-Khách vãng lai (Guest) sau một thời gian chơi có thể dễ dàng chuyển đổi thành 
-tài khoản chính thức mà không bị mất dữ liệu. Client chỉ cần gọi API có sẵn của 
-Supabase: `supabase.auth.updateUser({ email, password })`. Dữ liệu sẽ tự động 
-được bảo toàn vì Guest ngay từ đầu đã là một Auth User thực thụ (ADR-0007).
+Khách vãng lai (Guest) sau một thời gian chơi có thể chuyển đổi thành 
+tài khoản chính thức mà không bị mất dữ liệu. Theo ADR-0009, quá trình này 
+PHẢI được thực hiện thông qua endpoint `/server/upgrade-account` để đảm bảo 
+kiểm soát đặc quyền và thu hồi (revoke) các session cũ một cách an toàn. Việc gọi 
+trực tiếp `supabase.auth.updateUser()` từ Client bị nghiêm cấm vì rủi ro bảo mật.
 
 8.2. DATA EXPORT COMPLIANCE (GDPR/CCPA)
 -------------------------------------------------------------------------------

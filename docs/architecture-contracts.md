@@ -35,4 +35,4 @@ Tài liệu này đóng băng các **Nguyên tắc Kiến trúc (Contracts)** c�
 
 ## 6. Performance & Recovery
 - **Pre-mint Ticket Pool (ADR-0008)**: Tránh phát sinh tải (cold-start) trong quá trình INSERT khi người dùng ấn "Start Round", hệ thống sử dụng một `ticket_pool` và `FOR UPDATE SKIP LOCKED` để cấp phát vé siêu tốc (chỉ 15ms).
-- **Guest Account Recovery (ADR-0009)**: Guest hoàn toàn có thể "nâng cấp" thành User chính thức mà không bị mất điểm bằng cách gọi trực tiếp API `updateUser({ email, password })` của Supabase Auth từ phía Client.
+- **Guest Account Recovery (ADR-0009)**: Guest hoàn toàn có thể "nâng cấp" thành User chính thức mà không bị mất điểm bằng cách gọi endpoint `/server/upgrade-account`. Việc client tự ý gọi `updateUser()` bị cấm do rủi ro leo thang đặc quyền.

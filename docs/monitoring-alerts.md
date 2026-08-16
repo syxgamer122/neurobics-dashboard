@@ -37,7 +37,7 @@ Các truy vấn SQL để cấu hình Grafana/Datadog hoặc xem trực tiếp t
 
 ```sql
 SELECT
-  sum(request_count) FILTER (WHERE status_code < 500) * 100.0    sum(request_count) AS success_rate_pct
+  sum(request_count) FILTER (WHERE status_code < 500) * 100.0 / sum(request_count) AS success_rate_pct
 FROM http_metrics_minute
 WHERE window_start > now() - interval '7 days'
   AND path = '/server/submit-round';
@@ -62,7 +62,7 @@ WITH buckets AS (
     AND window_start > now() - interval '24 hours'
 )
 SELECT
-  public.histogram_p95(count_le_100, count_le_300, count_le_500, count_le_800, count_le_2000, sum_requests) as p95_approx_ms
+  public.histogram_p95(b_100, b_300, b_500, b_800, b_2000, total_requests) as p95_approx_ms
 FROM buckets;
 ```
 
@@ -74,8 +74,8 @@ FROM buckets;
 SELECT
   (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') AS hard_rejects,
   (SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') AS valid_sessions,
-  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') * 100.0    
-    NULLIF((SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') + 
+  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') * 100.0 
+    / NULLIF((SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') + 
            (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days'), 0) AS reject_pct;
 ```
 
@@ -104,7 +104,7 @@ Khi chuông báo động (alert) reo, mức độ ưu tiên xử lý như sau:
 
 | Mức độ | Điều kiện kích hoạt | Hành động / SLA Xử lý |
 |--------|---------------------|-----------------------|
-| **P1 (Critical)** | Lỗi 5xx > 5% / Ticket Pool trống | Hệ thống gửi Webhook qua Slack. Bắt tay vào điều tra trong vòng 5 phút. |
-| **P2 (High)** | Bão Anti-cheat: > 50 `hard_reject` | Bắn thông báo Slack kênh `#alerts-warning`. On-call cần điều tra trong vòng 30 phút. Rủi ro block nhầm user hàng loạt. |
+| **P1 (Critical)** | Lỗi 5xx > 5% | Hệ thống gửi Webhook qua Slack. Bắt tay vào điều tra trong vòng 5 phút. |
+| **P2 (High)** | Bão Anti-cheat: > 50 `hard_reject` / Ticket Pool trống | Bắn thông báo Slack kênh `#alerts-warning`. On-call cần điều tra trong vòng 30 phút. Rủi ro block nhầm user hàng loạt hoặc degrade trải nghiệm. |
 | **P3 (Medium)** | Hàng đợi offline đầy > 150 / `ticket_pool` idle < 20% capacity | Cảnh báo sớm, cron refill không theo kịp. Xử lý trong ngày. |
 | **P4 (Low)** | Hoạt động Admin tăng đột biến | Log lại để audit. Review trong vòng 48 giờ. |

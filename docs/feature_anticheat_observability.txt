@@ -100,7 +100,7 @@ Chi tiết kiểm tra từng trò chơi (12 Game Inspectors):
 5. `memory` (Ghi nhớ chuỗi):
    - Lấy `clearedLevels` (hoặc fallback `maxLevel`).
    - Nếu `cleared < 3` -> Bỏ qua (không kết luận vì quá ít dữ liệu, tránh bắt oan người chơi thua ở cấp 1-2).
-   - Thiếu `totalTaps` -> tối đa chỉ cờ **soft** ("Memory pace implausibly fast (estimated)"). Sẽ update `TELEMETRY_SCHEMA_VERSION` thành 2 khi nào front-end gửi được `totalTaps`, lúc đó mới được hard reject.
+   - Sử dụng `totalTaps` do client gửi lên (đã fix ở KI-11) để tính pace chính xác. Nếu speed vượt ngưỡng không tưởng (robot/tool), hệ thống phát cờ **hard** reject.
 
 6. `nback` (Ghi nhớ N-Back):
    - Cỡ mẫu $N < 3 \to$ Không kiểm tra.

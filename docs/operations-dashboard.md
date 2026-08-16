@@ -12,7 +12,7 @@ SELECT
   sum(request_count) AS total_requests,
   sum(request_count) FILTER (WHERE status_code >= 500) AS errors_5xx,
   sum(request_count) FILTER (WHERE status_code = 422) AS anticheat_422,
-  sum(request_count) FILTER (WHERE status_code >= 500) * 100.0    NULLIF(sum(request_count), 0) as error_rate_pct
+  sum(request_count) FILTER (WHERE status_code >= 500) * 100.0 / NULLIF(sum(request_count), 0) as error_rate_pct
 FROM http_metrics_minute
 WHERE window_start > now() - interval '48 hours'
 GROUP BY 1 
@@ -28,7 +28,7 @@ Sử dụng các cumulative bucket `le_500`, `le_2000`, `request_count` để t�
 SELECT
   path,
   sum(request_count) AS total_requests,
-  sum(le_500) * 100.0    NULLIF(sum(request_count), 0) AS pct_under_500ms,
+  sum(le_500) * 100.0 / NULLIF(sum(request_count), 0) AS pct_under_500ms,
   sum(request_count) - sum(le_2000) AS requests_over_2000ms
 FROM http_metrics_minute
 WHERE window_start > now() - interval '24 hours'
@@ -41,13 +41,13 @@ Theo dõi số lượng cờ gian lận (cheat flags) được phát lên, chia 
 **SLO Mục tiêu:** False Positive Rate < 0.5% VÀ Unreviewed < 50.
 
 ```sql
--- Alias: fp_rate_complaints
--- Alias: fp_rate_complaints
+-- Alias: fp_rate_random_sample
 SELECT
-  count(*) filter (where review_status = 'false_positive')::numeric / nullif(count(*) filter (where review_status is not null), 0) * 100 as fp_rate_pct,
-  count(*) filter (where review_status is null) as unreviewed
-FROM cheat_flags
-WHERE severity = 'hard' and created_at > now() - interval '7 days';
+  count(c.id) filter (where c.review_status = 'false_positive')::numeric / nullif(count(c.id) filter (where c.review_status is not null), 0) * 100 as fp_rate_pct,
+  count(c.id) filter (where c.review_status is null) as unreviewed
+FROM cheat_flag_review_queue q
+JOIN cheat_flags c ON q.flag_id = c.id
+WHERE q.sampled_at > now() - interval '7 days';
 ```
 
 ```sql
@@ -55,7 +55,7 @@ SELECT
   game,
   severity,
   count(*) as flag_count,
-  count(*) * 100.0    sum(count(*)) over() as pct_of_total
+  count(*) * 100.0 / sum(count(*)) over() as pct_of_total
 FROM cheat_flags
 WHERE created_at > now() - interval '7 days'
 GROUP BY 1, 2
@@ -69,8 +69,8 @@ ORDER BY 3 DESC;
 SELECT
   (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') AS hard_rejects,
   (SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') AS valid_sessions,
-  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') * 100.0    
-    NULLIF((SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') + 
+  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') * 100.0 
+    / NULLIF((SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') + 
            (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days'), 0) AS reject_pct;
 ```
 
@@ -114,7 +114,7 @@ ORDER BY 1 DESC, 4 DESC;
 SELECT 
   game,
   count(*) as total_rounds,
-  count(*) * 100.0    sum(count(*)) over() as popularity_pct
+  count(*) * 100.0 / sum(count(*)) over() as popularity_pct
 FROM training_sessions
 WHERE created_at > now() - interval '7 days'
 GROUP BY 1
