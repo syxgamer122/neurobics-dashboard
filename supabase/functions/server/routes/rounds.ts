@@ -3,9 +3,10 @@ import {
   hasHardFlag,
   inspectRound,
   softFlags,
+  INSPECTOR_VERSIONS,
 } from "../../_shared/anticheat.ts";
 import { AppError } from "../../_shared/errors.ts";
-import { isGame, scoreAndValidate, SCORER_VERSIONS } from "../../_shared/round-scoring.ts";
+import { isGame, scoreAndValidate, SCORER_VERSIONS, TELEMETRY_SCHEMA_VERSION } from "../../_shared/round-scoring.ts";
 import {
   beginRequest,
   logServerEvent,
@@ -52,7 +53,13 @@ export function registerRoundRoutes(app: Hono): void {
 
       const { data, error } = await adminClient
         .from("round_tickets")
-        .insert({ user_id: user.id, game: gameId })
+        .insert({ 
+          user_id: user.id, 
+          game: gameId,
+          telemetry_version: TELEMETRY_SCHEMA_VERSION,
+          scorer_version: SCORER_VERSIONS[gameId],
+          inspector_version: INSPECTOR_VERSIONS[gameId],
+        })
         .select("id, game, started_at, expires_at")
         .single();
       if (error) throw error;
@@ -94,7 +101,7 @@ export function registerRoundRoutes(app: Hono): void {
 
       const { data: ticket, error: ticketError } = await adminClient
         .from("round_tickets")
-        .select("id, user_id, game, started_at, expires_at, submitted_at")
+        .select("id, user_id, game, started_at, expires_at, submitted_at, telemetry_version, scorer_version, inspector_version")
         .eq("id", String(roundId))
         .eq("user_id", user.id)
         .single();
@@ -210,7 +217,9 @@ export function registerRoundRoutes(app: Hono): void {
           p_round_score: scored.headline,
           p_label: scored.label,
           p_time_ms: Math.round(scored.timeMs),
-          p_scorer_version: SCORER_VERSIONS[gameId],
+          p_telemetry_version: ticket.telemetry_version ?? TELEMETRY_SCHEMA_VERSION,
+          p_scorer_version: ticket.scorer_version ?? SCORER_VERSIONS[gameId],
+          p_inspector_version: ticket.inspector_version ?? INSPECTOR_VERSIONS[gameId],
         },
       );
       if (error) {

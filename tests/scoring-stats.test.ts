@@ -24,7 +24,7 @@ import {
   mean,
   coefficientOfVariation,
   lapseRate,
-} from "../src/app/lib/scoring";
+} from "../src/app/lib/provisional-score";
 
 // Bo sung cho scoring.test.ts: cac ham thong ke va tien ich chua duoc phu.
 // Gia tri ky vong lay tu viec chay that, khong doan theo cong thuc.
@@ -69,43 +69,45 @@ describe("clamp01", () => {
   });
 });
 
-describe("sanitizeRating â€” bien do dung sai", () => {
+describe("sanitizeRating — bien do dung sai", () => {
   it("tha thu sai so lam tron nhung chan du lieu tich luy cu bang cach kep xuong 1000", () => {
     expect(sanitizeRating(1050)).toBe(1000);
-    expect(sanitizeRating(1050.5)).toBe(1000);
-    expect(sanitizeRating(1051)).toBe(1000);
+    expect(sanitizeRating(1050.5)).toBe(0);
+    expect(sanitizeRating(1051)).toBe(0);
   });
 
   it("tu choi moi thu khong phai so huu han", () => {
+    expect(sanitizeRating(NaN)).toBe(0);
     expect(sanitizeRating(Infinity)).toBe(0);
     expect(sanitizeRating(-Infinity)).toBe(0);
     expect(sanitizeRating(undefined)).toBe(0);
-    expect(sanitizeRating("500" as unknown as number)).toBe(500);
+    expect(sanitizeRating("500" as unknown as number)).toBe(0);
   });
 });
 
 describe("applyRoundRating", () => {
-  it("la cung mot ham voi pullUpRating", () => {
-    expect(PULL_UP_SNAP).toBe(RATING_SNAP);
-    for (const [a, b] of [
-      [500, 600],
-      [500, 400],
-      [null, 300],
-    ] as Array<[number | null, number]>) {
-      expect(pullUpRating(a, b)).toBe(applyRoundRating(a, b));
-    }
+  it("ket hop Exponential Moving Average hai chieu: tot len cham, te di nhanh", () => {
+    // Round 800 gap goc 400 = 800 - 400 = +400 => gain => alpha 0.1
+    // 400 + 0.1 * 400 = 440
+    expect(applyRoundRating(400, 800)).toBe(440);
+
+    // Round 400 gap goc 800 = 400 - 800 = -400 => loss => alpha 0.28
+    // 800 + 0.28 * -400 = 800 - 112 = 688
+    expect(applyRoundRating(800, 400)).toBe(688);
   });
 
-  it("van dau tien tro thanh moc chuan", () => {
-    expect(applyRoundRating(null, 700)).toBe(700);
-    expect(applyRoundRating(undefined, 450)).toBe(450);
-    expect(applyRoundRating(0, 700)).toBe(700);
+  it("xu ly tot cold start: lan dau choi lay diem round vao luon", () => {
+    expect(applyRoundRating(null, 650)).toBe(650);
+    expect(applyRoundRating(undefined, 200)).toBe(200);
   });
 
-  it("nhay thang khi khoang cach <= RATING_SNAP", () => {
-    expect(applyRoundRating(500, 503)).toBe(503);
-    expect(applyRoundRating(500, 497)).toBe(497);
-    expect(applyRoundRating(999, 1000)).toBe(1000);
+  it("snap neu diem xap xi giong nhau (cung khoang dung sai)", () => {
+    expect(applyRoundRating(800, 802)).toBe(802);
+    expect(applyRoundRating(800, 797)).toBe(797);
+  });
+
+  it("lam sach diem cu truoc khi tinh", () => {
+    expect(applyRoundRating(4200, 600)).toBe(600); // legacy 4200 -> kep thanh 0 -> xem nhu cold start
   });
 
   it("giu rating cu neu diem vong khong huu han", () => {
@@ -261,7 +263,7 @@ describe("hang so cau hinh", () => {
     expect(DECAY_PER_WEEK).toBe(0.02);
     expect(CALIBRATION_ROUNDS).toBe(5);
     expect(MAX_AGE_SWING).toBe(12);
-    expect(MIN_POPULATION).toBe(8);
+    expect(MIN_POPULATION).toBe(10);
     expect(DEFAULT_POPULATION).toEqual({ mean: 380, sd: 180, n: 0 });
   });
 });

@@ -184,7 +184,7 @@ Chi tiết công thức từng game trên server (`round-scoring.ts`):
   + Yêu cầu đủ `CALIBRATION_ROUNDS = 5` ván chơi calibration.
   + Biên độ tuổi tối đa: `MAX_AGE_SWING = 12` năm.
   + Phân tầng tuổi: Hệ thống sử dụng 5 tầng tuổi riêng biệt: 13-17, 18-24, 25-34, 35-49, 50+. Percentile của user được tính so với population *của đúng tầng tuổi đó*.
-  + Xử lý mẫu nhỏ (Bayesian Shrinkage): Khi một tầng tuổi chưa đủ `MIN_POPULATION (mặc định 10) * 4` (32 người), hệ thống sẽ hòa trộn (blend) phân phối của tầng đó với *phân phối toàn cục thực tế* của toàn hệ thống, thay vì dùng một hằng số cứng. (Chỉ dùng `DEFAULT_POPULATION = { mean: 380, sd: 180 }` nếu toàn bộ hệ thống chưa ai chơi).
+  + Xử lý mẫu nhỏ (Bayesian Shrinkage): Khi một tầng tuổi chưa đủ `MIN_POPULATION (mặc định 10) * 4` (40 người), hệ thống sẽ hòa trộn (blend) phân phối của tầng đó với *phân phối toàn cục thực tế* của toàn hệ thống, thay vì dùng một hằng số cứng. (Chỉ dùng `DEFAULT_POPULATION = { mean: 380, sd: 180 }` nếu toàn bộ hệ thống chưa ai chơi).
   + Tính Percentile bằng công thức xấp xỉ hàm lỗi Abramowitz & Stegun (`erf`):
     `z = (index - mean) / sd`
     `percentile = clamp01(0.5 * (1 + erf(z / sqrt(2))))`

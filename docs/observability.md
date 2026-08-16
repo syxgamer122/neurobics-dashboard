@@ -59,10 +59,9 @@ Hành vi đáng chú ý:
 
 ## Tối ưu Hiệu suất: Bảng `http_metrics_minute` và Histogram Buckets
 
-Để đáp ứng nhu cầu truy vấn Dashboard và tính toán bách phân vị (p95) chính xác mà không cần lưu trữ dữ liệu raw quá lớn, MindGem sử dụng bảng `http_metrics_minute` với các Histogram buckets.
-- Các request được nhóm theo `window_start` (từng phút), `path`, và `status_code`.
-- Các bucket độ trễ (`le_100`, `le_300`, `le_500`, `le_800`, `le_2000`) lưu trữ số lượng request hoàn thành dưới hoặc bằng ngưỡng ms tương ứng.
-- Tính SLO p95 xấp xỉ trực tiếp từ các bucket (Histogram approximation).
+Để đáp ứng nhu cầu truy vấn Dashboard và tính toán bách phân vị (p95) chính xác mà không cần lưu trữ dữ liệu raw quá lớn, MindGem sử dụng bảng `http_metrics_minute` với các Histogram buckets. Dashboard Vận hành có thể truy vấn số liệu trực tiếp thông qua endpoint `GET /server/admin-metrics` (Yêu cầu quyền `read`).
+
+- Hàm RPC `record_http_metric` tự động nhóm dữ liệu vào các khoảng `< 100ms`, `< 300ms`, `< 500ms`, `< 800ms`, `< 2000ms`, và `+Inf`.
 - Sử dụng `pg_cron` job để xóa các bản ghi `http_metrics_minute` cũ hơn 90 ngày.
 
 ## Truy vấn
@@ -83,8 +82,8 @@ WITH buckets AS (
     AND window_start > now() - interval '24 hours'
 )
 SELECT
-  -- Xấp xỉ p95 dựa trên bucket distribution (cần interpolation logic cho chính xác tuyệt đối, nhưng ở đây dùng bucket threshold)
-  public.histogram_p95(count_le_100, count_le_300, count_le_500, count_le_800, count_le_2000, sum_requests) as p95_approx_ms
+  -- Xấp xỉ p95 dựa trên bucket distribution
+  public.histogram_p95(b_100, b_300, b_500, b_800, b_2000, total_requests) as p95_approx_ms
 FROM buckets;
 ```
 

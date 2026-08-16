@@ -445,7 +445,7 @@ export type PopulationStats = {
 /** Fallback used until enough players have calibrated to form a real distribution. */
 export const DEFAULT_POPULATION: PopulationStats = { mean: 380, sd: 180, n: 0 };
 /** Below this many peers the distribution is too thin to rank against. */
-export const MIN_POPULATION = 8;
+export const MIN_POPULATION = 10;
 
 /** Abramowitz & Stegun 7.1.26 error-function approximation. */
 function erf(x: number): number {

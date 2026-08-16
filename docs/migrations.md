@@ -41,8 +41,7 @@ du lieu nao. Sau khi chay, kiem tra:
 pnpm run db:status     # supabase migration list --linked
 ```
 
-Cot Local va Remote phai khop het. Nhung version chi co o Local nghia la baseline
-chua ghi du — dung `db push` cho den khi khop.
+Cot Local va Remote phai khop het. Neu Local va Remote khong khop, DUNG deploy. Khong chay `db push`. Khoi phuc mot ban sao production (restore) sang moi truong co lap, so sanh schema va xac minh tung migration truoc khi danh dau applied. Tuyet doi khong dung "migration truoc, server sau" neu co the mat du lieu; dung chien luoc expand-contract (them truoc, backfill, sau do moi drop).
 
 ---
 

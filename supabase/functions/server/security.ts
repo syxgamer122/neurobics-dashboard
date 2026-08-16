@@ -1,4 +1,5 @@
 import type { Context } from "npm:hono@4.12.27";
+import * as jose from "npm:jose@5.9.3";
 import { adminClient } from "./config.ts";
 
 export async function sha256(value: string): Promise<string> {
@@ -119,20 +120,37 @@ export async function requireAdmin(c: Context, capability?: string) {
   const { data: authData, error: authErr } = await adminClient.auth.getUser(token);
   if (authErr || !authData.user) throw new Error("Invalid or expired session");
 
-  // 2. Verify AAL (Extract from token payload safely since signature is valid)
+  // 2. Verify JWT signature & AAL securely using the JWT secret
+  const jwtSecret = Deno.env.get("SUPABASE_JWT_SECRET");
+  if (!jwtSecret) throw new Error("Missing SUPABASE_JWT_SECRET in environment");
+
   try {
-    const payloadB64 = token.split(".")[1];
-    if (payloadB64) {
-      const payload = JSON.parse(atob(payloadB64));
-      // Fallback: Some versions put aal in factors/authenticator_assurance_level
-      const aal = payload.aal || authData.user.factors?.[0]?.factor_type;
-      if (aal !== "aal2") {
-        throw new Error("Admin actions require MFA (aal2)");
-      }
+    const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(jwtSecret));
+    
+    if (payload.aal !== "aal2") {
+      throw new Error("Admin actions require MFA (aal2)");
+    }
+
+    // Verify recent step-up (MFA within last 5 mins)
+    if (!payload.amr || !Array.isArray(payload.amr)) {
+      throw new Error("Admin actions require recent step-up authentication.");
+    }
+
+    const mfaClaim = payload.amr.find((x: any) => x.method === "totp" || x.method === "mfa");
+    if (!mfaClaim || !mfaClaim.timestamp) {
+      throw new Error("Admin actions require recent step-up authentication.");
+    }
+
+    const mfaAge = (Date.now() / 1000) - mfaClaim.timestamp;
+    if (mfaAge > 300) { // 5 minutes
+      throw new Error("Admin actions require recent step-up authentication. Please re-authenticate MFA.");
     }
   } catch (e) {
-    if (e instanceof Error && e.message.includes("MFA")) throw e;
-    console.warn("Could not decode JWT to verify AAL", e);
+    if (e instanceof Error && (e.message.includes("MFA") || e.message.includes("step-up"))) {
+      throw e;
+    }
+    console.warn("JWT verification failed for admin action", e);
+    throw new Error("Invalid admin session or missing claims");
   }
 
   const userId = authData.user.id;

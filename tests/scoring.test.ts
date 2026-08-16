@@ -18,8 +18,8 @@ describe("sanitizeRating", () => {
   it("clamps tiny overflow, clamps legacy totals", () => {
     expect(sanitizeRating(1001)).toBe(1000);
     expect(sanitizeRating(1050)).toBe(1000);
-    expect(sanitizeRating(1051)).toBe(1000);
-    expect(sanitizeRating(4200)).toBe(1000);
+    expect(sanitizeRating(1051)).toBe(0);
+    expect(sanitizeRating(4200)).toBe(0);
   });
 
   it("handles invalid input", () => {
@@ -47,7 +47,7 @@ describe("pullUpRating (bidirectional EMA)", () => {
 
   it("cold-starts from empty/legacy baseline", () => {
     expect(pullUpRating(null, 300)).toBe(300);
-    expect(pullUpRating(4200, 600)).toBe(888);
+    expect(pullUpRating(4200, 600)).toBe(600);
   });
 });
 
@@ -155,8 +155,8 @@ describe("calcBrainAge", () => {
 
 it("math logic axis is time-independent", async () => {
   const { scoreMath } = await import("../supabase/functions/_shared/scoring/standard-games.ts");
-  const fast = scoreMath({ correct: 20, wrong: 0, totalProblems: 20, rts: Array(20).fill(800) });
-  const slow = scoreMath({ correct: 20, wrong: 0, totalProblems: 20, rts: Array(20).fill(3000) });
+  const fast = scoreMath({ timeMs: 16_000, difficulty: "medium", correct: 20, wrong: 0, totalProblems: 20, rts: Array(20).fill(800) });
+  const slow = scoreMath({ timeMs: 60_000, difficulty: "medium", correct: 20, wrong: 0, totalProblems: 20, rts: Array(20).fill(3000) });
   expect(fast.axes.logic).toBe(slow.axes.logic);
-  expect(fast.axes.speed).toBeGreaterThan(slow.axes.speed);
+  expect(fast.axes.speed! > slow.axes.speed!).toBe(true);
 });

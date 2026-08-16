@@ -115,8 +115,8 @@ export const NO_AXES: AxisRatings = {
   memory: null,
 };
 export const MAX = 1000;
-export const clamp = (n: number) => Math.max(0, Math.min(MAX, Math.round(n)));
-export const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+export const clamp = (n: number) => { if (!Number.isFinite(n) || isNaN(n)) return 0; return Math.max(0, Math.min(MAX, Math.round(n))); };
+export const clamp01 = (n: number) => { if (!Number.isFinite(n) || isNaN(n)) return 0; return Math.max(0, Math.min(1, n)); };
 export const finite = (
   n: unknown,
   name: string,

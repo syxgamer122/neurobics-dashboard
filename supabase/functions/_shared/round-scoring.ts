@@ -19,6 +19,7 @@ import {
   scoreSearch,
 } from "./scoring/advanced-games.ts";
 import { assertCountBounds, assertRtBounds } from "./scoring/validation.ts";
+import { parseTelemetry } from "./scoring/schema.ts";
 
 export { GAME_IDS, isGame, getGameStatus, SCORER_VERSIONS, TELEMETRY_SCHEMA_VERSION } from "./scoring/core.ts";
 export type {
@@ -48,6 +49,9 @@ export function scoreAndValidate(
   telemetry: unknown,
   serverElapsedMs: number,
 ): ScoredRound {
+  // 1. Zod Schema Validation
+  const parsedTelemetry = parseTelemetry(game, telemetry);
+
   if (
     !Number.isFinite(serverElapsedMs) ||
     serverElapsedMs < 500 ||
@@ -60,14 +64,17 @@ export function scoreAndValidate(
     );
   }
 
-  assertCountBounds(game, telemetry);
+  // 2. Bounds Validation
+  assertCountBounds(game, parsedTelemetry);
+  const t = parsedTelemetry as Record<string, unknown>;
   assertRtBounds(
-    (telemetry as { rts?: unknown } | null)?.rts,
+    t.rts ?? t.hitRts ?? t.moveRts,
     serverElapsedMs,
     game,
   );
 
-  const scored = SCORERS[game](asTelemetry(telemetry));
+  // 3. Scoring
+  const scored = SCORERS[game](asTelemetry(parsedTelemetry));
   // Client time may exclude fixed animations/waits, but cannot exceed server by >15s.
   if (scored.timeMs > serverElapsedMs + 15_000) {
     throw new AppError(

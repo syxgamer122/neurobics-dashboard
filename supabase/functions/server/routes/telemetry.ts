@@ -30,7 +30,7 @@ export function registerTelemetryRoutes(app: Hono): void {
     }
 
     const raw = await c.req.text();
-    if (raw.length > 32_000) return c.json({ error: "Payload too large" }, 413);
+    if (new TextEncoder().encode(raw).byteLength > 32_000) return c.json({ error: "Payload too large" }, 413);
 
     let payload: unknown;
     try {

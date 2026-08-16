@@ -309,7 +309,7 @@ export function registerAuthRoutes(app: Hono): void {
         return c.json({ error: "Account is not a guest" }, 400);
       }
 
-      const { newUsername, newPassword, isAdult } = await c.req.json();
+      const { newUsername, newPassword, newEmail, isAdult } = await c.req.json();
       
       if (!isAdult) {
         return c.json({ error: "You must be 13 years or older to use this service." }, 403);
@@ -324,6 +324,8 @@ export function registerAuthRoutes(app: Hono): void {
       }
 
       const normalized = newUsername.trim().toLowerCase();
+      const targetEmail = newEmail ? newEmail.trim() : `${normalized}@mindgem.local`;
+      const isSpoofed = targetEmail.endsWith("@mindgem.local");
       
       // Check availability
       const { data: existing } = await adminClient
@@ -336,22 +338,32 @@ export function registerAuthRoutes(app: Hono): void {
         return c.json({ error: "Username is not available" }, 409);
       }
 
-      // Update auth.users (email + password)
+      // Create upgrade operation (State Machine)
+      const { error: opErr } = await adminClient.from("upgrade_operations").insert({
+        user_id: user.id,
+        target_email: targetEmail,
+        target_username: normalized,
+        status: "pending_verification"
+      });
+
+      if (opErr) {
+        if (opErr.code === '23505') return c.json({ error: "An upgrade is already in progress for this account." }, 409);
+        throw opErr;
+      }
+
+      // Update auth.users (email + password).
+      // If spoofed, we auto-confirm. Otherwise, Supabase sends a verification email.
       const { error: updateAuthErr } = await adminClient.auth.admin.updateUserById(user.id, {
-        email: `${normalized}@mindgem.local`,
+        email: targetEmail,
         password: newPassword,
-        user_metadata: { username: normalized }
+        user_metadata: { username: normalized },
+        email_confirm: isSpoofed,
       });
       
-      if (updateAuthErr) throw updateAuthErr;
-
-      // Update profiles role and username
-      const { error: updateProfErr } = await adminClient
-        .from("profiles")
-        .update({ role: "user", username: normalized, updated_at: new Date().toISOString() })
-        .eq("id", user.id);
-        
-      if (updateProfErr) throw updateProfErr;
+      if (updateAuthErr) {
+        await adminClient.from("upgrade_operations").delete().eq("user_id", user.id);
+        throw updateAuthErr;
+      }
 
       // Delete old recovery codes
       await adminClient.from("account_recovery").delete().eq("user_id", user.id);
@@ -363,12 +375,17 @@ export function registerAuthRoutes(app: Hono): void {
         event: "auth.guest_upgraded",
         level: "info",
         userId: user.id,
-        message: "Guest account upgraded to full user",
+        message: `Guest account upgrade initiated to ${isSpoofed ? 'spoofed' : 'real'} email`,
         requestId: requestIdFor(c.req.raw),
         persist: true
       });
 
-      return c.json({ success: true, username: normalized, requiresLogin: true });
+      return c.json({ 
+        success: true, 
+        username: normalized, 
+        requiresLogin: true,
+        pendingVerification: !isSpoofed
+      });
     } catch (err) {
       logServerEvent({
         event: "server.log",

@@ -33,57 +33,25 @@ export function registerAdminRoutes(app: Hono): void {
   app.post("/server/admin-grant", async (c) => {
     try {
       const user = await requireAdmin(c, "grant");
-      const { targetId, axes = {}, xp, mode = "add" } = await c.req.json();
+      const { targetId, axes = {}, xp, mode = "add", reason = "Admin manual grant" } = await c.req.json();
       if (!targetId || !["add", "set"].includes(mode))
         return c.json({ error: "Invalid admin grant" }, 400);
-      const { data: target, error: readError } = await adminClient
-        .from("profiles_decayed")
-        .select(PROFILE_COLS)
-        .eq("id", targetId)
-        .single();
-      if (readError || !target)
-        throw readError ?? new Error("Target not found");
-      // supabase-js tra ve union co GenericStringError -> ep ve record de doc cot dong.
-      const targetRow = target as unknown as Record<string, unknown>;
-      const patch: Record<string, number> = {};
-      for (const [key, column] of Object.entries(AXIS_COLUMNS)) {
-        if (axes[key] === undefined || !Number.isFinite(Number(axes[key])))
-          continue;
-        const current = Number(targetRow[column] ?? 0);
-        patch[column] = mode === "set" ? Number(axes[key]) : current + Number(axes[key]);
-      }
+      
+      const reqId = requestIdFor(c.req.raw) || "";
 
-      // Apply XP via RPC to ensure ledger integrity and row locking
-      let newXp: number | undefined;
-      if (xp !== undefined && Number.isFinite(Number(xp))) {
-        const { data: rpcXp, error: rpcErr } = await adminClient.rpc("admin_grant_xp", {
-          p_target: targetId,
-          p_delta: Math.round(Number(xp)),
-          p_mode: mode
-        });
-        if (rpcErr) throw rpcErr;
-        newXp = rpcXp as number;
-      }
+      // Call the atomic RPC to lock, update profiles, record xp_events, and write admin_audit
+      const { data, error } = await adminClient.rpc("admin_grant", {
+        p_target_id: targetId,
+        p_xp_amount: xp !== undefined && Number.isFinite(Number(xp)) ? Math.round(Number(xp)) : null,
+        p_xp_mode: mode,
+        p_axes: Object.keys(axes).length > 0 ? axes : null,
+        p_axes_mode: mode,
+        p_reason: reason,
+        p_admin_id: user.id,
+        p_request_id: reqId
+      });
 
-      if (Object.keys(patch).length > 0) {
-        const { error: updateError } = await adminClient
-          .from("profiles")
-          .update(patch)
-          .eq("id", targetId);
-        if (updateError) throw updateError;
-      }
-
-      // We already wrote admin_audit for XP inside the RPC.
-      // We write another audit log for axes if there were any changes.
-      if (Object.keys(patch).length > 0) {
-        await adminClient.from("admin_audit").insert({
-          actor_id: user.id,
-          target_id: targetId,
-          action: "admin.axes_grant",
-          context: { mode, axes, patch },
-          request_id: requestIdFor(c.req.raw),
-        });
-      }
+      if (error) throw error;
 
       const { data: updated, error: refreshError } = await adminClient
         .from("profiles_decayed")
@@ -92,7 +60,7 @@ export function registerAdminRoutes(app: Hono): void {
         .single();
       if (refreshError || !updated)
         throw refreshError ?? new Error("Target disappeared");
-      return c.json({ profile: updated });
+      return c.json({ profile: updated, patch: data.patch });
     } catch (err) {
       return c.json(
         { error: err instanceof Error ? err.message : String(err) },
@@ -104,29 +72,27 @@ export function registerAdminRoutes(app: Hono): void {
   app.post("/server/admin-reset", async (c) => {
     try {
       const user = await requireAdmin(c, "reset");
-      const { targetId } = await c.req.json();
+      const { targetId, reason = "Admin manual reset" } = await c.req.json();
       if (!targetId) return c.json({ error: "targetId required" }, 400);
-      const patch = {
-        algebraic_logic_score: 0,
-        memory_score: 0,
-        speed_score: 0,
-        focus_score: 0,
-        cfop_spatial_record: 0,
-        ...EMPTY_SESSION_PATCH,
-        total_xp: 0,
-        stats_epoch: new Date().toISOString(),
-      };
 
       const reqId = requestIdFor(c.req.raw) || "";
-      const { data, error } = await adminClient.rpc("admin_reset_profile", {
-        p_target: targetId,
-        p_actor: user.id,
-        p_request_id: reqId,
-        p_patch: patch
+      const { error } = await adminClient.rpc("admin_reset_stats", {
+        p_target_id: targetId,
+        p_reason: reason,
+        p_admin_id: user.id,
+        p_request_id: reqId
       });
 
       if (error) throw error;
-      return c.json({ profile: data });
+      
+      const { data: updated, error: refreshError } = await adminClient
+        .from("profiles_decayed")
+        .select(PROFILE_COLS)
+        .eq("id", targetId)
+        .single();
+      
+      if (refreshError || !updated) throw refreshError ?? new Error("Target disappeared");
+      return c.json({ profile: updated });
     } catch (err) {
       return c.json(
         { error: err instanceof Error ? err.message : String(err) },

@@ -254,7 +254,7 @@ Client: getSupabase().auth.signOut() + Xóa key 'sb-*' trong LocalStorage.
    - Regex: `^[a-z0-9_.-]{3,20}$` (Chỉ chấp nhận chữ thường, số, dấu gạch dưới, gạch ngang, chấm. Từ 3-20 ký tự). Chặn hoàn toàn khoảng trắng, ký tự đặc biệt, unicode và ký tự `@`.
    - Password tối thiểu 8 ký tự.
 6. Row Level Security (RLS) trên DB:
-   Bảng `public.profiles` áp dụng RLS: Kẻ gian không thể dùng client key sửa đổi điểm số hay thông tin của người dùng khác (`auth.uid() = id`).
+   Bảng `public.profiles` áp dụng RLS: Kẻ gian không thể dùng client key sửa đổi điểm số hay thông tin của người dùng khác (`auth.uid() = id`). Hơn nữa, để bảo vệ mức độ cột (Column-level protection), quyền `UPDATE` mặc định bị `REVOKE` hoàn toàn; User chỉ được `GRANT UPDATE` trên các cột an toàn như `username`, `birth_year`, `avatar_url`, `locale`. Các cột nhạy cảm (`total_xp`, `role`, các chỉ số rating) KHÔNG THỂ bị sửa đổi trực tiếp bởi client. Mọi Security Definer RPC đều sử dụng `search_path = ''` và `REVOKE EXECUTE FROM PUBLIC`.
 7. An toàn Storage Bucket:
    Giới hạn dung lượng file avatar `<= 2MB` và kiểm tra nghiêm ngặt danh sách MIME types được phép.
 

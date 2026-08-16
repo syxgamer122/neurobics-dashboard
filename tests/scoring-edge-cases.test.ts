@@ -19,7 +19,7 @@ import {
   RATING_SNAP,
   EMA_ALPHA,
   EMA_ALPHA_DOWN,
-} from "../src/app/lib/scoring";
+} from "../src/app/lib/provisional-score";
 
 describe("non-finite input — khong duoc lam hong rating", () => {
   it("clampRating dua moi gia tri khong huu han ve moc an toan", () => {

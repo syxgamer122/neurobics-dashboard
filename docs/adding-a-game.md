@@ -31,6 +31,8 @@ Add the id to server `GAME_IDS` in `scoring/core.ts`. The exhaustive `Record<Gam
 
 Add an inspector to `GAME_INSPECTORS` in `_shared/anticheat.ts`. The exhaustive registry forces coverage.
 
+Add a Zod telemetry schema to `TelemetrySchema` inside `supabase/functions/_shared/scoring/schema.ts` to strictly validate payload structure from the client.
+
 Add telemetry count/bound checks in `_shared/scoring/validation.ts` when the game has game-specific invariants.
 
 ## 5. Database migration

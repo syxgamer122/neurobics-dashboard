@@ -11,7 +11,7 @@ Mục tiêu chính của hệ thống bao gồm:
 - PWA Support: Khả năng cài đặt ứng dụng trực tiếp lên thiết bị (Desktop, Android, iOS) với giao diện độc lập (display: standalone), hỗ trợ biểu tượng tùy chỉnh (maskable icons), phối màu giao diện mượt mà (#050914) và bộ lắng nghe sự kiện cài đặt chuẩn hóa.
 - Offline Playing (Chế độ chơi ngoại tuyến): Cho phép người dùng tiếp tục chơi các trò chơi rèn luyện trí nhận thức khi không có mạng. Các ván đấu được tạm lưu ở bộ nhớ local và tự động tính điểm / XP tạm thời để hiển thị kết quả ngay tức thì.
 - Guest Mode (Chế độ chơi thử dành cho Khách): Người dùng mới có thể trải nghiệm toàn bộ các game mà không cần đăng ký tài khoản. Điểm số và tiến trình được đồng bộ lên máy chủ y hệt người dùng đã đăng ký (ADR-0007).
-- Offline Queue & Auto Sync: Lưu giữ các ván chơi chưa đồng bộ trong LocalStorage (`neurobics.offline_queue.[userId]`) theo cơ chế FIFO (tối đa 200 ván). Khi thiết bị có mạng trở lại, hệ thống sẽ tự động kích hoạt tiến trình đồng bộ theo từng batch (tối đa 25 ván/batch) lên Supabase Edge Functions server.
+- Offline Queue & Auto Sync: Lưu giữ các ván chơi chưa đồng bộ trong IndexedDB thay vì LocalStorage để tránh giới hạn quota và chống mất dữ liệu khi nhiều tab chạy song song. Khi thiết bị có mạng trở lại, hệ thống sẽ tự động kích hoạt tiến trình đồng bộ theo từng batch (tối đa 25 ván/batch) lên Supabase Edge Functions server. Cơ chế Web Locks API được sử dụng để đảm bảo chỉ có 1 tab thực hiện sync tại một thời điểm, có exponential backoff và không âm thầm xóa ván khi queue đầy (sẽ hiện cảnh báo cho user).
 
 
 2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)

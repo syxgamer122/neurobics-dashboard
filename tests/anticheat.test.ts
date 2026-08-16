@@ -98,7 +98,7 @@ describe("co cung — tu choi ca van", () => {
   it("memory qua 9 cap trong 1 giay thi bi chan", () => {
     const r = inspectRound(
       "memory",
-      { timeMs: 1_000, maxLevel: 9, clearedLevels: 9, wrongClicks: 0 },
+      { timeMs: 1_000, maxLevel: 9, clearedLevels: 9, wrongClicks: 0, totalTaps: 45 },
       1_000,
     );
     expect(hasHardFlag(r)).toBe(true);
@@ -164,7 +164,7 @@ describe("co mem — van tinh diem nhung ghi so", () => {
   it("bam deu nhu may nhung toc do nguoi: chi canh bao", () => {
     const r = inspectRound(
       "reaction",
-      { timeMs: 5_000, rts: [250, 251, 249, 250, 250], falseStarts: 0 },
+      { timeMs: 5_000, rts: [250, 251, 249, 250, 250, 250, 251, 249, 250, 250], falseStarts: 0 },
       5_000,
     );
     expect(hasHardFlag(r)).toBe(false);

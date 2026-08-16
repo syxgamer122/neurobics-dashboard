@@ -120,22 +120,9 @@ de score va inspect, nhung ghi nhan `schema_version` tu payload offline.
 Round da ghi voi `scorer_version = N` se **khong bao gio** bi tinh lai bang
 `scorer_version = N+1`. Ket qua da ghi la bat bien.
 
-### 4.2 Re-scoring khi can thiet
+### 4.2 Xử lý sai sót (Never Re-score)
 
-Neu phat hien loi scoring nghiem trong can tinh lai, tao migration SQL:
-
-```sql
--- 1. Danh dau cac session can re-score
-UPDATE training_sessions
-SET needs_rescore = true
-WHERE scorer_version = 1
-  AND game = 'schulte';
-
--- 2. Chay batch re-score rieng (script hoac Edge Function),
---    ghi ket qua moi voi scorer_version = 2
-```
-
-**Khong** dung cach ghi de truc tiep len du lieu cu ma khong danh dau.
+Session gốc luôn bất biến. Sai sót được xử lý bằng `manual_reviews` và append-only correction/compensation (như cấp bù XP hoặc reset flag thủ công). Không bao giờ được ghi đè điểm (score), `scorer_version` hoặc telemetry của session gốc.
 
 ### 4.3 Version mismatch khi offline sync
 

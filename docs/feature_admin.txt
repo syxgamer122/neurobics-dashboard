@@ -288,8 +288,9 @@ LUỒNG 4: XÓA NGƯỜI DÙNG (DELETE USER)
    - Tầng Server Authentication: Endpoint gọi `authenticatedUser(c)` để xác thực 
      JWT bearer token từ header request.
    - Tầng Server Authorization: Endpoint gọi `requireAdmin(c)` để truy vấn 
-     bảng `profiles` kiểm tra cột `role === 'admin'` và đồng thời kiểm tra token 
-     JWT xem `aal === 'aal2'` (MFA). Nếu vi phạm, lập tức từ chối bằng mã lỗi 
+   - Tầng Server Authorization: Endpoint gọi `requireAdmin(c, "capability")` để truy vấn 
+     bảng `profiles` kiểm tra cột `role === 'admin'`, kiểm tra mảng `admin_capabilities` (read, grant, delete, reset), và đồng thời kiểm tra token 
+     JWT xem `aal === 'aal2'` (MFA) cộng với thời gian xác thực MFA dưới 5 phút. Nếu vi phạm, lập tức từ chối bằng mã lỗi 
      HTTP 403 Forbidden.
 
 2. Sử dụng Service Role (Admin Client):
