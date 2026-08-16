@@ -236,7 +236,7 @@ for (const f of [
   });
 }
 // Quet ca .sql / .md ngoai src
-for (const dir of ["supabase", "sql-chia-nho"]) {
+for (const dir of ["supabase", "sql-chia-nho", "docs", "Neurobics Dashboard Design (10)/docs"]) {
   const d = path.join(ROOT, dir);
   if (!fs.existsSync(d)) continue;
   const stack = [d];
@@ -245,20 +245,28 @@ for (const dir of ["supabase", "sql-chia-nho"]) {
     for (const e of fs.readdirSync(cur, { withFileTypes: true })) {
       const p = path.join(cur, e.name);
       if (e.isDirectory()) stack.push(p);
-      else if (/\.(sql|ts|tsx|md)$/.test(e.name)) {
+      else if (/\.(sql|ts|tsx|md|txt)$/.test(e.name)) {
         fs.readFileSync(p, "utf8")
           .split("\n")
           .forEach((l, i) => {
-            if (l.includes("\uFFFD")) {
+            if (l.includes("\uFFFD") || /[ÃÂÆ][\x80-\xBF]/.test(l) || /áº/.test(l) || /â€/.test(l)) {
               broken++;
-              report("ERR", `${rel(p)}:${i + 1}  ${l.trim().slice(0, 90)}`);
+              report("ERR", `${rel(p)}:${i + 1}  Encoding broken (mojibake) detected`);
+            }
+            if ((e.name.endsWith(".md") || e.name.endsWith(".txt")) && /([cC]:[/\\])/i.test(l)) {
+              broken++;
+              report("ERR", `${rel(p)}:${i + 1} Absolute Windows path detected (C:/ or C:\\). Use relative paths.`);
+            }
+            if (e.name.endsWith(".md") && /^\|[^|]*\[[^|]*\][^|]*\|/.test(l) && !l.includes("](")) {
+              broken++;
+              report("ERR", `${rel(p)}:${i + 1} Markdown table column contains brackets`);
             }
           });
       }
     }
   }
 }
-if (!broken) console.log("     OK: khong con ky tu vo");
+if (!broken) console.log("     OK: khong con ky tu vo hoac duong dan tuyet doi");
 
 // ---------- 5. Hang so SCREAMING_CASE dung ma khong khai bao ----------
 // Chay tren ban da boc chuoi VA boc JSX text.
@@ -323,7 +331,7 @@ for (const f of files) {
   while ((m = re.exec(s))) {
     const v = m[2];
     if (
-      !new RegExp(`(const|let|var)\\s+${v}\\b`).test(s) &&
+      !new RegExp(`(const|let|var|function)\\s+${v}\\b`).test(s) &&
       !new RegExp(`import[^;]*\\b${v}\\b[^;]*from`).test(s) &&
       // tham so ham / bien vong lap: (k) => localStorage.removeItem(k)
       !new RegExp(`[(,]\\s*${v}\\s*[),:]`).test(s) &&
@@ -335,6 +343,50 @@ for (const f of files) {
   }
 }
 if (!ls) console.log("     OK");
+
+// ---------- 7. Documentation Hygiene ----------
+console.log("\n===== 7. Kiem tra tai lieu (Documentation Hygiene) =====");
+let docIssues = 0;
+const docDir = path.join(ROOT, "docs");
+if (fs.existsSync(docDir)) {
+  const docFiles = walk(docDir, []).filter((f) => /\.(txt|md)$/.test(f));
+  for (const f of docFiles) {
+    // Skip known-issues.md as it naturally contains historical references
+    if (path.basename(f) === "known-issues.md") continue;
+    const s = fs.readFileSync(f, "utf8");
+    if (s.includes("[ĐÃ KHẮC PHỤC]")) {
+      docIssues++;
+      report("ERR", `${rel(f)}: chua "[ĐÃ KHẮC PHỤC]". Kiem tra va dua vao known-issues.md`);
+    }
+    if (s.includes("GUEST_PROFILE_ID")) {
+      docIssues++;
+      report("ERR", `${rel(f)}: chua "GUEST_PROFILE_ID" cu. Guest nay dung true auth.`);
+    }
+    if (s.includes("c:/") || s.includes("C:\\")) {
+      docIssues++;
+      report("ERR", `${rel(f)}: chua duong dan tuyet doi "c:/". Can dung duong dan tuong doi.`);
+    }
+    if (/```sql[^`]*\[.*\][^`]*```/.test(s)) {
+      docIssues++;
+      report("ERR", `${rel(f)}: SQL block contains brackets, which is invalid syntax`);
+    }
+  }
+}
+if (!docIssues) console.log("     OK");
+
+// ---------- 8. Hardcoded 80ms FLOOR/MIN_RT ----------
+console.log("\n===== 8. Hardcoded 80ms FLOOR/MIN_RT =====");
+let hardcoded = 0;
+for (const f of [...files, ...walk(path.join(ROOT, "supabase")).filter(f => f.endsWith('.ts'))]) {
+  const s = fs.readFileSync(f, "utf8");
+  if (/const\s+[A-Z_]*(FLOOR|MIN_RT)[A-Z_]*\s*=\s*80\b/.test(s)) {
+    if (!f.includes("limits.ts")) {
+      hardcoded++;
+      report("ERR", `${rel(f)}: hardcoded 80ms (HUMAN_FLOOR_MS). Import from _shared/limits.ts`);
+    }
+  }
+}
+if (!hardcoded) console.log("     OK");
 
 console.log("\n==================================================");
 console.log(

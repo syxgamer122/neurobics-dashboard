@@ -49,6 +49,14 @@ jobs:
       - name: Migration lint (ten file, thu tu, cau lenh pha huy)
         run: pnpm run db:lint
 
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply DB migrations (dry run via local start)
+        run: supabase db start
+
       - name: Unit tests + coverage gate
         run: pnpm run test:coverage
 
@@ -57,6 +65,12 @@ jobs:
 
       - name: Build
         run: pnpm run build:only
+
+      - name: Bundle budget check
+        run: pnpm run check:bundle
+
+      - name: Security audit
+        run: pnpm run security:audit
 
       - name: Upload coverage report
         if: always()

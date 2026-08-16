@@ -5,7 +5,7 @@ import {
   softFlags,
 } from "../../_shared/anticheat.ts";
 import { AppError } from "../../_shared/errors.ts";
-import { isGame, scoreAndValidate } from "../../_shared/round-scoring.ts";
+import { isGame, scoreAndValidate, SCORER_VERSIONS } from "../../_shared/round-scoring.ts";
 import {
   beginRequest,
   logServerEvent,
@@ -210,6 +210,7 @@ export function registerRoundRoutes(app: Hono): void {
           p_round_score: scored.headline,
           p_label: scored.label,
           p_time_ms: Math.round(scored.timeMs),
+          p_scorer_version: SCORER_VERSIONS[gameId],
         },
       );
       if (error) {
@@ -319,74 +320,14 @@ export function registerRoundRoutes(app: Hono): void {
             2 * 3600_000,
           );
 
-          // 1. Check for existing ticket by client_round_id for exact idempotency
-          const { data: existing } = await adminClient
-            .from("round_tickets")
-            .select("id, submitted_at")
-            .eq("user_id", user.id)
-            .eq("client_round_id", clientRoundId)
-            .maybeSingle();
+          const cheat = inspectRound(gameId, telemetry, elapsed, true);
+          const isHardCheat = hasHardFlag(cheat);
 
-          if (existing?.submitted_at) {
-            results.push({ clientRoundId, status: "duplicate" });
-            continue;
-          }
-
-          let ticket = existing;
-
-          if (!ticket) {
-            // Tao 1 ticket thuc su tren DB
-            const { data: newTicket, error: insertErr } = await adminClient
-              .from("round_tickets")
-              .insert({
-                user_id: user.id,
-                game: gameId,
-                started_at: new Date(startedMs).toISOString(),
-                client_round_id: clientRoundId,
-              })
-              .select("id")
-              .single();
-
-            if (insertErr || !newTicket) {
-              results.push({
-                clientRoundId,
-                status: "error",
-                error: "Failed to create offline ticket",
-              });
-              continue;
-            }
-            ticket = newTicket;
-          }
-
-          const cheat = inspectRound(gameId, telemetry, elapsed);
-          // Them soft flag canh bao offline
-          cheat.flags.push({
-            severity: "soft",
-            msg: "Offline sync: timing verification bypassed",
-          });
-
-          if (hasHardFlag(cheat)) {
-            await adminClient
-              .from("round_tickets")
-              .update({ submitted_at: new Date().toISOString() })
-              .eq("id", ticket.id);
-            results.push({
-              clientRoundId,
-              status: "rejected",
-              error: "Round rejected: suspicious timing patterns.",
-              code: "anticheat_hard",
-            });
-            continue;
-          }
-
-          for (const f of softFlags(cheat)) {
-            await adminClient.rpc("record_cheat_flag", {
-              p_user_id: user.id,
-              p_game: gameId,
-              p_reason: f.msg,
-              p_severity: "soft",
-              p_details: f.detail ?? {},
-            });
+          let cheatReasons = null;
+          if (cheat.flags.length > 0) {
+            cheatReasons = isHardCheat
+              ? cheat.flags.filter((f) => f.severity === "hard")
+              : softFlags(cheat);
           }
 
           const scored = scoreAndValidate(gameId, telemetry, elapsed);
@@ -394,16 +335,20 @@ export function registerRoundRoutes(app: Hono): void {
             Object.entries(scored.axes).filter(([, value]) => value !== null),
           );
 
-          const { data, error } = await adminClient.rpc(
-            "submit_round_transaction",
+          const { data: rpcData, error } = await adminClient.rpc(
+            "submit_offline_round_tx",
             {
               p_user_id: user.id,
-              p_ticket_id: String(ticket.id),
+              p_client_round_id: clientRoundId,
               p_game: gameId,
+              p_started_at: new Date(startedMs).toISOString(),
               p_axes: axisPayload,
               p_round_score: scored.headline,
               p_label: scored.label,
               p_time_ms: Math.round(scored.timeMs),
+              p_scorer_version: SCORER_VERSIONS[gameId],
+              p_is_hard_cheat: isHardCheat,
+              p_cheat_reasons: cheatReasons,
             },
           );
 
@@ -416,9 +361,23 @@ export function registerRoundRoutes(app: Hono): void {
             continue;
           }
 
+          if (rpcData?.status === "duplicate") {
+            results.push({ clientRoundId, status: "duplicate" });
+            continue;
+          }
+
+          logServerEvent({
+            event: "offline_sync.ok",
+            level: "info",
+            game: gameId,
+            userId: user.id,
+            requestId: requestIdFor(c.req.raw),
+            message: `Synced offline round ${clientRoundId}`,
+            persist: true,
+          });
+
           results.push({ clientRoundId, status: "ok" });
         } catch (err) {
-          const requestId = requestIdFor(c.req.raw) ?? beginRequest(c.req.raw);
           logServerEvent({
             event: "offline_sync.round_failed",
             level: "warn",

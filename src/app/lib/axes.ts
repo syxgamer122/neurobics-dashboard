@@ -1,7 +1,7 @@
 import {
   AXIS_COLUMNS,
   type AxisKey,
-} from "../../../supabase/functions/_shared/axes";
+} from "../../../supabase/functions/_shared/axes.ts";
 
 export { AXIS_COLUMNS, type AxisKey };
 

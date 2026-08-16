@@ -445,11 +445,75 @@ export function SettingsPanel({
           )}
         </div>
 
-        {/* Password */}
-        <div className="rounded-2xl p-6" style={cardStyle("#A855F7")}>
-          <SectionTitle color="#A855F7" icon={<KeyRound size={14} />}>
-            {t.settings_password_section}
-          </SectionTitle>
+        {/* Password / Guest Upgrade */}
+        {profile.role === "guest" ? (
+          <div className="rounded-2xl p-6" style={cardStyle("#A855F7")}>
+            <SectionTitle color="#A855F7" icon={<KeyRound size={14} />}>
+              {t.settings_upgrade_guest || "Nâng cấp Tài khoản"}
+            </SectionTitle>
+            <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+              Bạn đang dùng tài khoản Khách. Nâng cấp bằng email/mật khẩu để không mất dữ liệu.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
+                  {t.auth_email || "Email"}
+                </label>
+                <input
+                  type="email"
+                  value={newPw} // Reuse state for email to avoid adding new state
+                  onChange={(e) => setNewPw(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl text-sm outline-none"
+                  style={fieldStyle()}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
+                  {t.auth_password || "Mật khẩu"}
+                </label>
+                <input
+                  type="password"
+                  value={confirmPw} // Reuse state for password
+                  onChange={(e) => setConfirmPw(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl text-sm outline-none"
+                  style={fieldStyle()}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={pwBusy || !newPw || !confirmPw}
+              onClick={async () => {
+                setPwBusy(true);
+                try {
+                  const { handleUpgradeGuest } = await import("../lib/api");
+                  const next = await handleUpgradeGuest(profile.username, newPw, confirmPw, true);
+                  onProfileChange(next.profile);
+                  setNewPw("");
+                  setConfirmPw("");
+                  toast.success(t.settings_upgrade_ok || "Nâng cấp thành công!");
+                } catch (err) {
+                  logError(err);
+                  toast.error(err instanceof Error ? err.message : "Failed to upgrade");
+                } finally {
+                  setPwBusy(false);
+                }
+              }}
+              className="mt-4 h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center gap-2 disabled:opacity-40"
+              style={{
+                background: "rgba(var(--neuro-purple-rgb),0.15)",
+                color: "#C084FC",
+                border: "1px solid rgba(var(--neuro-purple-rgb),0.4)",
+              }}
+            >
+              {pwBusy ? <Loader2 size={14} className="animate-spin" /> : (t.settings_upgrade_btn || "Nâng cấp")}
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-2xl p-6" style={cardStyle("#A855F7")}>
+            <SectionTitle color="#A855F7" icon={<KeyRound size={14} />}>
+              {t.settings_password_section}
+            </SectionTitle>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -512,7 +576,8 @@ export function SettingsPanel({
             {t.settings_pw_submit}
           </button>
           <p className="text-xs text-slate-400 mt-2">{t.settings_pw_hint}</p>
-        </div>
+          </div>
+        )}
 
         {/* Danger zone */}
         <div className="rounded-2xl p-6" style={cardStyle("#F43F5E")}>

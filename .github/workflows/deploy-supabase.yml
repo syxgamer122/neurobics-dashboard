@@ -39,7 +39,7 @@ jobs:
   deploy:
     name: Push migrations + deploy edge function
     runs-on: ubuntu-latest
-    environment: production
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +56,11 @@ jobs:
           [ -z "$SUPABASE_DB_PASSWORD" ] && missing="$missing SUPABASE_DB_PASSWORD"
           if [ -n "$missing" ]; then
             echo "::error::Thieu secrets:$missing"
+            exit 1
+          fi
+          
+          if [ "${{ github.ref_name }}" != "main" ] && [ "$SUPABASE_PROJECT_REF" = "pujzeomddvquxeacblvr" ]; then
+            echo "::error::FATAL: Chi nhanh main moi duoc phep dung project ref cua production (pujzeomddvquxeacblvr)."
             exit 1
           fi
           echo "Du 3 secrets."

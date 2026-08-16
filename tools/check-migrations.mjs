@@ -91,6 +91,11 @@ for (const file of files) {
       `${file}: khong thay "if not exists"/"or replace" — chay lai se loi. Nen viet idempotent.`,
     );
   }
+
+  // P1-18: Thêm lock timeout guard vào mọi migration mới
+  if (!isApplied(version) && !/set\s+lock_timeout/i.test(sql)) {
+    errors.push(`${file}: thieu lock timeout guard. Hay them dong "SET lock_timeout = '2s';" de tranh block production.`);
+  }
 }
 
 // Thu tu so voi nhung version da ap dung tren production.

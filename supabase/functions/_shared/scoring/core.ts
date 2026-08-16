@@ -1,5 +1,37 @@
-// Shared, pure scoring primitives.
+import { TELEMETRY_SCHEMA_VERSION } from "../../../src/app/lib/telemetry-version.ts";
+import { HUMAN_FLOOR_MS } from "../limits.ts";
 // Canonical server-side game ids. SQL constraints remain explicit by design.
+
+/**
+ * SCORER_VERSIONS — Tăng khi đổi công thức chấm điểm (axis weights, clamping,
+ * difficulty multipliers) của một game cụ thể.
+ * Mọi training_session lưu version này để phân biệt dữ liệu cũ.
+ */
+export const SCORER_VERSIONS: Record<string, number> = {
+  schulte: 1,
+  sudoku: 1,
+  stroop: 1,
+  reaction: 1,
+  memory: 1,
+  nback: 1,
+  math: 1,
+  gonogo: 1,
+  mental: 1,
+  corsi: 1,
+  trail: 1,
+  search: 1
+};
+
+/**
+ * TELEMETRY_SCHEMA_VERSION — Tăng khi thay đổi cấu trúc payload telemetry mà
+ * client gửi lên (thêm/bỏ field, đổi kiểu dữ liệu). Offline rounds mang theo
+ * version này để server biết cách parse.
+ *
+ * Changelog:
+ *   v1 — Schema gốc cho tất cả 12 games.
+ */
+
+
 export const GAME_IDS = [
   "schulte",
   "sudoku",
@@ -21,6 +53,27 @@ const GAME_SET: ReadonlySet<string> = new Set(GAME_IDS);
 
 export function isGame(value: unknown): value is Game {
   return typeof value === "string" && GAME_SET.has(value);
+}
+
+export type GameStatus = "active" | "internal" | "disabled";
+
+export const GAME_STATUS: Record<Game, GameStatus> = {
+  schulte: "active",
+  sudoku: "active",
+  stroop: "active",
+  reaction: "active",
+  memory: "active",
+  nback: "active",
+  math: "active",
+  gonogo: "active",
+  mental: "active",
+  corsi: "active",
+  trail: "active",
+  search: "active",
+};
+
+export function getGameStatus(game: Game): GameStatus {
+  return GAME_STATUS[game];
 }
 /**
  * Telemetry THO do client gui len — tuyet doi khong duoc tin.
@@ -106,7 +159,7 @@ const withoutStartArtifact = (rts: number[], thresholdMs = 80): number[] =>
  * rieng Math kep san o client. Mot cu bam anticipation ~100ms o Reaction hay
  * N-Back (hoan toan co that) lam hong ca van hop le. Gio nguong 120ms chi con
  * la san THONG KE: mau duoi nguong bi loai khoi tinh toan (va anticheat ghi
- * soft flag), con hard-reject chi xay ra duoi HUMAN_FLOOR_MS = 80ms.
+ * soft flag), con hard-reject chi xay ra duoi HUMAN_FLOOR_MS.
  */
 export const MIN_RT_MS = 120;
 

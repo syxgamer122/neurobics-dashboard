@@ -17,7 +17,7 @@ import { useAppState } from "./hooks/use-app-state";
 import { useRoundSubmission } from "./hooks/use-round-submission";
 import { useOfflineSync } from "./hooks/use-offline-sync";
 import { type AxisKey } from "./lib/axes";
-import { isGuestProfile } from "./lib/guest";
+import { isGuestProfile } from "./lib/api";
 import { AppRouter } from "./AppRouter";
 import { OnboardingOverlay } from "./components/onboarding";
 // ─── Chunk tai theo nhu cau ─────────────────────────────────
@@ -132,7 +132,6 @@ function AppInner() {
         <Suspense fallback={<FullScreenFallback />}>
           <AdminPanel
             onExit={() => setAdminPanelOpen(false)}
-            profile={profile}
             onProfileChange={setProfile}
             onAccountDeleted={() => {
               setAdminPanelOpen(false);

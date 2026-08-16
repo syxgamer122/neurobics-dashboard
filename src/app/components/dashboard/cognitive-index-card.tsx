@@ -1,7 +1,7 @@
 import { TrendingUp } from "lucide-react";
 
 import { useLang } from "../../lib/i18n";
-import { RATING_MAX } from "../../lib/scoring";
+import { RATING_MAX } from "../../lib/provisional-score";
 import { GlassCard } from "../ui/glass-card";
 import { Label } from "../ui/label";
 

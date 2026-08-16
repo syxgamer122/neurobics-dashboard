@@ -20,6 +20,12 @@ export function registerAuthRoutes(app: Hono): void {
   // server. The on_auth_user_created trigger auto-inserts the public.profiles row.
   app.post("/server/signup", async (c) => {
     try {
+      // P0-2: Thêm global counter signup_total per phút với ngưỡng cứng
+      const globalAllowed = await consumeRateLimit("global_signup_budget", 300, 60);
+      if (!globalAllowed) {
+        return c.json({ error: "Too many signups globally. Please try again later." }, 429);
+      }
+
       const ip = clientIp(c);
       const ipHash = await sha256(`mindgem-signup:${ip}`);
       // Kiem tra va tieu thu rate limit ngay de chong TOCTOU (flood)
@@ -39,12 +45,26 @@ export function registerAuthRoutes(app: Hono): void {
         );
       }
 
-      const { username, password, captchaToken } = await c.req.json();
-      if (!username || !password || !captchaToken) {
+      const { username, password, captchaToken, isGuest, isAdult } = await c.req.json();
+      
+      if (!isAdult) {
+        return c.json({ error: "You must be 13 years or older to use this service." }, 403);
+      }
+      
+      if (!username && !isGuest) {
         return c.json(
           {
             error:
-              "Signup error: username, password and human verification are required.",
+              "Signup error: username is required.",
+          },
+          400,
+        );
+      }
+      if (!captchaToken) {
+        return c.json(
+          {
+            error:
+              "Signup error: human verification is required.",
           },
           400,
         );
@@ -60,14 +80,29 @@ export function registerAuthRoutes(app: Hono): void {
           400,
         );
       }
+      
+      // Guest Quota: Limit to 5 guests per IP per 24 hours to prevent abuse
+      if (isGuest) {
+        const guestIpHash = await sha256(`mindgem-guest-quota:${ip}`);
+        const guestAllowed = await consumeRateLimit(guestIpHash, 5, 86400);
+        if (!guestAllowed) {
+          return c.json(
+            { error: "Guest account quota exceeded for this network. Please sign up for a free full account to continue." },
+            429
+          );
+        }
+      }
 
       // Dem thanh cong thuc su cho rate limit thu 2 (thay vi dung record_signup_attempt som)
 
-      const normalized = String(username).trim().toLowerCase();
-      const pw = String(password);
+      const normalized = isGuest 
+        ? `guest-${crypto.randomUUID().split('-')[0]}`
+        : String(username).trim().toLowerCase();
+      
+      const pw = isGuest ? crypto.randomUUID() : String(password);
 
       // Chi cho phep a-z 0-9 _ . - (3-20) — tranh email gia khong hop le.
-      if (!/^[a-z0-9_.-]{3,20}$/.test(normalized)) {
+      if (!isGuest && !/^[a-z0-9_.-]{3,20}$/.test(normalized)) {
         return c.json(
           {
             error:
@@ -76,7 +111,7 @@ export function registerAuthRoutes(app: Hono): void {
           400,
         );
       }
-      if (pw.length < 8) {
+      if (!isGuest && pw.length < 8) {
         return c.json(
           { error: "Signup error: password must be at least 8 characters." },
           400,
@@ -139,7 +174,21 @@ export function registerAuthRoutes(app: Hono): void {
         );
       }
 
-      // The trigger has already created the profile row within the same
+      // Update role to guest if applicable. This ensures profiles gets the correct role.
+      let recoveryCode: string | undefined = undefined;
+      if (isGuest && data.user) {
+        await adminClient.from("profiles").update({ role: "guest" }).eq("id", data.user.id);
+        
+        // Generate 12-char alphanumeric recovery code
+        recoveryCode = Array.from({ length: 12 }, () => 
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".charAt(Math.floor(Math.random() * 36))
+        ).join("");
+        const codeHash = await sha256(recoveryCode);
+        await adminClient.from("account_recovery").insert({
+          user_id: data.user.id,
+          code_hash: codeHash
+        });
+      }
       // transaction — read it back to return to the client.
       const { data: profile, error: profileErr } = await adminClient
         .from("profiles")
@@ -158,6 +207,9 @@ export function registerAuthRoutes(app: Hono): void {
         return c.json({ error: "Signup could not be completed." }, 500);
       }
 
+      if (isGuest) {
+        return c.json({ profile, _guestName: normalized, _guestPw: pw, recoveryCode });
+      }
       return c.json({ profile });
     } catch (err) {
       logServerEvent({
@@ -166,6 +218,164 @@ export function registerAuthRoutes(app: Hono): void {
         message: `Signup error (unexpected) in /signup route: ${err}`,
       });
       return c.json({ error: "Signup is temporarily unavailable." }, 500);
+    }
+  });
+
+  // ─── Recover Guest Account ────────────────────────────────────────────────
+  app.post("/server/recover", async (c) => {
+    try {
+      const { recoveryCode } = await c.req.json();
+      if (!recoveryCode || typeof recoveryCode !== "string") {
+        return c.json({ error: "Invalid recovery code" }, 400);
+      }
+
+      const codeHash = await sha256(recoveryCode);
+      const { data: recovery, error: lookupErr } = await adminClient
+        .from("account_recovery")
+        .select("user_id")
+        .eq("code_hash", codeHash)
+        .maybeSingle();
+
+      if (lookupErr || !recovery) {
+        return c.json({ error: "Invalid or expired recovery code" }, 404);
+      }
+
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("username, role")
+        .eq("id", recovery.user_id)
+        .single();
+
+      if (!profile || profile.role !== "guest") {
+        return c.json({ error: "Recovery is only for guest accounts" }, 400);
+      }
+
+      const newPw = crypto.randomUUID();
+      const email = `${profile.username}@mindgem.local`;
+
+      // Update auth user's password
+      const { error: updateErr } = await adminClient.auth.admin.updateUserById(recovery.user_id, {
+        password: newPw
+      });
+
+      if (updateErr) {
+        throw updateErr;
+      }
+
+      logServerEvent({
+        event: "auth.guest_recovered",
+        level: "info",
+        userId: recovery.user_id,
+        message: "Guest account recovered using code",
+        requestId: requestIdFor(c.req.raw),
+        persist: true
+      });
+
+      return c.json({
+        _guestName: profile.username,
+        _guestPw: newPw
+      });
+    } catch (err) {
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Recovery error: ${err}`,
+      });
+      return c.json({ error: "Recovery failed" }, 500);
+    }
+  });
+
+  // ─── Upgrade Guest (P1-12, P1-13) ───────────────────────────────────────────
+  app.post("/server/upgrade-account", async (c) => {
+    try {
+      const authHeader = c.req.header("Authorization");
+      if (!authHeader?.startsWith("Bearer "))
+        return c.json({ error: "Missing authorization" }, 401);
+      
+      const token = authHeader.slice(7);
+      const { data: userAuth, error: authErr } = await adminClient.auth.getUser(token);
+      if (authErr || !userAuth?.user) 
+        return c.json({ error: "Invalid session" }, 401);
+      
+      const user = userAuth.user;
+      
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("role, username")
+        .eq("id", user.id)
+        .single();
+        
+      if (profile?.role !== "guest") {
+        return c.json({ error: "Account is not a guest" }, 400);
+      }
+
+      const { newUsername, newPassword, isAdult } = await c.req.json();
+      
+      if (!isAdult) {
+        return c.json({ error: "You must be 13 years or older to use this service." }, 403);
+      }
+      
+      if (!/^[a-z0-9_.-]{3,20}$/.test(newUsername?.trim().toLowerCase() || "")) {
+        return c.json({ error: "Invalid new username" }, 400);
+      }
+      
+      if (!newPassword || newPassword.length < 8) {
+        return c.json({ error: "Password must be at least 8 characters" }, 400);
+      }
+
+      const normalized = newUsername.trim().toLowerCase();
+      
+      // Check availability
+      const { data: existing } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("username", normalized)
+        .maybeSingle();
+        
+      if (existing) {
+        return c.json({ error: "Username is not available" }, 409);
+      }
+
+      // Update auth.users (email + password)
+      const { error: updateAuthErr } = await adminClient.auth.admin.updateUserById(user.id, {
+        email: `${normalized}@mindgem.local`,
+        password: newPassword,
+        user_metadata: { username: normalized }
+      });
+      
+      if (updateAuthErr) throw updateAuthErr;
+
+      // Update profiles role and username
+      const { error: updateProfErr } = await adminClient
+        .from("profiles")
+        .update({ role: "user", username: normalized, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+        
+      if (updateProfErr) throw updateProfErr;
+
+      // Delete old recovery codes
+      await adminClient.from("account_recovery").delete().eq("user_id", user.id);
+
+      // Sign out all old sessions globally
+      await adminClient.auth.admin.signOut(user.id, "global");
+
+      logServerEvent({
+        event: "auth.guest_upgraded",
+        level: "info",
+        userId: user.id,
+        message: "Guest account upgraded to full user",
+        requestId: requestIdFor(c.req.raw),
+        persist: true
+      });
+
+      return c.json({ success: true, username: normalized, requiresLogin: true });
+    } catch (err) {
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Guest upgrade error: ${err}`,
+      });
+      return c.json({ error: "Could not upgrade guest account" }, 500);
     }
   });
 }

@@ -20,7 +20,7 @@ export async function consumeRateLimit(
   limit: number,
   windowSeconds: number,
 ): Promise<boolean> {
-  const { data, error } = await adminClient.rpc("check_signup_rate_limit", {
+  const { data, error } = await adminClient.rpc("check_rate_limit", {
     p_key: key,
     p_limit: limit,
     p_window_seconds: windowSeconds,
@@ -30,15 +30,23 @@ export async function consumeRateLimit(
 }
 
 export function clientIp(c: Context): string {
-  // CHI tin x-forwarded-for: header nay do chinh ha tang Supabase/Deno gan vao.
-  //
-  // Truoc day `cf-connecting-ip` va `x-real-ip` duoc uu tien TRUOC. Edge
-  // Function cua Supabase khong dung sau Cloudflare nen khong co gi ghi de hai
-  // header do => client tu dat duoc. Ke tan cong chi can doi header moi request
-  // la moi lan ra mot hash IP khac nhau, vo hieu hoan toan gioi han 10 lan/15
-  // phut cua rate-limit dang ky.
-  const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded && forwarded.length > 0 ? forwarded : "unknown";
+  // Edge environment or reverse proxy
+  const realIp = c.req.header("x-real-ip")?.trim();
+  if (realIp && realIp.length > 0) return realIp;
+
+  const cfConnecting = c.req.header("cf-connecting-ip")?.trim();
+  if (cfConnecting && cfConnecting.length > 0) return cfConnecting;
+
+  // x-forwarded-for format is usually: client, proxy1, proxy2
+  // Supabase edge proxy might append, or overwrite. If it appends, 
+  // taking the first element could allow spoofing if the user sent a fake header.
+  // Using the right-most (last) proxy is safest against spoofing for rate limits,
+  // OR the first element if the proxy overwrites. Usually Deno Deploy sets real IP.
+  const forwarded = c.req.header("x-forwarded-for")?.split(",");
+  if (forwarded && forwarded.length > 0) {
+    return forwarded[forwarded.length - 1].trim();
+  }
+  return "unknown";
 }
 
 type TurnstileVerdict = { ok: boolean; codes: string[] };
@@ -101,11 +109,48 @@ export async function authenticatedUser(c: Context) {
   return data.user;
 }
 
-export async function requireAdmin(userId: string) {
+export async function requireAdmin(c: Context, capability?: string) {
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader?.startsWith("Bearer "))
+    throw new Error("Missing authorization");
+  const token = authHeader.slice(7);
+
+  // 1. Verify token signature
+  const { data: authData, error: authErr } = await adminClient.auth.getUser(token);
+  if (authErr || !authData.user) throw new Error("Invalid or expired session");
+
+  // 2. Verify AAL (Extract from token payload safely since signature is valid)
+  try {
+    const payloadB64 = token.split(".")[1];
+    if (payloadB64) {
+      const payload = JSON.parse(atob(payloadB64));
+      // Fallback: Some versions put aal in factors/authenticator_assurance_level
+      const aal = payload.aal || authData.user.factors?.[0]?.factor_type;
+      if (aal !== "aal2") {
+        throw new Error("Admin actions require MFA (aal2)");
+      }
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("MFA")) throw e;
+    console.warn("Could not decode JWT to verify AAL", e);
+  }
+
+  const userId = authData.user.id;
+
+  // 3. Verify Role from DB (not from token)
   const { data, error } = await adminClient
     .from("profiles")
-    .select("role")
+    .select("role, admin_capabilities")
     .eq("id", userId)
     .single();
-  if (error || data?.role !== "admin") throw new Error("Admin access denied");
+  
+  if (error || data?.role !== "admin") {
+    throw new Error("Admin access denied");
+  }
+
+  if (capability && (!data.admin_capabilities || !data.admin_capabilities.includes(capability))) {
+    throw new Error(`Admin capability missing: ${capability}`);
+  }
+
+  return authData.user;
 }

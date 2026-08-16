@@ -3,54 +3,72 @@ import { getOfflineQueue, syncOfflineQueue } from "../lib/offline-queue";
 import { syncOfflineRounds } from "../lib/api";
 import { logError } from "../lib/logger";
 
-export function useOfflineSync() {
+export function useOfflineSync(userId?: string | null) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const syncingRef = useRef(false);
 
   // Cập nhật số lượng pending
   useEffect(() => {
-    const updateCount = () => {
-      setPendingCount(getOfflineQueue().length);
+    const updateCount = async () => {
+      if (!userId) {
+        setPendingCount(0);
+      } else {
+        const q = await getOfflineQueue(userId);
+        setPendingCount(q.length);
+      }
     };
-    updateCount();
+    void updateCount();
 
     window.addEventListener("offline-queue-updated", updateCount);
     return () => {
       window.removeEventListener("offline-queue-updated", updateCount);
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
-    const refresh = () => setPendingCount(getOfflineQueue().length);
+    const refresh = async () => {
+      if (!userId) setPendingCount(0);
+      else {
+        const q = await getOfflineQueue(userId);
+        setPendingCount(q.length);
+      }
+    };
 
     const handleOnline = async () => {
-      const queue = getOfflineQueue();
+      if (!userId) return;
+      const queue = await getOfflineQueue(userId);
       if (queue.length === 0 || syncingRef.current || !navigator.onLine) return;
 
       syncingRef.current = true;
       setIsSyncing(true);
       try {
-        await syncOfflineQueue(syncOfflineRounds);
+        const { results } = await syncOfflineQueue(userId, syncOfflineRounds);
+        if (results && results.length > 0) {
+          const rejected = results.filter((r) => r.status === "rejected").length;
+          if (rejected > 0) {
+             console.warn(`Sync: ${rejected} rounds rejected.`);
+          }
+        }
         window.dispatchEvent(new Event("offline-sync-complete"));
       } catch (err) {
         logError("Auto sync failed:", err);
       } finally {
         syncingRef.current = false;
         setIsSyncing(false);
-        refresh();
+        void refresh();
       }
     };
 
     const onQueueUpdated = () => {
-      refresh();
+      void refresh();
       if (navigator.onLine) void handleOnline();
     };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline-queue-updated", onQueueUpdated);
 
-    // Thu sync ngay luc khoi dong neu co mang
+    // Thử sync ngay lúc khởi động nếu có mạng
     if (navigator.onLine) {
       void handleOnline();
     }
@@ -59,7 +77,7 @@ export function useOfflineSync() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline-queue-updated", onQueueUpdated);
     };
-  }, []);
+  }, [userId]);
 
   return { isSyncing, pendingCount };
 }

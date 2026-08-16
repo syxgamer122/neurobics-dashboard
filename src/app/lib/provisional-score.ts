@@ -1,3 +1,4 @@
+// UI-only. Không import từ _shared/*. Kết quả không authoritative.
 /**
  * Mindgem scoring model — single source of truth.
  *
@@ -138,7 +139,7 @@ export const DECAY_PER_WEEK = 0.02;
 /** Decay asymptote — skill is never assumed to fall below this share of peak. */
 export const DECAY_FLOOR_RATIO = 0.35;
 
-const DAY_MS = 86_400_000;
+// const DAY_MS = 86_400_000;
 
 /**
  * Whole days between an ISO `YYYY-MM-DD` date and now. Negative clamps to 0.
@@ -148,32 +149,9 @@ const DAY_MS = 86_400_000;
  */
 export const VN_UTC_OFFSET = "+07:00";
 
-export function daysSince(
-  isoDate: string | null | undefined,
-  now: Date = new Date(),
-): number {
-  if (!isoDate) return 0;
-  const then = Date.parse(`${isoDate}T00:00:00${VN_UTC_OFFSET}`);
-  if (!Number.isFinite(then)) return 0;
-  // Quy "bay gio" ve dau ngay lich VN de hieu so luon la so ngay tron.
-  const nowVnYmd = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ho_Chi_Minh",
-  }).format(now);
-  const nowVnMidnight = Date.parse(`${nowVnYmd}T00:00:00${VN_UTC_OFFSET}`);
-  if (!Number.isFinite(nowVnMidnight)) return 0;
-  return Math.max(0, Math.round((nowVnMidnight - then) / DAY_MS));
-}
 
-/**
- * Applies inactivity decay to one axis. This is what makes "brain age" a real
- * measurement instead of a trophy: stop training and the number drifts back.
- * Bounded by DECAY_FLOOR_RATIO so a long break never erases a player entirely.
- */
-export function decayRating(value: number, _idleDays: number): number {
-  // Decay without peak tracking causes score erosion upon write-back.
-  // Disabled (returns original value) until peak tracking is implemented.
-  return sanitizeRating(value);
-}
+
+
 
 // ─── Small stats helpers ───────────────────────────────────────────────
 

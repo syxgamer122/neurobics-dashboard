@@ -2,6 +2,8 @@
  * Public API surface. Implementation lives in ./api/*; this file only re-exports
  * so every existing `from "../lib/api"` import keeps working unchanged.
  */
+export const isGuestProfile = (p: any) => p?.role === 'guest';
+
 export {
   getSupabase,
   getAccessToken,
@@ -15,15 +17,16 @@ export {
   normalizeUsername,
   assertValidUsername,
   AUTH_EMAIL_DOMAIN,
-  LEGACY_AUTH_EMAIL_DOMAIN,
+  LEGACY_AUTH_EMAIL_DOMAINS,
+  handleGuestSignUp,
   handleSignUp,
   handleLogin,
   handleLogout,
+  handleUpgradeGuest,
 } from "./api/auth";
 export {
   fetchProfile,
   saveBirthYear,
-  resetActiveUserScores,
   deleteActiveUserAccount,
   changePassword,
   uploadAvatar,
@@ -91,9 +94,9 @@ export {
   type FriendRank,
 } from "./api/social";
 
-// The rating scale and its guards live in ./scoring, the single source of truth
+// The rating scale and its guards live in ./provisional-score, the single source of truth
 // for everything score-related. Re-exported so existing importers keep working.
-export { RATING_MAX, sanitizeRating } from "./scoring";
+export { RATING_MAX, sanitizeRating } from "./provisional-score";
 export { AXIS_COLUMNS, AXIS_META, type AxisKey } from "./axes";
 export { SESSION_COLUMNS, totalSessions } from "./sessions";
 export {

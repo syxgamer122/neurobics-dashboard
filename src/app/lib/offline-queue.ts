@@ -1,5 +1,8 @@
-import { type RoundGame } from "./api";
-import { logError } from "./logger";
+import { TELEMETRY_SCHEMA_VERSION } from "./telemetry-version";
+import { type RoundGame } from './api';
+import { logError } from './logger';
+import { currentUserId } from "./api/internal";
+import { TELEMETRY_SCHEMA_VERSION } from "../../../supabase/functions/_shared/limits";
 
 export interface OfflineRoundPayload {
   clientRoundId: string;
@@ -10,97 +13,148 @@ export interface OfflineRoundPayload {
   startedAt: string;
   clientElapsedMs: number;
   createdAt: string;
+  userId: string;
 }
 
-const OFFLINE_QUEUE_KEY = "neurobics_offline_queue";
-
+const DB_NAME = 'mindgem_offline';
+const STORE_NAME = 'rounds';
 const MAX_QUEUE = 200;
 
-export function getOfflineQueue(): OfflineRoundPayload[] {
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'clientRoundId' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getOfflineQueue(userId: string): Promise<OfflineRoundPayload[]> {
   try {
-    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const all = req.result as OfflineRoundPayload[];
+        resolve(all.filter(r => r.userId === userId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+      };
+      req.onerror = () => reject(req.error);
+    });
   } catch {
     return [];
   }
 }
 
-export function writeOfflineQueue(q: OfflineRoundPayload[]): void {
-  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
-  window.dispatchEvent(new Event("offline-queue-updated"));
-}
-
-export function pushOfflineRound(
-  round: Omit<
-    OfflineRoundPayload,
-    "clientRoundId" | "schemaVersion" | "createdAt"
-  >,
-): boolean {
+export async function pushOfflineRound(
+  userId: string,
+  round: Omit<OfflineRoundPayload, 'clientRoundId' | 'schemaVersion' | 'createdAt'>
+): Promise<boolean> {
   try {
-    const queue = getOfflineQueue();
-    if (queue.length >= MAX_QUEUE) {
-      queue.shift(); // FIFO
-    }
-    queue.push({
-      ...round,
-      clientRoundId: crypto.randomUUID(),
-      schemaVersion: 1,
-      createdAt: new Date().toISOString(),
+    return await navigator.locks.request('offline-queue-' + userId, async () => {
+      const currentQueue = await getOfflineQueue(userId);
+      if (currentQueue.length >= MAX_QUEUE) {
+        throw new Error('Offline queue is full (max 200 rounds). Please connect to the internet to sync.');
+      }
+      
+      const payload: OfflineRoundPayload = {
+        ...round,
+        clientRoundId: crypto.randomUUID(),
+        schemaVersion: TELEMETRY_SCHEMA_VERSION,
+        createdAt: new Date().toISOString(),
+        userId,
+      };
+
+      const db = await openDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put(payload);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+
+      window.dispatchEvent(new Event('offline-queue-updated'));
+      return true;
     });
-    writeOfflineQueue(queue);
-    return true;
   } catch (err) {
-    logError("Failed to push to offline queue:", err);
+    logError('Failed to push to offline queue:', err);
     return false;
   }
 }
 
-export function clearOfflineQueue(): void {
-  localStorage.removeItem(OFFLINE_QUEUE_KEY);
-  window.dispatchEvent(new Event("offline-queue-updated"));
+export async function removeOfflineRounds(clientRoundIds: string[]): Promise<void> {
+  if (!clientRoundIds.length) return;
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      for (const id of clientRoundIds) {
+        store.delete(id);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    window.dispatchEvent(new Event('offline-queue-updated'));
+  } catch (err) {
+    logError('Failed to remove from offline queue:', err);
+  }
 }
 
 export type SyncResult = {
   clientRoundId: string;
-  status: "ok" | "duplicate" | "rejected" | "error";
+  status: 'ok' | 'duplicate' | 'rejected' | 'error';
 };
 
-// Hàm đồng bộ lên server khi có mạng
 export async function syncOfflineQueue(
-  syncEndpoint: (payload: {
-    rounds: OfflineRoundPayload[];
-  }) => Promise<{ results: SyncResult[] }>,
-): Promise<void> {
-  const queueSnapshot = getOfflineQueue();
-  if (queueSnapshot.length === 0) return;
+  userId: string,
+  syncEndpoint: (payload: { rounds: OfflineRoundPayload[] }) => Promise<{ results: SyncResult[] }>
+): Promise<{ results: SyncResult[] }> {
+  let allResults: SyncResult[] = [];
+  let batches = 0;
 
   try {
-    // Only send the first 25 to avoid overwhelming the server
-    const batch = queueSnapshot.slice(0, 25);
-    const response = await syncEndpoint({ rounds: batch });
-    const results = response.results || [];
+    await navigator.locks.request('offline-sync-' + userId, async () => {
+      while (batches < 8) {
+        const ownedSnapshot = await getOfflineQueue(userId);
+        if (ownedSnapshot.length === 0) break;
 
-    // Only remove items that are ok, duplicate, or rejected. Keep others (e.g. error/timeout).
-    const settledIds = new Set(
-      results
-        .filter(
-          (r) =>
-            r.status === "ok" ||
-            r.status === "duplicate" ||
-            r.status === "rejected",
-        )
-        .map((r) => r.clientRoundId),
-    );
+        const batch = ownedSnapshot.slice(0, 25);
+        try {
+          batches++;
+          const response = await syncEndpoint({ rounds: batch });
+          const results = response.results || [];
+          allResults = allResults.concat(results);
 
-    // Re-read queue before writing to avoid race condition (losing rounds played during await)
-    const freshQueue = getOfflineQueue();
-    const newQueue = freshQueue.filter(
-      (item) => !settledIds.has(item.clientRoundId),
-    );
-    writeOfflineQueue(newQueue);
+          const settledIds = results
+            .filter(r => r.status === 'ok' || r.status === 'duplicate' || r.status === 'rejected')
+            .map(r => r.clientRoundId);
+
+          if (settledIds.length === 0) break;
+
+          await removeOfflineRounds(settledIds);
+
+          const freshQueue = await getOfflineQueue(userId);
+          if (freshQueue.length > 0 && batches < 8) {
+            await new Promise(res => setTimeout(res, 1000 * batches));
+          }
+        } catch (err) {
+          logError('Failed to sync offline batch:', err);
+          if (allResults.length === 0) throw err;
+          break;
+        }
+      }
+    });
   } catch (err) {
-    logError("Failed to sync offline queue:", err);
-    throw err;
+    logError('Failed to lock sync:', err);
   }
+
+  return { results: allResults };
 }

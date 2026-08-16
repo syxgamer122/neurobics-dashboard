@@ -1,0 +1,262 @@
+================================================================================
+TÀI LIỆU TỔNG HỢP TÍNH NĂNG: CHỐNG GIAN LẬN & QUAN SÁT HỆ THỐNG
+(ANTI-CHEAT & OBSERVABILITY) - DỰ ÁN MINDGEM
+================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Tính năng Chống gian lận (Anti-cheat) và Quan sát hệ thống (Observability) cung cấp cơ chế bảo vệ tính toàn vẹn điểm số của trò chơi huấn luyện nhận thức MindGem, đồng thời giám sát sức khỏe hệ thống từ Client đến Server Edge Functions.
+
+- Chống gian lận (Anti-cheat):
+  + Nguyên tắc cốt lõi: "Thà lọt còn hơn bắt oan" (Better to miss a cheater than ban an innocent player).
+  + Kiểm tra toàn bộ dữ liệu đo đạc hành vi (telemetry - thời gian phản ứng, nhịp bấm, số lượt chạm...) phía Server trước khi tính điểm và cấp XP.
+  + Phân loại cờ gian lận thành 2 mức:
+    * Hard Flags: Từ chối ván chơi ngay lập tức (HTTP 422), đốt vé chơi (round ticket) để chống tấn công dò ngưỡng (oracle attack), ghi log vi phạm nghiêm trọng vào database.
+    * Soft Flags: Vẫn chấp nhận ván chơi và tính điểm bình thường, nhưng ghi nhận cảnh báo nghi vấn vào hệ thống theo dõi mức độ tin cậy.
+
+- Quan sát hệ thống (Observability):
+  + Cung cấp giải pháp giám sát tập trung, chuẩn hóa log và vết lỗi cho cả Client (Browser) và Server (Supabase Edge Functions).
+  + Ghi log cấu trúc dạng một dòng JSON (structured single-line JSON) giúp lọc và đếm sự kiện trực tiếp trên dashboard.
+  + Định danh từng request bằng requestId (Header `x-request-id`) xuyên suốt từ Client -> CDN -> Middleware -> Router -> DB.
+  + Tự động làm sạch dữ liệu cá nhân (PII Redaction: ẩn JWT, API keys, password, email, UUIDs, chuỗi số dài).
+  + Đẩy dữ liệu lỗi/sự kiện từ Client về Server theo lô (batching) với cơ chế chống spam (rate limiting) và khử trùng lặp (deduplication).
+  + Lưu trữ các sự kiện warn/error/fatal vào bảng database `observability_events`.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Hệ thống được chia làm 2 tầng chính:
+
+A. Tầng Client (Browser / React App):
+   - `src/app/lib/logger.ts`: Bộ bọc (wrapper) logger toàn ứng dụng.
+     + Trong môi trường DEV: In ra console trình duyệt.
+     + Trong môi trường PROD: Tắt hoàn toàn console log để tránh rò rỉ thông tin hệ thống, tự động điều hướng lỗi (`logError`) và cảnh báo (`logWarn`) sang module observability.
+   - `src/app/lib/observability.ts`: Trình thu thập lỗi và sự kiện độc lập (pure JS).
+     + Tự động lắng nghe sự kiện toàn cục: `window.onerror`, `unhandledrejection`, `visibilitychange`, `pagehide`.
+     + Quản lý hàng đợi bộ nhớ (in-memory queue), gom lô tối đa 20 sự kiện / 10 giây.
+     + Khử trùng lặp lỗi trong cửa sổ 60 giây bằng thuật toán hash djb2.
+     + Làm sạch PII dữ liệu trước khi gửi.
+     + Gửi dữ liệu theo phương thức HTTP POST đến endpoint `/server/telemetry` sử dụng `fetch` với `keepalive: true`.
+
+B. Tầng Server (Supabase Edge Functions - Deno & Hono Framework):
+   - `supabase/functions/_shared/anticheat.ts`: Mô-đun anti-cheat thuần (pure functions), chứa toàn bộ các quy tắc kiểm tra thời gian thực và hành vi người chơi cho 12 trò chơi.
+   - `supabase/functions/_shared/observability.ts`: Mô-đun observability phía server. Quản lý việc sinh requestId, format JSON log, làm sạch PII, định nghĩa sink lưu trữ vào Database.
+   - `supabase/functions/_shared/errors.ts`: Lớp `AppError` định nghĩa các lỗi nghiệp vụ có cấu trúc kèm HTTP Status Code chuẩn (400, 401, 409, 410, 422).
+   - `supabase/functions/server/middleware.ts`: Hono middleware đo độ trễ request, tự động cấp phát `x-request-id`, log HTTP request dạng JSON, xử lý ngoại lệ toàn cục (`onError`) và cấu hình CORS.
+   - `supabase/functions/server/routes/rounds.ts`: Route xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`). Tích hợp bộ kiểm tra `inspectRound`, thực hiện đốt ticket khi phát hiện Hard flag và gọi RPC `record_cheat_flag`.
+   - `supabase/functions/server/routes/telemetry.ts`: Endpoint tiếp nhận telemetry public (`/server/telemetry`), tích hợp rate limiter (60 request/phút/IP), giới hạn payload 32KB, sanitize sự kiện và xóa bỏ `user_id` do client tự khai báo để chống giả mạo danh tính.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+1. `supabase/functions/_shared/anticheat.ts`: Chứa logic kiểm tra anti-cheat phía server cho 12 game, định nghĩa CheatFlag, CheatReport, hard/soft flag và hàm `inspectRound`.
+2. `supabase/functions/_shared/observability.ts`: Module observability phía server, xử lý `x-request-id`, log JSON, PII redaction, sanitize client payload và sink lưu trữ DB.
+3. `supabase/functions/_shared/errors.ts`: Định nghĩa lớp `AppError` chứa HTTP status (400, 401, 409, 410, 422) và mã lỗi `code`.
+4. `supabase/functions/server/middleware.ts`: Middleware Hono cấp phát `x-request-id`, đo thời gian xử lý, log HTTP request, xử lý lỗi 500 toàn cục và cấu hình CORS.
+5. `supabase/functions/server/routes/rounds.ts`: Routes xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`), tích hợp anti-cheat, đốt ticket khi dính hard flag, ghi vi phạm qua RPC `record_cheat_flag`.
+6. `supabase/functions/server/routes/telemetry.ts`: Route nhận telemetry công khai (`/server/telemetry`), rate limit theo IP, kiểm tra kích thước payload, ép `user_id = null` và ghi vào bảng `observability_events`.
+7. `src/app/lib/observability.ts`: Thư viện observability client, thu thập lỗi runtime, gom lô (batching), lọc PII, khử trùng lặp (deduplication) và đẩy về server.
+8. `src/app/lib/logger.ts`: Wrapper logger phía client, ẩn console log ở Production và tự động chuyển sang telemetry module.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+
+A. BỘ KIỂM TRA ANTI-CHEAT (`inspectRound` TRONG `_shared/anticheat.ts`)
+--------------------------------------------------------------------------------
+Các hằng số & hàm toán học cơ bản:
+- `HUMAN_FLOOR_MS = 80`: Ngưỡng sàn thời gian phản ứng vật lý tối thiểu của con người (80ms).
+- `ROBOT_CV = 0.04`: Hệ số biến thiên (Coefficient of Variation $CV = \sigma / \mu$) tối thiểu. Nếu $CV < 0.04$ khi số mẫu $N \ge 10$, nhịp thao tác bị coi là quá đều đặn như máy móc (metronomic / bot). Hàm `cv(xs)` sẽ tự động trả về `1.0` nếu có ít hơn 10 mẫu để tránh false positive.
+- Các hàm thống kê: `median(xs)`, `mean(xs)`, `cv(xs)`, `nums(v)` (lọc lấy danh sách số hợp lệ $\ge 0$).
+
+Hàm kiểm tra chung (Shared Inspectors):
+1. `inspectShared(t, serverElapsedMs)`:
+   - So sánh `t.timeMs` (thời gian client khai báo) với `serverElapsedMs` (thời gian Server đo từ lúc tạo ticket).
+   - Nếu `timeMs - serverElapsedMs > 5000ms` -> Cờ **soft** ("Client time far exceeds server elapsed").
+2. `inspectSubThreshold(t, game)`:
+   - Tìm các mẫu thời gian phản ứng nằm trong khoảng cận trên của ngưỡng người $[80ms, 120ms)$.
+   - Nếu số mẫu trong khoảng này chiếm $\ge 50\%$ tổng số mẫu -> Cờ **soft** ("Majority of reaction times below 120ms").
+
+Chi tiết kiểm tra từng trò chơi (12 Game Inspectors):
+1. `reaction` (Phản ứng nhanh):
+   - Cỡ mẫu $N < 3 \to$ Không kiểm tra.
+   - Lấy danh sách mẫu $< 80ms$ (`below`). Nếu `below.length >= 3` và tỷ lệ `below / total >= 40%` -> Cờ **hard** ("Multiple reactions below human floor"). Ngược lại nếu `below.length > 0` -> Cờ **soft** ("Isolated sub-floor reaction").
+   - Các mẫu rác (`< HUMAN_FLOOR_MS`) sẽ bị loại bỏ khỏi luồng tính `median` và `cv` để giảm false positive.
+   - Nếu `median(rts) < 130ms` -> Cờ **hard** ("Reaction median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Reaction timing too metronomic").
+2. `schulte` (Bảng Schulte):
+   - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
+   - Nếu `median(hitRts) < 150ms` -> Cờ **hard** ("Schulte hit median impossibly low").
+   - Nếu `cv(hitRts) < 0.04` -> Cờ **soft** ("Schulte timing too metronomic").
+3. `stroop` (Thử thách Stroop):
+   - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
+   - Nếu `median(rts) < 200ms` -> Cờ **hard** ("Stroop median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Stroop timing too metronomic").
+4. `sudoku` (Điền số Sudoku):
+   - Với các bước di chuyển (`moveRts.length >= 5`):
+     * Nếu `median(moveRts) < 120ms` -> Cờ **hard** ("Sudoku move median impossibly low").
+     * Nếu `cv(moveRts) < 0.04` -> Cờ **soft** ("Sudoku timing too metronomic").
+   - Kiểm tra cấp độ: Nếu `difficulty` là "Master" hoặc "Extreme" và `timeMs < 45.000ms` (45 giây) -> Cờ **soft** ("Sudoku expert board finished too fast").
+5. `memory` (Ghi nhớ chuỗi):
+   - Lấy `clearedLevels` (hoặc fallback `maxLevel`).
+   - Nếu `cleared < 3` -> Bỏ qua (không kết luận vì quá ít dữ liệu, tránh bắt oan người chơi thua ở cấp 1-2).
+   - Thiếu `totalTaps` -> tối đa chỉ cờ **soft** ("Memory pace implausibly fast (estimated)"). Sẽ update `TELEMETRY_SCHEMA_VERSION` thành 2 khi nào front-end gửi được `totalTaps`, lúc đó mới được hard reject.
+
+6. `nback` (Ghi nhớ N-Back):
+   - Cỡ mẫu $N < 3 \to$ Không kiểm tra.
+   - Nếu `median(rts) < 150ms` -> Cờ **hard** ("N-Back median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("N-Back timing too metronomic").
+7. `math` (Tính nhẩm nhanh):
+   - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
+   - Nếu `median(rts) < 250ms` -> Cờ **hard** ("Math median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Math timing too metronomic").
+   - Nếu `difficulty === "hard"`, trả lời đúng toàn bộ (`correct === totalProblems`), và `median(rts) < 1200ms` -> Cờ **soft** ("Perfect hard math finished too fast").
+8. `gonogo` (Ức chế phản xạ Go/No-Go):
+   - Với $N \ge 3$: Nếu `median(rts) < 160ms` -> Cờ **hard**; `cv(rts) < 0.04` -> Cờ **soft**.
+   - Kiểm tra ức chế hoàn hảo: Nếu `nogoTrials >= 8`, `goTrials >= 16`, không có lỗi bấm nhầm (`falseAlarms === 0`), đúng toàn bộ lượt Go (`hits === goTrials`), số mẫu $N \ge 12$, và `median(rts) < 220ms` -> Cờ **soft** ("Perfect inhibition with very fast Go RTs").
+9. `mental` (Xoay hình không gian):
+   - Với $N \ge 4$: Nếu `median(rts) < 250ms` -> Cờ **hard** ("Mental Rotation median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
+   - Hoàn hảo siêu tốc: Nếu `trials >= 16`, `correct === trials`, $N \ge 12$, và `median(rts) < 450ms` -> Cờ **soft** ("Perfect mental rotation finished too fast").
+10. `corsi` (Thử thách Corsi Block):
+    - Với $N \ge 4$: Nếu `median(rts) < 180ms` -> Cờ **hard** ("Corsi tap median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
+    - Kỷ lục chuỗi: Nếu `span >= 8` và số lần thử `trials <= span` -> Cờ **soft** ("Corsi span very high with too few trials").
+11. `trail` (Nối điểm Trail Making):
+    - Với $N \ge 5$: Nếu `median(rts) < 200ms` -> Cờ **hard** ("Trail Making hop median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
+    - Quét điểm hoàn hảo: Nếu `nodes >= 20`, `wrongClicks === 0`, và `timeMs < nodes * 260ms` -> Cờ **soft** ("Perfect trail finished implausibly fast").
+12. `search` (Tìm kiếm đối tượng):
+    - Nếu điểm số `score > 80` -> Cờ **soft** ("search: score exceeds human limits").
+    - Nếu $N \ge 10$ và `cv(rts) < 0.04` -> Cờ **soft** ("search: mechanically steady pace (robot)").
+
+Đảm bảo kiểu dữ liệu toàn diện (Exhaustive Registry):
+`GAME_INSPECTORS satisfies Record<Game, GameInspector>` bắt buộc mọi Game mới thêm vào enum `Game` phải có hàm inspector tương ứng, nếu thiếu sẽ báo lỗi TypeScript ở thời điểm biên dịch.
+
+Quy trình xử lý tại Route `/server/submit-round`:
+- Gọi `inspectRound(gameId, telemetry, serverElapsedMs)`.
+- Khi dính **Hard Flag**:
+  + **Đốt ticket lập tức**: Cập nhật `round_tickets.submitted_at = new Date().toISOString()` trước khi phản hồi HTTP 422. Việc này triệt hạ khả năng biến anti-cheat thành Oracle thử lại (retry oracle attack).
+  + Ghi lại từng hard flag vào DB bằng RPC `record_cheat_flag(p_user_id, p_game, p_reason, p_severity, p_details)`.
+  + Ghi log server cảnh báo `anticheat.hard_reject`.
+  + Trả về lỗi HTTP 422 Unprocessable Entity: `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_hard", flags: ["timing_patterns_rejected"] }`.
+- Khi dính **Soft Flag**:
+  + Duyệt qua danh sách soft flags và gọi RPC `record_cheat_flag` lưu vết vào DB.
+  + Ván chơi **vẫn tiếp tục** được tính điểm, tính XP và lưu kết quả bình thường.
+
+
+B. LÀM SẠCH VÀ BẢO VỆ DỮ LIỆU CÁ NHÂN (REDACTION PII)
+--------------------------------------------------------------------------------
+Cả phía Client và Server đều áp dụng các quy tắc lọc PII (Personally Identifiable Information) và Secret Keys nghiêm ngặt thông qua mảng `REDACTIONS`:
+
+Danh sách Regex Lọc (`REDACTIONS`):
+1. Chuỗi JWT: chuỗi regex -> `"[jwt]"`
+2. Các khóa bảo mật / Token: `/(apikey|api_key|access_token|refresh_token|token|secret|password|authorization)(\s*[:=]\s*)[^\s,;"'}]+/gi` -> `"$1$2[redacted]"`
+3. Địa chỉ Email: chuỗi regex -> `"[email]"`
+4. Mã định danh UUID: `/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi` -> `"[uuid]"`
+5. Chuỗi số dài (>= 9 chữ số): chuỗi regex -> `"[num]"`
+
+Hàm xử lý:
+- `scrubText(input, maxLen = 300)`: Chuyển đối tượng thành chuỗi, áp dụng lần lượt mảng `REDACTIONS`, chuẩn hóa khoảng trắng dư thừa và cắt ngắn chuỗi nếu dài quá `maxLen` kèm ký tự `…`.
+- `scrubContext(context)`: Giới hạn tối đa 20 đối tượng key-value, tên key tối đa 40 ký tự. Các giá trị kiểu `number`, `boolean`, `null` được giữ nguyên; giá trị dạng văn bản/đối tượng khác được chạy qua `scrubText`. Tổng độ dài văn bản được quản lý theo ngân sách ký tự (budget $\le 2000$).
+
+
+C. QUẢN LÝ REQUEST ID VÀ LOG CẤU TRÚC SERVER (`_shared/observability.ts`, `middleware.ts`)
+--------------------------------------------------------------------------------
+- Cấp phát Request ID:
+  + Dùng `WeakMap<Request, string>` để lưu giữ requestId tương ứng với từng HTTP Request object.
+  + Hàm `beginRequest(req)`: Kiểm tra header ưu tiên từ CDN (`x-request-id` hoặc `cf-ray`). Nếu không có, tự động sinh UUID mới bằng `crypto.randomUUID()`.
+  + Phía Middleware: Gán header `x-request-id` vào `Response` trả về cho Client.
+- Ghi Log dạng Cấu trúc (`logRequest`, `logServerEvent`):
+  + In log dưới dạng 1 dòng JSON duy nhất qua `console.log(JSON.stringify(line))`.
+  + Các trường chuẩn: `ts`, `level` (`debug` | `info` | `warn` | `error` | `fatal`), `event`, `requestId`, `method`, `path`, `status`, `durationMs`, `context`.
+  + Lưu trữ bền vững (Persistence):
+    * `logRequest`: Tự động ghi vào bảng `observability_events` khi `status >= 500` hoặc `status === 429` hoặc `status === 422`.
+    * `logServerEvent`: Tự động ghi vào DB khi `level` thuộc nhóm `warn`, `error`, `fatal` (hoặc cờ `persist: true`).
+
+
+D. QUẢN LÝ LỖI ỨNG DỤNG (`AppError` & `middleware.ts`)
+--------------------------------------------------------------------------------
+- Lớp `AppError`:
+  ```ts
+  export class AppError extends Error {
+    constructor(
+      message: string,
+      readonly status: 400 | 401 | 409 | 410 | 422,
+      readonly code: string,
+    ) {
+      super(message);
+      this.name = "AppError";
+    }
+  }
+  ```
+- Giúp ánh xạ chuẩn xác các HTTP status code chuyên biệt (400 Invalid Game/Payload, 401 Unauthorized, 409 Already Submitted, 410 Expired Ticket, 422 Anti-cheat Reject) mà không bị rơi vào kịch bản bắt lầm regex biến lỗi validation thành lỗi 401 (khiến client tự động đăng xuất người dùng).
+- Bộ xử lý ngoại lệ toàn cục (`app.onError` trong `middleware.ts`): Bắt tất cả các lỗi chưa được xử lý (unhandled exception), log sự kiện `http.unhandled_error` level `error` và trả về JSON 500 chuẩn `{ error: "Internal error", requestId }`.
+
+
+E. OBSERVABILITY VÀ LOGGER PHÍA CLIENT (`src/app/lib/observability.ts`, `src/app/lib/logger.ts`)
+--------------------------------------------------------------------------------
+- Module `logger.ts`:
+  + Khi ở môi trường DEV (`import.meta.env.DEV === true`): Cho phép in ra console thông thường (`console.error`, `console.warn`, `console.info`).
+  + Khi ở Production: Vô hiệu hóa toàn bộ console log để ngăn rò rỉ tên bảng, tên cột, truy vấn Postgres trong DevTools. Chuyển hướng `logError` sang `captureError` và `logWarn` sang `captureMessage`.
+- Thư viện `observability.ts`:
+  + Quản lý bởi bộ thu thập `Collector` (`createCollector`).
+  + Khử trùng lặp lỗi (Deduplication): Tạo dấu vân tay (fingerprint) bằng thuật toán hash djb2 từ chuỗi `(event | level | normalizedMessage | route)`. Nếu lỗi trùng lặp xuất hiện lại trong vòng 60 giây (`DEDUPE_WINDOW_MS = 60_000`), hệ thống chỉ tăng biến đếm `count` chứ không gửi lại sự kiện rác.
+  + Tự động đăng ký lắng nghe sự kiện trình duyệt trong `initObservability()`:
+    * `window.onerror`: Bắt lỗi JavaScript runtime chưa được try/catch.
+    * `window.onunhandledrejection`: Bắt lỗi Promise reject không có `.catch()`.
+    * `visibilitychange` (khi trang bị ẩn) & `pagehide`: Tự động gọi `flush()` để gửi toàn bộ sự kiện còn trong queue đi lập tức.
+    * Đặt lịch định kỳ: `setInterval(() => sink.flush(), 10.000)` (mỗi 10 giây flush 1 lần).
+  + Gom lô (Batching): Đẩy tối đa 20 sự kiện / 1 lô request.
+  + Phiên làm việc (Session): Tự động cấp và lưu trữ `sessionId` ngẫu nhiên trong `sessionStorage` với key `neurobics.obs.session`.
+
+
+F. ROUTE TIẾP NHẬN TELEMETRY VÀ RATE LIMITING (`supabase/functions/server/routes/telemetry.ts`)
+--------------------------------------------------------------------------------
+- Endpoint: `POST /server/telemetry` (Public, không yêu cầu Authorization token vì lỗi thường xảy ra trước khi có phiên đăng nhập).
+- Các lớp bảo vệ:
+  1. Rate Limiting: Khai báo `createRateLimiter({ limit: 60, windowMs: 60_000 })`. Giới hạn tối đa 60 request / 1 phút / 1 địa chỉ IP (`x-forwarded-for`). Khi vượt ngưỡng, trả về HTTP 202 `{ ok: true, dropped: true }` im lặng để không làm hỏng trải nghiệm client.
+  2. Giới hạn kích thước Body: Kiểm tra độ dài chuỗi JSON `raw.length > 32.000` bytes (32KB) -> Trả lỗi HTTP 413 `Payload too large`.
+  3. Giới hạn số lượng sự kiện: Hàm `sanitizeClientEvents` cắt tối đa 20 sự kiện / lô payload.
+  4. Chống giả mạo danh tính (Identity Spoofing Protection): Mọi đối tượng sự kiện từ Client gửi lên đều bị đè trường `user_id: null`. Client không được tự khai báo danh tính trên endpoint công khai này. Việc đối soát người dùng sẽ dựa trên `session_id` hoặc so khớp `request_id` với các log server.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+--------------------------------------------------------------------------------
+
+A. LUỒNG CHƠI VÁN & KIỂM TRA ANTI-CHEAT (`submit-round`):
+1. Người chơi hoàn thành ván -> Client gửi `POST /server/submit-round` chứa `{ roundId, game, telemetry, fingerprint }`.
+2. Middleware nhận request -> Cấp/trích xuất `x-request-id` -> Đánh dấu mốc thời gian bắt đầu request.
+3. Router `rounds.ts` xác thực Auth Token người dùng -> Truy vấn DB lấy vé chơi `round_tickets`.
+4. Server đo thời gian thực đã trôi qua: `serverElapsedMs = Date.now() - ticket.started_at`.
+5. Chạy hàm kiểm tra `inspectRound(gameId, telemetry, serverElapsedMs)`:
+   - NẾU DÍNH HARD FLAG:
+     * Cập nhật ngay `round_tickets.submitted_at = now()` (đốt ticket).
+     * Gọi RPC `record_cheat_flag` lưu chi tiết cờ Hard vào DB.
+     * Log sự kiện cảnh báo server `anticheat.hard_reject`.
+     * Trả về HTTP 422 `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_hard", ... }`.
+   - NẾU CHỈ DÍNH SOFT FLAG HOẶC HỢP LỆ:
+     * Duyệt mảng Soft flags và gọi RPC `record_cheat_flag` cho từng cờ.
+     * Liên kết thiết bị nếu có fingerprint qua RPC `link_device`.
+     * Gọi `scoreAndValidate` để tính điểm chuẩn xác.
+     * Gọi RPC `submit_round_transaction` cập nhật các trục nhận thức, điểm số và XP vào DB.
+     * Trả về HTTP 200 kèm dữ liệu kết quả ván chơi & mảng `cheatFlags`.
+6. Middleware `finally` block thực hiện log JSON dòng `http.request` chứa `durationMs` và HTTP status code.
+
+B. LUỒNG GHI LOG OBSERVABILITY TỪ CLIENT VỀ SERVER:
+1. Xuất hiện lỗi ở Client (hoặc gọi `logError`/`logWarn`) -> Đẩy thông tin vào `observability.ts`.
+2. Hàm `scrubText` & `scrubContext` tiến hành xóa PII (JWT, email, token) -> Tính fingerprint bằng djb2 -> Kiểm tra khử trùng lặp trong 60 giây.
+3. Sự kiện hợp lệ được đưa vào Hàng đợi (Queue).
+4. Khi Queue đủ 20 sự kiện hoặc sau 10 giây (hoặc khi người dùng đóng/ẩn tab) -> Client gọi `fetch(".../server/telemetry", { keepalive: true })`.
+5. Server `telemetry.ts` tiếp nhận request -> Kiểm tra Rate Limit theo IP (60/phút) -> Kiểm tra Body $\le 32KB$ -> Sanitization dữ liệu & ép `user_id = null` -> Chèn mảng dòng log vào bảng database `observability_events`.
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+- Chống tấn công dò ngưỡng Anti-cheat (Anti-cheat Oracle Prevention): Đốt ticket (`submitted_at = now()`) lập tức trước khi phản hồi HTTP 422. Kẻ gian không thể sử dụng lại ticket để thử lại nhiều lần nhằm dò tìm mốc thời gian vừa đủ qua mặt hệ thống.
+- Chống giả mạo danh tính (User Identity Spoofing Protection): Endpoint `/server/telemetry` tuyệt đối không tin tưởng field `userId` từ client gửi lên và luôn đè thành `null`.
+- Cấu hình CORS an toàn: Chỉ cho phép danh sách Origin được duyệt (`ALLOWED_ORIGINS`) và hạn chế danh sách Header (`Content-Type`, `Authorization`, `apikey`, `x-client-info`).
+- Giới hạn hạn ngạch (Rate Limiting):
+  + Tạo vé ván chơi (`start-round`): Tối đa 20 ván bắt đầu trong 1 phút (`MAX_TICKET_STARTS_PER_MINUTE`) cho mỗi user để chống làm kiệt quệ DB.
+  + Tiếp nhận Telemetry (`telemetry`): Tối đa 60 lô/phút/IP để ngăn ngừa các cuộc tấn công từ chối dịch vụ (DoS) vào bảng log DB.
+- Bảo vệ dữ liệu cá nhân (PII Redaction): Tự động quét và loại bỏ các chuỗi nhạy cảm (JWT, Token, Email, UUID, số dài) ở cả 2 đầu Client và Server.
+- Ràng buộc kiểu chặt chẽ (Exhaustive Type Checking): Sử dụng cú pháp `satisfies Record<Game, GameInspector>` buộc trình biên dịch TypeScript cảnh báo ngay lập tức nếu có trò chơi mới mà chưa viết bộ kiểm tra anti-cheat.
+
+

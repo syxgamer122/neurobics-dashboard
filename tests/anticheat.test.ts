@@ -285,6 +285,7 @@ describe("du lieu thieu hoac hong", () => {
       "mental",
       "corsi",
       "trail",
+      "search",
     ] as const;
     for (const g of games) {
       expect(() => inspectRound(g, {}, 1_000), g).not.toThrow();
@@ -312,5 +313,62 @@ describe("hasHardFlag / softFlags", () => {
   it("bao cao rong thi khong co co cung nao", () => {
     expect(hasHardFlag({ flags: [] })).toBe(false);
     expect(softFlags({ flags: [] })).toEqual([]);
+  });
+});
+
+describe("property-based edge cases — du lieu bat thuong khong lam sap", () => {
+  const ALL_GAMES = [
+    "schulte", "sudoku", "stroop", "reaction", "memory",
+    "nback", "math", "gonogo", "mental", "corsi", "trail", "search",
+  ] as const;
+
+  it("NaN trong mang rts khong lam sap", () => {
+    for (const g of ALL_GAMES) {
+      expect(() => inspectRound(g, { rts: [NaN, 300, NaN] }, 5_000)).not.toThrow();
+      expect(() => inspectRound(g, { hitRts: [NaN, NaN] }, 5_000)).not.toThrow();
+    }
+  });
+
+  it("Infinity trong mang rts khong lam sap", () => {
+    for (const g of ALL_GAMES) {
+      expect(() => inspectRound(g, { rts: [Infinity, 300, -Infinity] }, 5_000)).not.toThrow();
+      expect(() => inspectRound(g, { hitRts: [Infinity, -Infinity] }, 5_000)).not.toThrow();
+    }
+  });
+
+  it("so am trong mang rts khong lam sap", () => {
+    for (const g of ALL_GAMES) {
+      expect(() => inspectRound(g, { rts: [-100, -200, 300] }, 5_000)).not.toThrow();
+      expect(() => inspectRound(g, { hitRts: [-1, -50] }, 5_000)).not.toThrow();
+    }
+  });
+
+  it("so cuc lon khong lam sap", () => {
+    for (const g of ALL_GAMES) {
+      expect(() => inspectRound(g, { rts: [1e15, 1e18, 300] }, 5_000)).not.toThrow();
+      expect(() => inspectRound(g, { timeMs: 1e18 }, 5_000)).not.toThrow();
+    }
+  });
+
+  it("mang rong khong lam sap va khong bao dong", () => {
+    for (const g of ALL_GAMES) {
+      const r = inspectRound(g, { rts: [], hitRts: [], moveRts: [] }, 5_000);
+      expect(hasHardFlag(r)).toBe(false);
+    }
+  });
+
+  it("kieu sai (string thay vi so) khong lam sap", () => {
+    for (const g of ALL_GAMES) {
+      expect(() =>
+        inspectRound(g, { rts: ["abc", "def"], timeMs: "not_a_number" }, 5_000),
+      ).not.toThrow();
+    }
+  });
+
+  it("elapsed = 0 hoac am khong lam sap", () => {
+    for (const g of ALL_GAMES) {
+      expect(() => inspectRound(g, { rts: [300, 400] }, 0)).not.toThrow();
+      expect(() => inspectRound(g, { rts: [300, 400] }, -1000)).not.toThrow();
+    }
   });
 });

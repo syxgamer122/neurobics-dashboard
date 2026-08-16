@@ -360,12 +360,10 @@ export function scoreMath(t: Telemetry): ScoredRound {
   const diff = MATH_DIFF[difficulty];
   const target = MATH_TARGET_MS[difficulty];
   const clean = statSamples(rts, 80);
-  const med = clean.length ? median(clean) : target;
-  const pace = clamp01((2 * target - med) / target);
 
   const axes = {
     ...NO_AXES,
-    logic: clamp(MAX * diff * accuracy * (0.72 + 0.28 * pace)),
+    logic: clamp(MAX * diff * accuracy),
     speed:
       clean.length >= 3
         ? clamp(speed(clean, target, diff) * (0.55 + 0.45 * accuracy))

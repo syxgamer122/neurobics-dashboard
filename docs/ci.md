@@ -20,13 +20,21 @@ Mọi pull request và mọi push vào `main` đều chạy cùng bộ kiểm tr
    - Kiểm tra i18n, hằng số, localStorage và các quy tắc riêng của repo.
 6. **Migration lint** — `pnpm run db:lint`
    - Kiểm tra tên, thứ tự và lệnh SQL phá huỷ/rủi ro.
-7. **Unit tests + coverage** — `pnpm run test:coverage`
+7. **Migration apply test (db:migrate:smoke)** — `supabase db start`
+   - Khởi tạo DB ảo cục bộ và áp dụng toàn bộ schema migration từ đầu. Đảm bảo migration không bị lỗi cú pháp thực thi.
+8. **Ledger invariants** — `pnpm run db:invariants`
+   - Đổ seed data giả và chạy bài test invariant đảm bảo ledger XP luôn khớp.
+9. **Unit tests + coverage** — `pnpm run test:coverage`
    - Chạy Vitest và áp ngưỡng coverage trong `vitest.config.ts`.
-8. **Simulation** — `pnpm run test:sim`
+10. **Simulation** — `pnpm run test:sim`
    - Chạy `sim-client`, `sim-games`, `sim-audit` trên logic thật.
-9. **Build** — `pnpm run build:only`
+11. **Build** — `pnpm run build:only`
    - Bắt lỗi bundle mà typecheck không thấy.
-10. **Coverage artifact**
+12. **Bundle Budget & Security Audit** — `pnpm run check:bundle` & `pnpm run security:audit`
+   - Bắt dung lượng JS phình to (>700KB) và quét lỗ hổng bảo mật gói npm.
+13. **E2E Smoke Test (e2e:smoke)** — `playwright test`
+   - Chạy 3 luồng chính: Auth, Play Round, Offline Enqueue.
+14. **Coverage artifact**
    - Upload thư mục `coverage` và giữ 14 ngày, kể cả khi một bước trước đó lỗi.
 
 ### Job `edge-functions`
@@ -43,20 +51,24 @@ CI cài dependencies trước khi chạy Deno để Deno 2 đọc các import `n
 
 ## Chạy cùng bộ kiểm tra ở máy
 
-```bash
-pnpm run check
-pnpm run build
-```
+Lệnh `pnpm run check` chỉ là tập hợp con (subset) chạy cực nhanh bao gồm: typecheck, lint, Prettier, static scan, migration lint, coverage và simulation.
 
-`pnpm run check` hiện bao gồm typecheck, lint, Prettier, static scan, migration lint, coverage và simulation. `pnpm run build` typecheck lại rồi tạo bundle production.
-
-Trước khi commit nên chạy:
+Để chạy đầy đủ bộ kiểm tra nội bộ gần sát với CI nhất trước khi tạo Pull Request, bạn cần chạy:
 
 ```bash
 pnpm run format
 pnpm run check
+supabase db start
+pnpm run check:bundle
+pnpm run security:audit
+pnpm dlx playwright test
 pnpm run build
 ```
+
+**Lưu ý khi cấu hình Require status checks to pass trên GitHub:**
+Đảm bảo bạn nhập đúng tên job xuất hiện trên Actions UI:
+- `quality`
+- `edge-functions`
 
 ## CI không cần secret production
 
@@ -106,5 +118,16 @@ Không bỏ qua. Mở log `deno check` và sửa lỗi type/import. Các import 
 
 GitHub → Settings → Branches/Rulesets → bảo vệ `main` → bật **Require status checks to pass** và chọn:
 
-- `Typecheck / scan / test / build`
-- `Edge Function typecheck`
+- `quality`
+- `edge-functions`
+
+## Ledger Invariants
+
+To ensure the XP ledger remains accurate, the following invariant must hold:
+```sql
+SELECT id FROM profiles p
+WHERE p.total_xp <> (
+  SELECT coalesce(sum(xp_awarded),0) FROM xp_events e
+  WHERE e.user_id = p.id AND e.created_at > coalesce(p.stats_epoch, '1970-01-01')
+);
+```

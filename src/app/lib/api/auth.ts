@@ -2,7 +2,7 @@
  * Account lifecycle: username rules, sign up, login, logout, access token
  * and recovery-code password reset.
  */
-import { getSupabase, BASE, sanitizeProfile, type Profile } from "./internal";
+import { getSupabase, BASE, sanitizeProfile, type Profile, getAccessToken } from "./internal";
 import { logError } from "../logger";
 // Signup/login goi thang REST nen van can anon key o day.
 import { SUPABASE_ANON_KEY } from "../supabase-config";
@@ -27,16 +27,15 @@ export function assertValidUsername(username: string): string {
 
 /** Domain email giả cho tài khoản mới (brand Mindgem). */
 export const AUTH_EMAIL_DOMAIN = "mindgem.local";
-/** Domain cũ — user đã signup trước khi rebrand vẫn dùng domain này trong auth.users. */
-export const LEGACY_AUTH_EMAIL_DOMAIN = "neurobics.local";
+export const LEGACY_AUTH_EMAIL_DOMAINS = [
+  "neurobics.local",
+] as const;
 
 function authEmailCandidates(username: string): string[] {
   const name = assertValidUsername(username);
-  // Mindgem trước, legacy sau — signup mới luôn trúng candidate đầu.
-  return [
-    `${name}@${AUTH_EMAIL_DOMAIN}`,
-    `${name}@${LEGACY_AUTH_EMAIL_DOMAIN}`,
-  ];
+  return [AUTH_EMAIL_DOMAIN, ...LEGACY_AUTH_EMAIL_DOMAINS].map(
+    (d) => `${name}@${d}`,
+  );
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -55,7 +54,7 @@ export async function handleSignUp(
       "Content-Type": "application/json",
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify({ username: safeName, password, captchaToken }),
+    body: JSON.stringify({ username: safeName, password, captchaToken, isAdult: true }),
   });
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
@@ -65,6 +64,31 @@ export async function handleSignUp(
   }
 
   await handleLogin(safeName, password);
+  return {
+    profile: sanitizeProfile(body.profile as Profile),
+  };
+}
+
+export async function handleGuestSignUp(
+  captchaToken: string,
+): Promise<{ profile: Profile }> {
+  const res = await fetch(`${BASE}/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ isGuest: true, captchaToken, isAdult: true }),
+  });
+  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    logError("Guest sign up failed:", body);
+    const reason = String(body.error ?? "Guest mode is temporarily unavailable.");
+    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
+  }
+
+  // Edge function returns the generated credentials for the guest
+  await handleLogin(String(body._guestName), String(body._guestPw));
   return {
     profile: sanitizeProfile(body.profile as Profile),
   };
@@ -113,4 +137,30 @@ export async function handleLogin(
 export async function handleLogout(): Promise<void> {
   const { error } = await getSupabase().auth.signOut();
   if (error) logError("Logout error during signOut:", error.message);
+}
+
+export async function handleUpgradeGuest(
+  username: string,
+  email: string,
+  password: string,
+  isAdult: boolean,
+): Promise<{ profile: Profile }> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not logged in");
+  const res = await fetch(`${BASE}/upgrade-guest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ username, email, password, isAdult }),
+  });
+  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+  if (!res.ok) {
+    const reason = String(body.error ?? "Upgrade failed.");
+    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
+  }
+  // Re-login with new credentials to update auth session
+  await handleLogin(username, password);
+  return { profile: sanitizeProfile(body.profile as Profile) };
 }

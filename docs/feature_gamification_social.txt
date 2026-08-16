@@ -1,0 +1,159 @@
+TỔNG HỢP TÍNH NĂNG GAMIFICATION (THÀNH TỰU, NHIỆM VỤ, XÃ HỘI & LỊCH SỬ TIẾN TRÌNH) - MINDGEM
+====================================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+----------------------------------------------------------------------------------------------------
+Phân hệ Gamification & Social trong dự án MindGem là hệ thống cốt lõi nhằm thúc đẩy động lực luyện tập hàng ngày (user engagement & retention), theo dõi Chỉ số Nhận thức (Cognitive Index - CI), vinh danh thành tựu cá nhân và kết nối cộng đồng người chơi.
+
+Phân hệ bao gồm 4 trụ cột chức năng chính:
+- Thành tựu (Achievements / Badges): Hệ thống 52+ huy hiệu danh hiệu được chia thành 5 hạng (Đồng, Bạc, Vàng, Bạch kim, Kim cương) và 6 nhóm mục tiêu. Người chơi mở khoá danh hiệu thông qua việc tích luỹ số ván, nâng cao cấp độ, chinh phục các chỉ số nhận thức và vượt qua thử thách riêng của từng trò chơi. Phần thưởng XP tương ứng được hệ thống tự động cộng vào tài khoản.
+- Nhiệm vụ (Daily & Weekly Quests): Hệ thống gồm 3 nhiệm vụ ngày (làm mới lúc 00:00 GMT+7) và 3 nhiệm vụ tuần (làm mới vào thứ Hai GMT+7). Tiến độ nhiệm vụ được tính toán tự động dựa trên kết quả luyện tập thực tế. Người chơi chủ động bấm nút "NHẬN" (Claim) trên giao diện để thu thập điểm kinh nghiệm (XP).
+- Xã hội & Bảng xếp hạng Bạn bè (Social & Friends Leaderboard): Cho phép tìm kiếm người chơi khác theo tên tài khoản (tối thiểu 2 ký tự), gửi/chấp nhận/từ chối lời mời kết bạn, huỷ kết bạn và theo dõi Bảng xếp hạng riêng (Private Leaderboard) để so kè Chỉ số Nhận thức (CI) và Tổng XP tích luỹ với danh sách bạn bè đã kết nối.
+- Lịch sử Luyện tập & Tiến trình (Training History & Progress Chart): Ghi nhận chi tiết từng ván đấu (thời gian, điểm số, 5 trục nhận thức Speed, Focus, Spatial, Logic, Memory, XP thưởng), quản lý Kỷ lục cá nhân (Personal Bests) theo từng trò chơi (đặc biệt hỗ trợ kỷ lục phân mảnh theo cấu hình ma trận và chế độ chơi cho Schulte Grid), cùng biểu đồ tiến trình 7/30/90 ngày trực quan với tính năng hỗ trợ người mù màu.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+----------------------------------------------------------------------------------------------------
+Hệ thống được thiết kế theo mô hình Client-Server chặt chẽ kết hợp với triết lý Security Definer RPC trên nền tảng Supabase (PostgreSQL) và Next.js / React Frontend:
+
+A. Tầng Client (Frontend):
+- Vị trí: `src/app/components/` và `src/app/lib/`
+- Vai trò: Đảm nhận toàn bộ việc hiển thị giao diện UI panels (`AchievementsPanel`, `QuestsPanel`, `FriendsPanel`, `HistoryPanel`, `ProgressChart`), quản lý trạng thái local, điều hướng bộ lọc (Filter), tối ưu hóa hiệu năng nạp trang (Lazy loading thư viện đồ họa Recharts), và định nghĩa catalog nhãn hiển thị đa ngôn ngữ (Việt - Anh) kèm cơ chế fallback nhãn nhiệm vụ an toàn.
+
+B. Tầng Server & Database (Backend):
+- Vị trí: Supabase PostgreSQL Stored Procedures / RPC Functions & Edge Functions
+- Vai trò: Đảm nhận 100% logic nghiệp vụ, tính toán điều kiện mở khoá thành tựu (`sync_achievements`), theo dõi tiến độ nhiệm vụ ngày/tuần (`get_daily_quests`), kiểm tra điều kiện và trao thưởng XP nguyên tử (`claim_quest`), quản lý quan hệ kết bạn hai chiều (`send_friend_request`, `respond_friend_request`, `remove_friend`, `get_friends`, `get_friend_leaderboard`) và tổng hợp dữ liệu tiến trình (`get_progress_series`, `get_personal_bests`, `get_schulte_config_bests`).
+
+C. Triết lý Bảo mật Nguyên tắc Trung tâm:
+- Trình duyệt tuyệt đối KHÔNG bao giờ tự tuyên bố hoàn thành nhiệm vụ, mở thành tựu hay tự cộng điểm XP. Tất cả mọi cờ mở khoá và điểm thưởng đều do các Stored Procedures (chạy với quyền `SECURITY DEFINER`) kiểm tra từ bảng dữ liệu gốc (`training_sessions`, `profiles`) và cấp phát trực tiếp tại cơ sở dữ liệu.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+----------------------------------------------------------------------------------------------------
+1. `src/app/lib/achievements.ts`:
+   Định nghĩa danh mục hiển thị toàn bộ huy hiệu (mã badge, icon emoji, XP thưởng, hạng tier, nhóm category, tên & mô tả đa ngôn ngữ vi/en), bảng màu đại diện cho các hạng và tính tổng XP huy hiệu.
+
+2. `src/app/lib/quest-labels.ts`:
+   Quản lý nhãn hiển thị nhiệm vụ phía client; chứa từ điển nhãn tĩnh `QUEST_LABELS`, hàm `humanizeQuestCode` dịch mã kỹ thuật thành câu tiếng Việt/Anh đọc được, và hàm `resolveQuestLabel` xử lý chuỗi ưu tiên hiển thị.
+
+3. `src/app/lib/api/gamification.ts`:
+   Cung cấp các hàm API Client gọi RPC Supabase cho thành tựu và nhiệm vụ (`syncAchievements`, `fetchAchievementProgress`, `fetchDailyQuests`, `claimQuest`).
+
+4. `src/app/lib/api/social.ts`:
+   Cung cấp các hàm API Client gọi RPC Supabase cho tính năng xã hội và bạn bè (`searchPlayers`, `fetchFriends`, `sendFriendRequest`, `respondFriendRequest`, `removeFriend`, `fetchFriendLeaderboard`).
+
+5. `src/app/lib/api/history.ts`:
+   Cung cấp các hàm API Client truy vấn Supabase RLS và RPC cho lịch sử ván đấu (`fetchTrainingHistory`), kỷ lục cá nhân (`fetchPersonalBests`, `fetchSchulteConfigBests`) và chuỗi tiến trình (`fetchProgressSeries`).
+
+6. `src/app/components/achievements-panel.tsx`:
+   Component React hiển thị Bảng Thành tựu: hỗ trợ lọc theo nhóm, thanh tiến độ công việc, trạng thái khoá/mở huy hiệu, sắp xếp huy hiệu gần hoàn thành lên trước và thông báo Toast khi có thành tựu mới.
+
+7. `src/app/components/quests-panel.tsx`:
+   Component React hiển thị Bảng Nhiệm vụ: chia làm 2 phần Nhiệm vụ Hôm nay và Nhiệm vụ Tuần này, hiển thị tiến độ dạng thanh phần trăm, nút bấm "NHẬN" nhận thưởng XP và xử lý trạng thái chờ.
+
+8. `src/app/components/friends-panel.tsx`:
+   Component React quản lý Mạng lưới Bạn bè: tích hợp ô tìm kiếm người chơi có hoãn gõ (debounce), hiển thị danh sách lời mời đến/đi, danh sách bạn bè và Bảng xếp hạng riêng so kè Chỉ số Nhận thức (CI).
+
+9. `src/app/components/history-panel.tsx`:
+   Component React hiển thị Lịch sử Luyện tập: bao gồm các thẻ Kỷ lục cá nhân (Personal Best) cho từng game, bộ lọc danh sách 100 ván đấu gần đây và nạp bất đồng bộ (Lazy Load) biểu đồ tiến trình.
+
+10. `src/app/components/progress-chart.tsx`:
+    Component React vẽ biểu đồ tiến trình 7/30/90 ngày bằng thư viện Recharts: biểu diễn XP & số ván đấu (ComposedChart), diễn biến 5 trục nhận thức (LineChart) kèm kiểu nét đứt accessible hỗ trợ người mù màu.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+----------------------------------------------------------------------------------------------------
+A. Danh mục Thành tựu & Phân hạng (Achievements Catalog):
+- 5 Hạng Huy hiệu (Tiers) kèm mã màu chuẩn:
+  + Bronze (Đồng): `#B45309`
+  + Silver (Bạc): `#94A3B8`
+  + Gold (Vàng): `#F59E0B`
+  + Platinum (Bạch kim): `#22D3EE`
+  + Diamond (Kim cương): `#A855F7`
+- 6 Nhóm Huy hiệu (Categories):
+  + `volume`: Số ván chơi tích luỹ (1, 10, 50, 100, 250, 500, 1000 ván).
+  + `level`: Cấp độ và mốc XP (Cấp 5, 10, 20, 30, 50 và mốc 10.000 XP).
+  + `mastery`: Điểm mốc trục nhận thức (Một trục đạt 500/800/900/950, Cả 5 trục đạt 500/700/850).
+  + `breadth`: Tính toàn diện theo trò (Chơi đủ tất cả các trò, Mỗi trò chơi ≥ 10 ván, Mỗi trò đạt 600+ điểm).
+  + `score`: Thành tích điểm cao trong một ván (Đạt 900+, 950+, 990+, và 10 ván đạt 950+).
+  + `game`: Thành tích riêng của từng trò (Schulte 700/900/6x6, Sudoku 700/900/Extreme, Stroop 700/900, Reaction 700/900, Memory Matrix 700/900, N-Back 700/900/5-Back, Math Sprint 700/900, Go/No-Go 700/900, Mental Rotation 700/900).
+- Sắp xếp thông minh: Component `AchievementsPanel` tự động sắp xếp danh sách hiển thị bằng thuật toán: Huy hiệu đã mở khoá xếp theo thứ tự tier; Huy hiệu CHƯA mở khoá được ưu tiên xếp theo tỷ lệ hoàn thành (`progress / goal`) giảm dần để người chơi thấy ngay các mục tiêu sắp đạt được.
+
+B. Chuỗi Phân giải Nhãn Nhiệm vụ (Quest Labeling Resolution Chain):
+Để đảm bảo giao diện KHÔNG BAO GIỜ hiển thị mã kỹ thuật thô (như `w_games_7` hay `q_rounds_3`), hàm `resolveQuestLabel(code, lang, serverTitle)` thực hiện phân giải theo 4 cấp ưu tiên nghiêm ngặt:
+  1. Ưu tiên 1: `serverTitle` trả về từ database RPC (nếu có và khác chuỗi mã `code`).
+  2. Ưu tiên 2: Ánh xạ cứng từ từ điển `QUEST_LABELS[code][lang]`.
+  3. Ưu tiên 3: Hàm `humanizeQuestCode(code, lang)` tự động phân tích cấu trúc mã dạng snake_case:
+     - `rounds_N` -> "Chơi N ván" / "Play N rounds"
+     - `score_N` -> "Đạt N+ trong một ván" / "Score N+ in one round"
+     - `score_N_M` -> "Đạt N+ trong M ván" / "Score N+ in M rounds"
+     - `games_N` -> "Chơi N trò khác nhau" / "Play N different games"
+     - `play_<game>_N` -> "Chơi <Tên trò> N ván" / "Play N <Tên trò> rounds" (tra cứu qua `QUEST_GAME_NAMES`)
+     - Tiền tố `w_` -> Thêm nhãn "Tuần: " / "Weekly: "
+  4. Ưu tiên 4: Fallback chuỗi an toàn "Nhiệm vụ" (tiếng Việt) hoặc "Quest" (tiếng Anh).
+
+C. Quản lý Mạng lưới Bạn bè & Bảng xếp hạng (Social & Private Leaderboard):
+- Trạng thái kết bạn (Friendship Status & Direction):
+  Bảng `friendships` trong cơ sở dữ liệu lưu các cặp (`user_id`, `friend_id`, `status`: `'pending' | 'accepted'`). RPC `get_friends` tự động ánh xạ góc nhìn người dùng hiện tại thành 3 hướng (`direction`):
+  + `'incoming'`: Lời mời kết bạn từ người khác gửi tới mình (cho phép Nút Chấp nhận / Từ chối).
+  + `'outgoing'`: Lời mời kết bạn do mình gửi đi đang chờ đối phương phản hồi.
+  + `'friend'`: Hai bên đã chấp nhận kết bạn (`status = 'accepted'`).
+- Bảng xếp hạng riêng (`fetchFriendLeaderboard` / RPC `get_friend_leaderboard`):
+  Chỉ trả về danh sách bao gồm bạn bè chính thức (`status = 'accepted'`) và bản thân người dùng (`is_me: true`). Bảng xếp hạng được sắp xếp giảm dần theo Chỉ số Nhận thức (`cognitive_index`), giúp người chơi so kè trình độ trực tiếp với bạn bè.
+
+D. Kỷ lục Cá nhân Chuyên sâu & Schulte Config Bests:
+- `fetchPersonalBests`: Trả về kỷ lục tổng quan từng game (`best_score`, `best_time_ms`, `avg_score`, `rounds`, `total_xp`).
+- `fetchSchulteConfigBests`: Do game Schulte Grid có nhiều kích thước ma trận (3x3, 4x4, 5x5, 6x6) và 3 chế độ chơi (`classic`, `reverse`, `dual`), RPC `get_schulte_config_bests` trả về kỷ lục riêng biệt cho từng cấu hình. Phía client sử dụng helper `schulteBestMapKey(size, mode)` tạo key dạng `${grid_size}_${mode}` để tra cứu cực nhanh.
+
+E. Biểu đồ Tiến trình Hỗ trợ Accessibility (Progress Chart):
+- Nạp bất đồng bộ (Code Splitting): Thư viện Recharts có dung lượng ~100KB được tách thành chunk riêng thông qua `React.lazy` và `Suspense` (`ChartFallback`). Người dùng ở màn hình chính không phải nạp trước chunk này.
+- Accessible Design cho 5 Trục Nhận thức: Do khoảng 8% nam giới dính chứng mù màu đỏ - lục, ngoài 5 màu sắc phân biệt (`speed`: xanh lá `#10B981`, `focus`: tím `#A855F7`, `spatial`: hổ phách `#F59E0B`, `logic`: xanh lam `#00D4FF`, `memory`: hồng `#F43F5E`), mỗi trục được gán một kiểu nét đứt (`strokeDasharray`) riêng biệt (`focus`: `6 3`, `spatial`: `2 3`, `logic`: `10 3 2 3`, `memory`: `1 4`). Nhờ đó, người dùng vẫn phân biệt được các đường biểu diễn khi in đen trắng hoặc khi không nhìn rõ màu sắc.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+----------------------------------------------------------------------------------------------------
+A. Luồng Mở khoá Thành tựu & Đọc Tiến độ:
+  1. Người dùng chuyển sang tab Thành tựu -> `AchievementsPanel` được mount.
+  2. `useEffect` kích hoạt `syncAchievements()` gửi yêu cầu RPC `sync_achievements` tới Supabase.
+  3. Database chạy Stored Procedure quét bảng `training_sessions` và `profiles` của người dùng:
+     - Kiểm tra điều kiện từng thành tựu chưa mở.
+     - Nếu đủ điều kiện, ghi nhận bản ghi mở khoá vào bảng `user_achievements`, và ghi 1 giao dịch thưởng XP vào bảng `xp_events` (DB Trigger sẽ tự cộng vào `profiles.total_xp`).
+     - Trả về danh sách các huy hiệu kèm thuộc tính `newly_unlocked`.
+  4. Nếu có huy hiệu `newly_unlocked === true`, client phát hiệu ứng Toast "Mở khoá thành tựu mới!".
+  5. Tiếp theo, client gọi `fetchAchievementProgress()` -> RPC `get_achievement_progress` trả về mảng `AchievementProgress[]` chứa tỷ lệ `progress / goal`.
+  6. Component tính toán tổng XP đã đạt, số lượng huy hiệu đã mở, sắp xếp danh sách huy hiệu và render ra màn hình.
+
+B. Luồng Làm Nhiệm vụ & Nhận thưởng XP:
+  1. Người dùng hoàn thành một ván luyện tập -> Hệ thống lưu ván vào `training_sessions`.
+  2. Người dùng mở tab Nhiệm vụ -> `QuestsPanel` gọi `fetchDailyQuests()` -> RPC `get_daily_quests`.
+  3. Database tổng hợp số ván đấu, điểm số đạt được trong ngày (tính từ 00:00 giờ Việt Nam) và trong tuần (tính từ 00:00 thứ Hai giờ Việt Nam), so sánh với các mốc nhiệm vụ và trả về danh sách `DailyQuest[]`.
+  4. Nếu một nhiệm vụ có `progress >= goal` và `claimed === false`, nút "NHẬN" (Claim) sáng lên.
+  5. Người dùng nhấn "NHẬN" -> Client gọi `claimQuest(code)` -> RPC `claim_quest(p_code)`.
+  6. Database kiểm tra nguyên tử: khẳng định nhiệm vụ đã đạt và chưa từng nhận thưởng -> đặt `claimed = true` trong bảng `user_quests` -> ghi nhận một giao dịch vào bảng `xp_events` (Mô hình Ledger) -> DB Trigger `trg_xp_events_apply` sẽ tự động cộng thêm `xp_awarded` vào `profiles.total_xp` mà không cần query cập nhật trực tiếp -> trả về số XP thưởng.
+  7. Client nhận kết quả, hiển thị Toast "Đã nhận +X XP", làm mới lại danh sách nhiệm vụ và phát sự kiện `onClaimed` để cập nhật tổng XP trên thanh Header.
+
+C. Luồng Tìm kiếm người chơi & Kết bạn:
+  1. Người dùng nhập tên tài khoản cần tìm vào ô Search trong `FriendsPanel`.
+  2. `useEffect` sử dụng timer hoãn (debounce 350ms, rate limit DB-level 15 req/5 phút). Khi từ khóa `query.trim().length >= 2`, hàm `searchPlayers(query)` được gọi -> RPC `search_players`.
+  3. Database trả về tối đa 10 kết quả phù hợp (`PlayerSearchResult[]`).
+  4. Người dùng nhấn nút "Kết bạn" bên cạnh tên người chơi -> Gọi `sendFriendRequest(targetId)` -> RPC `send_friend_request`.
+  5. Database chèn bản ghi mới vào bảng `friendships` với `status = 'pending'`.
+  6. Client hiển thị Toast "Đã gửi lời mời", xóa từ khóa tìm kiếm và gọi lại `load()` (`fetchFriends()` & `fetchFriendLeaderboard()`) để cập nhật giao diện.
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+----------------------------------------------------------------------------------------------------
+A. Nguyên tắc Chống Gian lận XP & Thành tựu (Server-Enforced Integrity):
+- Toàn bộ điều kiện hoàn thành nhiệm vụ và mở khoá thành tựu được kiểm tra trực tiếp từ các ván đấu hợp lệ lưu trên server (`training_sessions`). Các ván đấu này bắt buộc phải trải qua quy trình anti-cheat (`scoreAndValidate`, `inspectRound`) ở Edge Function trước khi được ghi vào cơ sở dữ liệu.
+- Phía Client không gửi bất kỳ tham số cờ hoàn thành nào lên server. RPC `claim_quest` và `sync_achievements` tự động xác minh tính hợp lệ và chỉ cộng XP một lần duy nhất (Idempotent).
+
+B. Bảo mật Context & Quyền truy cập (Supabase RLS & Security Definer):
+- Tất cả các hàm RPC liên quan đến Gamification và Social đều sử dụng `SECURITY DEFINER` và tự động trích xuất `auth.uid()` từ JWT Token do Supabase Auth quản lý. Người dùng không thể truyền `user_id` giả mạo để nhận thưởng hộ tài khoản khác.
+- Các thao tác xã hội (`respondFriendRequest`, `removeFriend`) kiểm tra nghiêm ngặt quyền sở hữu: chỉ có người nhận mới có quyền chấp nhận/từ chối lời mời (`friendship_id`), và chỉ có hai người trong cuộc mới có quyền hủy kết bạn.
+- Bảng xếp hạng bạn bè (`get_friend_leaderboard`) áp dụng INNER JOIN bắt buộc kiểm tra `status = 'accepted'`, đảm bảo không rò rỉ Chỉ số Nhận thức (CI) cho người lạ.
+
+C. Validation & Giới hạn Tải (Rate Limiting & Input Sanitization):
+- Tìm kiếm người chơi (`searchPlayers`): Bắt buộc từ khóa tìm kiếm tối thiểu 2 ký tự (`query.trim().length >= 2`), ép kiểu và cắt khoảng trắng, giới hạn tối đa 10 kết quả (`p_limit: 10`), kết hợp hoãn gõ (debounce 350ms, rate limit DB-level 15 req/5 phút) phía UI để ngăn chặn tấn công Spam RPC Request.
+- Phân trang Lịch sử (`fetchTrainingHistory`): Giới hạn tham số `limit` trong khoảng an toàn `[1, 200]` (`Math.min(Math.max(opts.limit ?? 50, 1), 200)`), phòng tránh việc truy vấn hàng ngàn dòng dữ liệu gây cạn kiệt bộ nhớ trình duyệt.
+
+

@@ -1,0 +1,314 @@
+================================================================================
+TÍNH NĂNG: XÁC THỰC & HỒ SƠ NGƯỜI DÙNG (AUTH & PROFILE) - MINDGEM
+================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Tính năng Xác thực & Hồ sơ người dùng (Auth & Profile) quản lý toàn bộ vòng đời tài khoản và dữ liệu hồ sơ người chơi trong hệ thống MindGem.
+
+Các chức năng chính bao gồm:
+- Chế độ Khách (Guest mode): Tài khoản khách là tài khoản Supabase `auth.users` thực sự với mật khẩu được tạo ngẫu nhiên. Việc tạo tài khoản khách được thực hiện thông qua Edge Function `/server/signup` với cờ `isGuest` và yêu cầu xác thực Cloudflare Turnstile để chống bot spam. Mọi tính toán điểm và XP đều được Server xử lý y hệt người dùng thật.
+- Đăng ký (Sign up): Đăng ký tài khoản bằng Username + Password thông qua cơ chế Email-Spoofing (@mindgem.local). Không yêu cầu người dùng cung cấp email thật.
+- Đăng nhập (Login): Đăng nhập bằng Username + Password. Hỗ trợ tự động fallback kiểm tra domain email cũ (@neurobics.local) cho các tài khoản tạo trước khi rebrand.
+- Quản lý Hồ sơ (Profile): Lưu trữ 5 trục chỉ số nhận thức (Spatial, Logic, Memory, Speed, Focus), cấp độ (Level), tổng điểm XP (total_xp), lịch sử số ván chơi (session counters), năm sinh (birth_year) dùng để tính tuổi não (Brain Age).
+- Inactivity Decay: Áp dụng cơ chế giảm nhẹ chỉ số phong độ (decay) theo số ngày không hoạt động trên đường đọc (read path) để phản ánh đúng phong độ thực tế.
+- Tải lên & Xóa Avatar: Quản lý ảnh đại diện lưu trữ tại Supabase Storage bucket 'avatars'.
+- Đổi mật khẩu (Change Password): Tái xác thực với mật khẩu hiện tại trước khi cập nhật mật khẩu mới.
+- Xóa tài khoản (Delete Account): Xóa vĩnh viễn tài khoản bao gồm bản ghi auth.users, hồ sơ public.profiles và toàn bộ ảnh đại diện trên storage.
+- Bảo mật & Chống lạm dụng: Tích hợp xác minh người thật Cloudflare Turnstile Captcha và Rate Limiting 10 lần/15 phút dựa trên hash IP thực tế.
+
+
+2. KIẾN TRÚC (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Tính năng được thiết kế theo kiến trúc Client/Server rõ ràng với sự hỗ trợ của Supabase (PostgreSQL + Auth + Storage + Edge Functions):
+
+Client-side (Vite + React + TypeScript):
+- Interface & Components: `auth-screen.tsx`, `turnstile-widget.tsx`, `settings-panel.tsx`.
+- State Management: `use-app-state.ts` quản lý state profileState, khôi phục session, profile caching và năm sinh.
+- API Layer: `src/app/lib/api/auth.ts`, `src/app/lib/api/profile.ts`, `src/app/lib/api/internal.ts`.
+- Singleton Client: `getSupabase()` lưu trên `globalThis.__neurobics_supabase_client__` nhằm tránh khởi tạo nhiều GoTrueClient gây ra lỗi split-session.
+- Guest Engine: Xử lý giao diện và session storage cho chế độ Guest, tự động call API đăng ký ẩn.
+
+Server-side (Supabase Edge Functions / Deno / Hono):
+- Routes: `routes/auth.ts` (POST /server/signup), `routes/account.ts` (POST /server/delete-account).
+- Config: `config.ts` khởi tạo `adminClient` bằng `EDGE_SERVICE_ROLE_KEY` (hoặc `SUPABASE_SERVICE_ROLE_KEY`) để thực hiện các thao tác quản trị tài khoản (`auth.admin`).
+- Security Utilities: `security.ts` cung cấp các hàm trích xuất IP chuẩn `clientIp()`, tiêu thụ rate limit `consumeRateLimit()`, xác thực Turnstile `verifyTurnstile()`, và middleware `authenticatedUser()`.
+
+Database (Supabase PostgreSQL):
+- `auth.users`: Lưu trữ thông tin tài khoản Supabase Auth (email giả, password hash).
+- `public.profiles`: Lưu trữ hồ sơ người chơi. Trigger DB `on_auth_user_created` tự động chèn hàng mới vào `public.profiles` ngay khi `auth.users` được tạo.
+- Storage Bucket `avatars`: Bucket công khai lưu trữ ảnh đại diện theo cấu trúc `avatars/{userId}/avatar.{ext}`.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+1. `src/app/lib/api/auth.ts`
+   - Quản lý quy tắc username, hàm normalize/assert username, đăng ký handleSignUp(), đăng nhập handleLogin() (duyệt email candidates), và đăng xuất handleLogout().
+2. `src/app/lib/api/profile.ts`
+   - Chứa các hàm tương tác hồ sơ cá nhân: fetchProfile(), saveBirthYear(), resetActiveUserScores(), deleteActiveUserAccount(), changePassword(), uploadAvatar(), removeAvatar().
+3. `src/app/lib/api/internal.ts`
+   - Plumbing dùng chung: Khởi tạo Singleton Supabase Client trên globalThis, kiểu dữ liệu Profile, danh sách cột PROFILE_COLS/LEADERBOARD_COLS, hydrateProfile() (xử lý decay), sanitizeProfile(), serverPost(), và các helper ngày tháng (VN_TZ).
+4. `src/app/components/auth-screen.tsx`
+   - Giao diện người dùng cho Đăng nhập / Đăng ký, hiển thị lỗi DB constraint khi username trùng, cảnh báo không lưu email thật, nhúng TurnstileWidget, và nút chơi ngay ở chế độ Guest (gọi thẳng `/server/signup`).
+5. `supabase/functions/server/routes/auth.ts`
+   - Endpoint REST POST /server/signup xử lý đăng ký tài khoản (rate limit IP hash, Turnstile check, kiểm tra reserved_usernames & profiles.username, gọi adminClient.auth.admin.createUser).
+6. `supabase/functions/server/routes/account.ts`
+   - Endpoint REST POST /server/delete-account xử lý xóa tài khoản (dọn dẹp bucket avatars, xóa auth.users bằng Service Role, fallback xóa profiles).
+7. `supabase/functions/server/security.ts`
+   - Các tiện ích bảo mật server: consumeRateLimit() qua Postgres RPC, clientIp() trích xuất header x-forwarded-for, verifyTurnstile() xác thực token Cloudflare, authenticatedUser() giải mã Bearer JWT.
+8. `supabase/functions/server/config.ts`
+   - Khởi tạo adminClient bằng Service Role Key, định nghĩa hằng số SIGNUP_LIMIT = 10, SIGNUP_WINDOW_SECONDS = 900, PROFILE_COLS.
+9. `src/app/hooks/use-app-state.ts`
+   - React hook quản lý trạng thái toàn bộ app: Session restore, profile caching (neurobics.cached_profile với TTL 7 ngày), xử lý năm sinh, logout.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+
+A. CHẾ ĐỘ GUEST (GUEST MODE) - SERVER-SIDE PROVISIONING
+- Quy trình tạo: Client gọi Edge Function `/server/signup` kèm cờ `isGuest` và mã token từ Cloudflare Turnstile.
+- Cấp phát: Server gọi `adminClient.auth.admin.createUser` tạo một tài khoản Supabase Auth thực sự (email giả định do server tự sinh, mật khẩu UUID an toàn).
+- Hồ sơ: Tài khoản nhận `role = 'guest'` trong bảng `public.profiles`. Server gửi trả mật khẩu ngẫu nhiên này về để client tự động đăng nhập.
+- Phiên làm việc: Khách nhận được JWT session token tiêu chuẩn. Mật khẩu không cần lưu trữ vĩnh viễn ở localStorage (dựa vào session refresh).
+- Lợi ích: Tương thích 100% với hệ thống RLS (Row Level Security) của PostgreSQL mà không cần các ngoại lệ bypass dành riêng cho Guest. Bot tự động không thể spam tạo Guest rác do bị vướng Turnstile. Khi cần nâng cấp tài khoản, chỉ việc Update Email và Password thật.
+
+B. MÔ HÌNH EMAIL-SPOOFING (@mindgem.local)
+- Định nghĩa Domain & Username Regex:
+  ```typescript
+  export const USERNAME_RE = /^[a-z0-9_.-]{3,20}$/i;
+  export const AUTH_EMAIL_DOMAIN = "mindgem.local";
+  export const LEGACY_AUTH_EMAIL_DOMAINS = ["neurobics.local"] as const;
+  ```
+- Chuyển đổi Username -> Candidate Emails:
+  ```typescript
+  function authEmailCandidates(username: string): string[] {
+    const name = assertValidUsername(username);
+    return [AUTH_EMAIL_DOMAIN, ...LEGACY_AUTH_EMAIL_DOMAINS].map((d) => `${name}@${d}`);
+  }
+  ```
+- Luồng Đăng nhập (`handleLogin`):
+  Thử đăng nhập bằng `signInWithPassword` lần lượt qua từng email candidate (`username@mindgem.local` trước, `username@neurobics.local` sau). Nếu thành công trả về `access_token`.
+- Luồng Đăng ký trên Server (`routes/auth.ts`):
+  Tự động sinh email `${normalized_username}@mindgem.local` và truyền `email_confirm: true` khi gọi `adminClient.auth.admin.createUser` để xác nhận tài khoản ngay lập tức mà không cần gửi mail xác thực.
+
+C. TURNSTILE CAPTCHA
+- Client Widget (`TurnstileWidget` trong `auth-screen.tsx`):
+  Render widget Cloudflare Turnstile, nhận `captchaToken` và truyền lên server khi gửi form Signup.
+- Server Verification (`security.ts`):
+  ```typescript
+  export async function verifyTurnstile(token: string, ip: string): Promise<TurnstileVerdict> {
+    const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+    const body = new URLSearchParams({ secret, response: token });
+    if (ip !== "unknown") body.set("remoteip", ip);
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body,
+    });
+    const result = await response.json();
+    return { ok: result.success === true, codes: result["error-codes"] ?? [] };
+  }
+  ```
+- Trả lỗi thân thiện: Hàm `turnstileMessage(codes)` dịch các mã lỗi của Cloudflare (như `timeout-or-duplicate`, `invalid-input-response`) thành thông điệp tiếng Anh rõ ràng cho người dùng.
+
+D. RATE LIMITING & CHỐNG LẠM DỤNG
+- Trích xuất IP an toàn (`clientIp` trong `security.ts`):
+  ```typescript
+  export function clientIp(c: Context): string {
+    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+    return forwarded && forwarded.length > 0 ? forwarded : "unknown";
+  }
+  ```
+  Chỉ tin tưởng phần tử đầu tiên của `x-forwarded-for` do hạ tầng Supabase Edge Function tự gắn vào, không dùng `cf-connecting-ip` hay `x-real-ip` vì client có thể tự chế header này để bypass rate limit.
+- IP Hashing & Consuming Limit:
+  Tạo IP hash bằng SHA-256 từ chuỗi `mindgem-signup:${ip}`.
+  Gọi RPC Postgres nguyên tử `consumeRateLimit(ipHash, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS)` với `SIGNUP_LIMIT = 10` và `SIGNUP_WINDOW_SECONDS = 900` (15 phút).
+
+E. PROFILE CACHING & INACTIVITY DECAY
+- Caching Client (`use-app-state.ts`):
+  - Key local storage: `neurobics.cached_profile`.
+  - Cấu trúc lưu trữ: `{ userId: p.id, profile: p, at: new Date().toISOString() }`.
+  - TTL: 7 ngày (`CACHE_TTL_MS = 7 * 24 * 3600_000`).
+  - Khi khởi động app hoặc gặp lỗi mạng, nếu tìm thấy cache có `cached.userId === userId` và chưa hết TTL thì dùng cache này.
+  - Profile Sanitize & Hydration / Decay (`internal.ts`):
+    - `sanitizeProfile(p)`: Chuẩn hóa các chỉ số 5 trục (Spatial, Logic, Memory, Speed, Focus) về khoảng `[0, 1000]`.
+    - `hydrateProfile(p)`: Xử lý hiển thị chỉ số đã decay trên UI dựa trên dữ liệu đã tính toán từ phía Server.
+
+F. QUẢN LÝ AVATAR (AVATAR UPLOAD & REMOVE)
+- Hằng số giới hạn (`internal.ts`):
+  `AVATAR_MAX_BYTES = 2 * 1024 * 1024` (2MB).
+  `AVATAR_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])`.
+- Tải ảnh đại diện (`uploadAvatar` trong `profile.ts`):
+  1. Kiểm tra định dạng MIME và dung lượng file (`<= 2MB`).
+  2. Xác định đường dẫn file: `${userId}/avatar.${ext}`.
+  3. Dọn dẹp file cũ: Liệt kê các file trong thư mục `${userId}/` trên bucket `avatars` và xóa những file không cùng phần mở rộng (ví dụ xóa `avatar.jpg` nếu tải lên `avatar.png`).
+  4. Thực hiện `storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" })`.
+  5. Lấy public URL và gắn mốc thời gian `?t=${Date.now()}` để phá CDN/browser cache.
+  6. Cập nhật `avatar_url` trong bảng `profiles`.
+- Xóa ảnh đại diện (`removeAvatar` trong `profile.ts`):
+  Liệt kê toàn bộ file trong `${userId}/`, xóa khỏi bucket `avatars`, và set `avatar_url = null` trong bảng `profiles`.
+
+G. NĂM SINH (BIRTH YEAR)
+- Hàm `saveBirthYear(birthYear)` trong `profile.ts` cập nhật cột `birth_year` trong bảng `profiles` thông qua Supabase RLS.
+- Trong `use-app-state.ts`, hàm `submitBirthYear()` validate năm sinh nằm trong khoảng từ `1900` đến `năm hiện tại - 13`. Năm sinh là mốc quan trọng để tính toán Tuổi Não (Brain Age).
+
+H. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
+- Hàm `changePassword(currentPassword, newPassword)` trong `profile.ts`:
+  1. Kiểm tra `newPassword.length >= 8` và `newPassword !== currentPassword`.
+  2. Gọi `getSupabase().auth.getUser()` lấy email hiện tại.
+  3. Tái xác thực người dùng bằng `signInWithPassword({ email: user.email, password: currentPassword })`. Nếu thất bại, ném lỗi "Current password is incorrect."
+  4. Sau khi tái xác thực thành công, cập nhật mật khẩu mới qua `getSupabase().auth.updateUser({ password: newPassword })`.
+
+I. XÓA TÀI KHOẢN (ACCOUNT DELETION)
+- Hàm `deleteActiveUserAccount()` trong `profile.ts` gửi POST request tới `/server/delete-account`.
+- Xử lý tại Edge Function (`routes/account.ts`):
+  1. Xác thực Bearer Token để lấy `user.id`.
+  2. Dọn dẹp Storage: Liệt kê và xóa toàn bộ file trong `avatars/${userId}/`.
+  3. Xóa Auth User: Gọi `adminClient.auth.admin.deleteUser(userId)` bằng Service Role Key. Thao tác này sẽ tự động xóa hàng trong `public.profiles` nhờ cài đặt `ON DELETE CASCADE`.
+  4. Fallback Idempotent: Gọi thêm `adminClient.from("profiles").delete().eq("id", userId)` phòng trường hợp cơ sở dữ liệu cũ chưa có khóa ngoại CASCADE.
+- Xử lý phía Client:
+  Sau khi server trả về thành công, client gọi `auth.signOut()` và chủ động xóa toàn bộ key lưu trữ phiên làm việc `sb-*` trong `localStorage`.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOWS)
+--------------------------------------------------------------------------------
+
+A. Luồng Đăng ký Tài khoản (Sign Up Flow):
+User (Nhập username, password, Turnstile)
+  │
+  ▼
+[AuthScreen.tsx] --(validate form & regex)--> [handleSignUp()]
+  │
+  ▼ (POST /server/signup + Bearer AnonKey)
+[routes/auth.ts]
+  ├─► [security.ts] clientIp() -> SHA-256 IP Hash
+  ├─► [security.ts] consumeRateLimit() (Check & consume 10/15min)
+  ├─► [security.ts] verifyTurnstile() (Cloudflare API check)
+  ├─► Check reserved_usernames & profiles.username (Chống trùng tên)
+  ├─► adminClient.auth.admin.createUser({ email: username@mindgem.local, email_confirm: true })
+  │     └─► [DB Trigger] on_auth_user_created -> Auto INSERT INTO public.profiles
+  └─► Trả về { profile }
+  │
+  ▼
+[handleLogin()] -> getSupabase().auth.signInWithPassword() -> Lưu JWT Session
+  │
+  ▼
+[onAuthed(profile)] -> Chuyển sang màn hình Dashboard.
+
+B. Luồng Đăng nhập (Login Flow):
+User (Nhập username, password)
+  │
+  ▼
+[AuthScreen.tsx] --> [handleLogin(username, password)]
+  │
+  ├─► Candidate 1: username@mindgem.local
+  │     └─► getSupabase().auth.signInWithPassword() -> Thất bại?
+  ├─► Candidate 2: username@neurobics.local
+  │     └─► getSupabase().auth.signInWithPassword() -> Thành công!
+  ▼
+Lưu Session vào LocalStorage/Memory
+  │
+  ▼
+[fetchProfile()] -> Read public.profiles -> [hydrateProfile()] (Tính Decay)
+  │
+  ▼
+Ghi cache LocalStorage ('neurobics.cached_profile') & Set state profileState.
+
+C. Luồng Tải ảnh đại diện (Upload Avatar Flow):
+User (Chọn file ảnh) --> [uploadAvatar(file)]
+  │
+  ├─► Check MIME (JPEG/PNG/WebP/GIF) & Size (<= 2MB)
+  ├─► List & Remove các file cũ khác extension trong avatars/{userId}
+  ├─► Upload file mới: avatars/{userId}/avatar.{ext} (upsert: true)
+  ├─► Gen Public URL + Query Timestamp: ?t=Date.now()
+  └─► UPDATE public.profiles SET avatar_url = url WHERE id = userId
+  │
+  ▼
+Trả về Profile mới cập nhật -> Update UI Header/Profile.
+
+D. Luồng Xóa tài khoản (Delete Account Flow):
+User (Nhấn "Xóa tài khoản") --> [deleteActiveUserAccount()]
+  │
+  ▼ (POST /server/delete-account + Bearer Token)
+[routes/account.ts]
+  ├─► [security.ts] authenticatedUser() -> Lấy userId từ JWT
+  ├─► adminClient.storage.from("avatars").remove(files)
+  ├─► adminClient.auth.admin.deleteUser(userId)
+  │     └─► DB ON DELETE CASCADE -> Auto DELETE FROM public.profiles
+  └─► Fallback: adminClient.from("profiles").delete().eq("id", userId)
+  │
+  ▼
+Client: getSupabase().auth.signOut() + Xóa key 'sb-*' trong LocalStorage.
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+1. Cô lập Service Role Key:
+   `EDGE_SERVICE_ROLE_KEY` chỉ tồn tại trên Deno Edge Runtime server. Client hoàn toàn không biết key này. Mọi thao tác quản trị đặc quyền (`createUser`, `deleteUser`) đều phải thông qua Edge Function API.
+2. Bảo vệ thông tin cá nhân (PII Privacy):
+   Sử dụng kỹ thuật Email-Spoofing (`username@mindgem.local`) giúp người chơi không cần cung cấp Email thật. Hệ thống chỉ thu thập thông tin cơ bản như `birth_year` (để kiểm duyệt tuổi ≥13) và `fingerprint` phục vụ chống gian lận. Khi xoá tài khoản, dữ liệu `admin_audit` vẫn được giữ 365 ngày và `cheat_flags` giữ 90 ngày (cả hai có chứa `user_id`) cho mục đích bảo mật, sau đó mới bị xoá.
+3. Chống Bot / Auto Signup bằng Captcha:
+   Bắt buộc xác thực Cloudflare Turnstile Token ở tầng server trước khi tiến hành tạo tài khoản. Token chỉ dùng được 1 lần và kiểm tra IP tương ứng.
+4. Chống Tấn công Flood / Brute-force:
+   Sử dụng IP Hash (SHA-256) và RPC `consumeRateLimit` khoá 10 lượt đăng ký trong 15 phút cho mỗi địa chỉ IP. Trích xuất IP chuẩn xác qua `x-forwarded-for`.
+5. Validation Username & Password:
+   - Regex: `^[a-z0-9_.-]{3,20}$` (Chỉ chấp nhận chữ thường, số, dấu gạch dưới, gạch ngang, chấm. Từ 3-20 ký tự). Chặn hoàn toàn khoảng trắng, ký tự đặc biệt, unicode và ký tự `@`.
+   - Password tối thiểu 8 ký tự.
+6. Row Level Security (RLS) trên DB:
+   Bảng `public.profiles` áp dụng RLS: Kẻ gian không thể dùng client key sửa đổi điểm số hay thông tin của người dùng khác (`auth.uid() = id`).
+7. An toàn Storage Bucket:
+   Giới hạn dung lượng file avatar `<= 2MB` và kiểm tra nghiêm ngặt danh sách MIME types được phép.
+
+
+7. RESOLVED RISKS (ĐÃ KHẮC PHỤC)
+--------------------------------------------------------------------------------
+(Tổng hợp từ tài liệu đánh giá kiến trúc `ai_review.md` liên quan đến Auth & Profile)
+
+1. [P0] Đ5 - Cache Profile dùng chung 1 key duy nhất trong LocalStorage:
+   - Chi tiết: Key `neurobics.cached_profile` hiện không gắn `userId`. Nếu User A đăng nhập trên máy chung, sau đó đóng trình duyệt (chưa logout). User B mở máy đăng nhập khi mạng chập chờn, code fallback sẽ đọc cache cũ của User A và hiển thị toàn bộ hồ sơ, XP, chỉ số của User A cho User B.
+   - Giải pháp đã áp dụng: Cấu trúc cache lưu `{ userId, profile, at }` và khi đọc BẮT BUỘC kiểm tra `cached.userId === currentUserId`.
+
+2. [P1] Đ6 - Luồng Khôi phục tài khoản (Account Recovery) chưa thu hồi Session cũ & mất mã vĩnh viễn:
+   - Chi tiết: Route recovery chỉ đổi mật khẩu mà không gọi `signOut(userId, "global")` làm cho session/token cũ của kẻ tấn công vẫn tiếp tục sử dụng được. Đồng thời xóa mã recovery mà không cấp mã mới, khiến tài khoản không thể khôi phục lần 2 nếu lại quên mật khẩu.
+   - Giải pháp: Gọi `signOut("global")` sau khi đổi mật khẩu và xoay mã recovery mới (`mintRecoveryCode()`) lưu lại DB.
+
+3. [P1] Đ7 - TOCTOU trong Rate-limit Signup (Đã khắc phục):
+   - Chi tiết: Trước đây kiểm tra rate limit bằng `check_signup_rate_limit` (chỉ hỏi) rồi mới ghi nhận sau. Khi có N request đồng thời, tất cả đều thấy "còn lượt".
+   - Giải pháp: Chuyển sang dùng `consumeRateLimit` tiêu thụ lượt nguyên tử ngay đầu request.
+
+4. [P1] Đ8 - So sánh Hash không hằng-thời-gian (Constant-Time Comparison):
+   - Chi tiết: Phép so sánh chuỗi hash recovery code bằng toán tử `!==` thoát sớm khi gặp byte đầu tiên khác nhau, tạo nguy cơ rò rỉ qua Timing Attack.
+   - Giải pháp: Áp dụng hàm so sánh XOR hằng thời gian (`bitwise XOR`).
+
+5. [P3] Đ30 - account.ts không dọn dẹp bảng account_recovery khi xóa tài khoản:
+   - Chi tiết: Endpoint `/server/delete-account` dọn dẹp Storage và xóa `auth.users`, nhưng nếu DB cũ chưa có khóa ngoại CASCADE thì bản ghi trong `account_recovery` bị mồ côi (trong khi route xóa của admin có bước dọn này).
+   - Giải pháp: Bổ sung lệnh xóa `account_recovery` hoặc thiết lập FK `ON DELETE CASCADE`.
+
+6. [P3] Đ429 - Validation năm sinh chưa có ngưỡng tuổi tối thiểu:
+   - Chi tiết: submitBirthYear chấp nhận year === thisYear (0 tuổi).
+   - Giải pháp đã áp dụng: Client validate year <= currentYear - 13; DB trigger trg_check_min_age chặn cứng ở tầng cuối để không phụ thuộc client.
+
+
+Lưu ý MFA: Hiện chưa có luồng enroll MFA cho admin trên giao diện, admin cần enroll qua Supabase Dashboard trước khi requireAdmin(c) có hiệu lực.
+
+8.1. CẬP NHẬT KIẾN TRÚC PROD. GUEST RECOVERY (ADR-0009)
+-------------------------------------------------------------------------------
+Khách vãng lai (Guest) sau một thời gian chơi có thể dễ dàng chuyển đổi thành 
+tài khoản chính thức mà không bị mất dữ liệu. Client chỉ cần gọi API có sẵn của 
+Supabase: `supabase.auth.updateUser({ email, password })`. Dữ liệu sẽ tự động 
+được bảo toàn vì Guest ngay từ đầu đã là một Auth User thực thụ (ADR-0007).
+
+8.2. DATA EXPORT COMPLIANCE (GDPR/CCPA)
+-------------------------------------------------------------------------------
+Để tuân thủ quyền riêng tư, hệ thống cung cấp API `/server/account/export`. 
+- Khi gọi Endpoint này, Edge Function sẽ đóng gói toàn bộ `profiles`, 
+`round_tickets`, và `training_sessions` thành định dạng JSON và trả về cho 
+người dùng để tải xuống toàn bộ dữ liệu cá nhân của mình.
+- Data Retention Policy (P2): Bổ sung pg_cron dọn dẹp hệ thống. Tài khoản Guest được tạo quá 30 ngày nhưng không có bất kỳ ván chơi nào (chưa từng nộp điểm) sẽ bị tự động thanh lọc khỏi Database.
+
+
+9. BẢO MẬT VÀ QUYỀN RIÊNG TƯ (SPRINT 3 AI AUDIT)
+-------------------------------------------------------------------------------
+- Age Gate Tầng Database: Triển khai DB Trigger `trg_check_min_age` để chặn cứng `birth_year` < 13 tuổi, đảm bảo tính nhất quán trên cả 3 tầng (UI, API, DB) thay vì chỉ tin tưởng Client.
+- Quản lý Public Leaderboard: Loại trừ hoàn toàn `role = guest` khỏi bảng xếp hạng công khai (public_leaderboard) để ngăn chặn việc spam tài khoản ảo làm loãng thứ hạng người dùng thật.
+- Lưu trữ PII: Dữ liệu log `admin_audit` và `cheat_flags` có chứa `user_id` sẽ được lưu tối đa tương ứng 365 ngày và 90 ngày cho mục đích bảo mật trước khi bị xoá vĩnh viễn (đã đồng bộ với văn bản privacy-and-terms.md).
+- Bảo mật Storage: Storage RLS của bucket `avatars` được siết chặt để kiểm tra trực tiếp đuôi file (`storage.extension`) phải là file ảnh (jpg, png, webp, gif), ngăn chặn tấn công tải lên file `.html` độc hại.

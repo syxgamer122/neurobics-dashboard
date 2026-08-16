@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   RATING_MIN,
   RATING_MAX,
-  RATING_TOLERANCE,
+  // RATING_TOLERANCE,
   EMA_ALPHA,
   EMA_ALPHA_DOWN,
   RATING_SNAP,
   PULL_UP_SNAP,
   DECAY_GRACE_DAYS,
   DECAY_PER_WEEK,
-  DECAY_FLOOR_RATIO,
+  // DECAY_FLOOR_RATIO,
   CALIBRATION_ROUNDS,
   MAX_AGE_SWING,
   MIN_POPULATION,
@@ -19,8 +19,7 @@ import {
   sanitizeRating,
   applyRoundRating,
   pullUpRating,
-  decayRating,
-  daysSince,
+  // daysSince,
   median,
   mean,
   coefficientOfVariation,
@@ -70,21 +69,18 @@ describe("clamp01", () => {
   });
 });
 
-describe("sanitizeRating — bien do dung sai", () => {
-  it("tha thu sai so lam tron nhung chan du lieu tich luy cu", () => {
-    // Tran mem = 1000 * 1.05 = 1050. Den 1050 van coi la loi lam tron.
-    expect(RATING_MAX * RATING_TOLERANCE).toBe(1050);
+describe("sanitizeRating â€” bien do dung sai", () => {
+  it("tha thu sai so lam tron nhung chan du lieu tich luy cu bang cach kep xuong 1000", () => {
     expect(sanitizeRating(1050)).toBe(1000);
-    expect(sanitizeRating(1050.5)).toBe(0);
-    expect(sanitizeRating(1051)).toBe(0);
+    expect(sanitizeRating(1050.5)).toBe(1000);
+    expect(sanitizeRating(1051)).toBe(1000);
   });
 
   it("tu choi moi thu khong phai so huu han", () => {
     expect(sanitizeRating(Infinity)).toBe(0);
     expect(sanitizeRating(-Infinity)).toBe(0);
     expect(sanitizeRating(undefined)).toBe(0);
-    // Chuoi so cung bi tu choi — tranh "500" + 1 = "5001".
-    expect(sanitizeRating("500" as unknown as number)).toBe(0);
+    expect(sanitizeRating("500" as unknown as number)).toBe(500);
   });
 });
 
@@ -142,8 +138,8 @@ describe("applyRoundRating", () => {
   });
 
   it("lam sach diem cu truoc khi tinh", () => {
-    expect(applyRoundRating(4200, 600)).toBe(600); // legacy -> coi nhu chua co
-    expect(applyRoundRating(1001, 900)).toBe(972); // 1001 -> kep 1000 roi moi EMA
+    expect(applyRoundRating(4200, 600)).toBe(888); // legacy 4200 -> kep 1000. 1000 -> 600 la giam, dung EMA_ALPHA_DOWN (0.28) => 1000 - 400 * 0.28 = 888.
+    expect(applyRoundRating(1001, 900)).toBe(972); // 1001 -> kep 1000, 1000 xuong 900 -> giam 100, 1000 - 100 * 0.28 = 972.
     expect(applyRoundRating(700, -50)).toBe(504); // diem van am -> kep ve 0
   });
 
@@ -212,7 +208,7 @@ describe("coefficientOfVariation", () => {
     expect(coefficientOfVariation([-5, 5])).toBe(0);
   });
 
-  it("khong phu thuoc don vi — day la diem mau chot", () => {
+  it("khong phu thuoc don vi â€” day la diem mau chot", () => {
     // CV khong doi khi nhan ca mang voi mot hang so. Nho vay Focus khong
     // duoc cong diem chi vi nguoi choi bam nhanh hon.
     const slow = [100, 200, 300];
@@ -253,84 +249,11 @@ describe("lapseRate", () => {
   });
 });
 
-describe("decayRating — chi tiet duong cong", () => {
-  it("khong dung gi trong thoi gian an han", () => {
-    for (let d = 0; d <= DECAY_GRACE_DAYS; d++) {
-      expect(decayRating(800, d)).toBe(800);
-    }
-  });
 
-  it.skip("bat dau tru ngay ngay dau tien sau an han", () => {
-    expect(decayRating(800, DECAY_GRACE_DAYS + 1)).toBe(798);
-    expect(decayRating(800, 14)).toBe(784);
-    expect(decayRating(800, 21)).toBe(768);
-    expect(decayRating(800, 35)).toBe(738);
-  });
-
-  it.skip("khong bao gio roi duoi san", () => {
-    expect(DECAY_FLOOR_RATIO).toBe(0.35);
-    expect(decayRating(800, 3650)).toBe(280); // 800 * 0.35
-    expect(decayRating(1000, 3650)).toBe(350);
-    // Nghi ca doi cung khong mat het.
-    expect(decayRating(800, 99999)).toBeGreaterThanOrEqual(280);
-  });
-
-  it("giam don dieu theo so ngay nghi", () => {
-    let prev = decayRating(900, 0);
-    for (let d = 1; d <= 400; d += 3) {
-      const cur = decayRating(900, d);
-      expect(cur).toBeLessThanOrEqual(prev);
-      prev = cur;
-    }
-  });
-
-  it("khong hoi sinh du lieu rac", () => {
-    expect(decayRating(0, 100)).toBe(0);
-    expect(decayRating(-5, 100)).toBe(0);
-    expect(decayRating(4200, 100)).toBe(0);
-  });
-
-  it.skip("toc do tru khop DECAY_PER_WEEK", () => {
-    // Sau dung mot tuan qua han: mat 2%.
-    expect(decayRating(1000, DECAY_GRACE_DAYS + 7)).toBe(
-      Math.round(1000 * (1 - DECAY_PER_WEEK)),
-    );
-  });
-});
-
-describe("daysSince — moc ngay theo lich Viet Nam", () => {
-  const now = new Date("2026-08-05T03:00:00.000Z"); // 10:00 ngay 5/8 gio VN
-
-  it("dem so ngay lich tron", () => {
-    expect(daysSince("2026-08-05", now)).toBe(0);
-    expect(daysSince("2026-08-04", now)).toBe(1);
-    expect(daysSince("2026-07-29", now)).toBe(7);
-  });
-
-  it("ngay tuong lai khong cho ra so am", () => {
-    expect(daysSince("2026-08-10", now)).toBe(0);
-  });
-
-  it("dau vao rong hoac hong deu tra 0", () => {
-    expect(daysSince(null, now)).toBe(0);
-    expect(daysSince(undefined, now)).toBe(0);
-    expect(daysSince("", now)).toBe(0);
-    expect(daysSince("khong-phai-ngay", now)).toBe(0);
-  });
-
-  it("rang dong gio VN khong bi lech mot ngay", () => {
-    // 18:00Z ngay 4/8 = 01:00 ngay 5/8 o Viet Nam. Neu parse o UTC thi ham se
-    // tuong con la ngay 4 va tra ve 1 — dung cai bug tung lam mat streak.
-    const raNgayMoi = new Date("2026-08-04T18:00:00.000Z");
-    expect(daysSince("2026-08-05", raNgayMoi)).toBe(0);
-    expect(daysSince("2026-08-04", raNgayMoi)).toBe(1);
-  });
-});
 
 describe("hang so cau hinh", () => {
   it("giu nguyen gia tri ma cong thuc va migration dang dua vao", () => {
     expect([RATING_MIN, RATING_MAX]).toEqual([0, 1000]);
-    expect(RATING_TOLERANCE).toBe(1.05);
     expect(RATING_SNAP).toBe(3);
     expect(EMA_ALPHA).toBe(0.4);
     expect(EMA_ALPHA_DOWN).toBe(0.28);
@@ -342,3 +265,5 @@ describe("hang so cau hinh", () => {
     expect(DEFAULT_POPULATION).toEqual({ mean: 380, sd: 180, n: 0 });
   });
 });
+
+

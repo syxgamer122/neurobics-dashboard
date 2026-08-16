@@ -14,7 +14,7 @@ import {
   type GameId,
   type RoundGame,
 } from "./lib/api";
-import { RATING_MAX } from "./lib/scoring";
+import { RATING_MAX } from "./lib/provisional-score";
 import { getLevelProgress, getLevelColor } from "./lib/xp";
 import { totalSessions } from "./lib/sessions";
 import { type DockPage } from "./components/floating-dock";
@@ -210,6 +210,7 @@ export function AppRouter({
           <PlayArena
             selectedGame={selectedGame}
             t={t}
+            isAdmin={isAdmin}
             onSelect={setSelectedGame}
             beginPlay={beginPlay}
             makeGameHandler={makeGameHandler}

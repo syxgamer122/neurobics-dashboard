@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  AXIS_COLUMNS,
+  type AxisKey,
+} from "../lib/api";
+import { levelFromXp } from "../lib/xp";
+import {
+  adminAddPoints,
   adminApplyGrant,
   adminDeleteUser,
   adminResetScores,
-  AXIS_COLUMNS,
-  dataQuality,
-  fetchLeaderboard,
-  type AxisKey,
-  type DataQuality,
-  type Profile,
-} from "../lib/api";
-import { levelFromXp } from "../lib/xp";
+  adminListProfiles,
+  type AdminGrant,
+} from "../lib/api/admin";
+import { type Profile } from "../lib/api/internal";
+import { useAppState } from "../hooks/use-app-state";
 import {
   AccessDenied,
   ActivityLog,
@@ -19,72 +22,62 @@ import {
   AdminShell,
   ApiIntegrationPanel,
   consoleBoot,
-  EMPTY_GRANT,
   parseGrantField,
   ProfilesGrid,
   type GrantAxes,
   type GrantMode,
 } from "./admin";
 
+const EMPTY_GRANT: AdminGrant["axes"] = {};
+
 export function AdminPanel({
   onExit,
-  profile,
   onProfileChange,
   onAccountDeleted,
 }: {
   onExit: () => void;
-  profile: Profile;
-  onProfileChange: (profile: Profile) => void;
+  onProfileChange: (p: Profile) => void;
   onAccountDeleted: () => void;
 }) {
-  const [rows, setRows] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useAppState();
+  const isAdmin = profile?.role === "admin";
+
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [latency, setLatency] = useState(12);
-  const [partial, setPartial] = useState<DataQuality>({
-    partial: false,
-    scanned: 0,
-  });
-  const [log, setLog] = useState<string[]>(consoleBoot);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [rows, setRows] = useState<Profile[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const [grantAxes, setGrantAxes] = useState<GrantAxes>(EMPTY_GRANT);
-  const [grantXp, setGrantXp] = useState("");
+  const [latency, setLatency] = useState(0);
+  const [busy, setBusy] = useState<string | false>(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const [grantAxes, setGrantAxes] = useState<AdminGrant["axes"]>(EMPTY_GRANT);
+  const [grantXp, setGrantXp] = useState<string>("");
+
+  const [log, setLog] = useState<string[]>([]);
   const [grantMode, setGrantMode] = useState<GrantMode>("add");
 
-  const isAdmin = profile.role === "admin";
-
-  const pushLog = useCallback(
-    (line: string) =>
-      setLog((current) => [
-        ...current.slice(-60),
-        `[${new Date().toLocaleTimeString("en-GB")}] ${line}`,
-      ]),
-    [],
-  );
+  const pushLog = useCallback((msg: string) => {
+    setLog((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] ${msg}`,
+    ]);
+  }, []);
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
     setError(null);
     const startedAt = performance.now();
     try {
-      const data = await fetchLeaderboard();
+      const data = await adminListProfiles();
       setLatency(Math.max(1, Math.round(performance.now() - startedAt)));
       setRows(data);
-      setPartial({ ...dataQuality.leaderboard });
-      if (dataQuality.leaderboard.partial) {
-        pushLog(
-          `WARN :: fallback quet toi da ${dataQuality.leaderboard.scanned} dong — thu hang co the thieu nguoi`,
-        );
-      }
       pushLog(
-        `SELECT * FROM profiles — 200 OK (${data.length} rows, ${Math.round(performance.now() - startedAt)}ms)`,
+        `GET /admin-list-profiles - 200 OK (${data.length} rows, ${Math.round(performance.now() - startedAt)}ms)`,
       );
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : String(caught);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      pushLog(`ERR :: SELECT FROM profiles — ${message}`);
+      pushLog(`ERR :: GET /admin-list-profiles - ${message}`);
     } finally {
       setLoading(false);
     }

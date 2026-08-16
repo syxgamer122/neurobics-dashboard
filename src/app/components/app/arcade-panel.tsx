@@ -133,6 +133,7 @@ function ArcadeModal({
 }) {
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
       if (e.data?.type === "EXIT_GAME") {
         onClose();
       }

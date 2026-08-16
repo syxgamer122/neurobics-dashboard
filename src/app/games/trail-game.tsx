@@ -3,7 +3,7 @@ import { CheckCircle, Loader2, RefreshCw, Route } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { TrailTelemetry } from "../lib/scoring";
+import type { TrailTelemetry } from "../lib/provisional-score";
 import { logError } from "../lib/logger";
 
 // ─── Trail Making Test B ───────────────────────────────────────────────────

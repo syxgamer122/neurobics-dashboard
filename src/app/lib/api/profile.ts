@@ -15,14 +15,14 @@ import {
   type Profile,
 } from "./internal";
 import { logError } from "../logger";
-import { SESSION_COLUMNS, type SessionColumn } from "../game-registry";
+
 
 export async function fetchProfile(): Promise<Profile | null> {
   const userId = await currentUserId();
   if (!userId) return null;
 
   const { data, error } = await getSupabase()
-    .from("profiles")
+    .from("profiles_decayed")
     .select(PROFILE_COLS)
     .eq("id", userId)
     .maybeSingle();
@@ -40,57 +40,24 @@ export async function saveBirthYear(birthYear: number): Promise<Profile> {
   const userId = await currentUserId();
   if (!userId) throw new Error("Save birth year failed: not authenticated.");
 
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update({ birth_year: birthYear })
-    .eq("id", userId)
-    .select(PROFILE_COLS)
-    .single();
+  const { error } = await getSupabase()
+    .rpc("set_my_birth_year", { p_birth_year: birthYear });
 
   if (error) {
     const msg = describeError(error, "Save birth year failed");
     logError(msg);
     throw new Error(msg);
   }
-  return hydrateProfile(data as Profile);
-}
 
-// ─── Admin controls (active user) ───────────────────────────────────────────────
-
-/**
- * Wipes all cognitive metrics back to 0 for the active user.
- * Forcefully zeroes ALL 5 axis columns (including cfop_spatial_record) so legacy
- * accounts with pre-migration cumulative values >1000 can be re-baselined — the
- * upward-only pullUpRating can never bring them back down on its own.
- */
-export async function resetActiveUserScores(): Promise<Profile> {
-  const userId = await currentUserId();
-  if (!userId) throw new Error("Reset scores failed: not authenticated.");
-
-  const { data, error } = await getSupabase()
+  // Refetch profile to get the updated state (along with any triggers)
+  const { data: updated, error: refetchError } = await getSupabase()
     .from("profiles")
-    .update({
-      algebraic_logic_score: 0,
-      memory_score: 0,
-      speed_score: 0,
-      focus_score: 0,
-      cfop_spatial_record: 0,
-      ...(Object.fromEntries(
-        SESSION_COLUMNS.map((column) => [column, 0]),
-      ) as Record<SessionColumn, number>),
-      total_xp: 0,
-      last_active_date: null,
-    })
-    .eq("id", userId)
     .select(PROFILE_COLS)
+    .eq("id", userId)
     .single();
-
-  if (error) {
-    const msg = describeError(error, "Reset scores failed");
-    logError(msg);
-    throw new Error(msg);
-  }
-  return sanitizeProfile(data as Profile);
+    
+  if (refetchError) throw refetchError;
+  return sanitizeProfile(updated as Profile);
 }
 
 /**
@@ -111,7 +78,7 @@ export async function deleteActiveUserAccount(): Promise<void> {
       .filter((k) => k.startsWith("sb-"))
       .forEach((k) => globalThis.localStorage.removeItem(k));
   } catch {
-    /* localStorage may be unavailable — signOut already handled the session */
+    /* localStorage may be unavailable â€” signOut already handled the session */
   }
 }
 
@@ -212,16 +179,19 @@ export async function uploadAvatar(file: File): Promise<Profile> {
   // Bust CDN/browser cache after overwrite.
   const avatarUrl = `${pub.publicUrl}?t=${Date.now()}`;
 
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update({ avatar_url: avatarUrl })
-    .eq("id", userId)
-    .select(PROFILE_COLS)
-    .single();
+  const { error } = await getSupabase()
+    .rpc("set_my_avatar", { p_avatar_url: avatarUrl });
   if (error) {
     throw new Error(describeError(error, "Save avatar URL failed"));
   }
-  return hydrateProfile(data as Profile);
+
+  const { data: updated, error: refetchError } = await getSupabase()
+    .from("profiles")
+    .select(PROFILE_COLS)
+    .eq("id", userId)
+    .single();
+  if (refetchError) throw refetchError;
+  return hydrateProfile(updated as Profile);
 }
 
 /** Remove avatar file(s) for the current user and clear avatar_url. */
@@ -237,14 +207,18 @@ export async function removeAvatar(): Promise<Profile> {
     await getSupabase().storage.from("avatars").remove(paths);
   }
 
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .update({ avatar_url: null })
-    .eq("id", userId)
-    .select(PROFILE_COLS)
-    .single();
+  const { error } = await getSupabase()
+    .rpc("set_my_avatar", { p_avatar_url: null });
   if (error) {
     throw new Error(describeError(error, "Clear avatar URL failed"));
   }
-  return hydrateProfile(data as Profile);
+  
+  const { data: updated, error: refetchError } = await getSupabase()
+    .from("profiles")
+    .select(PROFILE_COLS)
+    .eq("id", userId)
+    .single();
+  if (refetchError) throw refetchError;
+  return hydrateProfile(updated as Profile);
 }
+

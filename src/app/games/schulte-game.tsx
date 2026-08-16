@@ -7,7 +7,7 @@ import {
 import { logError } from "../lib/logger";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import type { InputType } from "../lib/use-press";
-import type { SchulteTelemetry } from "../lib/scoring";
+import type { SchulteTelemetry } from "../lib/provisional-score";
 import {
   buildSchulteGrid,
   buildSchulteSeq,

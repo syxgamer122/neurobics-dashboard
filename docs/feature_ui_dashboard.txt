@@ -1,0 +1,239 @@
+================================================================================
+TỔNG HỢP TÍNH NĂNG: GIAO DIỆN & DASHBOARD (UI ARCHITECTURE)
+Dự án: MindGem
+================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Tính năng Giao diện & Dashboard (UI Architecture) chịu trách nhiệm toàn bộ về mặt hiển thị, điều hướng, quản lý trạng thái giao diện người dùng (UI state), đa ngôn ngữ (i18n), chuyển đổi giao diện sáng/tối (Theme management), quy trình hướng dẫn & hiệu chuẩn người dùng mới (Onboarding & Calibration), cùng hệ thống điều hướng qua thanh Dock nổi (Floating Dock) và thanh tiêu đề (AppHeader).
+
+Hệ thống giao diện được thiết kế theo phong cách Cyberpunk / Glassmorphic hiện đại với tone màu neon (Cyan #00D4FF, Purple #A855F7, Green #10B981, Red #F43F5E), hỗ trợ hiển thị đáp ứng (Responsive Layout) tối ưu trên cả thiết bị di động (Mobile), máy tính bảng (Tablet) và máy tính để bàn (Desktop).
+
+Các phân vùng chức năng chính bao gồm:
+- Bảng điều khiển nhận thức (Dashboard): Hiển thị Chỉ số Nhận thức tổng hợp (Cognitive Index Card), Ma trận 5 trục nhận thức (Cognitive Matrix Card qua biểu đồ Radar), Cấp độ & Điểm kinh nghiệm XP (Level Card), Nhiệm vụ hằng ngày (Quests Panel) và Danh hiệu (Achievements Panel).
+- Đấu trường (Play Arena): Nơi chứa 12 trò chơi luyện tập nhận thức (Cognitive Games) và Khu vực giải trí Arcade (Arcade Zone) hỗ trợ 3 trò chơi cổ điển chơi offline.
+- Lịch sử luyện tập (History Panel): Hiển thị lịch sử các ván chơi đã thực hiện.
+- Hồ sơ cá nhân & Cài đặt (Profile Page & Settings Panel): Hiển thị thông tin cá nhân, cấp độ phân quyền (GUEST / STD / Ω-1), quản lý avatar (tải lên/xoá), năm sinh, cài đặt ngôn ngữ (VI/EN), cài đặt PWA, đổi mật khẩu và xoá tài khoản vĩnh viễn.
+- Bảng quản trị (Admin Panel / God Mode): Dành riêng cho tài khoản có quyền Admin (Role: "admin" / Clearance: "Ω-1").
+- Hệ thống Onboarding & Calibration: Hướng dẫn người dùng mới qua 3 bước và theo dõi 5 ván chơi đầu tiên để thiết lập đường cơ sở (baseline) cho hồ sơ nhận thức.
+- Lưới an toàn lỗi (Error Boundary): Bắt exception React 18 ở cấp màn hình (Screen) hoặc cấp khối (Inline) để tránh hiện tượng trắng màn hình và tự động gửi log lỗi về hệ thống giám sát.
+
+
+2. KIẾN TRÚC (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Ứng dụng được xây dựng trên nền tảng React 18, TypeScript, Tailwind CSS, Lucide Icons và Vite. Kiến trúc UI tuân theo các nguyên lý mở rộng và tối ưu hiệu năng:
+
+2.1. Cấu trúc Provider & Hook Hierarchy:
+- App (Entry point)
+  └─ LangProvider (Cung cấp context đa ngôn ngữ useLang, LangContext)
+      ├─ Toaster (Sonner notification system, theme "dark", position "top-center")
+      └─ AppInner (Quản lý state tổng qua custom hooks)
+          ├─ useAppState: Quản lý Auth check, Profile state, Active Page, Selected Game, Round Result, Calibration/Onboarding state, Guest mode.
+          ├─ useOfflineSync: Kích hoạt listener ngầm tự động đồng bộ ván chơi offline khi có mạng.
+          ├─ useRoundSubmission: Quản lý khởi tạo ticket ván chơi, xử lý callback hoàn thành ván, cập nhật profile và hiển thị RoundResultOverlay.
+          ├─ AmbientBackground: Nền chuyển động hiệu ứng ánh sáng neon.
+          ├─ AppHeader: Thanh điều hướng phía trên.
+          ├─ AppRouter: Bộ chuyển đổi View chính theo activePage ("dashboard", "play", "history", "profile").
+          ├─ RoundResultOverlay: Overlay hiển thị điểm số và biến động rating sau mỗi ván.
+          ├─ OnboardingOverlay: Dialog hướng dẫn người dùng mới.
+          ├─ FloatingDock: Thanh điều hướng 5 tab nổi cố định ở đáy màn hình.
+          └─ AccessDeniedOverlay: Dialog cảnh báo truy cập trái phép khi người dùng không phải Admin nhấn vào tab "god".
+
+2.2. Phân tách Code (Code Splitting & Lazy Loading):
+Để tránh tình trạng phình to bundle ban đầu (First Load Bundle), các thành phần nặng được phân tách thành các async chunk chỉ tải khi cần thiết (Dynamic Import via React.lazy):
+- AdminPanel (~1000 dòng code, chỉ Admin mới tải).
+- CognitiveMatrixCard (Chứa thư viện Recharts ~100KB).
+- 12 Cognitive Games: CorsiBlockGame, GoNoGoGame, MathSprintGame, MemoryMatrixGame, MentalRotationGame, NBackGame, ReactionTimeGame, SchulteTableGame, StroopGame, SudokuGame, TrailMakingGame, VisualSearchGame.
+- 3 Arcade Games: FlappyGame, DinoGame, SnakeGame.
+
+2.3. Lưới an toàn Lỗi (Boundary Hierarchy):
+- Cấp 1 (Root ErrorBoundary): Bọc ngoài AdminPanel và AppRoot với variant="screen" để bắt lỗi toàn trang.
+- Cấp 2 (Inline ErrorBoundary): Bọc quanh CognitiveMatrixCard và từng ActiveGame trong PlayArena với variant="inline". Việc này đảm bảo nếu 1 ván game hỏng hoặc 1 biểu đồ bị vỡ thì phần còn lại của ứng dụng vẫn hoạt động bình thường. `key={selectedGame}` được dùng để tự động reset trạng thái lỗi khi người dùng chuyển sang game khác.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+- src/app/App.tsx
+  Component gốc thiết lập LangProvider, Toaster, kiểm tra Auth, lazy load AdminPanel, render AppHeader, AppRouter, FloatingDock, RoundResultOverlay, OnboardingOverlay, AccessDeniedOverlay.
+
+- src/app/AppRouter.tsx
+  Bộ điều hướng chính render các trang (Dashboard, Play Arena, History, Profile) theo `activePage`, tính toán dữ liệu 5 trục cho radar chart, kiểm tra quyền Admin và hiển thị banner calibration.
+
+- src/app/components/floating-dock.tsx
+  Thanh điều hướng nổi cố định ở đáy màn hình với 5 tab (Dashboard, Play, History, Profile, God/Admin), hiệu ứng hover/active với neon glow và safe-area inset cho mobile/desktop.
+
+- src/app/components/app/app-header.tsx
+  Thanh tiêu đề top navigation hiển thị logo MindGem, phiên bản app, giải đấu (League), avatar & username người dùng, nút chuyển đổi ngôn ngữ VI/EN, ThemeToggle và nút Đăng xuất.
+
+- src/app/components/app/play-arena.tsx
+  Đấu trường trò chơi hỗ trợ 2 tab (Game Nhận Thức 12 trò & Arcade 3 trò offline), quản lý lazy-load từng game chunk kèm ErrorBoundary inline fallback và nút quay lại đấu trường.
+
+- src/app/components/app/profile-page.tsx
+  Màn hình hồ sơ cá nhân hiển thị chỉ số nhận thức (Cognitive Index), cấp độ phân quyền (GUEST / STD / Ω-1), tích hợp FriendsPanel, SettingsPanel, nút xem lại Onboarding và Đăng xuất.
+
+- src/app/components/app/arcade-panel.tsx
+  Khu vực giải trí Arcade Zone offline với 3 game cổ điển (T-Rex Runner, Flappy Bird, Snake) dạng modal full-screen truyền sự kiện qua `postMessage` (EXIT_GAME).
+
+- src/app/components/dashboard/cognitive-index-card.tsx
+  Card hiển thị Chỉ số nhận thức tổng hợp (Cognitive Index) tính bằng trung bình 5 trục trên thang điểm tối đa RATING_MAX (1000), kèm progress bar phân cấp từ Apprentice đến Mastermind.
+
+- src/app/components/dashboard/level-card.tsx
+  Card hiển thị cấp độ người dùng (LV), danh hiệu tương ứng, điểm XP tiến trình trong cấp hiện tại (xpIntoLevel / xpNeeded) và tổng điểm XP tích luỹ (total_xp).
+
+- src/app/components/onboarding.tsx
+  Overlay hướng dẫn người dùng mới (3 bước: Giới thiệu, Hiệu chuẩn 5 ván, Nhịp luyện tập) và Banner hiệu chuẩn hiển thị tiến độ 5/5 ván cơ sở.
+
+- src/app/components/settings-panel.tsx
+  Bảng cài đặt tài khoản (đổi avatar 2MB, lưu năm sinh 1900-hiện tại, đổi ngôn ngữ VI/EN, cài đặt PWA app, đổi mật khẩu 8+ ký tự, xoá tài khoản vĩnh viễn với xác nhận gõ username).
+
+- src/app/components/error-boundary.tsx
+  Lưới an toàn Class Component bắt exception React 18, gửi log crash lên observability (captureError), flush telemetry và hiển thị giao diện khôi phục ("screen" hoặc "inline").
+
+- src/app/lib/i18n.ts
+  Hệ thống đa ngôn ngữ định nghĩa LangContext, useLang, kiểu Lang ("vi" | "en") và Translation, tách khỏi provider để phục vụ Vite Fast Refresh.
+
+- src/app/lib/i18n/vi.ts
+  Từ điển dịch thuật tiếng Việt bao gồm toàn bộ văn bản UI, mô tả game, thông báo lỗi, onboarding, settings, chuỗi trong ván chơi.
+
+- src/app/lib/i18n/en.ts
+  Từ điển dịch thuật tiếng Anh duy trì đồng bộ key với vi.ts.
+
+- src/app/components/theme-provider.tsx
+  Context provider quản lý theme giao diện ("dark" | "light" | "system"), lưu localStorage key "[brand]-ui-theme" và thao tác với document.documentElement.classList.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+4.1. Hệ thống Đa ngôn ngữ (i18n Engine):
+- `LangContext` trong `i18n.ts` cung cấp context cho ngôn ngữ hiện tại (`lang`), hàm đảo ngôn ngữ (`toggle`), và dictionary (`t`).
+- Để đảm bảo Vite Fast Refresh (HMR) hoạt động mượt mà không bị full page reload mỗi khi chỉnh sửa chuỗi bản dịch, các hằng số và context được tách riêng trong `i18n.ts`, còn React Provider nằm ở `lang-provider.tsx`.
+- `vi.ts` và `en.ts` duy trì sự đồng bộ key (Key parity) tuyệt đối qua type assertion `export const en: typeof vi`. Hỗ trợ các hàm định dạng chuỗi động (Template functions) như:
+  + `yrs_younger: (n: number) => string`
+  + `brain_age_calibrating: (played: number, needed: number) => string`
+  + `calibration_remaining: (remaining: number) => string`
+
+4.2. Hệ thống Chủ đề & Style (Theme & Glassmorphism):
+- `ThemeProvider` lưu theme lựa chọn vào `localStorage` với key `"[brand]-ui-theme"`. Khi theme là `"system"`, app dùng `window.matchMedia("(prefers-color-scheme: dark)")` để tự động chọn chế độ.
+- Thao tác trực tiếp với DOM qua `root.classList.remove("light", "dark")` và `root.classList.add(...)`.
+- Thiết kế UI kết hợp CSS Variables và Tailwind classes: `--neuro-panel-rgb`, `--neuro-cyan-rgb`, `--neuro-purple-rgb`, `--neuro-green-rgb`, `--neuro-red-rgb`, `--glass-blur`.
+- Hiệu ứng kính mờ `backdrop-filter: blur(...)` kết hợp viền mỏng neon `border: 1px solid rgba(var(--neuro-cyan-rgb), 0.14)` giúp các card và thanh Dock giữ nguyên độ tương phản trên mọi nền ambient.
+
+4.3. Thanh điều hướng nổi (Floating Dock):
+- Cố định ở đáy màn hình `fixed bottom-0 left-1/2 -translate-x-1/2 z-40`.
+- Sử dụng `env(safe-area-inset-bottom)` để tránh bị che bởi thanh điều hướng hệ điều hành iOS/Android.
+- 5 tab điều hướng:
+  + `dashboard` (LayoutDashboard, accent: #00D4FF - Cyan)
+  + `play` (Gamepad2, accent: #A855F7 - Purple)
+  + `history` (History, accent: #10B981 - Green)
+  + `profile` (UserCog, accent: #F59E0B - Amber)
+  + `god` (Terminal, accent: #00FF9C - Neon Green)
+- Tooltip hiển thị phía trên icon khi hover (chỉ áp dụng trên Desktop `hidden sm:block`).
+- Tự động ẩn Dock khi `RoundResultOverlay` hoặc `OnboardingOverlay` mở để tránh đè nút bấm hành động (CTA).
+
+4.4. Quy trình Onboarding & Hiệu chuẩn (Calibration Baseline):
+- Hằng số `CALIBRATION_TARGET = 5`.
+- `OnboardingOverlay`: Modal 3 bước (Giới thiệu -> Hiệu chuẩn 5 ván -> Nhịp luyện tập). Hỗ trợ bấm phím `Escape` để đóng dialog.
+- `CalibrationBanner`: Hiện ở đầu Dashboard cho đến khi người dùng hoàn thành đủ 5 ván. Hiển thị 5 vạch tiến độ `ProgressSegments`. Khi đạt 5/5 ván, banner đổi sang tone màu xanh lá (#34D399) thông báo hiệu chuẩn hoàn tất.
+
+4.5. Đấu trường & Tải game động (Play Arena & Dynamic Lazy Loading):
+- `PlayArena` chia làm 2 tab: "Game Nhận Thức" (12 game) và "Arcade" (3 game offline).
+- Map `GAME_COMPONENTS` ánh xạ từng `RoundGame` sang canonical wrapper component truyền `onComplete` và `onPlayStart`.
+- `GameChunkFallback` hiển thị spinner `Loader2` trong lúc chunk JS của trò chơi đang tải qua mạng.
+- Khi một game được chọn (`selectedGame`), giao diện chuyển sang chế độ sân chơi (`gameStageClass(selectedGame)`).
+- Boundary được đặt bên ngoài `Suspense` để bắt được cả lỗi runtime crash trong game lẫn lỗi mạng khi tải chunk JS (network failure / stale chunk after deploy).
+
+4.6. Khu vực Arcade (Arcade Zone):
+- Chứa 3 game cổ điển: Dino Runner (🦕), Flappy Bird (🐦), Snake (🐍).
+- Chạy trong `ArcadeModal` full-screen (`bg-black/95`, `z-[70]`).
+- Các game Arcade truyền tín hiệu đóng màn hình thông qua window message event:
+  `window.addEventListener("message", (e) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.origin !== window.location.origin) return; if (e.data?.type === "EXIT_GAME") onClose(); })`.
+
+4.7. Quản lý Hồ sơ & Bảng Cài đặt (Profile Page & Settings Panel):
+- Tích hợp 4 nhóm thiết lập chính trong `SettingsPanel`:
+  1. Thẻ định danh (Identity Card): Upload/Remove Avatar (File API, validate < 2MB, JPEG/PNG/WebP/GIF), hiển thị Level/XP bar, role badge (OPERATOR / OMEGA-1).
+  2. Thông tin cá nhân & Ngôn ngữ: Nhập năm sinh (validate năm hiện tại - 13), nút đổi nhanh ngôn ngữ VI/EN.
+  3. Cài đặt Ứng dụng PWA: Tích hợp hook `usePwaInstall()`, tự động phát hiện thiết bị iOS hoặc trình duyệt hỗ trợ `beforeinstallprompt` để hiển thị nút "CÀI ĐẶT MINDGEM".
+  4. Đổi Mật khẩu & Vùng Nguy Hiểm (Danger Zone): Đổi mật khẩu (validate `newPw === confirmPw` & tối thiểu 8 ký tự), Xoá tài khoản vĩnh viễn (yêu cầu gõ chính xác username để xác nhận).
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+--------------------------------------------------------------------------------
+5.1. Luồng chuyển trang & Chuyển chế độ game:
+[Người dùng click Tab trên Dock / Header]
+       │
+       ▼
+[FloatingDock / AppHeader gọi onSelect(page)]
+       │
+       ▼
+[useAppState cập nhật activePage / selectedGame]
+       │
+       ▼
+[AppRouter re-render view tương ứng (dashboard | play | history | profile)]
+       │
+       ├─► Nếu activePage === "dashboard": Build cognitiveData từ profile score, tính levelProgress, render CognitiveIndexCard, LevelCard, QuestsPanel, AchievementsPanel.
+       └─► Nếu activePage === "play" & chọn game: PlayArena kích hoạt lazy chunk của ActiveGame -> Hiển thị GameChunkFallback trong lúc tải -> Render Game UI.
+
+5.2. Luồng chơi ván & Gửi kết quả:
+[Người dùng chọn Game trong PlayArena]
+       │
+       ▼
+[PlayArena gọi beginPlay(selectedGame)]
+       │
+       ▼
+[useRoundSubmission tạo Ticket ván chơi (online hoặc offline ticket)]
+       │
+       ▼
+[Người dùng hoàn thành ván game]
+       │
+       ▼
+[Game gọi onComplete(telemetry)]
+       │
+       ▼
+[makeGameHandler nhận telemetry -> gọi submitTelemetry / estimateRoundResult]
+       │
+       ├─► Nếu ONLINE: POST telemetry lên server Edge Function -> Trả về kết quả scored & updated profile -> Cập nhật Profile state -> Cập nhật Gamification Key.
+       └─► Nếu OFFLINE / Lỗi mạng: Push ván chơi vào offline queue (pushOfflineRound) -> Tính điểm local (estimateRoundResult) -> Cập nhật tạm Profile state.
+       │
+       ▼
+[Hiển thị RoundResultOverlay cho người dùng xem điểm ván, XP thưởng & biến động rating các trục]
+       │
+       ▼
+[Người dùng bấm CONTINUE -> Đóng overlay -> Trigger refreshProfile() để đồng bộ lại dữ liệu chuẩn từ server]
+
+5.3. Luồng cập nhật Cài đặt Tài khoản:
+[Người dùng thay đổi thông tin trong SettingsPanel (Avatar / Năm sinh / Password)]
+       │
+       ▼
+[Gọi API tương ứng (uploadAvatar / saveBirthYear / changePassword)]
+       │
+       ▼
+[API xử lý thành công -> Trả về Profile mới]
+       │
+       ▼
+[Gọi onProfileChange(nextProfile) -> cập nhật profileRef & state trong useAppState -> UI re-render toàn bộ các card phụ thuộc (Header, LevelCard, Identity Card)]
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+6.1. Phân quyền Người dùng (Role & Permission Scoping):
+- Chế độ Khách (Guest Mode): Kiểm tra qua `isGuestProfile(profile)`. Điểm số và tiến trình ván chơi được đồng bộ lên máy chủ y hệt người dùng thông thường (ADR-0007). Các tính năng cộng đồng như History và Quests bị vô hiệu hoá, Settings chỉ hiển thị các tuỳ chọn cơ bản cho đến khi nâng cấp tài khoản.
+- Quyền Admin (Clearance Ω-1):
+  + Chỉ hiển thị nút "God Mode" / Admin Panel trên FloatingDock nếu `profile.role === "admin"`.
+  + Nếu người dùng không có quyền Admin cố tình truy cập tab "god", hệ thống chặn ngay lập tức và hiển thị `AccessDeniedOverlay` với mã cảnh báo "AUTHORIZATION LEVEL: INSUFFICIENT".
+
+6.2. Validation dữ liệu phía Client (Client-side Validation):
+- Avatar Upload: Kiểm tra file type (`image/jpeg`, `image/png`, `image/webp`, `image/gif`), giới hạn dung lượng file tối đa 2 MB trước khi gửi.
+- Năm sinh (Birth Year): Bắt buộc là số nguyên `Number.isFinite(year)`, thuộc khoảng `year <= new Date().getFullYear() - 13`.
+- Đổi mật khẩu: Kiểm tra độ dài tối thiểu 8 ký tự, bắt buộc nhập đúng mật khẩu hiện tại, kiểm tra `newPw === confirmPw`.
+- Xoá tài khoản: Yêu cầu người dùng gõ chính xác từng ký tự tên đăng nhập (`deleteConfirm.trim().toLowerCase() === profile.username.toLowerCase()`) để tránh việc vô tình xoá tài khoản.
+
+6.3. Bảo vệ Lỗi & Quyền riêng tư (Error Isolation & Telemetry):
+- `ErrorBoundary` tự động cắt ngắn component stack trace (tối đa 400 ký tự) và loại bỏ thông tin nhạy cảm trước khi gửi sự kiện `ui.crash` lên server observability.
+- Đảm bảo exception ở các phần tử giao diện con không làm lộ token hoặc dữ liệu cá nhân ra màn hình người dùng.
+
+
+
+
+* CHÚ THÍCH: Mặc dù hệ thống đã rebrand thành MindGem, các key lưu trữ (localStorage, sessionStorage) như `[brand]-ui-theme`, `[brand].cached_profile`, `[brand].offline_queue`, `[brand].obs.session` được giữ nguyên tên cũ để không làm mất session và dữ liệu của người dùng hiện tại.*

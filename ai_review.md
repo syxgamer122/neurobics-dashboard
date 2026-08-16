@@ -121,7 +121,7 @@ throw new Error("Round duration is invalid or expired");
 Lời gọi này nằm trong vòng for nhưng chỉ có một try/catch bọc toàn bộ handler. Một ván có clientElapsedMs = 0 → cả batch trả 500 → syncOfflineQueue catch rồi throw → không xoá phần tử nào → lần sau lặp lại y hệt. Hàng đợi kẹt vĩnh viễn, retry vô hạn mỗi lần online.
 for (const round of rounds) {
   try {
-    /* ...toàn bộ xử lý một ván... */
+    
     results.push({ clientRoundId, status: "ok" });
   } catch (err) {
     logServerEvent({
@@ -444,3 +444,8 @@ Integration test cho syncOfflineQueue: đẩy một ván trong lúc đang sync, 
 <ADDITIONAL_METADATA>
 The current local time is: 2026-08-13T17:27:15+07:00.
 </ADDITIONAL_METADATA>
+### CẬP NHẬT GẦN NHẤT (PHASE 24-27)
+- **Phase 26 (Security Definer Hardening):** Đã sửa `search_players` và `send_friend_request` với `SET search_path = ''`, thêm rate limiting (15/5m) và `search_visible` toggle.
+- **Phase 27 (Session Versioning):** `profiles` nay lưu `rating_model_version` từ `submit_round_transaction`. `get_population_stats` tách tập người chơi theo version.
+- **Export Data (CCPA/GDPR):** `/server/account/export` nay trả về thêm `user_achievements`, `user_quests`, `xp_events`, `friendships`.
+- **Brand Fixes:** Xử lý toàn bộ lỗi find-replace. Domain hiện đang là `mindgem.local`. Các file MD được trả lại brand `MindGem`.

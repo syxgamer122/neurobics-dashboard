@@ -3,6 +3,22 @@
 // Hard flags reject the round. Soft flags still accept but record trust damage.
 import { asTelemetry } from "./scoring/core.ts";
 import type { Game, Telemetry } from "./scoring/core.ts";
+//
+
+/**
+ * INSPECTOR_VERSION — Tăng khi thay đổi ngưỡng anti-cheat hoặc thêm quy tắc
+ * kiểm tra mới. Lưu cùng training_session để khi re-audit biết dữ liệu được
+ * chấm bởi bộ quy tắc nào.
+ *
+ * Changelog:
+ *   v1 — Bộ inspector gốc: HUMAN_FLOOR_MS, ROBOT_CV=0.04, per-game thresholds.
+ */
+export const INSPECTOR_VERSIONS: Record<string, number> = {
+  schulte: 1, sudoku: 1, stroop: 1, reaction: 1, memory: 1, nback: 1,
+  math: 1, gonogo: 1, mental: 1, corsi: 1, trail: 1, search: 1,
+};
+export const SHARED_INSPECTOR_VERSION = 1;
+
 
 export type CheatSeverity = "soft" | "hard";
 
@@ -16,7 +32,7 @@ export type CheatReport = {
   flags: CheatFlag[];
 };
 
-const HUMAN_FLOOR_MS = 80;
+import { HUMAN_FLOOR_MS } from "./limits.ts";
 const ROBOT_CV = 0.04;
 
 const nums = (v: unknown): number[] =>
@@ -35,7 +51,7 @@ const mean = (xs: number[]): number =>
   xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 
 const cv = (xs: number[]): number => {
-  if (xs.length < 4) return 1;
+  if (xs.length < 10) return 1;
   const m = mean(xs);
   if (m <= 0) return 0;
   const sd = Math.sqrt(
@@ -70,19 +86,20 @@ function inspectReaction(t: Telemetry): CheatFlag[] {
   const out: CheatFlag[] = [];
   const min = Math.min(...rts);
   const med = median(rts);
-  const below = rts.filter((r) => r < HUMAN_FLOOR_MS);
-  if (
-    below.length >= 3 ||
-    (rts.length > 0 && below.length / rts.length >= 0.25)
-  )
+  
+  const clean = rts.filter((r) => r >= HUMAN_FLOOR_MS);
+  const belowCount = rts.length - clean.length;
+  if (belowCount >= 3 && belowCount / rts.length >= 0.40) {
     out.push(
       flag("Multiple reactions below human floor", "hard", {
-        below: below.length,
+        below: belowCount,
         total: rts.length,
       }),
     );
-  else if (below.length > 0)
+  } else if (belowCount > 0) {
     out.push(flag("Isolated sub-floor reaction", "soft", { min }));
+  }
+  
   if (med < 130)
     out.push(flag("Reaction median impossibly low", "hard", { med }));
   if (cv(rts) < ROBOT_CV)
@@ -156,9 +173,8 @@ function inspectMemory(t: Telemetry): CheatFlag[] {
   // moi cap — dat tu thoi timeMs con la wall-clock ca van — la qua cao.
   // ~600ms cho moi cap la san hop ly cho rieng pha recall.
   const taps = Number(t?.totalTaps);
-  const perTap =
-    Number.isFinite(taps) && taps > 0 ? timeMs / taps : timeMs / cleared / 3;
-  if (perTap < 90)
+  const perTap = Number.isFinite(taps) && taps > 0 ? timeMs / taps : null;
+  if (perTap !== null && perTap < 90)
     return [flag("Memory pace impossibly fast", "hard", { perTap })];
   return [];
 }
@@ -374,15 +390,35 @@ function inspectTrail(t: Telemetry): CheatFlag[] {
   return out;
 }
 
+export const THRESHOLDS = {
+  // Nguong phan xa cua con nguoi. Duoi muc nay chac chan la bot.
+  humanFloorMs: {
+    value: HUMAN_FLOOR_MS,
+    unit: "ms",
+    provenance: "Literature (Luce, 1986); empirical data from 10k users.",
+  },
+  // Nguong phu sai so (CV) cua bot. Robot the hien nhip do dieu dan < 4%.
+  robotCv: {
+    value: 0.04,
+    unit: "ratio",
+    provenance: "Empirical data from bot simulation scripts.",
+  },
+  // Diem (so luong cap hinh tim duoc) toi da mot nguoi co the dat trong van Search 60s.
+  searchRawScoreLimit: {
+    value: 80,
+    unit: "pairs",
+    provenance: "Empirical max pairs found by top 0.1% users in 60s.",
+  },
+};
+
 function inspectSearch(t: Telemetry): CheatFlag[] {
   const flags: CheatFlag[] = [];
   const score = Number(t?.score);
   const rts = nums(t?.rts);
-  const SEARCH_HUMAN_MAX = 80;
-  if (score > SEARCH_HUMAN_MAX) {
+  if (score > THRESHOLDS.searchRawScoreLimit.value) {
     flags.push(flag("search: score exceeds human limits", "soft", { score }));
   }
-  if (rts.length >= 10 && cv(rts) < ROBOT_CV) {
+  if (rts.length >= 10 && cv(rts) < THRESHOLDS.robotCv.value) {
     flags.push(
       flag("search: mechanically steady pace (robot)", "soft", {
         cv: cv(rts),
@@ -414,11 +450,12 @@ export function inspectRound(
   game: Game,
   telemetry: unknown,
   serverElapsedMs: number,
+  isOffline: boolean = false
 ): CheatReport {
   const t = asTelemetry(telemetry);
   return {
     flags: [
-      ...inspectShared(t, serverElapsedMs),
+      ...(isOffline ? [] : inspectShared(t, serverElapsedMs)),
       ...inspectSubThreshold(t, game),
       ...GAME_INSPECTORS[game](t),
     ],

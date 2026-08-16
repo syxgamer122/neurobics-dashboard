@@ -3,7 +3,7 @@ import { Check, Play, RotateCcw, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { MentalRotationTelemetry } from "../lib/scoring";
+import type { MentalRotationTelemetry } from "../lib/provisional-score";
 import { logError } from "../lib/logger";
 
 // ─── Mental Rotation (2D) ───────────────────────────────────────────────────

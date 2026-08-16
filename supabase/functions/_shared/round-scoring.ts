@@ -20,7 +20,7 @@ import {
 } from "./scoring/advanced-games.ts";
 import { assertCountBounds, assertRtBounds } from "./scoring/validation.ts";
 
-export { GAME_IDS, isGame } from "./scoring/core.ts";
+export { GAME_IDS, isGame, getGameStatus, SCORER_VERSIONS, TELEMETRY_SCHEMA_VERSION } from "./scoring/core.ts";
 export type {
   Game,
   AxisRatings,

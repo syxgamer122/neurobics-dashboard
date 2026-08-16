@@ -8,7 +8,7 @@ import {
   Minus,
 } from "lucide-react";
 import { useLang } from "../../lib/i18n";
-import { RATING_MAX } from "../../lib/scoring";
+import { RATING_MAX } from "../../lib/provisional-score";
 import type { RoundGame } from "../../lib/api";
 import { GAME_BY_ID } from "../../lib/game-registry";
 import { ConfettiCanvas } from "./confetti-canvas";

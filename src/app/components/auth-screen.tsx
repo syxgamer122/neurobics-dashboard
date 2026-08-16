@@ -11,6 +11,7 @@ import {
 import {
   handleSignUp,
   handleLogin,
+  handleGuestSignUp,
   fetchProfile,
   USERNAME_RE,
   type Profile,
@@ -18,14 +19,13 @@ import {
 import { useLang } from "../lib/i18n";
 import { TurnstileWidget } from "./turnstile-widget";
 import { logError } from "../lib/logger";
-import { createGuestProfile } from "../lib/guest";
 
 export function AuthScreen({
   onAuthed,
 }: {
   onAuthed: (profile: Profile | null) => void;
 }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "guest">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function AuthScreen({
     setError(null);
     setUsernameError(false);
 
-    if (!username.trim() || !password) {
+    if (mode !== "guest" && (!username.trim() || !password)) {
       setError("Enter a username and password.");
       return;
     }
@@ -68,7 +68,7 @@ export function AuthScreen({
       return;
     }
 
-    if (mode === "signup" && !captchaToken) {
+    if ((mode === "signup" || mode === "guest") && !captchaToken) {
       setError("Please complete the human verification.");
       return;
     }
@@ -83,6 +83,9 @@ export function AuthScreen({
         );
         setSuccess(true);
         setTimeout(() => onAuthed(profile), 1200);
+      } else if (mode === "guest") {
+        const { profile } = await handleGuestSignUp(captchaToken);
+        onAuthed(profile);
       } else {
         // 1. Authenticate (username -> username@mindgem.local under the hood).
         await handleLogin(username.trim(), password);
@@ -106,7 +109,7 @@ export function AuthScreen({
         setUsernameError(true);
       }
       setError(msg);
-      if (mode === "signup") {
+      if (mode === "signup" || mode === "guest") {
         setCaptchaToken("");
         setCaptchaResetKey((key) => key + 1);
       }
@@ -115,14 +118,7 @@ export function AuthScreen({
     }
   };
 
-  const switchMode = () => {
-    setMode((m) => (m === "login" ? "signup" : "login"));
-    setError(null);
-    setUsernameError(false);
-    setSuccess(false);
-    setCaptchaToken("");
-    setCaptchaResetKey((key) => key + 1);
-  };
+
 
   return (
     <div
@@ -224,97 +220,101 @@ export function AuthScreen({
         )}
 
         <form onSubmit={submit} className="space-y-3.5">
-          {/* Username field */}
-          <div
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-300"
-            style={{
-              background: usernameError
-                ? "rgba(var(--neuro-red-rgb),0.08)"
-                : "rgba(0,0,0,0.3)",
-              border: usernameError
-                ? "1px solid rgba(var(--neuro-red-rgb),0.6)"
-                : "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
-              boxShadow: usernameError
-                ? "0 0 16px rgba(var(--neuro-red-rgb),0.25), inset 0 0 8px rgba(var(--neuro-red-rgb),0.05)"
-                : "none",
-            }}
-          >
-            <span
-              style={{
-                color: usernameError ? "var(--neuro-red)" : "var(--slate-500)",
-              }}
-            >
-              <User size={15} />
-            </span>
-            <input
-              type="text"
-              placeholder={t.username_label}
-              value={username}
-              onChange={(e) => handleUsernameChange(e.target.value)}
-              autoComplete="username"
-              className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
-              style={{
-                color: usernameError ? "var(--neuro-red)" : "white",
-              }}
-            />
-            {usernameError && (
-              <AlertTriangle
-                size={14}
-                className="text-red-400 shrink-0"
+          {mode !== "guest" && (
+            <>
+              {/* Username field */}
+              <div
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-300"
                 style={{
-                  filter: "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
+                  background: usernameError
+                    ? "rgba(var(--neuro-red-rgb),0.08)"
+                    : "rgba(0,0,0,0.3)",
+                  border: usernameError
+                    ? "1px solid rgba(var(--neuro-red-rgb),0.6)"
+                    : "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+                  boxShadow: usernameError
+                    ? "0 0 16px rgba(var(--neuro-red-rgb),0.25), inset 0 0 8px rgba(var(--neuro-red-rgb),0.05)"
+                    : "none",
                 }}
-              />
-            )}
-          </div>
-
-          {/* Username error block */}
-          {usernameError && (
-            <div
-              className="rounded-lg px-3 py-2.5 space-y-1"
-              style={{
-                background: "rgba(var(--neuro-red-rgb),0.06)",
-                border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
-                boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.1)",
-              }}
-            >
-              <div className="flex items-center gap-1.5">
+              >
                 <span
-                  className="text-xs font-bold tracking-widest font-mono"
-                  style={{ color: "var(--neuro-red)" }}
+                  style={{
+                    color: usernameError ? "var(--neuro-red)" : "var(--slate-500)",
+                  }}
                 >
-                  ✕ DB_CONSTRAINT_VIOLATION
+                  <User size={15} />
                 </span>
+                <input
+                  type="text"
+                  placeholder={t.username_label}
+                  value={username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  autoComplete="username"
+                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
+                  style={{
+                    color: usernameError ? "var(--neuro-red)" : "white",
+                  }}
+                />
+                {usernameError && (
+                  <AlertTriangle
+                    size={14}
+                    className="text-red-400 shrink-0"
+                    style={{
+                      filter: "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
+                    }}
+                  />
+                )}
               </div>
-              <div className="text-xs" style={{ color: "var(--red-300)" }}>
-                ERROR: Username already taken. Please choose another.
-              </div>
-              <div className="text-xs text-red-800">
-                UNIQUE constraint failed: profiles.username
-              </div>
-            </div>
-          )}
 
-          {/* Password field */}
-          <div
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
-            style={{
-              background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
-            }}
-          >
-            <span className="text-slate-500">
-              <Lock size={15} />
-            </span>
-            <input
-              type="password"
-              placeholder={t.password_label}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400"
-            />
-          </div>
+              {/* Username error block */}
+              {usernameError && (
+                <div
+                  className="rounded-lg px-3 py-2.5 space-y-1"
+                  style={{
+                    background: "rgba(var(--neuro-red-rgb),0.06)",
+                    border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
+                    boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.1)",
+                  }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="text-xs font-bold tracking-widest font-mono"
+                      style={{ color: "var(--neuro-red)" }}
+                    >
+                      ✕ DB_CONSTRAINT_VIOLATION
+                    </span>
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--red-300)" }}>
+                    ERROR: Username already taken. Please choose another.
+                  </div>
+                  <div className="text-xs text-red-800">
+                    UNIQUE constraint failed: profiles.username
+                  </div>
+                </div>
+              )}
+
+              {/* Password field */}
+              <div
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+                style={{
+                  background: "rgba(0,0,0,0.3)",
+                  border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+                }}
+              >
+                <span className="text-slate-500">
+                  <Lock size={15} />
+                </span>
+                <input
+                  type="password"
+                  placeholder={t.password_label}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400"
+                />
+              </div>
+            </>
+          )}
 
           {mode === "signup" && (
             <div
@@ -330,7 +330,7 @@ export function AuthScreen({
             </div>
           )}
 
-          {mode === "signup" && (
+          {(mode === "signup" || mode === "guest") && (
             <TurnstileWidget
               onToken={setCaptchaToken}
               resetKey={captchaResetKey}
@@ -353,7 +353,7 @@ export function AuthScreen({
 
           <button
             type="submit"
-            disabled={busy || success || (mode === "signup" && !captchaToken)}
+            disabled={busy || success || ((mode === "signup" || mode === "guest") && !captchaToken)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
               background:
@@ -368,9 +368,9 @@ export function AuthScreen({
             ) : (
               <ArrowRight size={15} />
             )}
-            {mode === "login"
-              ? t.sign_in.toUpperCase()
-              : t.sign_up.toUpperCase()}
+            {mode === "login" && t.sign_in.toUpperCase()}
+            {mode === "signup" && t.sign_up.toUpperCase()}
+            {mode === "guest" && t.guest_play.toUpperCase()}
           </button>
         </form>
 
@@ -380,7 +380,9 @@ export function AuthScreen({
               type="button"
               disabled={busy || success}
               onClick={() => {
-                onAuthed(createGuestProfile(t.guest_username));
+                setMode("guest");
+                setError(null);
+                setUsernameError(false);
               }}
               className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wider transition-all duration-200 disabled:opacity-60"
               style={{
@@ -398,15 +400,28 @@ export function AuthScreen({
         )}
 
         <div className="text-center mt-5 text-xs text-slate-500 space-y-2">
-          <div>
-            {mode === "login" ? t.no_account : t.have_account}{" "}
-            <button
-              onClick={switchMode}
-              className="text-neuro-cyan hover:underline"
-            >
-              {mode === "login" ? t.sign_up : t.sign_in}
-            </button>
-          </div>
+          {mode !== "login" && (
+            <div>
+              {t.have_account}{" "}
+              <button
+                onClick={() => setMode("login")}
+                className="text-neuro-cyan hover:underline"
+              >
+                {t.sign_in}
+              </button>
+            </div>
+          )}
+          {mode === "login" && (
+            <div>
+              {t.no_account}{" "}
+              <button
+                onClick={() => setMode("signup")}
+                className="text-neuro-cyan hover:underline"
+              >
+                {t.sign_up}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

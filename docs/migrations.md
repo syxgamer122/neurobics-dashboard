@@ -68,8 +68,8 @@ Workflow can 3 secrets trong **Settings > Secrets and variables > Actions**:
 | Secret | Lay o dau |
 | --- | --- |
 | `SUPABASE_ACCESS_TOKEN` | https://supabase.com/dashboard/account/tokens |
-| `SUPABASE_PROJECT_REF` | `pujzeomddvquxeacblvr` |
-| `SUPABASE_DB_PASSWORD` | Settings > Database > Database password |
+| `SUPABASE_PROJECT_REF` | `<YOUR_PROJECT_REF>` (Phân chia theo GitHub Environment: tạo riêng cho `staging` và `production`) |
+| `SUPABASE_DB_PASSWORD` | Settings > Database > Database password (Phân chia theo Environment) |
 
 Thieu bat ky secret nao, workflow bao loi ro rang o buoc **Verify secrets** thay
 vi that bai giua duong voi thong diep kho hieu.

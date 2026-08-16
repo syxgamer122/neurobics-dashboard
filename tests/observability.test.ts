@@ -75,6 +75,20 @@ describe("scrubContext — chan payload phinh to", () => {
     expect(safe.ok).toBe(true);
     expect(scrubContext(undefined)).toEqual({});
   });
+
+  it("whitelist request_id va session_id khoi viec bi xoa UUID", () => {
+    const ctx = {
+      request_id: "11111111-1111-4111-8111-111111111111",
+      session_id: "22222222-2222-4222-8222-222222222222",
+      user_id: "33333333-3333-4333-8333-333333333333", // khong thuoc whitelist, se bi xoa
+      other: "this is my UUID 44444444-4444-4444-8444-444444444444 inside text",
+    };
+    const safe = scrubContext(ctx);
+    expect(safe.request_id).toBe("11111111-1111-4111-8111-111111111111");
+    expect(safe.session_id).toBe("22222222-2222-4222-8222-222222222222");
+    expect(safe.user_id).toBe("[uuid]");
+    expect(safe.other).toContain("[uuid]");
+  });
 });
 
 describe("collector", () => {

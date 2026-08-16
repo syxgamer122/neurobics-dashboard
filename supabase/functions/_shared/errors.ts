@@ -1,8 +1,8 @@
 export class AppError extends Error {
   constructor(
     message: string,
-    readonly status: 400 | 401 | 409 | 410 | 422,
-    readonly code: string,
+    status: 400 | 401 | 409 | 410 | 422,
+    code: string,
   ) {
     super(message);
     this.name = "AppError";

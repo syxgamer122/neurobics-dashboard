@@ -3,7 +3,7 @@ import { Calculator, Check, Play, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { MathDifficulty, MathTelemetry } from "../lib/scoring";
+import type { MathDifficulty, MathTelemetry } from "../lib/provisional-score";
 
 // ─── Math Sprint ──────────────────────────────────────────────────────────
 // 24 phép tính, mỗi câu 4 đáp án. Đo logic (đúng/sai) + tốc độ (độ trễ từng câu).

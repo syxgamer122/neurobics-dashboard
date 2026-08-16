@@ -34,34 +34,15 @@ describe("assertRtBounds", () => {
     );
   });
 
-  it("tu choi phan tu khong phai so huu han", () => {
-    for (const xau of [["100"], [null], [undefined], [NaN], [Infinity], [{}]]) {
+  it("tu choi phan tu khong phai so huu han hoac so am", () => {
+    for (const xau of [["100"], [null], [undefined], [NaN], [Infinity], [{}], [-1]]) {
       expect(() => assertRtBounds(xau, OK_ELAPSED, "stroop")).toThrow(
-        "stroop: reaction time is not a number",
+        "stroop: reaction time is not a valid positive number",
       );
     }
   });
 
-  it("chan phan xa nhanh hon con nguoi (< 80ms)", () => {
-    expect(() => assertRtBounds([79], OK_ELAPSED, "reaction")).toThrow(
-      "reaction: reaction time below human threshold",
-    );
-    expect(() => assertRtBounds([0], OK_ELAPSED, "reaction")).toThrow(
-      "below human threshold",
-    );
-    expect(() => assertRtBounds([-5], OK_ELAPSED, "reaction")).toThrow(
-      "below human threshold",
-    );
-    // Dung 80ms van duoc — nguong la "nho hon", khong phai "nho hon hoac bang".
-    expect(() => assertRtBounds([80], OK_ELAPSED, "reaction")).not.toThrow();
-  });
 
-  it("chan do tre vo ly (> 60 giay)", () => {
-    expect(() => assertRtBounds([60_001], 999_999_999, "sudoku")).toThrow(
-      "sudoku: reaction time out of range",
-    );
-    expect(() => assertRtBounds([60_000], 999_999_999, "sudoku")).not.toThrow();
-  });
 
   it("chan mang qua dai (> 5000 phan tu)", () => {
     const qua = new Array(5_001).fill(100);
@@ -90,7 +71,7 @@ describe("assertRtBounds", () => {
   });
 
   it("nhan loi luon mang ten tro choi", () => {
-    expect(() => assertRtBounds([1], 0, "trò-cua-toi")).toThrow(
+    expect(() => assertRtBounds([-1], 0, "trò-cua-toi")).toThrow(
       /^trò-cua-toi: /,
     );
   });

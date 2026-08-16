@@ -274,8 +274,13 @@ export const vi = {
     "Xoá tài khoản sẽ xoá vĩnh viễn hồ sơ, lịch sử luyện tập và ảnh đại diện. Không hoàn tác được.",
   settings_delete_type_username: "Gõ đúng tên đăng nhập «{u}» để xác nhận",
   settings_delete_confirm_err: "Tên xác nhận không khớp.",
-  settings_delete_btn: "XOÁ TÀI KHOẢN",
-  settings_delete_ok: "Tài khoản đã được xoá.",
+  settings_delete_btn: "XOA? TA?I KHON",
+  settings_delete_ok: "TAi khon `A `c xoA.",
+  auth_email: "Email",
+  auth_password: "Mật khẩu",
+  settings_upgrade_btn: "Nâng cấp",
+  settings_upgrade_guest: "Nâng cấp tài khoản Khách",
+  settings_upgrade_ok: "Nâng cấp thành công!",
   // Stroop Test
   stroop_tag: "LUYỆN TẬP ỨC CHẾ",
   stroop_desc:
