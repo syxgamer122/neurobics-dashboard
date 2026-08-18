@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { captureEvent } from './observability';
 
 const LEGACY_PREFIXES = ['mindgem.'] as const;

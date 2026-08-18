@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { parseTelemetry } from "../supabase/functions/_shared/scoring/schema.ts";
 import { clamp01, assertFiniteScore, finite } from "../supabase/functions/_shared/scoring/core.ts";

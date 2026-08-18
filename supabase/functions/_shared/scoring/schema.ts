@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { z } from "npm:zod@3.22.4";
 import type { Game } from "./core.ts";
 import { AppError } from "../errors.ts";

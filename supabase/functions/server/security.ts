@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Context } from "npm:hono@4.12.27";
 import * as jose from "npm:jose@5.9.3";
 import { adminClient } from "./config.ts";

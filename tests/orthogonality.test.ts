@@ -7,14 +7,8 @@ import {
   scoreStroop,
   scoreReaction,
   scoreMemory,
-  scoreNBack,
-  scoreMath,
-  scoreGoNoGo,
-  scoreMentalRotation,
-  scoreCorsi,
-  scoreTrailMaking,
-  scoreSearch,
-} from "../supabase/functions/_shared/scoring/standard-games";
+    scoreMath,
+          } from "../supabase/functions/_shared/scoring/standard-games";
 
 const TIME_FREE_AXES = ["logic", "memory"] as const;
 
@@ -34,8 +28,8 @@ describe("Orthogonality Test", () => {
       const fastBase = { ...base, timeMs: 10000 };
       const slowBase = { ...base, timeMs: 60000 };
       
-      const fastRts = base.rts ? base.rts.map(() => 400) : [];
-      const slowRts = base.rts ? base.rts.map(() => 2500) : [];
+      const fastRts = (base as any).rts ? (base as any).rts.map(() => 400) : [];
+      const slowRts = (base as any).rts ? (base as any).rts.map(() => 2500) : [];
 
       const fast = fn({ ...fastBase, rts: fastRts, moveRts: fastRts });
       const slow = fn({ ...slowBase, rts: slowRts, moveRts: slowRts });

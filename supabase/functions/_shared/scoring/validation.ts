@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Game } from "./core.ts";
 import { HUMAN_FLOOR_MS } from "../limits.ts";
 

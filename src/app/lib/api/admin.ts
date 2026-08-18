@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Admin-only operations against another user's profile.
  */

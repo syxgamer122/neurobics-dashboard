@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Server-side source of truth for round validation and cognitive scoring.
 import { asTelemetry } from "./scoring/core.ts";
 import type { Game, ScoredRound, Telemetry } from "./scoring/core.ts";

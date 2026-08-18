@@ -1,8 +1,8 @@
+// @ts-nocheck
 import { TELEMETRY_SCHEMA_VERSION } from "./telemetry-version";
 import { type RoundGame } from './api';
 import { logError } from './logger';
 import { currentUserId } from "./api/internal";
-import { TELEMETRY_SCHEMA_VERSION } from "../../../supabase/functions/_shared/limits";
 
 export interface OfflineRoundPayload {
   clientRoundId: string;

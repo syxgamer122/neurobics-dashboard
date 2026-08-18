@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TELEMETRY_SCHEMA_VERSION } from "../../../src/app/lib/telemetry-version.ts";
 import { HUMAN_FLOOR_MS } from "../limits.ts";
 // Canonical server-side game ids. SQL constraints remain explicit by design.

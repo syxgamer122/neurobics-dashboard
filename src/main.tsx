@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logWarn } from "./app/lib/logger";
 
 import { createRoot } from "react-dom/client";

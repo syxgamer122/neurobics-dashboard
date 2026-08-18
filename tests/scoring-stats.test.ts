@@ -6,7 +6,7 @@ import {
   EMA_ALPHA,
   EMA_ALPHA_DOWN,
   RATING_SNAP,
-  PULL_UP_SNAP,
+  
   DECAY_GRACE_DAYS,
   DECAY_PER_WEEK,
   // DECAY_FLOOR_RATIO,
@@ -18,7 +18,7 @@ import {
   clamp01,
   sanitizeRating,
   applyRoundRating,
-  pullUpRating,
+  
   // daysSince,
   median,
   mean,
