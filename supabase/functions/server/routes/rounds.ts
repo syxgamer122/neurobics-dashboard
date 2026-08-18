@@ -130,7 +130,7 @@ export function registerRoundRoutes(app: Hono): void {
             p_reason: "hard_cheat_detected"
           }
         );
-        
+
         if (burnError) {
           logServerEvent({
             event: "server.log",
@@ -140,19 +140,20 @@ export function registerRoundRoutes(app: Hono): void {
           return c.json({ error: "Round could not be finalized." }, 503);
         }
 
-          // Instead of hard, we iterate all cheat flags if we decided to reject
-          for (const f of cheat.flags) {
-            const { error: hardErr } = await adminClient.rpc(
-              "record_cheat_flag",
-              {
-                p_user_id: user.id,
-                p_game: gameId,
-                p_reason: f.msg,
-                p_signal_class: f.signal_class,
-                p_details: f.detail,
-                p_round_id: ticket.id,
-              },
-            );if (hardErr)
+        // Record all cheat flags that triggered rejection
+        for (const f of cheat.flags) {
+          const { error: hardErr } = await adminClient.rpc(
+            "record_cheat_flag",
+            {
+              p_user_id: user.id,
+              p_game: gameId,
+              p_reason: f.msg,
+              p_signal_class: f.signal_class,
+              p_details: f.detail ?? {},
+              p_round_id: ticket.id,
+            },
+          );
+          if (hardErr)
             logServerEvent({
               event: "server.log",
               level: "error",
@@ -165,7 +166,7 @@ export function registerRoundRoutes(app: Hono): void {
           game: gameId,
           userId: user.id,
           requestId: requestIdFor(c.req.raw),
-          message: hard.map((f) => f.msg).join("; "),
+          message: cheat.flags.map((f) => f.msg).join("; "),
           statusCode: 422,
         });
 
@@ -177,23 +178,9 @@ export function registerRoundRoutes(app: Hono): void {
           },
           422,
         );
-            for (const f of softFlags(cheat)) {
-        const { error: softErr } = await adminClient.rpc("record_cheat_flag", {
-          p_user_id: user.id,
-          p_game: gameId,
-          p_reason: f.msg,
-          p_signal_class: f.signal_class,
-          p_details: f.detail ?? {},
-          p_round_id: ticket.id,
-        });
-        if (softErr) {
-          logServerEvent({
-            event: "server.log",
-            level: "error",
-            message: `Soft cheat flag failed: ${softErr.message}`,
-          });
-        }
       }
+
+      // Record soft (statistical) flags — round is NOT rejected
       for (const f of softFlags(cheat)) {
         const { error: softErr } = await adminClient.rpc("record_cheat_flag", {
           p_user_id: user.id,
@@ -203,14 +190,99 @@ export function registerRoundRoutes(app: Hono): void {
           p_details: f.detail ?? {},
           p_round_id: ticket.id,
         });
-        if (softErr) {
+        if (softErr)
           logServerEvent({
             event: "server.log",
             level: "error",
             message: `Soft cheat flag failed: ${softErr.message}`,
           });
-        }
+      }
+
+      // Ghi dấu vân thiết bị (không chặn ván nếu RPC lỗi).
+      if (typeof fingerprint === "string" && fingerprint.length >= 8) {
+        const { error: fpErr } = await adminClient.rpc("link_device", {
+          p_user_id: user.id,
+          p_fingerprint: fingerprint.slice(0, 200),
+        });
+        if (fpErr)
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `link_device failed: ${fpErr.message}`,
+          });
+      }
+
+      const scored = scoreAndValidate(gameId, parsedTelemetry, serverElapsedMs);
+      const axisPayload = Object.fromEntries(
+        Object.entries(scored.axes).filter(([, value]) => value !== null),
+      );
+
+      const { data, error } = await adminClient.rpc(
+        "submit_round_transaction",
+        {
+          p_user_id: user.id,
+          p_ticket_id: String(roundId),
+          p_game: gameId,
+          p_axes: axisPayload,
+          p_round_score: scored.headline,
+          p_label: scored.label,
+          p_time_ms: Math.round(scored.timeMs),
+          p_telemetry_version: ticket.telemetry_version ?? TELEMETRY_SCHEMA_VERSION,
+          p_scorer_version: ticket.scorer_version ?? SCORER_VERSIONS[gameId],
+          p_inspector_version: ticket.inspector_version ?? INSPECTOR_VERSIONS[gameId],
+        },
+      );
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return c.json({
+        ...data,
+        axes: scored.axes,
+        headline: scored.headline,
+        label: scored.label,
+        timeMs: scored.timeMs,
+        cheatFlags: cheat.flags.map((f) => ({
+          msg: f.msg,
+          signal_class: f.signal_class,
+        })),
       });
+    } catch (err) {
+      logServerEvent({
+        event: "server.log",
+        level: "error",
+        message: `Submit round error: ${err}`,
+      });
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+            ? String((err as { message: unknown }).message)
+            : JSON.stringify(err);
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.status);
+      }
+
+      const lower = message.toLowerCase();
+      // Hono chi nhan ContentfulStatusCode, khong nhan number chung chung.
+      let status: 400 | 401 | 409 | 422 | 500 = 400;
+      if (
+        lower.includes("authorization") ||
+        lower.includes("session") ||
+        lower.includes("missing authorization")
+      )
+        status = 401;
+      else if (lower.includes("already submitted")) status = 409;
+
+      logServerEvent({
+        event: "submit_round.unhandled",
+        level: "error",
+        message: err instanceof Error ? err.message : String(err),
+        requestId: requestIdFor(c.req.raw),
+      });
+      return c.json({ error: "Round could not be saved." }, 500);
+    }
+  });
 
   // Gửi một mảng các ván chơi khi kết nối mạng được khôi phục.
   app.post("/server/sync-offline-rounds", async (c) => {
@@ -273,7 +345,7 @@ export function registerRoundRoutes(app: Hono): void {
           let cheatReasons = null;
           if (cheat.flags.length > 0) {
             cheatReasons = isHardCheat
-              ? cheat.flags.filter((f) => f.severity === "hard")
+              ? cheat.flags.filter((f) => f.signal_class === "physical")
               : softFlags(cheat);
           }
 
