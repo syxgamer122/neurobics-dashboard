@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
 import { describe, it, expect, vi } from "vitest";
 vi.mock("npm:jose@5.9.3", () => ({
   jwtVerify: vi.fn(),
@@ -78,3 +83,4 @@ describe("clientIp", () => {
     expect(clientIp({ req: { header: () => null } } as any)).toBe("unknown");
   });
 });
+

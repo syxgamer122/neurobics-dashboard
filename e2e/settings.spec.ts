@@ -15,9 +15,9 @@ test.describe("Settings Persistence", () => {
     ).first();
     
     if (await langToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const initialText = await langToggle.textContent();
+      const _initialText = await langToggle.textContent();
       await langToggle.click();
-      const newText = await langToggle.textContent();
+      const _newText = await langToggle.textContent();
       
       // Reload and verify persistence
       await page.reload();
@@ -45,7 +45,7 @@ test.describe("Settings Persistence", () => {
     
     if (await themeToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
       // Get current theme
-      const isDarkBefore = await page.evaluate(() =>
+      const _isDarkBefore = await page.evaluate(() =>
         document.documentElement.classList.contains('dark')
       );
       

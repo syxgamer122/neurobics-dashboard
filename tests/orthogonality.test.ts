@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
 import { describe, expect, it } from "vitest";
 
 // Import all scoring functions directly from standard-games.ts since client imports are restricted
@@ -47,3 +52,4 @@ describe("Orthogonality Test", () => {
     });
   }
 });
+

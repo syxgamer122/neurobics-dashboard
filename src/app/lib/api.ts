@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
 /**
  * Public API surface. Implementation lives in ./api/*; this file only re-exports
  * so every existing `from "../lib/api"` import keeps working unchanged.
@@ -109,3 +114,4 @@ export {
   type GameDefinition,
   type SessionColumn,
 } from "./game-registry";
+

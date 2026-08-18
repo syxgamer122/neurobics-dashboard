@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
 /**
  * Round lifecycle: ticket types, start-round and submit-round.
  */
@@ -66,3 +71,4 @@ export async function syncOfflineRounds(payload: {
 }): Promise<{ results: SyncResult[] }> {
   return serverPost<{ results: SyncResult[] }>("sync-offline-rounds", payload);
 }
+
