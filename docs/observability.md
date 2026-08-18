@@ -40,7 +40,7 @@ Hành vi đáng chú ý:
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `VITE_TELEMETRY_OFF` | — | `1` để tắt hoàn toàn |
-| `VITE_TELEMETRY_SAMPLE` | `1` | Tỷ lệ lấy mẫu cho debug/info (0..1) |
+| `VITE_TELEMETRY_SAMPLE` | `0.01` | Tỉ lệ lấy mẫu cho debug/info (0..1) |
 | `VITE_TELEMETRY_ENDPOINT` | Edge Function của project | Đổi đích khi test |
 
 ## Phía server — `supabase/functions/_shared/observability.ts`
@@ -93,10 +93,10 @@ select * from public.observability_summary(24);
 -- Sức khỏe theo giờ: tổng sự kiện, số lỗi, p95 thời gian xử lý
 select * from public.observability_health(24);
 
-Dọn rác (giữ 30 ngày cho raw events):
+Dọn rác (giữ 90 ngày cho raw events):
 
 ```sql
-select public.prune_observability_events(30);
+select public.prune_observability_events(90);
 ```
 
 Nếu bật `pg_cron`, bỏ comment ở cuối file migration để hẹn chạy hàng ngày.
@@ -120,3 +120,23 @@ const profile = await trackTiming("api.load_profile", () => fetchProfile(), {
 ```
 
 Quy ước tên: `mien.hanh_dong` (`api.load_profile`, `ui.crash`, `sw.register_failed`). Đặt tên tùy ý sẽ khiến việc nhóm lỗi vô nghĩa.
+
+## Tích hợp Hệ thống Bên ngoài (External Integrations) & Fail-Open
+
+Hệ thống giám sát được thiết kế theo nguyên tắc "Fail-Open", đảm bảo rằng các lỗi liên quan đến telemetry hoặc observability không bao giờ làm gián đoạn trải nghiệm chơi game chính của người dùng.
+
+### 1. Nguyên tắc Fail-Open (Không làm sập ứng dụng)
+- Mọi hàm ghi log (`captureEvent`, `captureError`) trên client đều được wrap trong block `try/catch` trống, để nếu lỗi xảy ra khi stringify vòng lặp hoặc hết dung lượng LocalStorage, ứng dụng không bị crash.
+- Quá trình gửi payload `/server/telemetry` là fire-and-forget. API Endpoint trả về nhanh nhất có thể. Nếu lỗi mạng hoặc server trả về 5xx khi ghi log, client sẽ âm thầm bỏ qua (fail-open) thay vì báo lỗi cho người dùng.
+- Trên Server (Edge Function), nếu chèn vào `observability_events` thất bại, hệ thống fallback in ra stdout (console.error) để hạ tầng đám mây tự xử lý, tuyệt đối không gián đoạn quá trình return response.
+
+### 2. Trace Correlation (Khớp luồng dữ liệu)
+Để theo dõi 1 luồng xử lý xuyên suốt từ lúc user nhấn nút cho đến khi DB cập nhật thành công:
+- Sinh ra một UUID duy nhất (`correlation_id`) cho mỗi phiên người dùng (hoặc mỗi lượt chơi - round ticket).
+- Gắn `correlation_id` vào header `x-trace-id` trong mọi request từ client. Tuy nhiên, server phải tự sinh `canonical_request_id` để đảm bảo tính duy nhất. `x-trace-id` từ client chỉ được xem là metadata không đáng tin cậy (`untrusted`), phải được validate định dạng UUID và giới hạn chiều dài để tránh cardinality abuse. `setObservabilityUser(id)` sẽ bị loại bỏ hoặc tự động trích xuất từ `auth.uid()`. UUID redaction phải nhận thức được field name để không redacts mất `request_id` và `trace_id`. `Edge background write` phải dùng cơ chế `waitUntil` để không bị runtime terminate.
+- Trên Edge Function, mọi dòng log liên quan đến request đó đều được gắn `trace_id` và `canonical_request_id` này.
+
+### 3. Tích hợp Sentry / Datadog
+Hệ thống hiện tại lưu log tự thân vào `observability_events`, nhưng sẵn sàng xuất dữ liệu ra Sentry (Crash Reporting) hoặc Datadog (APM & Metrics) thông qua Supabase Log Drains:
+- **Sentry**: Tích hợp tại lớp Client (`src/app/lib/observability.ts`) bằng cách bọc `captureException` của Sentry bên trong `captureError`.
+- **Datadog**: Cấu hình Log Drain trên Supabase Dashboard để tự động đẩy mọi `console.error` và `observability_events` ra hệ thống log ngoài, không làm tăng latency cho Edge Function.

@@ -20,11 +20,11 @@ export const INSPECTOR_VERSIONS: Record<string, number> = {
 export const SHARED_INSPECTOR_VERSION = 1;
 
 
-export type CheatSeverity = "soft" | "hard";
+export type SignalClass = "statistical" | "physical";
 
 export type CheatFlag = {
   msg: string;
-  severity: CheatSeverity;
+  signal_class: SignalClass;
   detail?: Record<string, unknown>;
 };
 
@@ -62,16 +62,16 @@ const cv = (xs: number[]): number => {
 
 const flag = (
   msg: string,
-  severity: CheatSeverity,
+  signal_class: SignalClass,
   detail?: Record<string, unknown>,
-): CheatFlag => ({ msg, severity, detail });
+): CheatFlag => ({ msg, signal_class, detail });
 
 function inspectShared(t: Telemetry, serverElapsedMs: number): CheatFlag[] {
   const out: CheatFlag[] = [];
   const timeMs = Number(t?.timeMs);
   if (Number.isFinite(timeMs) && timeMs - serverElapsedMs > 5000) {
     out.push(
-      flag("Client time far exceeds server elapsed", "soft", {
+      flag("Client time far exceeds server elapsed", "statistical", {
         timeMs,
         serverElapsedMs,
       }),
@@ -91,19 +91,20 @@ function inspectReaction(t: Telemetry): CheatFlag[] {
   const belowCount = rts.length - clean.length;
   if (belowCount >= 3 && belowCount / rts.length >= 0.40) {
     out.push(
-      flag("Multiple reactions below human floor", "hard", {
+      flag("Multiple reactions below human floor", "physical", {
         below: belowCount,
         total: rts.length,
       }),
     );
   } else if (belowCount > 0) {
-    out.push(flag("Isolated sub-floor reaction", "soft", { min }));
+    out.push(flag("Isolated sub-floor reaction", "statistical", { min }));
   }
   
   if (med < 130)
-    out.push(flag("Reaction median impossibly low", "hard", { med }));
-  if (cv(rts) < ROBOT_CV)
-    out.push(flag("Reaction timing too metronomic", "soft", { cv: cv(rts) }));
+    out.push(flag("Reaction median impossibly low", "physical", { med }));
+  const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+    out.push(flag("Reaction timing too metronomic", "statistical", { cv: c }));
   return out;
 }
 
@@ -113,9 +114,10 @@ function inspectSchulte(t: Telemetry): CheatFlag[] {
   const out: CheatFlag[] = [];
   const med = median(rts);
   if (med < 150)
-    out.push(flag("Schulte hit median impossibly low", "hard", { med }));
-  if (cv(rts) < ROBOT_CV)
-    out.push(flag("Schulte timing too metronomic", "soft", { cv: cv(rts) }));
+    out.push(flag("Schulte hit median impossibly low", "physical", { med }));
+  const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+    out.push(flag("Schulte timing too metronomic", "statistical", { cv: c }));
   return out;
 }
 
@@ -125,9 +127,10 @@ function inspectStroop(t: Telemetry): CheatFlag[] {
   const out: CheatFlag[] = [];
   const med = median(rts);
   if (med < 200)
-    out.push(flag("Stroop median impossibly low", "hard", { med }));
-  if (cv(rts) < ROBOT_CV)
-    out.push(flag("Stroop timing too metronomic", "soft", { cv: cv(rts) }));
+    out.push(flag("Stroop median impossibly low", "physical", { med }));
+  const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+    out.push(flag("Stroop timing too metronomic", "statistical", { cv: c }));
   return out;
 }
 
@@ -137,9 +140,10 @@ function inspectSudoku(t: Telemetry): CheatFlag[] {
   if (rts.length >= 5) {
     const med = median(rts);
     if (med < 120)
-      out.push(flag("Sudoku move median impossibly low", "hard", { med }));
-    if (cv(rts) < ROBOT_CV)
-      out.push(flag("Sudoku timing too metronomic", "soft", { cv: cv(rts) }));
+      out.push(flag("Sudoku move median impossibly low", "physical", { med }));
+    const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+      out.push(flag("Sudoku timing too metronomic", "statistical", { cv: c }));
   }
   const timeMs = Number(t?.timeMs);
   const diff = String(t?.difficulty ?? "");
@@ -149,7 +153,7 @@ function inspectSudoku(t: Telemetry): CheatFlag[] {
     timeMs < 45_000
   ) {
     out.push(
-      flag("Sudoku expert board finished too fast", "soft", { timeMs, diff }),
+      flag("Sudoku expert board finished too fast", "statistical", { timeMs, diff }),
     );
   }
   return out;
@@ -175,7 +179,7 @@ function inspectMemory(t: Telemetry): CheatFlag[] {
   const taps = Number(t?.totalTaps);
   const perTap = Number.isFinite(taps) && taps > 0 ? timeMs / taps : null;
   if (perTap !== null && perTap < 90)
-    return [flag("Memory pace impossibly fast", "hard", { perTap })];
+    return [flag("Memory pace impossibly fast", "physical", { perTap })];
   return [];
 }
 
@@ -203,16 +207,28 @@ function inspectSubThreshold(t: Telemetry, game: Game): CheatFlag[] {
   const rts = nums((t as any)?.[field] ?? t?.rts);
   if (!rts.length) return [];
   const borderline = rts.filter((r) => r >= HUMAN_FLOOR_MS && r < 120);
-  if (!borderline.length) return [];
+  const inhuman = rts.filter((r) => r > 0 && r < HUMAN_FLOOR_MS);
+  const flags: CheatFlag[] = [];
+
+  if (inhuman.length > 0) {
+    flags.push({
+      msg: `Inhuman reaction time (< ${HUMAN_FLOOR_MS}ms)`,
+      signal_class: "statistical",
+      detail: { count: inhuman.length, total: rts.length },
+    });
+  }
+
   // Mot vai mau thi binh thuong; qua nua so mau duoi 120ms moi dang ngo.
-  const share = borderline.length / rts.length;
-  if (share < 0.5) return [];
-  return [
-    flag("Majority of reaction times below 120ms", "soft", {
-      borderline: borderline.length,
-      total: rts.length,
-    }),
-  ];
+  const overHalf = borderline.length > rts.length / 2;
+  if (overHalf) {
+    flags.push({
+      msg: "Unusually high number of reaction times under 120ms",
+      signal_class: "statistical",
+      detail: { count: borderline.length, total: rts.length },
+    });
+  }
+  
+  return flags;
 }
 
 function inspectNBack(t: Telemetry): CheatFlag[] {
@@ -221,9 +237,10 @@ function inspectNBack(t: Telemetry): CheatFlag[] {
   const out: CheatFlag[] = [];
   const med = median(rts);
   if (med < 150)
-    out.push(flag("N-Back median impossibly low", "hard", { med }));
-  if (cv(rts) < ROBOT_CV)
-    out.push(flag("N-Back timing too metronomic", "soft", { cv: cv(rts) }));
+    out.push(flag("N-Back median impossibly low", "physical", { med }));
+  const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+    out.push(flag("N-Back timing too metronomic", "statistical", { cv: c }));
   return out;
 }
 
@@ -235,18 +252,19 @@ function inspectMath(t: Telemetry): CheatFlag[] {
   const correct = Number(t?.correct);
   const total = Number(t?.totalProblems);
   const difficulty = String(t?.difficulty ?? "");
-  if (med < 250) out.push(flag("Math median impossibly low", "hard", { med }));
-  if (cv(rts) < ROBOT_CV)
-    out.push(flag("Math timing too metronomic", "soft", { cv: cv(rts) }));
+  if (med < 250) out.push(flag("Math median impossibly low", "physical", { med }));
+  const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+    out.push(flag("Math timing too metronomic", "statistical", { cv: c }));
   if (
-    difficulty === "hard" &&
+    difficulty === "physical" &&
     Number.isFinite(correct) &&
     Number.isFinite(total) &&
     correct === total &&
     med < 1200
   ) {
     out.push(
-      flag("Perfect hard math finished too fast", "soft", { med, correct }),
+      flag("Perfect hard math finished too fast", "statistical", { med, correct }),
     );
   }
   return out;
@@ -259,9 +277,10 @@ function inspectGoNoGo(t: Telemetry): CheatFlag[] {
     const med = median(rts);
     // Choice RT chậm hơn simple RT; median < 160ms gần như không thể.
     if (med < 160)
-      out.push(flag("Go/No-Go median impossibly low", "hard", { med }));
-    if (cv(rts) < ROBOT_CV)
-      out.push(flag("Go/No-Go timing too metronomic", "soft", { cv: cv(rts) }));
+      out.push(flag("Go/No-Go median impossibly low", "physical", { med }));
+    const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+      out.push(flag("Go/No-Go timing too metronomic", "statistical", { cv: c }));
   }
   const fa = Number(t?.falseAlarms);
   const hits = Number(t?.hits);
@@ -281,7 +300,7 @@ function inspectGoNoGo(t: Telemetry): CheatFlag[] {
     median(rts) < 220
   ) {
     out.push(
-      flag("Perfect inhibition with very fast Go RTs", "soft", {
+      flag("Perfect inhibition with very fast Go RTs", "statistical", {
         med: median(rts),
         hits,
         fa,
@@ -298,10 +317,11 @@ function inspectMental(t: Telemetry): CheatFlag[] {
     const med = median(rts);
     // So khớp hình 2D: median < 250ms gần như không đọc được hình.
     if (med < 250)
-      out.push(flag("Mental Rotation median impossibly low", "hard", { med }));
-    if (cv(rts) < ROBOT_CV)
+      out.push(flag("Mental Rotation median impossibly low", "physical", { med }));
+    const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
       out.push(
-        flag("Mental Rotation timing too metronomic", "soft", { cv: cv(rts) }),
+        flag("Mental Rotation timing too metronomic", "statistical", { cv: c }),
       );
   }
   const correct = Number(t?.correct);
@@ -315,7 +335,7 @@ function inspectMental(t: Telemetry): CheatFlag[] {
     median(rts) < 450
   ) {
     out.push(
-      flag("Perfect mental rotation finished too fast", "soft", {
+      flag("Perfect mental rotation finished too fast", "statistical", {
         med: median(rts),
         correct,
         trials,
@@ -332,9 +352,10 @@ function inspectCorsi(t: Telemetry): CheatFlag[] {
     const med = median(rts);
     // Phai nho lai vi tri roi moi cham: median < 180ms gan nhu khong the.
     if (med < 180)
-      out.push(flag("Corsi tap median impossibly low", "hard", { med }));
-    if (cv(rts) < ROBOT_CV)
-      out.push(flag("Corsi timing too metronomic", "soft", { cv: cv(rts) }));
+      out.push(flag("Corsi tap median impossibly low", "physical", { med }));
+    const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
+      out.push(flag("Corsi timing too metronomic", "statistical", { cv: c }));
   }
   const span = Number(t?.span);
   const trials = Number(t?.trials);
@@ -347,7 +368,7 @@ function inspectCorsi(t: Telemetry): CheatFlag[] {
     trials <= span
   ) {
     out.push(
-      flag("Corsi span very high with too few trials", "soft", {
+      flag("Corsi span very high with too few trials", "statistical", {
         span,
         trials,
       }),
@@ -363,10 +384,11 @@ function inspectTrail(t: Telemetry): CheatFlag[] {
     const med = median(rts);
     // Moi buoc phai QUET tim diem tiep theo tren ban do: < 200ms la phi thuc te.
     if (med < 200)
-      out.push(flag("Trail Making hop median impossibly low", "hard", { med }));
-    if (cv(rts) < ROBOT_CV)
+      out.push(flag("Trail Making hop median impossibly low", "physical", { med }));
+    const c = cv(rts);
+  if (c !== null && c < ROBOT_CV)
       out.push(
-        flag("Trail Making timing too metronomic", "soft", { cv: cv(rts) }),
+        flag("Trail Making timing too metronomic", "statistical", { cv: c }),
       );
   }
   const wrong = Number(t?.wrongClicks);
@@ -381,7 +403,7 @@ function inspectTrail(t: Telemetry): CheatFlag[] {
     timeMs < nodes * 260
   ) {
     out.push(
-      flag("Perfect trail finished implausibly fast", "soft", {
+      flag("Perfect trail finished implausibly fast", "statistical", {
         timeMs,
         nodes,
       }),
@@ -416,12 +438,13 @@ function inspectSearch(t: Telemetry): CheatFlag[] {
   const score = Number(t?.score);
   const rts = nums(t?.rts);
   if (score > THRESHOLDS.searchRawScoreLimit.value) {
-    flags.push(flag("search: score exceeds human limits", "soft", { score }));
+    flags.push(flag("search: score exceeds human limits", "statistical", { score }));
   }
-  if (rts.length >= 10 && cv(rts) < THRESHOLDS.robotCv.value) {
+  const c = cv(rts);
+    if (rts.length >= 10 && c !== null && c < THRESHOLDS.robotCv.value) {
     flags.push(
-      flag("search: mechanically steady pace (robot)", "soft", {
-        cv: cv(rts),
+      flag("search: mechanically steady pace (robot)", "statistical", {
+        cv: c,
       }),
     );
   }
@@ -462,10 +485,17 @@ export function inspectRound(
   };
 }
 
-export function hasHardFlag(report: CheatReport): boolean {
-  return report.flags.some((f) => f.severity === "hard");
+
+
+
+export function shouldReject(report: CheatReport): boolean {
+  const physicals = report.flags.filter(f => f.signal_class === "physical").length;
+  const statisticals = report.flags.filter(f => f.signal_class === "statistical").length;
+  return physicals >= 1 || statisticals >= 2;
 }
 
 export function softFlags(report: CheatReport): CheatFlag[] {
-  return report.flags.filter((f) => f.severity === "soft");
+  // Return flags that are statistical if we didn't reject, or maybe all of them
+  return report.flags.filter((f) => f.signal_class === "statistical");
 }
+

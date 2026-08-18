@@ -30,24 +30,25 @@ export async function consumeRateLimit(
   return data === true;
 }
 
+export const TRUSTED_PROXY_HOPS = 1;
+
 export function clientIp(c: Context): string {
-  // Edge environment or reverse proxy
-  const realIp = c.req.header("x-real-ip")?.trim();
-  if (realIp && realIp.length > 0) return realIp;
+  // P0 Fix: Do not trust x-real-ip or cf-connecting-ip as they can be spoofed by the client.
+  // Use the rightmost-untrusted approach on x-forwarded-for based on TRUSTED_PROXY_HOPS.
+  const header = c.req.header("x-forwarded-for");
+  if (!header) return "unknown";
 
-  const cfConnecting = c.req.header("cf-connecting-ip")?.trim();
-  if (cfConnecting && cfConnecting.length > 0) return cfConnecting;
+  const hops = header.split(",").map(ip => ip.trim());
+  if (hops.length === 0) return "unknown";
 
-  // x-forwarded-for format is usually: client, proxy1, proxy2
-  // Supabase edge proxy might append, or overwrite. If it appends, 
-  // taking the first element could allow spoofing if the user sent a fake header.
-  // Using the right-most (last) proxy is safest against spoofing for rate limits,
-  // OR the first element if the proxy overwrites. Usually Deno Deploy sets real IP.
-  const forwarded = c.req.header("x-forwarded-for")?.split(",");
-  if (forwarded && forwarded.length > 0) {
-    return forwarded[forwarded.length - 1].trim();
-  }
-  return "unknown";
+  // The last proxy (rightmost) is the edge closest to our app.
+  // We want the IP that connected to our trusted proxy.
+  // If hops = [A, B, C] and TRUSTED_PROXY_HOPS = 1 (C is trusted edge),
+  // then B is the untrusted client we want to rate limit.
+  // So we take from the right: length - TRUSTED_PROXY_HOPS.
+  // If not enough hops, we take the leftmost one (which is hops[0]).
+  const index = Math.max(0, hops.length - TRUSTED_PROXY_HOPS - 1);
+  return hops[index];
 }
 
 type TurnstileVerdict = { ok: boolean; codes: string[] };
@@ -125,7 +126,10 @@ export async function requireAdmin(c: Context, capability?: string) {
   if (!jwtSecret) throw new Error("Missing SUPABASE_JWT_SECRET in environment");
 
   try {
-    const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(jwtSecret));
+    const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(jwtSecret), {
+      issuer: "supabase", // Adjust to match Supabase's default or your env
+      audience: "authenticated",
+    });
     
     if (payload.aal !== "aal2") {
       throw new Error("Admin actions require MFA (aal2)");

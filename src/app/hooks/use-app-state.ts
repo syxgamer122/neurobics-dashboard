@@ -4,7 +4,7 @@ import {
   getAccessToken,
   fetchProfile,
   handleLogout,
-  saveBirthYear,
+  saveBirthDate,
   fetchPopulationStats,
   fetchActivityStats,
   type Profile,
@@ -184,7 +184,7 @@ export function useAppState(t: Translation) {
     }
     setSavingAge(true);
     try {
-      setProfile(await saveBirthYear(year));
+      setProfile(await saveBirthDate(`${year}-01-01`));
       setBirthYearInput("");
     } catch (err) {
       logError("Save birth year failed:", err);

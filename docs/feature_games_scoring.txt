@@ -11,7 +11,7 @@ Hệ thống Game & Chấm điểm (Games & Scoring) là trái tim nhận thức
 - Thu thập dữ liệu đo xa (Telemetry) chi tiết từ người chơi (tốc độ phản ứng từng lượt, số lần bấm sai, độ trễ nhịp độ, số cấp độ qua được...).
 - Chấm điểm đa chiều (Multi-axis Cognitive Scoring) trên 5 trục năng lực chính: Speed (Tốc độ), Focus (Tập trung), Spatial (Không gian), Logic (Tư duy logic), Memory (Ghi nhớ).
 - Áp dụng mô hình tính điểm không hội tụ (Non-converging Radar), loại bỏ hoàn toàn yếu tố thời gian ở các trò Logic & Memory để ngăn người chơi nhanh làm lệch toàn bộ chỉ số.
-- Cập nhật điểm Elo/Rating hệ thống theo mô hình trung bình động lũy thừa hai chiều (Bidirectional EMA), hỗ trợ khởi động lạnh (Cold Start) và giảm điểm tự nhiên do không hoạt động (Inactivity Decay).
+- Cập nhật điểm hệ thống theo mô hình Robust Rolling Rating (Bidirectional Trimmed Mean), hỗ trợ khởi động lạnh (Cold Start) và giảm điểm tự nhiên do không hoạt động (Inactivity Decay).
 - Tính chỉ số nhận thức toàn cầu (Cognitive Index), tuổi não (Brain Age) so sánh với dân số peers thực tế thông qua hàm bù sai số Bayes (Bayesian Shrinkage Error Function).
 - Cung cấp hệ thống XP & Level tách biệt với điểm kỹ năng (Rating), thưởng cho mức độ gắn kết (Engagement) của người dùng.
 - Bảo mật quy trình chơi bằng hệ thống vé một lần (Round Tickets), kiểm tra chống gian lận đa tầng (Server-side Anti-cheat) và hỗ trợ lưu/đồng bộ ván chơi ngoại tuyến (Offline Queue & Sync).
@@ -23,8 +23,8 @@ Hệ thống được thiết kế theo kiến trúc Client-Server chặt chẽ:
 - Client (React / Vite + TypeScript):
   + Quản lý state trò chơi, giao diện người dùng (Game Stage), thu thập Telemetry thời gian thực.
   + Mint và quản lý vòng đời vé ván chơi (Round Ticket Lifecycle) qua hook `useRoundSubmission`.
-  + Dự phòng Offline Queue trong LocalStorage khi mất kết nối mạng.
-  + Đọc và hiển thị điểm preview trên UI qua các helper `pullUpRating`, `calcBrainAge`, `getLevelProgress`.
+  + Dự phòng Offline Queue trong IndexedDB khi mất kết nối mạng.
+  + Đọc và hiển thị điểm preview trên UI qua các helper `pullUpRating`, `CognitiveSummary`, `getLevelProgress`.
 - Server (Supabase Edge Functions + Hono Framework + Postgres DB):
   + Là NƠI CHẤM ĐIỂM VÀ VALIDATE DUY NHẤT (Server is the only scorer). Client không bao giờ được tự gửi điểm rating lên server.
   + Định tuyến API qua Hono routes (`/server/start-round`, `/server/submit-round`, `/server/sync-offline-rounds`).
@@ -38,7 +38,7 @@ Hệ thống được thiết kế theo kiến trúc Client-Server chặt chẽ:
 1. `src/app/lib/game-registry.ts`
    - Single source of truth cho danh mục 12 game client: id, title, accent, icon, tagKey, primaryAxis, secondaryAxis, sessionColumn, stageWidth.
 2. `src/app/lib/scoring.ts`
-   - Định nghĩa kiểu Telemetry client, hằng số thang điểm (0-1000), thuật toán EMA (`applyRoundRating`), thống kê (median, mean, CV, lapseRate), tính Tuổi Não (`calcBrainAge`) và phân phối dân số.
+   - Định nghĩa kiểu Telemetry client, hằng số thang điểm (0-1000), thuật toán Trimmed Mean (`applyRoundRating`), thống kê (median, mean, CV, lapseRate), tính Tuổi Não (`CognitiveSummary`) và phân phối dân số.
 3. `src/app/lib/axes.ts`
    - Mapping giữa phím trục nhận thức (speed, focus, spatial, logic, memory) và màu sắc UI, xuất kiểu dữ liệu AxisKey.
 4. `src/app/lib/sessions.ts`
@@ -56,13 +56,13 @@ Hệ thống được thiết kế theo kiến trúc Client-Server chặt chẽ:
 10. `supabase/functions/_shared/round-scoring.ts`
     - Entrypoint duy nhất trên server để chấm điểm & validate ván chơi (`scoreAndValidate`), kết nối các scorer từng game và kiểm tra khoảng thời gian hợp lệ.
 11. `supabase/functions/_shared/scoring/core.ts`
-    - Thư viện nguyên thủy chấm điểm server: định nghĩa `Telemetry`, `ScoredRound`, các hàm toán học (`speed`, `focus`, `headline`, `median`, `cv`, `statSamples`, `clamp`).
+    - Thư viện nguyên thủy chấm điểm server: định nghĩa `Telemetry`, `ScoredRound` (chứa rawAxes, normalizedAxes, rawHeadline, normalizedHeadline, scoringModelVersion, calibrationVersion), các hàm toán học (`speed`, `focus`, `headline`, `median`, `cv`, `statSamples`, `clamp`).
 12. `supabase/functions/_shared/scoring/standard-games.ts`
     - Hàm chấm điểm server cho 6 trò tiêu chuẩn: Schulte Table, Sudoku, Stroop Test, Reaction Time, Memory Matrix, Math Sprint.
 13. `supabase/functions/_shared/scoring/advanced-games.ts`
     - Hàm chấm điểm server cho 6 trò nâng cao: N-Back, Go/No-Go, Mental Rotation, Corsi Block, Trail Making, Visual Search.
 14. `supabase/functions/_shared/scoring/validation.ts`
-    - Bộ kiểm tra ràng buộc dữ liệu telemetry thô trước khi chấm: `assertCountBounds`, `assertRtBounds`, chặn thời gian phản ứng dưới ngưỡng người (`HARD_MIN_RT_MS = 80ms`).
+    - Bộ kiểm tra ràng buộc dữ liệu telemetry thô trước khi chấm: `assertCountBounds`, `assertRtBounds`. Chỉ kiểm tra cấu trúc/kiểu dữ liệu và số lượng, không kiểm tra ngữ nghĩa sâu.
 15. `supabase/functions/_shared/axes.ts`
     - Định nghĩa ma trận ánh xạ duy nhất giữa phím trục nhận thức (`AxisKey`) và tên cột tương ứng trong cơ sở dữ liệu Postgres `profiles`.
 16. `supabase/functions/server/routes/rounds.ts`
@@ -87,16 +87,19 @@ Mỗi game được khai báo nhất quán với các thuộc tính:
 - Trail Making (`trail`): Speed (chính), Focus (phụ) | Stage: md | Col: `trail_sessions`
 - Visual Search (`search`): Focus (chính), Speed (phụ) | Stage: md | Col: `search_sessions`
 
-4.2. THANG ĐIỂM VÀ TÍNH ĐIỂM ELO / RATING (EMA MODEL)
-- Thang điểm chuẩn: `RATING_MIN = 0`, `RATING_MAX = 1000`.
+4.2. THANG ĐIỂM VÀ TÍNH ĐIỂM RATING (Trimmed Mean MODEL)
+
+- Thang điểm chuẩn: `SCORE_SCALE_MAX = 1000`.
+  - Phân tách điểm số: Hệ thống sử dụng cấu trúc `ScoredRound` để lưu trữ rõ ràng:
+    + `rawHeadline`, `rawAxes`: Điểm thô thực tế có thể vượt 1000 (tuỳ vào MAX của game). Chỉ phục vụ phân tích.
+    + `normalizedHeadline`, `normalizedAxes`: Điểm chuẩn hoá về thang 1000 (`Math.round(SCORE_SCALE_MAX * Math.min(1, Math.max(0, raw / attainableCeiling)))`).
+    + Mọi DB projection, rating, Cognitive Index, XP, leaderboard ĐỀU PHẢI dùng `normalizedHeadline` / `normalizedAxes`.
   - Chữa lành dữ liệu cũ (Auto-heal): `sanitizeRating(val)`
     + `val < 0` hoặc không phải số -> 0.
     + `val > 1000` -> kẹp xuống chính xác 1000 (đảm bảo không bao giờ reset về 0 gây mất điểm oan), đồng thời ghi lại log cảnh báo (`console.warn` / telemetry) khi việc kẹp này xảy ra để phục vụ điều tra.
-- Thuật toán cập nhật EMA hai chiều (`applyRoundRating` / `pullUpRating`):
-  + Nếu điểm cũ `prev <= 0` (Cold Start): Điểm ván đầu trở thành baseline ban đầu.
-  + Nếu `gap = round - prev > 0` (Bứt phá): `EMA = prev + 0.4 * gap`, kẹp `max(prev + 3, EMA)`.
-  + Nếu `gap < 0` (Giảm phong độ): `EMA = prev + 0.28 * gap`, kẹp `min(prev - 3, EMA)`.
-  + Khoảng cách `|gap| <= 3` (`RATING_SNAP`): Nhảy thẳng về điểm ván mới để tránh tiệm cận vô hạn sat biên 999.
+- Thuật toán cập nhật (Robust Trimmed Mean):
+  + Áp dụng Trimmed Mean trên 10 ván gần nhất (loại bỏ 20% cao nhất/thấp nhất) để tính rating ổn định, không phụ thuộc vào ván cuối cùng và không gây lạm phát Trimmed Mean.
+  + Giữ giá trị `best_score` riêng biệt để hiển thị thành tích cá nhân (high score flex).
 
 4.3. THIẾT KẾ CÁC TRỤC ĐỘC LẬP & CÔNG THỨC CHẤM ĐIỂM CHI TIẾT
 Mỗi trục nhận tín hiệu đầu vào riêng biệt:
@@ -107,10 +110,10 @@ Mỗi trục nhận tín hiệu đầu vào riêng biệt:
     * `base = MAX * diff`
     * Nếu `raw <= 1` (chậm hơn target): `clamp(base * Math.pow(raw, 1.3))` (phạt lũy thừa 1.3).
     * Nếu `raw > 1` (nhanh hơn target): `clamp(base + (MAX - base) * (1 - exp(-ln(raw) * 1.6)) * 0.85)` (lấp đầy khoảng trống tiệm cận 0.85).
-- Focus: Đo độ ổn định nhịp độ (Coefficient of Variation - CV), tỷ lệ xao nhãng (Lapse Rate), độ chính xác và phạt nếu nhịp chơi quá chậm so với target.
-  + `penalty = clamp01((cv(rts) - 0.18) / (1.05 - 0.18))`
+- Focus: Đo độ ổn định nhịp độ (Coefficient of Variation - CV - Trả về `CvResult = { value: number, reliable: boolean }` để caller xử lý).
+  + `penalty = clamp01((cv(rts).value - 0.18) / (1.05 - 0.18))`
   + `pace = clamp01((4 * target - median) / (3 * target))`
-  + `focus = MAX * diff * 0.92 * (1 - penalty * 0.75) * (1 - lapseRate * 1.15) * (accuracy ^ 1.15) * (pace ^ 1.25)`
+  + `focus = clamp(RATING_MAX * Math.pow(quality, GAMMA[game]['focus']));
 - Headline Score: Trung bình cộng các trục active trong ván (`headline = sum(active_axes) / count(active_axes)`).
 
 Chi tiết công thức từng game trên server (`round-scoring.ts`):
@@ -122,8 +125,8 @@ Chi tiết công thức từng game trên server (`round-scoring.ts`):
 2. Sudoku:
    - Input: `difficulty` (Easy->Extreme), `placements`, `moveRts`, `mistakes`, `reEntries`, `repeatMistakes`, `actualClues`.
    - Độ khó thực tế `effectiveSudokuDiff` điều chỉnh theo `actualClues` thực tế.
-   - Logic: `clamp(MAX * diff * (1 - mistakes/3)^1.35)`. Ván `failed` giảm còn 35%.
-   - Memory: `retention = 1 - (reEntries + repeat*1.75) / max(3, placements*0.2)`. `clamp(MAX * diff * retention)`.
+   - Logic: `clamp(MAX * diff * (clamp01(1 - mistakes/3))^1.35)`. Ván `failed` giảm còn 35%.
+   - Memory: `retention = clamp01(1 - (reEntries + repeat*1.75) / max(3, placements*0.2))`. `clamp(MAX * diff * retention)`.
    - Speed: `speed(statRts, per, diff) * completion`.
 3. Stroop Test:
    - Input: `totalStimuli`, `wrongClicks`, `rts`. `STROOP_TRIALS = 30`.
@@ -141,11 +144,14 @@ Chi tiết công thức từng game trên server (`round-scoring.ts`):
    - Memory: `clamp(MAX * 0.88 * progressionFactor * accuracy)`.
    - Spatial: `clamp(MAX * 0.82 * progressionFactor * accuracy)`.
 6. N-Back:
-   - Input: `n` (1-6), `trials`, `hits`, `misses`, `falseAlarms`, `rts`.
-   - `hitRate = hits / targets`, `faRate = falseAlarms / nonTargets`, `accuracy = hitRate - faRate * 0.95`. `depth = n / 6`.
-   - Memory: `clamp(MAX * (accuracy ^ 1.2) * (0.62 + 0.36 * depth))`.
-   - Focus: `clamp(MAX * (accuracy ^ 1.15) * (0.62 + 0.32 * (1 - faRate)) * (0.72 + 0.26 * depth))`.
+   - Input: `n` (1-6), `trials`, `hits`, `misses`, `falseAlarms`, `rts`. Bắt buộc kiểm tra `if (targets <= 0 || nonTargets <= 0)` thì ném lỗi `ValidationError("Invalid N-Back trial distribution")`.
+   - Sử dụng lý thuyết phát hiện tín hiệu (Signal Detection Theory): Sử dụng lý thuyết phát hiện tín hiệu (Signal Detection Theory): Tính d' (d-prime) thông qua hàm nghịch đảo phân phối chuẩn (inverse CDF). `hitRate = correctedRate(hits, targets)`, `faRate = correctedRate(falseAlarms, nonTargets)`. `dPrime = invCDF(hitRate) - invCDF(faRate)`. `depth = clamp01(n / 6)`.
+   - Áp dụng Calibration Version hóa: Tính xác suất thực tế qua hàm logistic `calibrateDPrime(dPrime, {slope, midpoint})` với các tham số fitted từ dữ liệu thực.
+   - Memory: `clamp(MAX * calibrateDPrime(dPrime) *` * (0.62 + 0.36 * depth))`.
+   - Focus: `clamp(MAX * calibrateDPrime(dPrime) * (0.62 + 0.32 * (1 - faRate)) * (0.72 + 0.26 * depth))`.
    - Speed: `speed(rts, 620, 0.82)`.
+*Ghi chú Cân bằng (Calibration)*: Mọi trục điểm được cân chỉnh sao cho P50 = 500 điểm. Áp dụng Mô hình B (Model B) cho Scoring Ceilings: Mức trần điểm số (MAX) không còn cố định 1000 cho mọi game, mà được quy định theo từng trò chơi cụ thể để phản ánh đúng mức độ khó (Ví dụ: Memory Matrix MAX=1050, Schulte MAX=1100, Math Sprint MAX=950). Các công thức hỗ trợ (như Stroop focus max 717) được giữ nguyên, nhưng sẽ tính theo tỷ lệ của MAX mới. Yêu cầu có `test:scoring-ceiling` tính toán trần của mỗi game.
+
 7. Math Sprint:
    - Input: `difficulty`, `totalProblems`, `correct`, `wrong`, `rts`.
    - Logic: `clamp(MAX * diff * accuracy)`.
@@ -153,47 +159,46 @@ Chi tiết công thức từng game trên server (`round-scoring.ts`):
 8. Go / No-Go:
    - Input: `trials` (30-48), `goTrials`, `nogoTrials`, `hits`, `misses`, `falseAlarms`, `correctRejections`, `rts`.
    - `accuracy = clamp01(hitRate) * clamp01(1 - faRate)` (phép nhân chống chiêu trò bấm mọi ô hoặc không bấm ô nào).
-   - Focus: `clamp(MAX * 0.9 * (accuracy ^ 1.15) * (0.62 + 0.38 * (1 - faRate * 1.35)))`.
-   - Speed: `speed(statRts, 420, 0.88) * Math.pow(1 - faRate, 0.9)`.
-9. Mental Rotation:
+   - Focus: `clamp(MAX * 0.9 * (clamp01(accuracy) ^ 1.15) * (0.62 + 0.38 * (1 - faRate * 1.35)))`.
+   - Speed: `speed(statRts, 420, 0.88) * Math.pow(clamp01(1 - safeFaRate), 0.9)`.
+19. Mental Rotation:
    - Input: `trials` (20-32), `correct`, `wrong`, `rts`, `angles`, `mirrors`, `correctFlags`.
-   - `angleLoad`: Trung bình `|sin(angle/2)|` của các câu đúng. `angleFactor = 0.78 + 0.24 * meanAngleLoad`.
-   - Spatial: `clamp(MAX * 0.95 * (accuracy ^ 1.15) * angleFactor)`.
+   - Tính độ dốc (Slope) RT theo góc xoay (theo chuẩn Shepard-Metzler) thay vì chỉ dùng thời gian trung bình, nhằm chặn hành vi bấm bừa tốc độ cao.
+   - Spatial: `clamp(MAX * 0.95 * (clamp01(accuracy) ^ 1.15) * angleFactor)`.
    - Speed: `speed(statRts, 1400, 0.72)`.
 10. Corsi Block:
     - Input: `span` (0-9), `trials`, `correctTrials`, `taps`, `wrongClicks`, `rts`.
-    - `spanNorm = (span - 2) / 6`. `spanFactor = SPAN_FLOOR + (1 - SPAN_FLOOR) * (spanNorm ^ exp)`.
+    - `spanNorm = clamp01((span - 2) / 6)`. `spanFactor = SPAN_FLOOR + (1 - SPAN_FLOOR) * (spanNorm ^ exp)`.
     - Memory: `clamp(MAX * 0.95 * spanFactor(0.65) * (0.7 + 0.3 * accuracy))`.
-    - Spatial: `clamp(MAX * 0.84 * spanFactor(0.6) * ((1 - errorRate) ^ 1.2))`.
+    - Spatial: `clamp(MAX * 0.84 * spanFactor(0.6) * Math.pow(clamp01(1 - clamp01(errorRate)), 1.2))`.
 11. Trail Making:
     - Input: `nodes` (12-40), `mode` ("A" | "B"), `wrongClicks`, `rts`.
     - Target: Mode A = 760ms, Mode B = 1100ms. Diff: Mode A = 0.78, Mode B = 0.90.
     - Speed: `speed(statRts, target, diff)`.
     - Focus: `focus(statRts, accuracy, diff, target)`.
 12. Visual Search:
-    - Input: `totalTimeMs`, `score`, `mistakes`, `rts`.
+    - Input: `totalTimeMs`, `targetsFound`, `misses`, `responses`, `mistakes`, `rts`.
     - Speed: `speed(statRts, 1100, 0.85)`.
     - Focus: `focus(statRts, accuracy, 0.85, 1100)`.
 
 4.4. TÍNH CHỈ SỐ NHẬN THỨC VÀ TUỔI NÃO (COGNITIVE INDEX & BRAIN AGE)
 - Chỉ số nhận thức toàn cầu (`cognitiveIndex`):
-  + Từ Phase 12 (Tuần 3), `cognitive_index` được tính toán hoàn toàn trên Database (qua DB function `compute_cognitive_index` và View `friend_leaderboard`).
+  + Từ Phase 12 (Tuần 3), `cognitive_index` được tính toán hoàn toàn trên Database (qua DB function `compute_cognitive_index` và View `friend_leaderboard`). Điểm số được version hóa theo từng mùa giải (Epoch) thông qua `rating_model_version`, đảm bảo khi thay đổi công thức tính CI thì rank cũ không bị hỏng.
   + **Decay (Suy giảm)**: Trước khi tính Index, từng trục được tính `effective_rating()` dựa trên `peak_rating`. Decay bắt đầu sau 15 ngày không chơi (mỗi ngày -1%), và chạm đáy ở 35% của đỉnh phong độ.
-  + **Nội suy (Interpolation)**: `compute_cognitive_index()` tính trung bình cộng 5 trục `effective_rating`. Những trục chưa từng chơi (score = 0) sẽ được nội suy (phạt 30%) dựa trên trung bình các trục đã mở.
-- Tuổi não (`calcBrainAge`):
-  + Yêu cầu đủ `CALIBRATION_ROUNDS = 5` ván chơi calibration.
+  + **Nội suy (Interpolation - Fix M2)**: `compute_cognitive_index()` = Tính trung bình cộng của các trục **ĐÃ CHƠI**. Tuyệt đối BỎ `coverage_multiplier` (nhân hệ số này sẽ làm giảm Index khi mở trục mới, trái với nguyên tắc không phạt người chơi). `confidence_score` là giá trị độc lập dùng để hiển thị mức độ tin cậy.
+- Tuổi não: Bắt buộc Server trả về DTO `CognitiveSummary` cho Client. Client tuyệt đối KHÔNG ĐƯỢC tự tính toán (xoá hàm `CognitiveSummary` phía Client) để tránh logic bị trôi (drift).
+  + Ván chơi thứ 1 đến 5 chỉ để đánh giá trạng thái "đang hiệu chuẩn" (Onboarding).
+  + Yêu cầu thực sự: Đạt 20–30 online authoritative rounds, phủ ít nhất 4/5 trục (Hiển thị confidence score cho người dùng).
   + Biên độ tuổi tối đa: `MAX_AGE_SWING = 12` năm.
-  + Phân tầng tuổi: Hệ thống sử dụng 5 tầng tuổi riêng biệt: 13-17, 18-24, 25-34, 35-49, 50+. Percentile của user được tính so với population *của đúng tầng tuổi đó*.
-  + Xử lý mẫu nhỏ (Bayesian Shrinkage): Khi một tầng tuổi chưa đủ `MIN_POPULATION (mặc định 10) * 4` (40 người), hệ thống sẽ hòa trộn (blend) phân phối của tầng đó với *phân phối toàn cục thực tế* của toàn hệ thống, thay vì dùng một hằng số cứng. (Chỉ dùng `DEFAULT_POPULATION = { mean: 380, sd: 180 }` nếu toàn bộ hệ thống chưa ai chơi).
-  + Tính Percentile bằng công thức xấp xỉ hàm lỗi Abramowitz & Stegun (`erf`):
-    `z = (index - mean) / sd`
-    `percentile = clamp01(0.5 * (1 + erf(z / sqrt(2))))`
+  + Phân tầng tuổi: Hệ thống sử dụng 5 tầng tuổi riêng biệt: 16-17, 18-24, 25-34, 35-49, 50+. Percentile của user được tính so với population *của đúng tầng tuổi đó*.
+  + Xử lý mẫu nhỏ (Bayesian Shrinkage): Khi một tầng tuổi chưa đủ `MIN_POPULATION (mặc định 10) * 4` (40 người), hệ thống sẽ hòa trộn (blend) phân phối của tầng đó với *phân phối toàn cục thực tế* của toàn hệ thống. Mức độ confidence score hiển thị sẽ phụ thuộc vào số mẫu này.
+  + Tính Percentile thực nghiệm (Empirical Percentile): Hệ thống sẽ lấy percentiles dựa trực tiếp từ histogram thống kê thực tế, không dùng xấp xỉ bằng hàm lỗi Erf (do phân phối thực tế có thể lệch đuôi).
   + `advantage = (percentile - 0.5) * 2 * MAX_AGE_SWING`
   + `brainAge = round(clamp(realAge - advantage, 5, 120))`
 
 4.5. HỆ THỐNG XP & LEVEL (ENGAGEMENT SYSTEM)
 - XP thưởng theo ván chơi (`calculateRoundXp`):
-  + `base = 15`, `perf = (score / 1000) * 45` (tối đa 60 XP/ván).
+  + `base = 15`, `perf = (normalizedHeadline / SCORE_SCALE_MAX) * 45` (tối đa 60 XP/ván).
   + Hệ số mệt mỏi trong ngày (`fatigue = max(0.1, 1 - roundIndexToday * 0.15)`).
 - Derive Level từ tổng XP (`levelFromXp`):
   + `completed = floor((-1 + sqrt(1 + totalXp / 12.5)) / 2)`
@@ -209,7 +214,7 @@ Chi tiết công thức từng game trên server (`round-scoring.ts`):
 
 4.6. HÀNG ĐỢI VÀ ĐỒNG BỘ NGOẠI TUYẾN (OFFLINE QUEUE & SYNC)
 - Khi mất kết nối mạng, hook `useRoundSubmission` tạo ticket giả dạng `offline-{game}-{timestamp}`.
-- Ván chơi hoàn tất được đẩy vào hàng đợi LocalStorage `neurobics.offline_queue.[userId]` (tối đa 200 ván, cơ chế FIFO) thông qua `pushOfflineRound`.
+- Ván chơi hoàn tất được đẩy vào hàng đợi IndexedDB `neurobics.offline_queue.[userId]` (tối đa 200 ván, cơ chế FIFO) thông qua `pushOfflineRound`.
 - Mỗi ván ngoại tuyến sinh một `clientRoundId` (UUID) duy nhất.
 - Khi có mạng trở lại, hook `useOfflineSync` tự động gửi lô tối đa 25 ván tới `/server/sync-offline-rounds`.
 - Server đối chiếu `clientRoundId` trong bảng `round_tickets` để đảm bảo tính bất biến/tránh ghi trùng (Idempotency).
@@ -222,8 +227,9 @@ Chi tiết công thức từng game trên server (`round-scoring.ts`):
 Người dùng click chọn game trên UI -> `useRoundSubmission.prepareRound(game)`
     - Client gọi POST /server/start-round { game }
   - Server kiểm tra Auth User & Rate limit (tối đa 20 ván/phút)
-  - Server đóng vé cũ chưa nộp (nếu có) và cấp phát vé mới từ `ticket_pool` qua RPC `start_round_with_pool` (Pre-mint pool giảm cold-start - ADR-0008).
-  └─ Server trả về { roundId, game, startedAt, expiresAt } (thời gian sống 3 giờ)
+  - Hỗ trợ tối đa 3 vé chưa nộp (active) bằng cơ chế `active_slot` (1-3) và `UNIQUE INDEX round_ticket_active_slot_uidx ON public.round_tickets (user_id, active_slot) WHERE state IN ('issued', 'activated', 'processing')`. Slot được cấp phát thông qua RPC `start_round_with_pool` để tránh spam cấp vé vô tội vạ. RPC `claim_round(p_round_id)` dùng `SECURITY DEFINER` kiểm tra trực tiếp `auth.uid()` và `expires_at > clock_timestamp()`, đảm bảo an toàn trước khi xử lý. Mọi vé cu thứ 4 mới bị đẩy. Cấp phát vé siêu tốc qua `ticket_pool` (Pre-mint pool giảm cold-start - ADR-0008).
+  └─ Server trả về `{ roundId, game, configVersion, issuedAt, expiresAt }` (Không trả về challenge ngay để chống pre-solving. Ticket chưa activate có TTL dài hơn).
+  - Khi người dùng bấm Play, client gọi `/server/activate-round` để nhận `publicChallenge` và `submit_deadline` (TTL cực ngắn tùy độ dài game). Activation phải nguyên tử và idempotent (UPDATE state = 'activated', activated_at = clock_timestamp(), submit_deadline = clock_timestamp() + p_game_duration WHERE state = 'issued' AND expires_at > clock_timestamp()). Nếu retry, trả lại cùng challenge, không gia hạn deadline. Challenge tinh chỉ được reveal tại thời điểm này.
 
 [BƯỚC 2: CHƠI GAME & GHI TELEMETRY]
 Người dùng bắt đầu chơi (`beginPlay`) -> Lưu `performance.now()`
@@ -235,24 +241,25 @@ Người dùng bắt đầu chơi (`beginPlay`) -> Lưu `performance.now()`
 
 [BƯỚC 3: NỘP VÁN CHƠI & CHẤM ĐIỂM SERVER]
 Người dùng hoàn thành ván -> Game gọi handler nộp dữ liệu -> `submitRound(roundId, game, telemetry)`
-  └─ Client gửi POST /server/submit-round { roundId, game, telemetry, fingerprint }
-  └─ Server kiểm tra ticket trong DB:
-     + Ticket phải tồn tại, đúng user, đúng game, chưa submitted, chưa hết hạn.
-  └─ Server tính thời gian trôi qua thực tế trên Server: `serverElapsedMs = Date.now() - ticket.started_at`.
-  └─ Lớp chống gian lận `inspectRound(game, telemetry, serverElapsedMs)`:
-     + Nếu dính HARD FLAG -> Đốt ticket lập tức, ghi RPC `record_cheat_flag`, trả 422 `anticheat_hard`.
-     + Nếu dính SOFT FLAG -> Ghi log cảnh báo qua `record_cheat_flag`, vẫn tiếp tục chấm điểm.
-  └─ Lớp Validate & Scoring `scoreAndValidate(game, telemetry, serverElapsedMs)`:
-     + Chạy `assertCountBounds` & `assertRtBounds` (chặn RT < 80ms hoặc RT > 60s).
-     + Gọi Scorer tương ứng trong `SCORERS[game]` để tính điểm các trục.
-     + Kiểm tra `scored.timeMs <= serverElapsedMs + 15000ms`.
-  └─ Server thực thi RPC Postgres Transaction `submit_round_transaction`:
-     + Cập nhật các cột điểm tương ứng trong `profiles` bằng công thức EMA.
+  ├─► Client gửi POST /server/submit-round { roundId, game, telemetry, fingerprint }
+  ├─► Server sử dụng RPC `claim_round` để khóa atomic và cấp `processing_token`.
+  ├─► Server tính thời gian trôi qua thực tế: `serverElapsedMs = Date.now() - ticket.activated_at`. (Chỉ dùng làm upper bound, không dùng để chấm điểm).
+  ├─► Lớp chống gian lận `inspectRound(ticket.game, telemetry, serverElapsedMs)` (Sử dụng version lưu trên ticket: `resolveScorer(ticket.scorerVersion)`):
+     + Schema validation -> Invariant validation -> Signal extraction.
+     + Centralized Decision Engine nhận tín hiệu và quyết định:
+        * Nếu REJECT DECISION (>= 1 Physical or >= 2 Statistical) -> Dừng chấm điểm, gọi RPC `finalize_rejected_round_tx`.
+        * Nếu WARNING DECISION (< 2 Statistical) -> Ghi cờ và vẫn tiếp tục chấm điểm.
+  ├─► Lớp Validate & Scoring `scoreAndValidate(ticket.game, telemetry, serverElapsedMs)`:
+     + Chặn các giá trị NaN, âm, hoặc sai kiểu. (Không còn Reject tại mức này, chỉ trả tín hiệu suspicious).
+     + Lọc bỏ các sample nhiễu.
+     + Gọi Scorer tương ứng bằng `resolveScorer(ticket.scorerVersion)` để tính điểm các trục.
+  └─► Kết thúc bằng duy nhất `finalize_accepted_round_tx` nếu thành công. Trả về `CognitiveSummary`.
      + Tăng cột session counter của game tương ứng (vd: `schulte_sessions = schulte_sessions + 1`).
      + Thêm dòng vào `training_sessions` & `xp_events`.
+     + LƯU Ý: Tạo view `engagement_sessions` (UNION của training và practice có ranked flag). Chế độ chơi Accessible Practice (cho phép pause không giới hạn thời gian) sẽ được lưu vào `practice_sessions` với `provenance='accessible'` (không ảnh hưởng hạng). Quest/streak đọc từ `engagement_sessions`, còn Leaderboard/Rating/Brain Age chỉ đọc `training_sessions`.
      + Trigger trg_xp_events_apply tự cộng xp_awarded vào profiles.total_xp.
         + Level được derive từ total_xp (levelFromXp), không lưu cột riêng.
-     + Đánh dấu ticket `submitted_at = now()`.
+     + Cập nhật trạng thái ticket `state = 'accepted'`.
   └─ Server trả về thông tin profile mới cập nhật + các trục điểm thu được (`axes`, `headline`, `xpAwarded`, `leveledUp`).
 
 [BƯỚC 4: HIỂN THỊ KẾT QUẢ VÀ CẬP NHẬT UI]
@@ -266,19 +273,19 @@ Client nhận phản hồi thành công -> `useRoundSubmission` xử lý:
 6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
 --------------------------------------------------------------------------------
 1. Ranh giới Server-Client (Server-Only Scoring):
-   - Mọi thuật toán chấm điểm và quy tắc tính EMA thực sự nằm duy nhất tại `supabase/functions/_shared/round-scoring.ts`. Client chỉ giữ kiểu dữ liệu DTO và hàm tính preview tạm thời.
+   - Mọi thuật toán chấm điểm và quy tắc tính Trimmed Mean thực sự nằm duy nhất tại `supabase/functions/_shared/round-scoring.ts`. Client chỉ giữ kiểu dữ liệu DTO và hàm tính preview tạm thời.
 2. Xác thực Vé Ván chơi (Ticket-based Lifecycle):
    - Người dùng không thể gửi trực tiếp điểm số vào DB. Mọi ván chơi phải có `roundId` gắn với 1 vé hợp lệ sinh ra từ server trước thời điểm chơi.
-   - Mỗi người dùng chỉ có 1 vé active tại một thời điểm (vé cũ tự đóng khi mint vé mới).
+   - Mỗi người dùng chỉ có active_slot 1-3 tại một thời điểm (vé cũ tự đóng khi mint vé mới).
    - Khống chế tốc độ tạo vé: Tối đa 20 vé/phút (`MAX_TICKET_STARTS_PER_MINUTE`).
 3. Kiểm tra Ràng buộc Thời gian & Dữ liệu Vật lý:
    - `serverElapsedMs` do server tự đo dựa trên thời gian tạo vé. Dữ liệu client khai báo không thể vượt quá `serverElapsedMs + 15s`.
-   - Ngưỡng thời gian phản ứng con người (`HARD_MIN_RT_MS = 80ms`): Bất kỳ lượt bấm nào dưới 80ms đều bị coi là vi phạm giới hạn sinh học con người.
+   - Ngưỡng thời gian phản ứng con người (`HARD_MIN_RT_MS = 80ms`): Bất kỳ lượt bấm nào dưới 80ms KHÔNG DÙNG Schema Zod để chặn (tránh lỗi validation văng ra sớm). Việc này do **Signal Extractor** tự bắt và đánh tín hiệu. Decision Engine sẽ quyết định đây là Warning hay Reject dựa vào phân bố dị thường (tránh False Positive).
    - Giới hạn số lượng phần tử (`rts.length <= 5000`) chống tấn công từ chối dịch vụ (DoS) bằng payload khổng lồ.
    - Kiểm tra tính nhất quán logic (`assertCountBounds`): `correct + wrong == trials`, `hits + misses == goTrials`, `falseAlarms <= nogoTrials`...
 4. Tầng Chống Gian Lận Đa Cấp (Anti-cheat Inspection):
-   - Hard Flags: Huỷ ván ngay lập tức và đốt vé (burn ticket) trước khi trả về HTTP 422 để ngăn kẻ gian dùng API làm Oracle dò ngưỡng.
-   - Soft Flags: Ghi vết gian lận nghi vấn vào cơ sở dữ liệu (`cheat_flags`) để phân tích hành vi mà không ảnh hưởng trực tiếp đến trải nghiệm người chơi bình thường.
+   - Physical/Statistical Rejects: Huỷ ván ngay lập tức và đốt vé (burn ticket) trước khi trả về HTTP 422 để ngăn kẻ gian dùng API làm Oracle dò ngưỡng.
+   - Statistical Warnings: Ghi vết gian lận nghi vấn vào cơ sở dữ liệu (`cheat_flags`) để phân tích hành vi mà không ảnh hưởng trực tiếp đến trải nghiệm người chơi bình thường.
    - Liên kết dấu vân tay thiết bị (`link_device`) lưu tối đa 200 ký tự fingerprint để phát hiện bot/multi-account.
 
 --------------------------------------------------------------------------------

@@ -15,5 +15,5 @@ Client chỉ đóng vai trò thu thập "Telemetry thô" (như lịch sử click
 4. Ghi trực tiếp vào Database bằng một Transaction.
 
 ## Consequences
-- **Điểm lợi**: Chống gian lận tuyệt đối ở tầng logic. Client không bao giờ quyết định điểm số của mình.
+- **Điểm lợi**: Chống gian lận giảm thiểu tối đa ở tầng logic. Client không bao giờ quyết định điểm số của mình.
 - **Điểm bất lợi**: Khó khăn hơn khi chơi Offline vì client không thể biết điểm thật của mình cho đến khi có mạng trở lại. (Client sẽ sử dụng logic cục bộ để tính toán một kết quả "Provisional / Non-authoritative" tạm thời, sau đó Server sẽ ghi đè kết quả thật khi mạng được kết nối lại).

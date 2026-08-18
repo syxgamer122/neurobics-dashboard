@@ -15,5 +15,5 @@ MindGem cho phép người chơi tiếp tục chơi khi rớt mạng qua PWA, t�
 5. Khi người dùng đang Offline, Client hiển thị điểm Provisional (Tạm tính) kèm biểu tượng "Unranked/Practice". Khi có mạng, Server ghi đè bằng kết quả cuối cùng với trust_level = unverified.
 
 ## Consequences
-- **Điểm lợi**: Khắc phục triệt để lỗ hổng gian lận dữ liệu cạnh tranh từ Offline. Leaderboard và Brain Age luôn chính xác tuyệt đối 100%.
+- **Điểm lợi**: Khắc phục triệt để lỗ hổng gian lận dữ liệu cạnh tranh từ Offline. Leaderboard và Brain Age luôn chuẩn xác.
 - **Điểm bất lợi**: Người chơi ở vùng sóng yếu sẽ không thể leo rank cạnh tranh. Họ chỉ có thể kiếm XP cày cuốc cơ bản để giữ daily streak.

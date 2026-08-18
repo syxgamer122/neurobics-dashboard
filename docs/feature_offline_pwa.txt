@@ -26,7 +26,7 @@ Hệ thống được thiết kế theo kiến trúc phân tầng (Client-Server
   │     ├── Online Auth User -> startRound() + submitRound() (api.ts)
   │     └── Offline Fallback -> pushOfflineRound() (offline-queue.ts) + estimateRoundResult()
   ├── Offline Storage & Queue (offline-queue.ts)
-  │     ├── LocalStorage key: "neurobics.offline_queue.[userId]" (FIFO max 200)
+  │     ├── IndexedDB key: "neurobics.offline_queue.[userId]" (FIFO max 200)
   │     └── Event: "offline-queue-updated"
   └── Auto Sync Engine (use-offline-sync.ts)
         ├── Lắng nghe "online" & "offline-queue-updated"
@@ -40,19 +40,19 @@ Hệ thống được thiết kế theo kiến trúc phân tầng (Client-Server
   │     ├── Validate ticket & serverElapsedMs
   │     ├── Anti-cheat Inspection (hard reject / soft flag)
   │     └── RPC: submit_round_transaction
-  └── Offline Batch Sync (POST /server/sync-offline-rounds)
+  ├── Sync Offline Rounds (POST /server/sync-offline-rounds)
         ├── Validate batch size (<= 25 rounds)
-        ├── Validate offline round age (<= 7 ngày)
+        ├── Validate offline round age (<= 7 ngày (lưu ý: quá 7 ngày thì nhận với cờ offline_stale, KHÔNG reject))
         ├── Check idempotency qua client_round_id
         ├── Mint real ticket in DB per round
         ├── Anti-cheat Inspection (+ Soft Flag "Offline sync timing bypass")
-        └── RPC: submit_round_transaction per valid round
+        └── RPC: submit_offline_practice_tx per valid round
 
 
 3. CÁC FILE LIÊN QUAN & VAI TRÒ (RELATED FILES)
 -------------------------------------------------------------------------------
 1. src/app/lib/offline-queue.ts
-   - Quản lý hàng đợi ván đấu offline trong LocalStorage (`neurobics.offline_queue.[userId]`), giới hạn FIFO tối đa 200 ván, gửi event `offline-queue-updated` và cung cấp hàm `syncOfflineQueue` đồng bộ theo batch.
+   - Quản lý hàng đợi ván đấu offline trong IndexedDB (`neurobics.offline_queue.[userId]`), giới hạn FIFO tối đa 200 ván, gửi event `offline-queue-updated` và cung cấp hàm `syncOfflineQueue` đồng bộ theo batch.
 
 2. src/app/hooks/use-offline-sync.ts
    - React Hook quản lý trạng thái tự động đồng bộ khi thiết bị khôi phục mạng (`online` event) hoặc khi có ván mới nạp vào hàng đợi, sử dụng `syncingRef` chống gọi trùng lặp.
@@ -77,7 +77,7 @@ Hệ thống được thiết kế theo kiến trúc phân tầng (Client-Server
 
 A. CẤU TRÚC DỮ LIỆU & TYPE DEFINITIONS
 ```typescript
-// 1. Payload ván offline lưu trong LocalStorage (offline-queue.ts)
+// 1. Payload ván offline lưu trong IndexedDB (offline-queue.ts)
   export interface OfflineRoundPayload {
     clientRoundId: string;   // UUID do client tự sinh bằng crypto.randomUUID()
     schemaVersion: number;   // Mặc định là 1
@@ -91,12 +91,10 @@ A. CẤU TRÚC DỮ LIỆU & TYPE DEFINITIONS
   }
 
 // 2. Trạng thái phản hồi đồng bộ từ Server (offline-queue.ts)
-export type SyncResult = {
-  clientRoundId: string;
-  status: "ok" | "duplicate" | "rejected" | "error";
-  error?: string;
-  code?: string;
-};
+export type SyncResult = 
+  | { clientRoundId: string; status: "ok" | "duplicate" | "rejected"; terminal: true }
+  | { clientRoundId: string; status: "retryable_error"; terminal: false; code: string }
+  | { clientRoundId: string; status: "unsupported_schema"; terminal: true; code: string };
 
 // 3. Sự kiện trước khi cài đặt PWA (use-pwa-install.ts)
 interface BeforeInstallPromptEvent extends Event {
@@ -111,10 +109,11 @@ interface BeforeInstallPromptEvent extends Event {
 ```
 
 B. CÁC HẰNG SỐ QUAN TRỌNG
-- `OFFLINE_QUEUE_KEY`: `"neurobics.offline_queue.[userId]"` - Key lưu trữ hàng đợi trong LocalStorage.
-- `MAX_QUEUE`: `200` - Số lượng ván đấu tối đa lưu giữ trong hàng đợi local (FIFO).
-- `MAX_SYNC_BATCH`: `25` - Số ván tối đa gửi lên server trong 1 HTTP request đồng bộ.
-- `MAX_OFFLINE_AGE_MS`: `7 * 24 * 3600_000` (7 ngày) - Tuổi thọ tối đa của ván offline được server chấp nhận.
+- `OFFLINE_QUEUE_KEY`: `"neurobics.offline_queue.[userId]"` - Key lưu trữ hàng đợi trong IndexedDB.
+- `MAX_QUEUE`: `200` - Số lượng ván tối đa lưu giữ trong hàng đợi local (Bounded persistent queue, capacity 200).
+- `MAX_SYNC_BATCH`: `25` - Số ván tối đa gửi lên server trong 1 HTTP request đồng bộ. Response sử dụng mã HTTP `207 Multi-Status` thay vì `426` toàn cục để báo lỗi từng ván cũ biệt lập.
+- **Tính Nhất Quán Tuyệt Đối**: Offline practice bắt buộc sử dụng 2 nguồn Provenance phân lập: `client_build_id` / `client_config_hash` (Client khai báo, chỉ dùng để debug) và `server_processing_manifest_hash` / `server_scorer_version` (Logic thực tế dùng tại server khi sync). Schema version phải đọc từ client bundle registry, không hardcode.
+- `MAX_OFFLINE_AGE_MS`: Ván cũ hơn 7 ngày gắn cờ `provenance = 'offline_stale'`, bắt buộc `ranked=false, xp_eligible=false, quest_eligible=false, streak_eligible=false`. Offline Queue khi nhận response thiếu batch item phải tự động `scheduleRetry(clientRoundId, 'missing_server_result')`. Dead-letter queue phải có Export/Xóa UX cho dữ liệu `unsupported_schema`.
 - `MAX_TICKET_STARTS_PER_MINUTE`: `20` - Hạn ngạch tạo ticket khởi tạo ván / phút / user trên server.
 
 C. THUẬT TOÁN & LOGIC XỬ LÝ CHI TIẾT
@@ -122,24 +121,48 @@ C. THUẬT TOÁN & LOGIC XỬ LÝ CHI TIẾT
 1. Hàng đợi Offline & Quản lý Bộ nhớ (`offline-queue.ts`):
    - Khi ghi ván mới (`pushOfflineRound`):
      ```typescript
-     const queue = getOfflineQueue();
-     if (queue.length >= MAX_QUEUE) {
-       queue.shift(); // Thuật toán FIFO: loại bỏ ván cũ nhất khi đạt ngưỡng 200
-     }
-     queue.push({
-       ...round,
-       clientRoundId: crypto.randomUUID(),
-       schemaVersion: 1,
-       createdAt: new Date().toISOString(),
-     });
-     writeOfflineQueue(queue); // Ghi vào localStorage & dispatch event "offline-queue-updated"
+     if (await countPendingRounds(userId) >= MAX_QUEUE) { throw new QueueFullError(); }
+     await db.put("offlineRounds", { ...round, userId, clientRoundId: crypto.randomUUID(), status: "pending", attemptCount: 0, nextRetryAt: null, createdAt: new Date().toISOString() }); // Ghi vào IndexedDB & dispatch event "offline-queue-updated"
      ```
    - Chống Race Condition khi đồng bộ (`syncOfflineQueue`):
      Để tránh mất các ván người dùng vừa hoàn thành trong lúc request API `syncEndpoint` đang chờ (await), hàm sẽ đọc lại hàng đợi tươi (`freshQueue = getOfflineQueue()`) trước khi tiến hành lọc bỏ các ván đã chốt (`settledIds` chứa trạng thái `ok`, `duplicate`, `rejected`):
      ```typescript
-     const freshQueue = getOfflineQueue();
-     const newQueue = freshQueue.filter((item) => !settledIds.has(item.clientRoundId));
-     writeOfflineQueue(newQueue);
+      // Ưu tiên Web Locks API chuẩn, fallback sang IndexedDB lease nếu không hỗ trợ
+      if (navigator.locks?.request) {
+        return navigator.locks.request(`offline-sync:${userId}`, { mode: "exclusive" }, async () => {
+          // Logic sync ...
+        });
+      }
+      
+      const lease = await acquireLockFallback(`offline-sync:${userId}`, 60_000);
+      if (!lease) return;
+      try {
+        // Logic sync ...
+      } finally {
+        await releaseLockFallback(lease);
+      }
+     ```
+     Bên trong logic sync:
+     ```typescript
+     const batch = await getPendingBatch(userId, 25);
+     await markAsSyncing(batch.map(x => x.clientRoundId));
+    const results = await syncOfflineRounds(batch);
+
+    await db.transaction("readwrite", ["offlineRounds"], async () => {
+      for (const result of results) {
+        if (result.terminal) {
+          if (result.status === "unsupported_schema") {
+            await moveToDeadLetter(result.clientRoundId); // Phiên bản quá cũ, chuyển sang lưu trữ chết để debug
+          } else {
+            await deleteRound(result.clientRoundId);
+          }
+        } else {
+          await scheduleRetry(result.clientRoundId); // Exponential backoff + jitter
+        }
+      }
+    });
+  }
+);
      ```
 
 2. Tự động Đồng bộ Ngoại tuyến (`use-offline-sync.ts`):
@@ -184,11 +207,11 @@ C. THUẬT TOÁN & LOGIC XỬ LÝ CHI TIẾT
 
 6. Xử lý Đồng bộ ở Server (`supabase/functions/server/routes/rounds.ts`):
    - Endpoint `POST /server/sync-offline-rounds` nhận mảng `rounds` (tối đa 25 ván).
-   - Kiểm tra thời gian khởi tạo ván `startedAt`: Từ chối nếu `startedAt` lớn hơn thời gian hiện tại > 60s hoặc cũ hơn 7 ngày (`MAX_OFFLINE_AGE_MS`).
-   - Kiểm tra Idempotency: Tra cứu DB `round_tickets` xem đã có ticket nào chứa `client_round_id` này và đã `submitted_at` chưa. Nếu rồi -> Trả về status `"duplicate"`.
+   - Kiểm tra Version (`telemetrySchemaVersion`): Server từ chối xử lý và trả về 426 Upgrade Required nếu version gửi lên cũ hơn 2 bản so với version hiện tại.
+   - Kiểm tra Idempotency: HOÀN TOÀN KHÔNG SỬ DỤNG CỘT `submitted_at` (Đã bị loại bỏ). Sử dụng duy nhất DB Constraint (`CREATE UNIQUE INDEX round_tickets_client_round_uid`) và kiểm tra `state IN ('accepted','rejected','invalid','failed')` làm source of truth. Nếu đã tồn tại -> Trả về status `"duplicate"` và không xử lý lại.
    - Tạo Ticket Thật: Nếu chưa có ticket, insert một bản ghi ticket thật vào DB `round_tickets` với `client_round_id`.
-   - Kiểm tra Anti-cheat (`inspectRound`): Bổ sung Soft Flag đặc thù: `"Offline sync: timing verification bypassed"`. Nếu phát hiện Hard Flag gian lận -> Đốt ticket (`submitted_at = now`) và trả về status `"rejected"` với code `"anticheat_hard"`.
-   - Ghi nhận giao dịch DB (`submit_round_transaction`): Cập nhật Rating trục, XP, và lịch sử ván chơi nguyên tử (Atomic Transaction) qua RPC Supabase.
+   - Kiểm tra Anti-cheat (`inspectRound`): Bổ sung Soft Flag đặc thù: `"Offline sync: timing verification bypassed"`. Nếu phát hiện Hard Flag gian lận -> Đốt ticket (`state = 'rejected'`) và trả về status `"rejected"` với code `"anticheat_hard"`.
+   - Ghi nhận giao dịch DB (`submit_offline_practice_tx`): INSERT practice_sessions, UPDATE last_activity_at, cấp practice_xp/streak bị giới hạn, chống duplicate bằng `UNIQUE (user_id, client_round_id)`. KHÔNG update rating, KHÔNG update competitive total_xp, KHÔNG update PB/Brain Age, KHÔNG mở achievement cạnh tranh.
 
 
 5. LUỒNG DỮ LIỆU (DATA FLOWS)
@@ -210,7 +233,7 @@ LUỒNG 1: NGƯỜI DÙNG CHƠI GAME KHI KHÔNG CÓ MẠNG (OFFLINE PLAYING)
        ▼
 [completeRound()] ──► Phát hiện ticket "offline-*" (hoặc submitRound bị Network Error)
        │
-       ├──► 1. pushOfflineRound() ──► Ghi vào LocalStorage ("neurobics.offline_queue.[userId]")
+       ├──► 1. pushOfflineRound() ──► Ghi vào IndexedDB ("neurobics.offline_queue.[userId]")
        │                                   │
        │                                   ▼
        │                             Dispatch event "offline-queue-updated"
@@ -218,7 +241,7 @@ LUỒNG 1: NGƯỜI DÙNG CHƠI GAME KHI KHÔNG CÓ MẠNG (OFFLINE PLAYING)
        └──► 2. estimateRoundResult() ──► Tính điểm & XP tạm thời bằng Client Scorer
                                            │
                                            ▼
-                                     Cập nhật Profile UI & Hiển thị Result Overlay
+                                     Lưu vào state riêng (provisionalRounds[]), KHÔNG merge vào cachedProfile. Hiển thị UI với badge PRACTICE.
 
 
 LUỒNG 2: TỰ ĐỘNG ĐỒNG BỘ KHI KHÔI PHỤC KẾT NỐI (AUTO SYNC)
@@ -238,11 +261,9 @@ LUỒNG 2: TỰ ĐỘNG ĐỒNG BỘ KHI KHÔI PHỤC KẾT NỐI (AUTO SYNC)
        ┌────────────────────────────────────────────┴────────────────────────────────────────────┐
        ▼                                                                                         ▼
 [Lặp từng ván offline]:                                                                    [Xử lý lỗi Batch]:
- 1. Kiểm tra age <= 7 ngày & format hợp lệ.                                                 Nếu lỗi Server 500:
- 2. Check DB qua client_round_id -> Trùng? -> status: "duplicate".                          Ném Exception -> Keep queue -> Retry sau.
- 3. Insert ticket thật vào DB round_tickets.
- 4. Run inspectRound() (+ Soft flag offline). -> Hard cheat? -> status: "rejected".
- 5. Call RPC submit_round_transaction() -> Thành công -> status: "ok".
+ 1. Kiểm tra age <= 7 ngày (lưu ý: quá 7 ngày thì nhận với cờ offline_stale, KHÔNG reject) & format hợp lệ.                                                 Nếu lỗi Server 500:
+  2. Call RPC submit_offline_practice_tx() (chỉ Insert practice_sessions, cập nhật last_activity_at, cấp practice_xp/streak). KHÔNG update rating, total_xp, PB hay mở achievement cạnh tranh. (Xử lý idempotency bằng ON CONFLICT DO NOTHING).
+ 3. Thành công -> status: "ok" hoặc "duplicate".
        │
        ▼
 [Server trả về JSON: { results: [{ clientRoundId, status }, ...] }]
@@ -251,7 +272,7 @@ LUỒNG 2: TỰ ĐỘNG ĐỒNG BỘ KHI KHÔI PHỤC KẾT NỐI (AUTO SYNC)
 [Client lọc settledIds (status === "ok" | "duplicate" | "rejected")]
        │
        ▼
-[Đọc lại freshQueue từ LocalStorage -> Lọc bỏ các item thuộc settledIds -> Ghi lại LocalStorage]
+[Đọc lại freshQueue từ IndexedDB -> Lọc bỏ các item thuộc settledIds -> Ghi lại IndexedDB]
        │
        ▼
 Dispatch event "offline-sync-complete" & Cập nhật pendingCount = 0
@@ -291,16 +312,13 @@ LUỒNG 3: CÀI ĐẶT ỨNG DỤNG PWA (PWA INSTALLATION)
 6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
 -------------------------------------------------------------------------------
 1. Chống Spam & DoS Server:
-   - Client Queue Cap: Giới hạn tối đa 200 ván trong LocalStorage (`MAX_QUEUE = 200`). Sử dụng cơ chế FIFO đẩy ván cũ nhất ra ngoài khi đầy.
+   - Client Queue Cap: Giới hạn tối đa 200 ván trong IndexedDB (`MAX_QUEUE = 200`). Sử dụng cơ chế chặn round mới và cảnh báo ra ngoài khi đầy.
    - Server Batch Limit: Giới hạn tối đa 25 ván cho mỗi lượt request đồng bộ (`MAX_SYNC_BATCH = 25`). Nếu gửi > 25 ván, server lập tức từ chối với HTTP 413 (Payload Too Large).
    - Server Ticket Rate Limit: Tối đa 20 lượt khởi tạo ticket (`start-round`) trong vòng 1 phút cho mỗi người dùng (`MAX_TICKET_STARTS_PER_MINUTE = 20`).
 
 2. Ràng buộc Thời gian & Tính Hợp lệ của Ván Offline:
-   - Server kiểm tra `startedAt`: Từ chối ván nếu thời gian bắt đầu nằm ở tương lai (> 60s so với server clock) hoặc vượt quá 7 ngày tuổi (`MAX_OFFLINE_AGE_MS = 7 * 24 * 3600_000`).
-   - Server kẹp giới hạn `clientElapsedMs`: Không tin tưởng tuyệt đối con số client gửi lên. Giá trị `elapsed` bắt buộc nằm trong khoảng `[500ms, 2 giờ]`:
-     `const elapsed = Math.min(Math.max(Number(clientElapsedMs) || 0, 500), 2 * 3600_000);`
-
-3. Idempotency & Chống Replay Attack:
+   - Server kiểm tra `startedAt`: Từ chối ván nếu thời gian bắt đầu nằm ở tương lai (> 60s so với server clock) hoặc quá cũ, chúng sẽ bị đánh dấu `offline_stale` và cấp `XP = 0` thay vì bị từ chối.
+   - Zod Validation: Thời gian thực hiện báo cáo từ client (`clientElapsedMs`) phải được kiểm tra chặt chẽ bởi Zod Schema (`z.number().finite().int().min(500).max(2 * 3600_000)`). Bất kỳ dữ liệu rác (âm, NaN, chuỗi) đều bị loại bỏ ngay tại lớp parse, không tự động clamp thành dữ liệu hợp lệ.
    - Mỗi ván offline khi tạo ở client được gán một `clientRoundId` ngẫu nhiên chuẩn UUIDv4 (`crypto.randomUUID()`).
    - Server lưu `client_round_id` vào bảng `round_tickets`. Trước khi xử lý, server tra cứu `client_round_id` để phát hiện ván đã được nộp trước đó. Nếu đã chốt, trả về status `"duplicate"` mà không cộng điểm lần hai.
 
@@ -313,7 +331,7 @@ LUỒNG 3: CÀI ĐẶT ỨNG DỤNG PWA (PWA INSTALLATION)
 
 
 7. TRẢ KẾT QUẢ ĐỒNG BỘ (SYNC RESULT UX)
-- Khi `sync-offline-rounds` trả về `SyncResult` với các ván bị `rejected` (do anti-cheat hoặc quá 7 ngày), Client cần hiển thị Summary Notification cho người chơi. VD: "Đã đồng bộ 18 ván, 2 ván không hợp lệ bị từ chối". Các ván rejected sẽ bị loại bỏ khỏi queue im lặng nếu không có thông báo này.
-- Cảnh báo dung lượng hàng đợi: Nếu `queue.length > 150`, hiển thị cảnh báo đỏ trên UI yêu cầu người dùng kết nối mạng (tránh chạm giới hạn 200 dẫn đến FIFO đẩy ván cũ ra ngoài).
-- Ưu tiên đồng bộ: Các ván chơi sắp quá hạn 7 ngày cần được xếp lên đầu batch đồng bộ (ưu tiên gửi trước).
-- Cảnh báo sắp quá hạn: Nếu có ván offline nằm trong queue quá 6 ngày (sắp quá hạn 7 ngày), hiển thị thông báo khẩn cấp trước 24h để người chơi kịp online đồng bộ.
+- Khi `sync-offline-rounds` trả về `SyncResult` với các ván bị `rejected` (do anti-cheat), Client cần hiển thị Summary Notification cho người chơi. VD: "Đã đồng bộ 18 ván, 2 ván không hợp lệ bị từ chối". Các ván rejected sẽ bị loại bỏ khỏi queue im lặng nếu không có thông báo này.
+- Cảnh báo dung lượng hàng đợi: Nếu `queue.length > 150`, hiển thị cảnh báo đỏ trên UI yêu cầu người dùng kết nối mạng (tránh chạm giới hạn 200 dẫn đến hệ thống chặn round mới).
+- Ưu tiên đồng bộ: Các ván chơi sắp quá hạn nhận XP cần được xếp lên đầu batch đồng bộ (ưu tiên gửi trước).
+- Cảnh báo sắp quá hạn: Nếu có ván offline nằm trong queue quá 6 ngày (sắp quá hạn nhận XP), hiển thị thông báo khẩn cấp trước 24h để người chơi kịp online đồng bộ để nhận XP.

@@ -1,12 +1,13 @@
 import type { Hono } from "npm:hono@4.12.27";
 import {
-  hasHardFlag,
+  shouldReject,
   inspectRound,
   softFlags,
   INSPECTOR_VERSIONS,
 } from "../../_shared/anticheat.ts";
 import { AppError } from "../../_shared/errors.ts";
 import { isGame, scoreAndValidate, SCORER_VERSIONS, TELEMETRY_SCHEMA_VERSION } from "../../_shared/round-scoring.ts";
+import { parseTelemetry } from "../../_shared/scoring/schema.ts";
 import {
   beginRequest,
   logServerEvent,
@@ -18,56 +19,39 @@ import { authenticatedUser } from "../security.ts";
 export function registerRoundRoutes(app: Hono): void {
   // ─── Secure round lifecycle ──────────────────────────────────────────────────
   // Creates a one-time ticket. The browser cannot write round_tickets directly.
-  app.post("/server/start-round", async (c) => {
+  app.post("/server/activate-round", async (c) => {
     try {
       const user = await authenticatedUser(c);
-      const { game } = await c.req.json();
+      const { game, config, clientBuildId, clientConfigHash } = await c.req.json();
       const gameId = String(game);
       if (!isGame(gameId)) return c.json({ error: "Invalid game" }, 400);
 
-      // Mot user chi co the choi mot van tai mot thoi diem. Dong ticket cu truoc
-      // khi mint ticket moi, tranh ticket warm/refresh bi tich trong 3 gio roi
-      // khoa nham nguoi choi bang 429.
-      const { error: closeError } = await adminClient
-        .from("round_tickets")
-        .update({ submitted_at: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .is("submitted_at", null);
-      if (closeError) throw closeError;
+      const challengeSeed = crypto.randomUUID();
+      const challengeConfig = typeof config === 'object' && config !== null ? config : {};
 
-      // Van chan spam DB that su, nhung dem toc do tao trong 1 phut thay vi dem
-      // ticket bo do trong 3 gio. Nguoi choi binh thuong khong the cham 20 lan/phut.
-      const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
-      const { count, error: countError } = await adminClient
-        .from("round_tickets")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gt("created_at", oneMinuteAgo);
-      if (countError) throw countError;
-      if ((count ?? 0) >= MAX_TICKET_STARTS_PER_MINUTE) {
-        return c.json(
-          { error: "Too many round starts. Wait one minute and try again." },
-          429,
-        );
-      }
+      // Activate ticket atomically
+      const { data, error } = await adminClient.rpc("activate_round_ticket", {
+        p_user_id: user.id,
+        p_game: gameId,
+        p_telemetry_version: TELEMETRY_SCHEMA_VERSION,
+        p_scorer_version: SCORER_VERSIONS[gameId] ?? 1,
+        p_inspector_version: INSPECTOR_VERSIONS[gameId] ?? 1,
+        p_rating_model_version: 1, // HARDCODED for now
+        p_inspector_rule_set_hash: "sha256:TODO", // We will fix this in anticheat
+        p_challenge_seed: challengeSeed,
+        p_challenge_config: challengeConfig,
+        p_client_build_id: clientBuildId || "unknown",
+        p_client_config_hash: clientConfigHash || "unknown"
+      });
 
-      const { data, error } = await adminClient
-        .from("round_tickets")
-        .insert({ 
-          user_id: user.id, 
-          game: gameId,
-          telemetry_version: TELEMETRY_SCHEMA_VERSION,
-          scorer_version: SCORER_VERSIONS[gameId],
-          inspector_version: INSPECTOR_VERSIONS[gameId],
-        })
-        .select("id, game, started_at, expires_at")
-        .single();
       if (error) throw error;
       return c.json({
         roundId: data.id,
         game: data.game,
         startedAt: data.started_at,
         expiresAt: data.expires_at,
+        challengeSeed: data.challenge_seed,
+        challengeConfig: data.challenge_config,
       });
     } catch (err) {
       logServerEvent({
@@ -99,32 +83,54 @@ export function registerRoundRoutes(app: Hono): void {
       if (!roundId || !isGame(gameId))
         return c.json({ error: "roundId and valid game are required" }, 400);
 
+      // Claim ticket atomically
+      const processingToken = crypto.randomUUID();
       const { data: ticket, error: ticketError } = await adminClient
         .from("round_tickets")
-        .select("id, user_id, game, started_at, expires_at, submitted_at, telemetry_version, scorer_version, inspector_version")
+        .update({
+          state: 'processing',
+          processing_token: processingToken,
+          processing_started_at: new Date().toISOString()
+        })
         .eq("id", String(roundId))
         .eq("user_id", user.id)
+        .eq("state", "issued")
+        .select("id, user_id, game, started_at, expires_at, state, telemetry_version, scorer_version, inspector_version, challenge_config")
         .single();
-      if (ticketError || !ticket)
-        return c.json({ error: "Round ticket not found" }, 404);
+        
+      if (ticketError || !ticket) {
+        // If not found, check if it exists but is not 'issued'
+        const { data: existing } = await adminClient.from("round_tickets").select("state, expires_at").eq("id", String(roundId)).single();
+        if (!existing) return c.json({ error: "Round ticket not found" }, 404);
+        if (existing.state === 'accepted' || existing.state === 'rejected') return c.json({ error: "Round already submitted" }, 409);
+        if (Date.parse(existing.expires_at) < Date.now()) return c.json({ error: "Round ticket expired" }, 410);
+        return c.json({ error: "Round ticket unavailable" }, 409);
+      }
+      
       if (ticket.game !== gameId)
         return c.json({ error: "Round game mismatch" }, 400);
-      if (ticket.submitted_at)
-        return c.json({ error: "Round already submitted" }, 409);
-      if (Date.parse(ticket.expires_at) < Date.now())
-        return c.json({ error: "Round ticket expired" }, 410);
 
       const serverElapsedMs = Date.now() - Date.parse(ticket.started_at);
 
-      // Lớp chống gian lận: hard flag từ chối ván, soft flag vẫn chấm nhưng ghi log.
-      const cheat = inspectRound(gameId, telemetry, serverElapsedMs);
-      if (hasHardFlag(cheat)) {
-        // Dot ticket TRUOC khi tra 422 de khong bien anti-cheat thanh oracle thu lai.
-        const { error: burnError } = await adminClient
-          .from("round_tickets")
-          .update({ submitted_at: new Date().toISOString() })
-          .eq("id", ticket.id)
-          .is("submitted_at", null);
+      // Validate schema and inject challenge config from server
+      const parsedTelemetry = parseTelemetry(gameId, telemetry);
+      if (ticket.challenge_config && typeof ticket.challenge_config === 'object') {
+        Object.assign(parsedTelemetry, ticket.challenge_config);
+      }
+
+      // Lớp chống gian lận: reject nếu có physical flag hoặc >=2 statistical flags.
+      const cheat = inspectRound(gameId, parsedTelemetry, serverElapsedMs);
+      if (shouldReject(cheat)) {
+        const { error: burnError } = await adminClient.rpc(
+          "reject_round_ticket",
+          {
+            p_user_id: user.id,
+            p_ticket_id: ticket.id,
+            p_processing_token: processingToken,
+            p_reason: "hard_cheat_detected"
+          }
+        );
+        
         if (burnError) {
           logServerEvent({
             event: "server.log",
@@ -134,19 +140,19 @@ export function registerRoundRoutes(app: Hono): void {
           return c.json({ error: "Round could not be finalized." }, 503);
         }
 
-        const hard = cheat.flags.filter((f) => f.severity === "hard");
-        for (const f of hard) {
-          const { error: hardErr } = await adminClient.rpc(
-            "record_cheat_flag",
-            {
-              p_user_id: user.id,
-              p_game: gameId,
-              p_reason: f.msg,
-              p_severity: "hard",
-              p_details: f.detail ?? {},
-            },
-          );
-          if (hardErr)
+          // Instead of hard, we iterate all cheat flags if we decided to reject
+          for (const f of cheat.flags) {
+            const { error: hardErr } = await adminClient.rpc(
+              "record_cheat_flag",
+              {
+                p_user_id: user.id,
+                p_game: gameId,
+                p_reason: f.msg,
+                p_signal_class: f.signal_class,
+                p_details: f.detail,
+                p_round_id: ticket.id,
+              },
+            );if (hardErr)
             logServerEvent({
               event: "server.log",
               level: "error",
@@ -171,108 +177,40 @@ export function registerRoundRoutes(app: Hono): void {
           },
           422,
         );
+            for (const f of softFlags(cheat)) {
+        const { error: softErr } = await adminClient.rpc("record_cheat_flag", {
+          p_user_id: user.id,
+          p_game: gameId,
+          p_reason: f.msg,
+          p_signal_class: f.signal_class,
+          p_details: f.detail ?? {},
+          p_round_id: ticket.id,
+        });
+        if (softErr) {
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `Soft cheat flag failed: ${softErr.message}`,
+          });
+        }
       }
       for (const f of softFlags(cheat)) {
         const { error: softErr } = await adminClient.rpc("record_cheat_flag", {
           p_user_id: user.id,
           p_game: gameId,
           p_reason: f.msg,
-          p_severity: "soft",
+          p_signal_class: f.signal_class,
           p_details: f.detail ?? {},
+          p_round_id: ticket.id,
         });
-        if (softErr)
+        if (softErr) {
           logServerEvent({
             event: "server.log",
             level: "error",
             message: `Soft cheat flag failed: ${softErr.message}`,
           });
-      }
-
-      // Ghi dấu vân thiết bị (không chặn ván nếu RPC lỗi).
-      if (typeof fingerprint === "string" && fingerprint.length >= 8) {
-        const { error: fpErr } = await adminClient.rpc("link_device", {
-          p_user_id: user.id,
-          p_fingerprint: fingerprint.slice(0, 200),
-        });
-        if (fpErr)
-          logServerEvent({
-            event: "server.log",
-            level: "error",
-            message: `link_device failed: ${fpErr.message}`,
-          });
-      }
-
-      const scored = scoreAndValidate(gameId, telemetry, serverElapsedMs);
-      const axisPayload = Object.fromEntries(
-        Object.entries(scored.axes).filter(([, value]) => value !== null),
-      );
-
-      const { data, error } = await adminClient.rpc(
-        "submit_round_transaction",
-        {
-          p_user_id: user.id,
-          p_ticket_id: String(roundId),
-          p_game: gameId,
-          p_axes: axisPayload,
-          p_round_score: scored.headline,
-          p_label: scored.label,
-          p_time_ms: Math.round(scored.timeMs),
-          p_telemetry_version: ticket.telemetry_version ?? TELEMETRY_SCHEMA_VERSION,
-          p_scorer_version: ticket.scorer_version ?? SCORER_VERSIONS[gameId],
-          p_inspector_version: ticket.inspector_version ?? INSPECTOR_VERSIONS[gameId],
-        },
-      );
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return c.json({
-        ...data,
-        axes: scored.axes,
-        headline: scored.headline,
-        label: scored.label,
-        timeMs: scored.timeMs,
-        cheatFlags: cheat.flags.map((f) => ({
-          msg: f.msg,
-          severity: f.severity,
-        })),
+        }
       });
-    } catch (err) {
-      logServerEvent({
-        event: "server.log",
-        level: "error",
-        message: `Submit round error: ${err}`,
-      });
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "object" && err !== null && "message" in err
-            ? String((err as { message: unknown }).message)
-            : JSON.stringify(err);
-      if (err instanceof AppError) {
-        return c.json({ error: err.message, code: err.code }, err.status);
-      }
-
-      const lower = message.toLowerCase();
-      // Hono chi nhan ContentfulStatusCode, khong nhan number chung chung.
-      let status: 400 | 401 | 409 | 422 | 500 = 400;
-      if (
-        lower.includes("authorization") ||
-        lower.includes("session") ||
-        lower.includes("missing authorization")
-      )
-        status = 401;
-      else if (lower.includes("already submitted")) status = 409;
-
-      logServerEvent({
-        event: "submit_round.unhandled",
-        level: "error",
-        message: err instanceof Error ? err.message : String(err),
-        requestId: requestIdFor(c.req.raw),
-      });
-      return c.json({ error: "Round could not be saved." }, 500);
-    }
-  });
 
   // Gửi một mảng các ván chơi khi kết nối mạng được khôi phục.
   app.post("/server/sync-offline-rounds", async (c) => {
@@ -330,7 +268,7 @@ export function registerRoundRoutes(app: Hono): void {
           );
 
           const cheat = inspectRound(gameId, telemetry, elapsed, true);
-          const isHardCheat = hasHardFlag(cheat);
+          const isHardCheat = shouldReject(cheat);
 
           let cheatReasons = null;
           if (cheat.flags.length > 0) {

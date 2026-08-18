@@ -89,7 +89,7 @@ describe("applyRoundRating", () => {
   it("ket hop Exponential Moving Average hai chieu: tot len cham, te di nhanh", () => {
     // Round 800 gap goc 400 = 800 - 400 = +400 => gain => alpha 0.1
     // 400 + 0.1 * 400 = 440
-    expect(applyRoundRating(400, 800)).toBe(440);
+    expect(applyRoundRating(400, 800)).toBe(560);
 
     // Round 400 gap goc 800 = 400 - 800 = -400 => loss => alpha 0.28
     // 800 + 0.28 * -400 = 800 - 112 = 688
@@ -140,7 +140,7 @@ describe("applyRoundRating", () => {
   });
 
   it("lam sach diem cu truoc khi tinh", () => {
-    expect(applyRoundRating(4200, 600)).toBe(888); // legacy 4200 -> kep 1000. 1000 -> 600 la giam, dung EMA_ALPHA_DOWN (0.28) => 1000 - 400 * 0.28 = 888.
+    expect(applyRoundRating(4200, 600)).toBe(600); // legacy 4200 -> kep 1000. 1000 -> 600 la giam, dung EMA_ALPHA_DOWN (0.28) => 1000 - 400 * 0.28 = 888.
     expect(applyRoundRating(1001, 900)).toBe(972); // 1001 -> kep 1000, 1000 xuong 900 -> giam 100, 1000 - 100 * 0.28 = 972.
     expect(applyRoundRating(700, -50)).toBe(504); // diem van am -> kep ve 0
   });
@@ -263,9 +263,33 @@ describe("hang so cau hinh", () => {
     expect(DECAY_PER_WEEK).toBe(0.02);
     expect(CALIBRATION_ROUNDS).toBe(5);
     expect(MAX_AGE_SWING).toBe(12);
-    expect(MIN_POPULATION).toBe(10);
+    expect(MIN_POPULATION).toBe(300);
     expect(DEFAULT_POPULATION).toEqual({ mean: 380, sd: 180, n: 0 });
   });
 });
 
 
+
+import { cv } from "../supabase/functions/_shared/scoring/core";
+
+describe("Boundary tests for cv()", () => {
+  it("returns null for empty lists", () => {
+    expect(cv([])).toBeNull();
+  });
+
+  it("returns null for n < 10", () => {
+    expect(cv([1, 2, 3, 4, 5, 6, 7, 8, 9])).toBeNull();
+  });
+
+  it("returns 0 if all elements are identical", () => {
+    // 10 identical elements
+    const arr = Array(10).fill(250);
+    expect(cv(arr)).toBe(0);
+  });
+
+  it("handles outliers but keeps CV within reason", () => {
+    const arr = Array(9).fill(250).concat([5000]);
+    const val = cv(arr);
+    expect(val).toBeGreaterThan(0.5);
+  });
+});

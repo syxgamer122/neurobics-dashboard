@@ -7,12 +7,12 @@ Accepted
 Mọi thao tác thay đổi điểm (Grant), xóa tài khoản (Delete), reset (Reset) đều rất nhạy cảm. Nếu quản trị viên bị lộ session cookie hoặc bị đánh cắp máy tính khi đang mở tab, toàn bộ hệ thống MindGem sẽ bị đe dọa.
 
 ## Giải pháp
-- Tích hợp hàm `requireAdmin` để không chỉ kiểm tra Role mà còn đọc nguyên thủy token JWT trên Deno bằng `jsonwebtoken` hoặc parser tương đương (không phụ thuộc cache SDK), kiểm tra trường `aal` (Authenticator Assurance Level) phải bằng `aal2`.
+- Tích hợp hàm `requireAdmin` để Verify signature bằng JWKS -> verify issuer/audience/expiry/subject -> require aal2 -> require capability -> require step-up grant ≤5 phút. Sử dụng `jose.jwtVerify`, không dùng parser tương đương. 
 - Khóa toàn bộ các Admin endpoint nếu `aal === 'aal1'` (nghĩa là chỉ đăng nhập bằng password). Trả về mã lỗi `AppErrorStatus` đặc thù để Client hiển thị UI yêu cầu nhập TOTP (Step-up Authentication).
-- Sử dụng Short-lived Step-up Session: Thời gian hợp lệ của session `aal2` chỉ nên kéo dài trong khoảng thời gian ngắn (ví dụ 1-4 giờ) đối với Admin để giảm thiểu cửa sổ tấn công (Attack window) nếu máy tính bị bỏ quên mở khóa. Việc này giảm rủi ro đáng kể.
+- Sử dụng Short-lived Step-up Session: Dùng grant riêng trên bảng `admin_step_up_grants` (`user_id`, `session_id`, `verified_at`, `expires_at`, `nonce_hash`, `consumed_at`). Lệnh read có thể dùng grant tái sử dụng trong 5 phút. Lệnh grant/reset yêu cầu recent step-up bắt buộc. Lệnh delete sử dụng one-time grant.
 - Ghi nhận `admin_audit` cho mọi thao tác này để truy vết.
 
 ## Hệ quả
 - Gây bất tiện nhẹ cho đội ngũ vận hành vì mỗi phiên làm việc phải xác thực điện thoại/TOTP.
-- Triệt tiêu 99% rủi ro do đánh cắp JWT hay Session Hijacking tĩnh.
+- hạn chế rủi ro do đánh cắp JWT hay Session Hijacking tĩnh.
 - Cần có `AppErrorStatus` rõ ràng để client tự động xử lý chuyển hướng.

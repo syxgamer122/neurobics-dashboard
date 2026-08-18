@@ -35,16 +35,18 @@ export async function fetchProfile(): Promise<Profile | null> {
   return data ? hydrateProfile(data as Profile) : null;
 }
 
-/** Persists the user's birth year, which anchors the brain-age calculation. */
-export async function saveBirthYear(birthYear: number): Promise<Profile> {
+/** Persists the user's birth date, which anchors the brain-age calculation. */
+export async function saveBirthDate(birthDate: string): Promise<Profile> {
   const userId = await currentUserId();
-  if (!userId) throw new Error("Save birth year failed: not authenticated.");
+  if (!userId) throw new Error("Save birth date failed: not authenticated.");
 
   const { error } = await getSupabase()
-    .rpc("set_my_birth_year", { p_birth_year: birthYear });
+    .from("profiles")
+    .update({ birth_date: birthDate })
+    .eq("id", userId);
 
   if (error) {
-    const msg = describeError(error, "Save birth year failed");
+    const msg = describeError(error, "Save birth date failed");
     logError(msg);
     throw new Error(msg);
   }

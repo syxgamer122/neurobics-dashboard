@@ -1,64 +1,67 @@
 # Version Policy
 
-Bốn constant version trong codebase kiem soat viec scoring, anti-cheat va telemetry
+Năm constant version trong codebase kiem soat viec scoring, anti-cheat va telemetry
 duoc ghi vao database. Moi khi thay doi logic, tang version tuong ung de co the
 phan biet du lieu cu va moi — **khong bao gio re-score du lieu cu bang logic moi**.
 
 ---
 
-## 1. Bốn version constant
+## 1. Bản kê khai Động cơ (Round Engine Manifest)
 
-| Constant | File | Giá trị hiện tại | Ý nghĩa |
-| --- | --- | --- | --- |
-| `SCORER_VERSIONS` | `supabase/functions/_shared/scoring/core.ts` | Map | Phiên bản công thức tính điểm cho từng game (vd: `schulte: 1`) |
-| `INSPECTOR_VERSIONS` | `supabase/functions/_shared/anticheat.ts` | Map | Phiên bản luật anti-cheat: thresholds, tập luật kiểm tra cho từng game |
-| `SHARED_INSPECTOR_VERSION` | `supabase/functions/_shared/anticheat.ts` | `1` | Phiên bản luật anti-cheat dùng chung cho tất cả các game |
-| `TELEMETRY_SCHEMA_VERSION` | `supabase/functions/_shared/scoring/core.ts` | `1` | Phiên bản cấu trúc telemetry payload: fields, kiểu dữ liệu, shape |
+Để đảm bảo khả năng tái lập (reproducibility) tuyệt đối cho mỗi ván chơi (ngoại trừ offline practice), hệ thống sử dụng một `RoundEngineManifest` ghim chặt toàn bộ logic tạo ra kết quả.
 
-### SCORER_VERSIONS (Per-scorer Versioning)
+```typescript
+type RoundEngineManifest = DeepReadonly<{
+  scorerVersion: number;
+  gameInspectorVersion: number;
+  sharedInspectorVersion: number;
+  telemetrySchemaVersion: number;
+  configVersion: number;
 
-Bump version của TỪNG GAME CỤ THỂ khi thay doi bat ky thanh phan nao anh huong ket qua scoring cua rieng game do:
+  ratingModelVersion: number;
+  calibrationVersion: number;
+  xpPolicyVersion: number;
+  challengeGeneratorVersion: number;
 
-- Trong so cac cognitive axis (`focusW`, `memoryW`, `speedW`, ...)
-- Logic clamping hoac normalize diem
-- Difficulty multiplier hoac curve
+  inspectorRuleSetHash: `sha256:${string}`;
+  artifactSha256: `sha256:${string}`;
+}>;
+```
+Mỗi ván chơi sẽ lưu trữ `engine_manifest_hash` trên `round_tickets` và `training_sessions`, đồng thời lưu trữ các version riêng lẻ dưới dạng cột để tối ưu hóa việc query. Calibration nếu luôn đóng gói cứng trong Scorer có thể gộp chung vào `scorerVersion`.
 
-**Quy tắc "Per-Scorer":** Them game moi chi khai bao version cho game do (`new_game: 1`). Khong bump version cua cac game cu neu khong doi logic, tranh viec cac game cu bi gan version moi khien viec phan tich "re-score" mat y nghia.
+### Support Window (Offline & Migration)
+Server hỗ trợ tương thích ngược (backward compatibility) thông qua hằng số khai báo tường minh bằng dữ liệu:
+```typescript
+export const SUPPORTED_TELEMETRY_VERSIONS = {
+  schulte: new Set([3, 2, 1]),
+  nback: new Set([2, 1]),
+};
+```
+Quy định vòng đời dữ liệu cũ:
+- **0–7 ngày**: practice recent, có capped reward.
+- **8–30 ngày**: stale, không XP/quest/streak.
+- **>30 ngày**: chuyển dead-letter, cho export/xóa, không xử lý tự động.
+Runtime chỉ được loại bỏ implementation cũ khi:
+- Không còn non-terminal ticket tham chiếu.
+- Đã qua thời hạn support >30 ngày.
+- Không còn client build được hỗ trợ cần adapter đó.
 
-### INSPECTOR_VERSIONS[game]
+## 2. Khi nào bump – Bảng tra nhanh (Bump Matrix)
 
-Bump khi thay doi luat chong gian lan:
+| Thay đổi | Hành động |
+| --- | --- |
+| Thêm game mới | Khởi tạo scorer/inspector/schema/config ở version 1 (Không bump game cũ) |
+| Đổi công thức điểm | Bump scorer |
+| Đổi cách cập rolling rating | Bump rating model |
+| Đổi calibration | Bump calibration hoặc scorer (nếu đóng gói chung) |
+| Đổi XP | Bump XP policy |
+| Đổi challenge generation | Bump challenge generator |
+| Đổi giá trị difficulty/targets/speed | Bump config |
+| Đổi threshold hoặc severity | Bump inspector/policy và tạo rule-set hash mới |
+| Refactor được chứng minh bit-identical | KHÔNG bump |
 
-- Sua threshold cua inspector (`HUMAN_FLOOR_MS`, `ROBOT_CV`, …)
-- Them luat inspector moi cho game cu hoac game moi
-- Thay doi severity tu `soft` sang `hard` hoac nguoc lai
+**Nguyên tắc:** Chỉ bump khi **kết quả quan sát được** (điểm số, cheat flag, shape của payload) thay đổi. Refactor nội bộ không bump.
 
-### TELEMETRY_SCHEMA_VERSION
-
-Bump khi thay doi cau truc telemetry payload ma client gui len:
-
-- Them field moi (vd: `hintCount`, `pauseDuration`)
-- Xoa field cu
-- Doi kieu du lieu cua field (vd: `string` → `number`)
-- Doi ten field
-
----
-
-## 2. Khi nao bump — bang tra nhanh
-
-| Tinh huong | SCORER | INSPECTOR | TELEMETRY_SCHEMA | SHARED_INSPECTOR |
-| --- | --- | --- | --- | --- |
-| Sửa logic inspectShared / inspectSubThreshold | — | — | — | ✅ bump |
-| Them game moi | ✅ bump | ✅ bump | — | Không bump |
-| Doi cong thuc scoring game co | ✅ bump | — | — | — |
-| Doi threshold anti-cheat | — | ✅ bump | — | — |
-| Them telemetry field anh huong scoring | ✅ bump | — | ✅ bump | — |
-| Them telemetry field chi dung cho analytics | — | — | ✅ bump | — |
-| Bug fix khong doi output | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump |
-| Refactor code, giu nguyen output | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump | ❌ KHONG bump |
-
-> **Nguyen tac:** chi bump khi **ket qua quan sat duoc** (diem so, cheat flag, hoac
-> shape cua payload) thay doi. Refactor noi bo khong bump.
 
 ---
 
@@ -68,48 +71,56 @@ Bump khi thay doi cau truc telemetry payload ma client gui len:
 
 ```typescript
 // supabase/functions/_shared/scoring/core.ts
-export const SCORER_VERSIONS: Record<string, number> = {
-  schulte: 1,
-  sudoku: 1,
-  stroop: 1,
-  reaction: 1,
-  memory: 1,
-  nback: 1,
-  math: 1,
-  gonogo: 1,
-  mental: 1,
-  corsi: 1,
-  trail: 1,
-  search: 1,
-};
-export const TELEMETRY_SCHEMA_VERSION = 1;
+type Scorer = (telemetry: unknown, config: Readonly<GameConfig>) => ScoredRound;
+type VersionRegistry<T> = Readonly<Partial<Record<number, T>>>;
 
-// supabase/functions/_shared/anticheat.ts
-export const INSPECTOR_VERSIONS: Record<string, number> = {
-  schulte: 1, sudoku: 1, stroop: 1, reaction: 1, memory: 1, nback: 1,
-  math: 1, gonogo: 1, mental: 1, corsi: 1, trail: 1, search: 1,
-};
-export const SHARED_INSPECTOR_VERSION = 1;
+const registry = <T>(values: VersionRegistry<T>): VersionRegistry<T> => values;
+
+export const SCORERS_BY_VERSION = {
+  schulte: registry<Scorer>({ 1: scoreSchulteV1, 2: scoreSchulteV2 }),
+  sudoku: registry<Scorer>({ 1: scoreSudokuV1 }),
+  // Đầy đủ 12 game...
+} satisfies Record<GameId, VersionRegistry<Scorer>>;
+
+export const CURRENT_SCORER_VERSIONS = {
+  schulte: 2,
+  sudoku: 1,
+  // ...
+} as const satisfies Record<GameId, number>;
+
+export function resolveScorer(game: GameId, version: number): Scorer {
+  const scorer = SCORERS_BY_VERSION[game]?.[version];
+  if (!scorer) throw new Error(`Unsupported scorer: ${game}@${version}`);
+  return scorer;
+}
+
+// Tương tự cho các registry khác:
+// CURRENT_INSPECTOR_VERSIONS / INSPECTORS_BY_VERSION
+// CURRENT_SHARED_INSPECTOR_VERSION / SHARED_INSPECTORS_BY_VERSION
+// CURRENT_TELEMETRY_SCHEMA_VERSIONS / SCHEMAS_BY_VERSION
+// CURRENT_CONFIG_VERSIONS / CONFIGS_BY_VERSION
 ```
 
-### 3.2 Database — `training_sessions`
+### 3.2 Database — `round_tickets`
 
-Moi round duoc ghi vao bang `training_sessions` qua RPC `submit_round_transaction`.
-RPC tu dong gan cac gia tri version tai thoi diem server xu ly:
+Khi user bắt đầu ván chơi, server lưu đầy đủ các version này trực tiếp vào bảng `round_tickets`:
 
 | Column | Source |
 | --- | --- |
-| `scorer_version` | `SCORER_VERSIONS[game]` |
-| `inspector_version` | `INSPECTOR_VERSIONS[game]` |
-| `shared_inspector_version` | `SHARED_INSPECTOR_VERSION` |
-| `schema_version` | `TELEMETRY_SCHEMA_VERSION` |
+| `scorer_version` | `CURRENT_SCORER_VERSIONS[game]` |
+| `inspector_version` | `CURRENT_INSPECTOR_VERSIONS[game]` |
+| `shared_inspector_version` | `CURRENT_SHARED_INSPECTOR_VERSION` |
+| `telemetry_schema_version` | `CURRENT_TELEMETRY_SCHEMA_VERSIONS[game]` |
+| `config_version` | `CURRENT_CONFIG_VERSIONS[game]` |
+| `inspector_rule_set_hash` | Hash bất biến của tập luật chống override runtime |
+
+Khi submit round (cả online và offline), server luôn dùng các version đã được ghi sẵn trên `round_tickets` để score và inspect (thay vì version hiện tại của server). Điều này đảm bảo tính nhất quán tuyệt đối giữa challenge được giao và code chấm điểm.
+
+Việc xoá code cũ (schema adapter, scorer cũ) chỉ được thực hiện khi hết TTL của ticket (không còn offline pending ticket sử dụng version đó).
 
 ### 3.3 Offline sync — `sync-offline-rounds`
 
-Khi client offline, round duoc luu vao queue cung voi `schemaVersion` tai thoi
-diem choi. Khi online lai, `sync-offline-rounds` gui len kem `schemaVersion` cu —
-server van dung version **hien tai** cua `SCORER_VERSIONS` va `INSPECTOR_VERSIONS[game]`
-de score va inspect, nhung ghi nhan `schema_version` tu payload offline.
+Khi client offline, ván chơi được lưu vào queue. Khi online lại, `sync-offline-rounds` yêu cầu ticket thật từ server. Phiên bản được chốt vào ticket này (hoặc ticket cũ nếu vẫn còn telemetry_schema_version thuộc cửa sổ hỗ trợ). Server dùng chính version từ ticket để xử lý.
 
 ---
 
@@ -126,10 +137,7 @@ Session gốc luôn bất biến. Sai sót được xử lý bằng `manual_revi
 
 ### 4.3 Version mismatch khi offline sync
 
-Chap nhan duoc. Round offline mang `schemaVersion` cua luc choi (co the la
-version cu). Server inspect va score bang version hien tai, nhung ghi nhan
-`schema_version` goc tu payload. Dieu nay cho phep truy van sau nay biet round
-nao duoc gui tu client version cu.
+Chấp nhận được. Ticket offline được gán version tại thời điểm nó được đồng bộ lên (nếu không dùng ticket cũ). Code client/schemaAdapter phải tương thích backward 2 version telemetry schema. Server dùng chính version ghi trên ticket để chấm, lưu trữ `schema_version` gốc vào DB để truy vấn sau này.
 
 ---
 
@@ -147,8 +155,7 @@ ORDER BY 1, 2, 3;
 
 -- Tim sessions offline (thong qua column provenance)
 SELECT id, game, schema_version, provenance
-FROM training_sessions
-WHERE provenance = 'offline_sync';
+FROM practice_sessions;
 
 -- So luong session theo tung version theo thoi gian
 SELECT
@@ -169,4 +176,4 @@ ORDER BY 1, 2;
 - [ ] Da chay `pnpm run typecheck` — khong loi kieu
 - [ ] Neu them game moi: da lam day du checklist trong `docs/adding-a-game.md`
 - [ ] PR description ghi ro: version cu → version moi, ly do bump
-- [ ] Neu can re-score du lieu cu: da tao migration SQL rieng
+- [ ] Neu phat hien sai sot: da tao manual_review va compensation/correction append-only; khong thay doi session goc.

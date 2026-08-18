@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   inspectRound,
-  hasHardFlag,
+  shouldReject,
   softFlags,
   type CheatReport,
 } from "../supabase/functions/_shared/anticheat";
@@ -40,7 +40,7 @@ describe("van nguoi that choi — khong duoc bao dong nham", () => {
       { timeMs: 5_000, rts: [220, 265, 198, 301, 245], falseStarts: 0 },
       5_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(false);
     expect(msgs(r)).toEqual([]);
   });
 
@@ -87,9 +87,9 @@ describe("co cung — tu choi ca van", () => {
       { timeMs: 5_000, rts: deu(10, 90), falseStarts: 0 },
       5_000,
     );
-    expect(hasHardFlag(r)).toBe(true);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toEqual([
-      "Majority of reaction times below 120ms",
+      "Unusually high number of reaction times under 120ms",
       "Reaction median impossibly low",
       "Reaction timing too metronomic",
     ]);
@@ -101,7 +101,7 @@ describe("co cung — tu choi ca van", () => {
       { timeMs: 1_000, maxLevel: 9, clearedLevels: 9, wrongClicks: 0, totalTaps: 45 },
       1_000,
     );
-    expect(hasHardFlag(r)).toBe(true);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toEqual(["Memory pace impossibly fast"]);
   });
 
@@ -118,7 +118,7 @@ describe("co cung — tu choi ca van", () => {
       },
       60_000,
     );
-    expect(hasHardFlag(r)).toBe(true);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toContain("Math median impossibly low");
   });
 
@@ -136,7 +136,7 @@ describe("co cung — tu choi ca van", () => {
       },
       3_000,
     );
-    expect(hasHardFlag(r)).toBe(true);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toContain("Corsi tap median impossibly low");
   });
 
@@ -155,7 +155,7 @@ describe("co cung — tu choi ca van", () => {
       },
       10_000,
     );
-    expect(hasHardFlag(r)).toBe(true);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toContain("Mental Rotation median impossibly low");
   });
 });
@@ -167,17 +167,16 @@ describe("co mem — van tinh diem nhung ghi so", () => {
       { timeMs: 5_000, rts: [250, 251, 249, 250, 250, 250, 251, 249, 250, 250], falseStarts: 0 },
       5_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(false);
     expect(msgs(r)).toEqual(["Reaction timing too metronomic"]);
   });
 
-  it("sudoku Master xong trong 30 giay: chi canh bao", () => {
-    // Nhanh den kho tin, nhung khong phai bat kha thi. Van duoc tinh diem.
+  it("sudoku Master xong trong 30 giay kem timing dieu do: bi chan", () => {
     const r = inspectRound(
       "sudoku",
       {
-        timeMs: 30_000,
         difficulty: "Master",
+        timeMs: 30_000,
         mistakes: 0,
         placements: 51,
         moveRts: deu(51, 500),
@@ -186,14 +185,14 @@ describe("co mem — van tinh diem nhung ghi so", () => {
       },
       30_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toEqual([
       "Sudoku timing too metronomic",
       "Sudoku expert board finished too fast",
     ]);
   });
 
-  it("gonogo uc che hoan hao: chi canh bao", () => {
+  it("gonogo uc che hoan hao kem timing dieu do: bi chan", () => {
     const r = inspectRound(
       "gonogo",
       {
@@ -209,7 +208,7 @@ describe("co mem — van tinh diem nhung ghi so", () => {
       },
       60_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(true);
     expect(msgs(r)).toContain("Perfect inhibition with very fast Go RTs");
   });
 
@@ -227,7 +226,7 @@ describe("co mem — van tinh diem nhung ghi so", () => {
       },
       60_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(false);
     expect(msgs(r)).toEqual(["N-Back timing too metronomic"]);
   });
 
@@ -243,7 +242,7 @@ describe("co mem — van tinh diem nhung ghi so", () => {
       },
       5_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(false);
     expect(msgs(r)).toEqual(["Client time far exceeds server elapsed"]);
   });
 
@@ -259,7 +258,7 @@ describe("co mem — van tinh diem nhung ghi so", () => {
       },
       30_000,
     );
-    expect(hasHardFlag(r)).toBe(false);
+    expect(shouldReject(r)).toBe(false);
     expect(msgs(r)).toEqual(["Trail Making timing too metronomic"]);
   });
 });
@@ -294,24 +293,24 @@ describe("du lieu thieu hoac hong", () => {
   });
 });
 
-describe("hasHardFlag / softFlags", () => {
+describe("shouldReject / softFlags", () => {
   it("chia dung hai loai co", () => {
     const r = inspectRound(
       "reaction",
       { timeMs: 5_000, rts: deu(10, 90), falseStarts: 0 },
       5_000,
     );
-    expect(hasHardFlag(r)).toBe(true);
+    expect(shouldReject(r)).toBe(true);
     expect(softFlags(r)).toHaveLength(2);
-    expect(softFlags(r).every((f) => f.severity === "soft")).toBe(true);
+    expect(softFlags(r).every((f) => f.signal_class === "statistical")).toBe(true);
     // Tong hai loai bang tong so co.
     expect(
-      softFlags(r).length + r.flags.filter((f) => f.severity === "hard").length,
+      softFlags(r).length + r.flags.filter((f) => f.signal_class === "physical").length,
     ).toBe(r.flags.length);
   });
 
   it("bao cao rong thi khong co co cung nao", () => {
-    expect(hasHardFlag({ flags: [] })).toBe(false);
+    expect(shouldReject({ flags: [] })).toBe(false);
     expect(softFlags({ flags: [] })).toEqual([]);
   });
 });
@@ -353,7 +352,7 @@ describe("property-based edge cases — du lieu bat thuong khong lam sap", () =>
   it("mang rong khong lam sap va khong bao dong", () => {
     for (const g of ALL_GAMES) {
       const r = inspectRound(g, { rts: [], hitRts: [], moveRts: [] }, 5_000);
-      expect(hasHardFlag(r)).toBe(false);
+      expect(shouldReject(r)).toBe(false);
     }
   });
 

@@ -26,7 +26,7 @@ Các phân vùng chức năng chính bao gồm:
 2.1. Cấu trúc Provider & Hook Hierarchy:
 - App (Entry point)
   └─ LangProvider (Cung cấp context đa ngôn ngữ useLang, LangContext)
-      ├─ Toaster (Sonner notification system, theme "dark", position "top-center")
+      ├─ Toaster (Sonner notification system, tự động khớp theo current theme), position "top-center")
       └─ AppInner (Quản lý state tổng qua custom hooks)
           ├─ useAppState: Quản lý Auth check, Profile state, Active Page, Selected Game, Round Result, Calibration/Onboarding state, Guest mode.
           ├─ useOfflineSync: Kích hoạt listener ngầm tự động đồng bộ ván chơi offline khi có mạng.
@@ -153,7 +153,7 @@ Các phân vùng chức năng chính bao gồm:
 4.7. Quản lý Hồ sơ & Bảng Cài đặt (Profile Page & Settings Panel):
 - Tích hợp 4 nhóm thiết lập chính trong `SettingsPanel`:
   1. Thẻ định danh (Identity Card): Upload/Remove Avatar (File API, validate < 2MB, JPEG/PNG/WebP/GIF), hiển thị Level/XP bar, role badge (OPERATOR / OMEGA-1).
-  2. Thông tin cá nhân & Ngôn ngữ: Nhập năm sinh (validate năm hiện tại - 13), nút đổi nhanh ngôn ngữ VI/EN.
+  2. Thông tin cá nhân & Ngôn ngữ: Nhập năm sinh (validate năm hiện tại - 16), nút đổi nhanh ngôn ngữ VI/EN.
   3. Cài đặt Ứng dụng PWA: Tích hợp hook `usePwaInstall()`, tự động phát hiện thiết bị iOS hoặc trình duyệt hỗ trợ `beforeinstallprompt` để hiển thị nút "CÀI ĐẶT MINDGEM".
   4. Đổi Mật khẩu & Vùng Nguy Hiểm (Danger Zone): Đổi mật khẩu (validate `newPw === confirmPw` & tối thiểu 8 ký tự), Xoá tài khoản vĩnh viễn (yêu cầu gõ chính xác username để xác nhận).
 
@@ -194,10 +194,10 @@ Các phân vùng chức năng chính bao gồm:
 [makeGameHandler nhận telemetry -> gọi submitTelemetry / estimateRoundResult]
        │
        ├─► Nếu ONLINE: POST telemetry lên server Edge Function -> Trả về kết quả scored & updated profile -> Cập nhật Profile state -> Cập nhật Gamification Key.
-       └─► Nếu OFFLINE / Lỗi mạng: Push ván chơi vào offline queue (pushOfflineRound) -> Tính điểm local (estimateRoundResult) -> Cập nhật tạm Profile state.
+       └─► Nếu OFFLINE / Lỗi mạng: Push ván chơi vào offline queue (pushOfflineRound) -> Tính điểm local (estimateRoundResult) -> Lưu vào provisionalRounds, KHÔNG merge vào Profile state.
        │
        ▼
-[Hiển thị RoundResultOverlay cho người dùng xem điểm ván, XP thưởng & biến động rating các trục]
+[Hiển thị RoundResultOverlay cho người dùng xem điểm ván, XP thưởng & biến động rating các trục (chỉ hiển thị nếu ranked === true)]
        │
        ▼
 [Người dùng bấm CONTINUE -> Đóng overlay -> Trigger refreshProfile() để đồng bộ lại dữ liệu chuẩn từ server]
@@ -206,7 +206,7 @@ Các phân vùng chức năng chính bao gồm:
 [Người dùng thay đổi thông tin trong SettingsPanel (Avatar / Năm sinh / Password)]
        │
        ▼
-[Gọi API tương ứng (uploadAvatar / saveBirthYear / changePassword)]
+[Gọi API tương ứng (uploadAvatar / update_my_birth_date / changePassword)]
        │
        ▼
 [API xử lý thành công -> Trả về Profile mới]
@@ -225,7 +225,7 @@ Các phân vùng chức năng chính bao gồm:
 
 6.2. Validation dữ liệu phía Client (Client-side Validation):
 - Avatar Upload: Kiểm tra file type (`image/jpeg`, `image/png`, `image/webp`, `image/gif`), giới hạn dung lượng file tối đa 2 MB trước khi gửi.
-- Năm sinh (Birth Year): Bắt buộc là số nguyên `Number.isFinite(year)`, thuộc khoảng `year <= new Date().getFullYear() - 13`.
+- Năm sinh (Birth Year): Bắt buộc là số nguyên `Number.isFinite(year)`, thuộc khoảng `year <= new Date().getFullYear() - 16`.
 - Đổi mật khẩu: Kiểm tra độ dài tối thiểu 8 ký tự, bắt buộc nhập đúng mật khẩu hiện tại, kiểm tra `newPw === confirmPw`.
 - Xoá tài khoản: Yêu cầu người dùng gõ chính xác từng ký tự tên đăng nhập (`deleteConfirm.trim().toLowerCase() === profile.username.toLowerCase()`) để tránh việc vô tình xoá tài khoản.
 
@@ -237,3 +237,20 @@ Các phân vùng chức năng chính bao gồm:
 
 
 * CHÚ THÍCH: Mặc dù hệ thống đã rebrand thành MindGem, các key lưu trữ (localStorage, sessionStorage) mang tiền tố legacy của thương hiệu cũ (ví dụ `[brand]-ui-theme`, `[brand].cached_profile`, `[brand].offline_queue`, `[brand].obs.session`) được giữ nguyên tên vĩnh viễn (permanent) để không làm mất session và dữ liệu của người dùng hiện tại. Mã nguồn mới khi truy xuất các key này phải thông qua lớp tương thích (compat layer).*
+
+
+### Bổ sung các chuẩn UI & A11y (Theo đánh giá AI mới nhất)
+1. **postMessage Security**: Luôn kiểm tra origin và source để tránh giả mạo:
+   ```typescript
+   if (
+     event.origin !== window.location.origin ||
+     event.source !== iframeRef.current?.contentWindow
+   ) {
+     return;
+   }
+   ```
+2. **Theme**: Dùng `localStorage` lưu theme thay vì localStorage để đảm bảo đồng bộ, tránh flash đen/trắng (FOUC).
+3. **Toaster**: Không được hardcode giao diện `dark`. Khớp tự động với theme hiện tại.
+4. **Accessibility (A11y)**: Mọi modal phải cài đặt Focus Trap (Khóa focus bên trong modal), lưu lại Restore Focus khi đóng modal, và đánh dấu `aria-modal="true"`.
+5. **Reduced Motion**: Tuân thủ triệt để `prefers-reduced-motion` cho mọi hiệu ứng chuyển động.
+6. **Service Worker Caching**: Bắt buộc precache hoặc runtime-cache các lazy chunks của game để đảm bảo chơi offline hoạt động hoàn hảo.

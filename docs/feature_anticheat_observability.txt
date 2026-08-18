@@ -11,8 +11,8 @@ Tính năng Chống gian lận (Anti-cheat) và Quan sát hệ thống (Observab
   + Nguyên tắc cốt lõi: "Thà lọt còn hơn bắt oan" (Better to miss a cheater than ban an innocent player).
   + Kiểm tra toàn bộ dữ liệu đo đạc hành vi (telemetry - thời gian phản ứng, nhịp bấm, số lượt chạm...) phía Server trước khi tính điểm và cấp XP.
   + Phân loại cờ gian lận thành 2 mức:
-    * Hard Flags: Từ chối ván chơi ngay lập tức (HTTP 422), đốt vé chơi (round ticket) để chống tấn công dò ngưỡng (oracle attack), ghi log vi phạm nghiêm trọng vào database.
-    * Soft Flags: Vẫn chấp nhận ván chơi và tính điểm bình thường, nhưng ghi nhận cảnh báo nghi vấn vào hệ thống theo dõi mức độ tin cậy.
+    * Physical/Statistical Rejects: Từ chối ván chơi ngay lập tức (HTTP 422), đốt vé chơi (round ticket) để chống tấn công dò ngưỡng (oracle attack), ghi log vi phạm nghiêm trọng vào database.
+    * Statistical Warnings: Vẫn chấp nhận ván chơi và tính điểm bình thường, nhưng ghi nhận cảnh báo nghi vấn vào hệ thống theo dõi mức độ tin cậy.
 
 - Quan sát hệ thống (Observability):
   + Cung cấp giải pháp giám sát tập trung, chuẩn hóa log và vết lỗi cho cả Client (Browser) và Server (Supabase Edge Functions).
@@ -41,19 +41,19 @@ A. Tầng Client (Browser / React App):
 B. Tầng Server (Supabase Edge Functions - Deno & Hono Framework):
    - `supabase/functions/_shared/anticheat.ts`: Mô-đun anti-cheat thuần (pure functions), chứa toàn bộ các quy tắc kiểm tra thời gian thực và hành vi người chơi cho 12 trò chơi.
    - `supabase/functions/_shared/observability.ts`: Mô-đun observability phía server. Quản lý việc sinh requestId, format JSON log, làm sạch PII, định nghĩa sink lưu trữ vào Database.
-   - `supabase/functions/_shared/errors.ts`: Lớp `AppError` định nghĩa các lỗi nghiệp vụ có cấu trúc kèm HTTP Status Code chuẩn (400, 401, 409, 410, 422).
+   - `supabase/functions/_shared/errors.ts`: Lớp `AppError` định nghĩa các lỗi nghiệp vụ có cấu trúc kèm HTTP Status Code chuẩn (400, 401, 403, 409, 410, 413, 422, 429).
    - `supabase/functions/server/middleware.ts`: Hono middleware đo độ trễ request, tự động cấp phát `x-request-id`, log HTTP request dạng JSON, xử lý ngoại lệ toàn cục (`onError`) và cấu hình CORS.
-   - `supabase/functions/server/routes/rounds.ts`: Route xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`). Tích hợp bộ kiểm tra `inspectRound`, thực hiện đốt ticket khi phát hiện Hard flag và gọi RPC `record_cheat_flag`.
+   - `supabase/functions/server/routes/rounds.ts`: Route xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`). Tích hợp bộ kiểm tra `inspectRound`, thực hiện đốt ticket khi phát hiện Physical/Statistical Rejects và gọi RPC `record_cheat_flag`.
    - `supabase/functions/server/routes/telemetry.ts`: Endpoint tiếp nhận telemetry public (`/server/telemetry`), tích hợp rate limiter (60 request/phút/IP), giới hạn payload 32KB, sanitize sự kiện và xóa bỏ `user_id` do client tự khai báo để chống giả mạo danh tính.
 
 
 3. CÁC FILE LIÊN QUAN (RELATED FILES)
 --------------------------------------------------------------------------------
-1. `supabase/functions/_shared/anticheat.ts`: Chứa logic kiểm tra anti-cheat phía server cho 12 game, định nghĩa CheatFlag, CheatReport, hard/soft flag và hàm `inspectRound`.
+1. `supabase/functions/_shared/anticheat.ts`: Chứa logic kiểm tra anti-cheat phía server cho 12 game, định nghĩa CheatFlag, CheatReport, physical/statistical signals và hàm `inspectRound`.
 2. `supabase/functions/_shared/observability.ts`: Module observability phía server, xử lý `x-request-id`, log JSON, PII redaction, sanitize client payload và sink lưu trữ DB.
-3. `supabase/functions/_shared/errors.ts`: Định nghĩa lớp `AppError` chứa HTTP status (400, 401, 409, 410, 422) và mã lỗi `code`.
+3. `supabase/functions/_shared/errors.ts`: Định nghĩa lớp `AppError` chứa HTTP status (400, 401, 403, 409, 410, 413, 422, 429) và mã lỗi `code`.
 4. `supabase/functions/server/middleware.ts`: Middleware Hono cấp phát `x-request-id`, đo thời gian xử lý, log HTTP request, xử lý lỗi 500 toàn cục và cấu hình CORS.
-5. `supabase/functions/server/routes/rounds.ts`: Routes xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`), tích hợp anti-cheat, đốt ticket khi dính hard flag, ghi vi phạm qua RPC `record_cheat_flag`.
+5. `supabase/functions/server/routes/rounds.ts`: Routes xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`), tích hợp anti-cheat, đốt ticket khi dính Physical/Statistical Rejects, ghi vi phạm qua RPC `record_cheat_flag`.
 6. `supabase/functions/server/routes/telemetry.ts`: Route nhận telemetry công khai (`/server/telemetry`), rate limit theo IP, kiểm tra kích thước payload, ép `user_id = null` và ghi vào bảng `observability_events`.
 7. `src/app/lib/observability.ts`: Thư viện observability client, thu thập lỗi runtime, gom lô (batching), lọc PII, khử trùng lặp (deduplication) và đẩy về server.
 8. `src/app/lib/logger.ts`: Wrapper logger phía client, ẩn console log ở Production và tự động chuyển sang telemetry module.
@@ -72,73 +72,91 @@ Các hằng số & hàm toán học cơ bản:
 Hàm kiểm tra chung (Shared Inspectors):
 1. `inspectShared(t, serverElapsedMs)`:
    - So sánh `t.timeMs` (thời gian client khai báo) với `serverElapsedMs` (thời gian Server đo từ lúc tạo ticket).
-   - Nếu `timeMs - serverElapsedMs > 5000ms` -> Cờ **soft** ("Client time far exceeds server elapsed").
+   - Nếu `timeMs - serverElapsedMs > 5000ms` -> Sinh tín hiệu (Signal) **statistical** ("Client time far exceeds server elapsed").
 2. `inspectSubThreshold(t, game)`:
    - Tìm các mẫu thời gian phản ứng nằm trong khoảng cận trên của ngưỡng người $[80ms, 120ms)$.
-   - Nếu số mẫu trong khoảng này chiếm $\ge 50\%$ tổng số mẫu -> Cờ **soft** ("Majority of reaction times below 120ms").
+   - Nếu số mẫu trong khoảng này chiếm $\ge 50\%$ tổng số mẫu -> Sinh tín hiệu (Signal) **statistical** ("Majority of reaction times below 120ms").
 
 Chi tiết kiểm tra từng trò chơi (12 Game Inspectors):
 1. `reaction` (Phản ứng nhanh):
    - Cỡ mẫu $N < 3 \to$ Không kiểm tra.
-   - Lấy danh sách mẫu $< 80ms$ (`below`). Nếu `below.length >= 3` và tỷ lệ `below / total >= 40%` -> Cờ **hard** ("Multiple reactions below human floor"). Ngược lại nếu `below.length > 0` -> Cờ **soft** ("Isolated sub-floor reaction").
-   - Các mẫu rác (`< HUMAN_FLOOR_MS`) sẽ bị loại bỏ khỏi luồng tính `median` và `cv` để giảm false positive.
-   - Nếu `median(rts) < 130ms` -> Cờ **hard** ("Reaction median impossibly low").
-   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Reaction timing too metronomic").
+   - Lấy danh sách mẫu $< 80ms$ (`below`). Nếu `below.length >= 3` và tỷ lệ `below / total >= 40%` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Multiple reactions below human floor"). Ngược lại nếu `below.length > 0` -> Sinh tín hiệu (Signal) **statistical** ("Isolated sub-floor reaction").
+   - Các mẫu rác (`< HUMAN_FLOOR_MS`) sẽ bị Scorer loại bỏ khỏi luồng tính `median` và `cv`. Sau khi lọc phải còn đủ số mẫu tối thiểu. 
+   - Mọi kết quả cuối đều đi qua `assertFiniteScore`.
+   - Nếu `median(rts) < 130ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Reaction median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("Reaction timing too metronomic").
 2. `schulte` (Bảng Schulte):
    - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
-   - Nếu `median(hitRts) < 150ms` -> Cờ **hard** ("Schulte hit median impossibly low").
-   - Nếu `cv(hitRts) < 0.04` -> Cờ **soft** ("Schulte timing too metronomic").
+   - Nếu `median(hitRts) < 150ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Schulte hit median impossibly low").
+   - Nếu `cv(hitRts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("Schulte timing too metronomic").
 3. `stroop` (Thử thách Stroop):
    - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
-   - Nếu `median(rts) < 200ms` -> Cờ **hard** ("Stroop median impossibly low").
-   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Stroop timing too metronomic").
+   - Nếu `median(rts) < 200ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Stroop median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("Stroop timing too metronomic").
 4. `sudoku` (Điền số Sudoku):
    - Với các bước di chuyển (`moveRts.length >= 5`):
-     * Nếu `median(moveRts) < 120ms` -> Cờ **hard** ("Sudoku move median impossibly low").
-     * Nếu `cv(moveRts) < 0.04` -> Cờ **soft** ("Sudoku timing too metronomic").
-   - Kiểm tra cấp độ: Nếu `difficulty` là "Master" hoặc "Extreme" và `timeMs < 45.000ms` (45 giây) -> Cờ **soft** ("Sudoku expert board finished too fast").
+     * Nếu `median(moveRts) < 120ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Sudoku move median impossibly low").
+     * Nếu `cv(moveRts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("Sudoku timing too metronomic").
+   - Kiểm tra cấp độ: Nếu `difficulty` là "Master" hoặc "Extreme" và `timeMs < 45.000ms` (45 giây) -> Sinh tín hiệu (Signal) **statistical** ("Sudoku expert board finished too fast").
 5. `memory` (Ghi nhớ chuỗi):
    - Lấy `clearedLevels` (hoặc fallback `maxLevel`).
    - Nếu `cleared < 3` -> Bỏ qua (không kết luận vì quá ít dữ liệu, tránh bắt oan người chơi thua ở cấp 1-2).
-   - Sử dụng `totalTaps` do client gửi lên (đã fix ở KI-11) để tính pace chính xác. Nếu speed vượt ngưỡng không tưởng (robot/tool), hệ thống phát cờ **hard** reject.
+   - Sử dụng `totalTaps` do client gửi lên (đã fix ở KI-11) để tính pace chính xác. Nếu speed vượt ngưỡng không tưởng (robot/tool), hệ thống phát cờ **physical** (or statistical) reject.
 
 6. `nback` (Ghi nhớ N-Back):
    - Cỡ mẫu $N < 3 \to$ Không kiểm tra.
-   - Nếu `median(rts) < 150ms` -> Cờ **hard** ("N-Back median impossibly low").
-   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("N-Back timing too metronomic").
+   - Nếu `median(rts) < 150ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("N-Back median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("N-Back timing too metronomic").
 7. `math` (Tính nhẩm nhanh):
    - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
-   - Nếu `median(rts) < 250ms` -> Cờ **hard** ("Math median impossibly low").
-   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Math timing too metronomic").
-   - Nếu `difficulty === "hard"`, trả lời đúng toàn bộ (`correct === totalProblems`), và `median(rts) < 1200ms` -> Cờ **soft** ("Perfect hard math finished too fast").
+   - Nếu `median(rts) < 250ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Math median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("Math timing too metronomic").
+   - Nếu `difficulty === "hard"`, trả lời đúng toàn bộ (`correct === totalProblems`), và `median(rts) < 1200ms` -> Sinh tín hiệu (Signal) **statistical** ("Perfect hard math finished too fast").
 8. `gonogo` (Ức chế phản xạ Go/No-Go):
-   - Với $N \ge 3$: Nếu `median(rts) < 160ms` -> Cờ **hard**; `cv(rts) < 0.04` -> Cờ **soft**.
-   - Kiểm tra ức chế hoàn hảo: Nếu `nogoTrials >= 8`, `goTrials >= 16`, không có lỗi bấm nhầm (`falseAlarms === 0`), đúng toàn bộ lượt Go (`hits === goTrials`), số mẫu $N \ge 12$, và `median(rts) < 220ms` -> Cờ **soft** ("Perfect inhibition with very fast Go RTs").
+   - Với $N \ge 3$: Nếu `median(rts) < 160ms` -> Sinh tín hiệu (Signal) **physical** (or statistical); `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical**.
+   - Kiểm tra ức chế hoàn hảo: Nếu `nogoTrials >= 8`, `goTrials >= 16`, không có lỗi bấm nhầm (`falseAlarms === 0`), đúng toàn bộ lượt Go (`hits === goTrials`), số mẫu $N \ge 12$, và `median(rts) < 220ms` -> Sinh tín hiệu (Signal) **statistical** ("Perfect inhibition with very fast Go RTs").
 9. `mental` (Xoay hình không gian):
-   - Với $N \ge 4$: Nếu `median(rts) < 250ms` -> Cờ **hard** ("Mental Rotation median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
-   - Hoàn hảo siêu tốc: Nếu `trials >= 16`, `correct === trials`, $N \ge 12$, và `median(rts) < 450ms` -> Cờ **soft** ("Perfect mental rotation finished too fast").
+   - Với $N \ge 4$: Nếu `median(rts) < 250ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Mental Rotation median impossibly low"); `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical**.
+   - Hoàn hảo siêu tốc: Nếu `trials >= 16`, `correct === trials`, $N \ge 12$, và `median(rts) < 450ms` -> Sinh tín hiệu (Signal) **statistical** ("Perfect mental rotation finished too fast").
 10. `corsi` (Thử thách Corsi Block):
-    - Với $N \ge 4$: Nếu `median(rts) < 180ms` -> Cờ **hard** ("Corsi tap median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
-    - Kỷ lục chuỗi: Nếu `span >= 8` và số lần thử `trials <= span` -> Cờ **soft** ("Corsi span very high with too few trials").
+    - Với $N \ge 4$: Nếu `median(rts) < 180ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Corsi tap median impossibly low"); `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical**.
+    - Kỷ lục chuỗi: Nếu `span >= 8` và số lần thử `trials <= span` -> Sinh tín hiệu (Signal) **statistical** ("Corsi span very high with too few trials").
 11. `trail` (Nối điểm Trail Making):
-    - Với $N \ge 5$: Nếu `median(rts) < 200ms` -> Cờ **hard** ("Trail Making hop median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
-    - Quét điểm hoàn hảo: Nếu `nodes >= 20`, `wrongClicks === 0`, và `timeMs < nodes * 260ms` -> Cờ **soft** ("Perfect trail finished implausibly fast").
+    - Với $N \ge 5$: Nếu `median(rts) < 200ms` -> Sinh tín hiệu (Signal) **physical** (or statistical) ("Trail Making hop median impossibly low"); `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical**.
+    - Quét điểm hoàn hảo: Nếu `nodes >= 20`, `wrongClicks === 0`, và `timeMs < nodes * 260ms` -> Sinh tín hiệu (Signal) **statistical** ("Perfect trail finished implausibly fast").
+Cross-check totalTaps với rts.length và clearedLevels; lệch -> statistical signal, không reject.
+
+Đồng bộ Pipeline xử lý bằng Decision Engine tập trung `decide(signals: Signal[])`. Các hàm inspector của từng game CHỈ sinh ra tín hiệu `Signal { kind, mode }` thay vì tự quyết định HTTP 422. 
+
+```typescript
+const signals = inspectRound(ticket.game, telemetry, serverElapsedMs);
+const decision = decide(signals);
+if (decision.shouldReject) {
+  await finalizeRejectedRoundTx(...);
+}
+```
+
+Reject YÊU CẦU >= 2 tín hiệu thống kê ĐỘC LẬP hoặc 1 tín hiệu vật lý. Rule mới bắt buộc qua Shadow Mode.
+Shadow mode: Thêm cột `mode ('shadow'|'enforced')` trên `cheat_flags`. Bật shadow mode 2 tuần cho mọi luật physical mới.
+**Immutable Rule Set & Canonicalization**: Object config/rule set phải được canonicalize bằng chuẩn RFC 8785 trước khi tính SHA-256. Sử dụng `DeepReadonly` và `deepFreeze()` tại runtime.
+**Safety Override**: Việc override signal_class (Kill switch khẩn cấp) không được phép ghi đè (UPDATE) dòng override cũ, bắt buộc tạo snapshot mới (Append-only) với `rule_set_hash` mới và chỉ được phép hạ mức phạt từ physical -> statistical.
+
 12. `search` (Tìm kiếm đối tượng):
-    - Nếu điểm số `score > 80` -> Cờ **soft** ("search: score exceeds human limits").
-    - Nếu $N \ge 10$ và `cv(rts) < 0.04` -> Cờ **soft** ("search: mechanically steady pace (robot)").
+    - Định nghĩa invariant raw: `targetsFound <= totalTargets`; `misses <= totalTargets`; `responses.length == expectedTrials`; `targetsFound + misses == expectedTargets`. Không nhận hoặc kiểm tra điểm do client tự tính.
+    - Nếu $N \ge 10$ và `cv(rts) < 0.04` -> Sinh tín hiệu (Signal) **statistical** ("search: mechanically steady pace (robot)").
 
 Đảm bảo kiểu dữ liệu toàn diện (Exhaustive Registry):
 `GAME_INSPECTORS satisfies Record<Game, GameInspector>` bắt buộc mọi Game mới thêm vào enum `Game` phải có hàm inspector tương ứng, nếu thiếu sẽ báo lỗi TypeScript ở thời điểm biên dịch.
 
 Quy trình xử lý tại Route `/server/submit-round`:
-- Gọi `inspectRound(gameId, telemetry, serverElapsedMs)`.
-- Khi dính **Hard Flag**:
-  + **Đốt ticket lập tức**: Cập nhật `round_tickets.submitted_at = new Date().toISOString()` trước khi phản hồi HTTP 422. Việc này triệt hạ khả năng biến anti-cheat thành Oracle thử lại (retry oracle attack).
-  + Ghi lại từng hard flag vào DB bằng RPC `record_cheat_flag(p_user_id, p_game, p_reason, p_severity, p_details)`.
-  + Ghi log server cảnh báo `anticheat.hard_reject`.
-  + Trả về lỗi HTTP 422 Unprocessable Entity: `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_hard", flags: ["timing_patterns_rejected"] }`.
-- Khi dính **Soft Flag**:
-  + Duyệt qua danh sách soft flags và gọi RPC `record_cheat_flag` lưu vết vào DB.
+- Gọi `inspectRound(ticket.game, telemetry, serverElapsedMs)`.
+- Khi dính **Physical/Statistical Rejects**:
+  + **Đốt ticket lập tức**: Cập nhật `round_tickets.state = 'rejected'` trước khi phản hồi HTTP 422. Việc này triệt hạ khả năng biến anti-cheat thành Oracle thử lại (retry oracle attack).
+  + Ghi lại từng Physical/Statistical Rejects vào DB bằng RPC `record_cheat_flag(p_user_id, p_game, p_reason, p_signal_class, p_details)`.
+  + Ghi log server cảnh báo `anticheat.round_rejected`.
+  + Trả về lỗi HTTP 422 Unprocessable Entity: `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_rejected", flags: ["timing_patterns_rejected"] }`.
+- Khi dính **Statistical Warnings**:
+  + Duyệt qua danh sách Statistical Warnings và gọi RPC `record_cheat_flag` lưu vết vào DB.
   + Ván chơi **vẫn tiếp tục** được tính điểm, tính XP và lưu kết quả bình thường.
 
 
@@ -179,7 +197,7 @@ D. QUẢN LÝ LỖI ỨNG DỤNG (`AppError` & `middleware.ts`)
   export class AppError extends Error {
     constructor(
       message: string,
-      readonly status: 400 | 401 | 409 | 410 | 422,
+      readonly status: 400 | 401 | 403 | 409 | 410 | 413 | 422 | 429,
       readonly code: string,
     ) {
       super(message);
@@ -212,8 +230,8 @@ F. ROUTE TIẾP NHẬN TELEMETRY VÀ RATE LIMITING (`supabase/functions/server/r
 --------------------------------------------------------------------------------
 - Endpoint: `POST /server/telemetry` (Public, không yêu cầu Authorization token vì lỗi thường xảy ra trước khi có phiên đăng nhập).
 - Các lớp bảo vệ:
-  1. Rate Limiting: Khai báo `createRateLimiter({ limit: 60, windowMs: 60_000 })`. Giới hạn tối đa 60 request / 1 phút / 1 địa chỉ IP (`x-forwarded-for`). Khi vượt ngưỡng, trả về HTTP 202 `{ ok: true, dropped: true }` im lặng để không làm hỏng trải nghiệm client.
-  2. Giới hạn kích thước Body: Kiểm tra độ dài chuỗi JSON `raw.length > 32.000` bytes (32KB) -> Trả lỗi HTTP 413 `Payload too large`.
+  1. Rate Limiting: Khai báo `createRateLimiter({ limit: 60, windowMs: 60_000 })`. Sử dụng thuật toán Rightmost-Untrusted để lấy IP thực. `const idx = Math.max(0, chain.length - 1 - (TRUSTED_PROXY_HOPS - 1)); return chain[idx];`. Bắt buộc log chuỗi XFF trên staging 24h để chốt `TRUSTED_PROXY_HOPS`. Thêm test gửi header XFF giả để đảm bảo tính năng Rate Limit hoạt động đúng. Bổ sung Rate limit và Turnstile cho cả luồng Login để chặn credential stuffing. Khi vượt ngưỡng, trả về HTTP 202 `{ ok: true, dropped: true }` im lặng để không làm hỏng trải nghiệm client.
+  2. Giới hạn kích thước Body: Kiểm tra độ dài chuỗi JSON `raw size > limit` bytes (32KB) -> Trả lỗi HTTP 413 `Payload too large`.
   3. Giới hạn số lượng sự kiện: Hàm `sanitizeClientEvents` cắt tối đa 20 sự kiện / lô payload.
   4. Chống giả mạo danh tính (Identity Spoofing Protection): Mọi đối tượng sự kiện từ Client gửi lên đều bị đè trường `user_id: null`. Client không được tự khai báo danh tính trên endpoint công khai này. Việc đối soát người dùng sẽ dựa trên `session_id` hoặc so khớp `request_id` với các log server.
 
@@ -222,35 +240,35 @@ F. ROUTE TIẾP NHẬN TELEMETRY VÀ RATE LIMITING (`supabase/functions/server/r
 --------------------------------------------------------------------------------
 
 A. LUỒNG CHƠI VÁN & KIỂM TRA ANTI-CHEAT (`submit-round`):
-1. Người chơi hoàn thành ván -> Client gửi `POST /server/submit-round` chứa `{ roundId, game, telemetry, fingerprint }`.
-2. Middleware nhận request -> Cấp/trích xuất `x-request-id` -> Đánh dấu mốc thời gian bắt đầu request.
-3. Router `rounds.ts` xác thực Auth Token người dùng -> Truy vấn DB lấy vé chơi `round_tickets`.
-4. Server đo thời gian thực đã trôi qua: `serverElapsedMs = Date.now() - ticket.started_at`.
-5. Chạy hàm kiểm tra `inspectRound(gameId, telemetry, serverElapsedMs)`:
-   - NẾU DÍNH HARD FLAG:
-     * Cập nhật ngay `round_tickets.submitted_at = now()` (đốt ticket).
-     * Gọi RPC `record_cheat_flag` lưu chi tiết cờ Hard vào DB.
-     * Log sự kiện cảnh báo server `anticheat.hard_reject`.
-     * Trả về HTTP 422 `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_hard", ... }`.
-   - NẾU CHỈ DÍNH SOFT FLAG HOẶC HỢP LỆ:
-     * Duyệt mảng Soft flags và gọi RPC `record_cheat_flag` cho từng cờ.
-     * Liên kết thiết bị nếu có fingerprint qua RPC `link_device`.
-     * Gọi `scoreAndValidate` để tính điểm chuẩn xác.
-     * Gọi RPC `submit_round_transaction` cập nhật các trục nhận thức, điểm số và XP vào DB.
-     * Trả về HTTP 200 kèm dữ liệu kết quả ván chơi & mảng `cheatFlags`.
-6. Middleware `finally` block thực hiện log JSON dòng `http.request` chứa `durationMs` và HTTP status code.
+1. Giới hạn byte của body (Bảo vệ memory server).
+2. Parse envelope tối thiểu để lấy `roundId` (Không vội parse toàn bộ payload).
+3. **Claim ticket (Atomic Lock)**: Thực hiện câu lệnh SQL `UPDATE round_tickets SET state = 'processing', processing_token = gen_random_uuid(), processing_started_at = clock_timestamp() WHERE id = p_round_id AND user_id = auth.uid() AND state = 'activated' AND submit_deadline > clock_timestamp() RETURNING *` thông qua RPC `claim_round`. Nếu không tìm thấy, từ chối request. Đảm bảo vé thuộc sở hữu của người gọi và chưa hết hạn.
+4. Tải `challenge_config` gốc trực tiếp từ ticket vừa claim.
+5. Parse toàn bộ `telemetry` qua hệ thống schema Zod tương ứng với trò chơi (chỉ chấp nhận số hợp lệ, hữu hạn, không âm). Nếu fail, chuyển ticket sang state `invalid`.
+6. Chạy hàm kiểm tra `inspectRound(gameId, telemetry, serverElapsedMs)`:
+   - NẾU DÍNH Physical/Statistical Rejects:
+     * Gọi RPC duy nhất `finalize_rejected_round_tx` (kiểm tra processing_token -> khóa ticket -> chuyển state thành rejected -> ghi toàn bộ cheat flags -> ghi observability -> commit).
+     * Log sự kiện cảnh báo server `anticheat.round_rejected`.
+
+   * CƠ CHẾ PHỤC HỒI (Processing Lease):
+     Có cron job định kỳ chạy `UPDATE round_tickets SET attempt_count = attempt_count + 1, state = CASE WHEN attempt_count + 1 >= 3 THEN 'failed' ELSE 'activated' END, processing_token = NULL, processing_started_at = NULL, active_slot = CASE WHEN attempt_count + 1 >= 3 THEN NULL ELSE active_slot END WHERE state = 'processing' AND processing_started_at < now() - interval '2 minutes'`. Quá 3 lần sẽ chuyển sang `failed`.
+     * Trả về HTTP 422 `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_rejected", ... }`.
+   - NẾU CHỈ DÍNH Statistical Warnings HOẶC HỢP LỆ:
+     * Thực hiện duy nhất một RPC `finalize_accepted_round_tx`:
+     (SELECT ticket FOR UPDATE -> xác minh processing_token & state = processing -> insert Statistical Warnings -> link/update device -> insert training_session -> insert xp_event -> update profile projection -> state = accepted -> insert outbox event -> commit).
+7. Middleware `finally` block thực hiện log JSON dòng `http.request` chứa `duration_ms` (chuẩn hoá snake_case) và HTTP status_code.
 
 B. LUỒNG GHI LOG OBSERVABILITY TỪ CLIENT VỀ SERVER:
 1. Xuất hiện lỗi ở Client (hoặc gọi `logError`/`logWarn`) -> Đẩy thông tin vào `observability.ts`.
 2. Hàm `scrubText` & `scrubContext` tiến hành xóa PII (JWT, email, token) -> Tính fingerprint bằng djb2 -> Kiểm tra khử trùng lặp trong 60 giây.
-3. Sự kiện hợp lệ được đưa vào Hàng đợi (Queue).
-4. Khi Queue đủ 20 sự kiện hoặc sau 10 giây (hoặc khi người dùng đóng/ẩn tab) -> Client gọi `fetch(".../server/telemetry", { keepalive: true })`.
-5. Server `telemetry.ts` tiếp nhận request -> Kiểm tra Rate Limit theo IP (60/phút) -> Kiểm tra Body $\le 32KB$ -> Sanitization dữ liệu & ép `user_id = null` -> Chèn mảng dòng log vào bảng database `observability_events`.
+3. Observability ghi qua Async Fail-open queue (Logflare/Datadog) để chống Failure Coupling làm sập DB chính. Sự kiện hợp lệ được đưa vào Hàng đợi (Queue).
+4. Khi Queue đủ 20 sự kiện hoặc sau 10 giây (hoặc khi người dùng đóng/ẩn tab) -> Client gọi `fetch(".../server/telemetry", { keepalive: true })`. Log từ client không được redact xoá các trường số (như `duration`, `ms`), chỉ redact giá trị của các PII keys đã biết.
+5. Server `telemetry.ts` tiếp nhận request -> Kiểm tra Rate Limit theo IP (60/phút) -> Kiểm tra Body $\le 32KB$ (tính bằng TextDecoder) -> Sanitization dữ liệu & ép `user_id = null` -> Chèn mảng dòng log vào bảng database `observability_events`.
 
 
 6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
 --------------------------------------------------------------------------------
-- Chống tấn công dò ngưỡng Anti-cheat (Anti-cheat Oracle Prevention): Đốt ticket (`submitted_at = now()`) lập tức trước khi phản hồi HTTP 422. Kẻ gian không thể sử dụng lại ticket để thử lại nhiều lần nhằm dò tìm mốc thời gian vừa đủ qua mặt hệ thống.
+- Chống tấn công dò ngưỡng Anti-cheat (Anti-cheat Oracle Prevention): Đốt ticket (`state = 'rejected'`) lập tức trước khi phản hồi HTTP 422. Kẻ gian không thể sử dụng lại ticket để thử lại nhiều lần nhằm dò tìm mốc thời gian vừa đủ qua mặt hệ thống.
 - Chống giả mạo danh tính (User Identity Spoofing Protection): Endpoint `/server/telemetry` tuyệt đối không tin tưởng field `userId` từ client gửi lên và luôn đè thành `null`.
 - Cấu hình CORS an toàn: Chỉ cho phép danh sách Origin được duyệt (`ALLOWED_ORIGINS`) và hạn chế danh sách Header (`Content-Type`, `Authorization`, `apikey`, `x-client-info`).
 - Giới hạn hạn ngạch (Rate Limiting):

@@ -18,6 +18,8 @@ export type RoundTicket = {
   game: RoundGame;
   startedAt: string;
   expiresAt: string;
+  challengeSeed?: string;
+  challengeConfig?: Record<string, any>;
 };
 export type SubmittedRound = {
   profile: Profile;
@@ -39,8 +41,8 @@ export type SubmittedRound = {
 };
 
 /** Obtain a short-lived, one-use round ticket before play. */
-export const startRound = (game: RoundGame): Promise<RoundTicket> =>
-  serverPost<RoundTicket>("start-round", { game });
+export const startRound = (game: RoundGame, config?: Record<string, any>): Promise<RoundTicket> =>
+  serverPost<RoundTicket>("start-round", { game, config });
 
 /** One finish request: server scores telemetry and atomically saves everything. */
 export async function submitRound(

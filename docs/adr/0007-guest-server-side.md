@@ -3,7 +3,7 @@
 **Status**: Accepted (Supersedes ADR 0001)
 
 ## Context
-In ADR 0001, we implemented a client-side fake-email generator that stored a random password in localStorage. This "Guest Local" mode allowed users to play immediately without signing up, computing scores entirely in the browser. 
+In ADR 0001, we implemented a client-side fake-email generator that stored a random password in IndexedDB. This "Guest Local" mode allowed users to play immediately without signing up, computing scores entirely in the browser. 
 
 However, this architecture caused several issues:
 1. **Security/Abuse**: The `/server/submit-round` endpoint had to conditionally bypass JWT validation for guest IDs, making it an open door for spoofing.

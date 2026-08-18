@@ -63,16 +63,17 @@ ORDER BY 3 DESC;
 ```
 
 **Truy vấn tỷ lệ Reject tổng quát:**
-*Ghi chú: Mẫu số (tổng lượt chơi) phải được lấy từ bảng `training_sessions` (những ván thành công) cộng với những ván bị reject.*
+*Ghi chú: Phải lấy dữ liệu dựa trên trạng thái (state) và finalized_at của `round_tickets` để tính chính xác cho mọi ván đã kết thúc.*
 
 ```sql
 SELECT
-  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') AS hard_rejects,
-  (SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') AS valid_sessions,
-  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') * 100.0 
-    / NULLIF((SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') + 
-           (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days'), 0) AS reject_pct;
+  count(*) FILTER (WHERE state = 'rejected') * 100.0 
+  / NULLIF(count(*) FILTER (WHERE state IN ('accepted', 'rejected')), 0) AS reject_pct
+FROM public.round_tickets
+WHERE finalized_at > now() - interval '7 days'
+  AND provenance = 'online';
 ```
+
 
 ## 4. Offline Sync Health (Tình trạng Đồng bộ Offline)
 
@@ -122,7 +123,7 @@ ORDER BY 2 DESC;
 ```
 
 ---
-*Lưu ý: Bạn có thể copy-paste thẳng các SQL này vào mục SQL Editor của Supabase. Để tiện theo dõi lâu dài, hãy thiết lập Grafana kết nối trực tiếp với database Supabase bằng PostgreSQL data source và tạo các biểu đồ (Time series, Bar chart) tương ứng.*
+*Lưu ý: Bạn có thể copy-paste thẳng các SQL này vào mục SQL Editor của Supabase. Để tiện theo dõi lâu dài, hãy thiết lập Grafana kết nối với database thông qua Role `grafana_ro` (Read-only) và tạo các biểu đồ (Time series, Bar chart) tương ứng.*
 
 
 ### 3.1. False Positive Rate (Mẫu ngẫu nhiên - Mục tiêu < 0.5%)
@@ -133,6 +134,6 @@ SELECT id, now() FROM cheat_flags
 WHERE severity = 'hard'
   AND created_at > now() - interval '7 days'
   AND review_status IS NULL
-ORDER BY random() LIMIT 50;
+ORDER BY random() LIMIT 600;
 ```
 

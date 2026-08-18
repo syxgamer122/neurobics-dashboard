@@ -27,7 +27,7 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
 1. Kiểm tra các thay đổi gần đây: Xem lịch sử Vercel deploy hoặc GitHub commits.
 
 **Khắc phục**:
-- Nếu lỗi do code mới: Revert PR hoặc redeploy phiên bản cũ trên Vercel.
+- Nếu lỗi do code mới: Cần xác định frontend/server/schema compatibility. Nếu backend hoặc schema đã thay đổi không tương thích ngược, không được tự động revert frontend. Cân nhắc disable feature hoặc deploy bộ tương thích và roll-forward.
 - Nếu lỗi do Database quá tải: Kill các query bị treo hoặc tạm thời scale up Supabase compute.
 
 ---
@@ -41,14 +41,14 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
    ```sql
    SELECT user_id, game, reason, telemetry, created_at
    FROM cheat_flags
-   WHERE severity = 'hard' AND created_at > now() - interval '24 hours'
+   WHERE signal_class = 'physical' AND created_at > now() - interval '24 hours'
    ORDER BY created_at DESC;
    ```
 1. Phân tích `telemetry`: Xem data có thực sự là cheat không (ví dụ: speed quá ảo) hay là do thiết bị lag/accessibility (cần check các trường hợp ngoại lệ như màn hình cảm ứng lỗi).
 
 **Khắc phục**:
 - Chuyển sang Runbook #6 (Anti-cheat False Positive Spike) nếu là lỗi hàng loạt.
-- Nếu là một user cụ thể bị oan, có thể xóa cờ cheat bằng admin panel hoặc SQL.
+- Nếu là một user cụ thể bị oan, KHÔNG xóa cheat flag. Thực hiện: append `manual_review(false_positive)` -> append compensation/correction -> phục hồi capability -> giữ nguyên `cheat_flags` làm audit trail.
 
 ---
 
@@ -62,7 +62,7 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
 **Khắc phục**:
 1. Không bao giờ chạy thủ công câu SQL thay thế cho migration.
 1. Xóa migration lỗi (nếu chưa push lên production) và tạo lại.
-1. Nếu migration đã kẹt trên production (ví dụ: tạo index mất nhiều giờ), có thể phải chạy `pg_cancel_backend` để ngắt câu lệnh đang chạy.
+1. Khắc phục sự cố kẹt Migration: (a) Luôn dùng `lock_timeout` (vd: '2s') cho DDL để tránh downtime. (b) Khi cancel CREATE INDEX, nhớ có bước dọn invalid index. (c) Với Index lớn, phải dùng CREATE INDEX CONCURRENTLY ở file migration riêng ngoài transaction. (d) Bảng log nên dùng DROP PARTITION thay cho DELETE.
 
 ---
 
@@ -79,7 +79,7 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
 **Khắc phục**:
 - Bật hoặc tăng cường Cloudflare Turnstile cho màn hình Guest Login.
 - Bật tính năng Rate Limiting trên Supabase API Gateway.
-- Chạy script dọn dẹp các tài khoản Guest rác (không có hoạt động nào sau stats_epoch).
+- Chạy script dọn dẹp các tài khoản Guest rác theo chính sách `docs/data-retention.md` (30 days).
 
 ---
 
@@ -88,12 +88,9 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
 **Dấu hiệu**: Phát hiện một game có bug nghiêm trọng (ví dụ: lỗ hổng tính điểm), cần tạm dừng ngay lập tức.
 
 **Khắc phục**:
-1. Thay đổi trạng thái game thành `disabled` hoặc `internal` trong cơ sở dữ liệu:
-   - Truy cập bảng `feature_flags` trên Supabase (hoặc chạy SQL Update).
-   ```sql
-   UPDATE feature_flags SET status = 'disabled' WHERE feature = 'game:schulte';
-   ```
-1. Gọi Edge Function hoặc Webhook để **Invalidate Cache** các feature flags, đảm bảo Edge Function áp dụng thay đổi ngay lập tức mà không cần chờ TTL.
+1. Thay đổi trạng thái game thành `disabled` hoặc `internal`:
+   - GỌI API: `POST /server/admin-feature-flags` với capability flags tương ứng.
+   - Server sẽ xử lý transaction ghi audit log + invalidate cache lập tức. (KHÔNG ĐƯỢC CHẠY SQL UPDATE TAY - Vi phạm Admin Contract).
 1. **Verify**: Mở trang web ở cửa sổ ẩn danh và kiểm tra xem game đã biến mất hoặc bị vô hiệu hóa chưa.
 
 ---
@@ -108,14 +105,14 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
    ```sql
    SELECT game, reason, count(*) 
    FROM cheat_flags 
-   WHERE severity = 'hard' AND created_at > now() - interval '2 hours'
+   WHERE signal_class = 'physical' AND created_at > now() - interval '2 hours'
    GROUP BY 1, 2 ORDER BY 3 DESC;
    ```
 1. Xem xét pattern: Có phải chỉ tập trung ở một game cụ thể không? Có phải do một thiết bị cụ thể (ví dụ: điện thoại Android giá rẻ báo `rts` chậm) không?
 
 **Khắc phục**:
 - **Tạm thời**: Hạ cấp ngưỡng phạt. Chuyển logic từ `hard_reject` sang `soft_flag` trong `anticheat.ts` cho loại vi phạm đó.
-- Revert `INSPECTOR_VERSIONS[game]` về bản trước nếu bản cập nhật gần nhất là nguyên nhân.
+- Không được giảm `INSPECTOR_VERSIONS[game]`. Nếu cần rollback logic, hãy triển khai logic cũ nhưng lưu vào version lớn hơn.
 - Tạo issue phân tích lại data, thêm test case mới vào `tests/fixtures/anticheat-cases.json` để phòng ngừa regression.
 
 ---
@@ -126,7 +123,7 @@ Tài liệu này hướng dẫn cách chẩn đoán và khắc phục các sự 
 - Supabase tự động backup hàng ngày (Daily backups) và hỗ trợ Point-in-Time Recovery (PITR) cho các gói Pro trở lên.
 
 **Quy trình Khôi phục (Restore)**:
-1. **Ưu tiên Point-in-Time Recovery (PITR) in-place**: Sử dụng tính năng PITR của Supabase để khôi phục trực tiếp trên project hiện tại. Điều này giữ nguyên JWT secret, đảm bảo tất cả refresh token của user (đặc biệt là tài khoản Guest) vẫn hợp lệ.
+1. **Ưu tiên Point-in-Time Recovery (PITR) in-place**: Sử dụng tính năng PITR của Supabase để khôi phục trực tiếp trên project hiện tại (yêu cầu báo cáo Drill hàng quý: phục hồi Storage object bytes, DNS, Cron, cấu hình Vault, và đối chiếu Checksum. Không chỉ dựa vào lý thuyết PITR của Postgres). Điều này giữ nguyên JWT secret, đảm bảo tất cả refresh token của user (đặc biệt là tài khoản Guest) vẫn hợp lệ.
 1. **Khôi phục sang Project mới (Chỉ dùng khi thảm họa toàn diện)**: Nếu project hiện tại bị hỏng hoàn toàn, có thể restore sang project mới. 
    - **CẢNH BÁO P0**: Project mới sẽ có JWT secret mới, toàn bộ phiên đăng nhập hiện tại sẽ mất. 
    - User có email/password có thể đăng nhập lại bình thường. 

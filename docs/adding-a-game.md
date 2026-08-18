@@ -66,7 +66,7 @@ Add the `tagKey` and `descriptionKey` to both `i18n/vi.ts` and `i18n/en.ts`. The
 ## 8. Bump Version Constants
 
 Theo `version-policy.md`, khi thêm game mới hoặc sửa đổi telemetry, bạn BẮT BUỘC phải quản lý phiên bản các hằng số:
-- `SCORER_VERSIONS`: Khai báo phiên bản công thức tính điểm cho game mới (`new_game: 1`). **KHÔNG** tăng phiên bản của các game cũ (Per-Scorer Versioning).
+- `SCORERS_BY_VERSION`: Khai báo phiên bản công thức tính điểm cho game mới (`new_game: 1`). **KHÔNG** tăng phiên bản của các game cũ (Per-Scorer Versioning).
 - `INSPECTOR_VERSIONS[game]`: Tăng lên nếu có thay đổi ngưỡng anti-cheat riêng cho game này. Tăng `SHARED_INSPECTOR_VERSION (xem version-policy.md)` nếu đổi luật chung.
 - `TELEMETRY_SCHEMA_VERSION`: Tăng lên nếu shape/dữ liệu của telemetry truyền lên bị thay đổi.
 
@@ -97,7 +97,7 @@ pnpm run build
 
 ## 10. Deploy
 
-Run the SQL migration first, then deploy the server function:
+Run the SQL migration before deployment, then deploy the server function:
 
 ```powershell
 npx supabase functions deploy server --project-ref <YOUR_PROJECT_REF>

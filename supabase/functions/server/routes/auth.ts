@@ -15,6 +15,34 @@ import {
 import { logServerEvent } from "../_shared/observability.ts";
 
 export function registerAuthRoutes(app: Hono): void {
+
+  // finalize guest upgrade
+  app.post("/server/finalize-upgrade", async (c) => {
+    try {
+      const user = await authenticatedUser(c);
+      const { targetEmail } = await c.req.json();
+      
+      const { error } = await adminClient.rpc("finalize_guest_upgrade_tx", {
+        p_user_id: user.id,
+        p_target_email: targetEmail
+      });
+      
+      if (error) {
+        logServerEvent({
+          event: "auth.upgrade.finalize_error",
+          level: "error",
+          userId: user.id,
+          message: error.message
+        });
+        return c.json({ error: error.message }, 400);
+      }
+      
+      return c.json({ success: true });
+    } catch (err) {
+      return c.json({ error: "Internal server error" }, 500);
+    }
+  });
+
   // ─── Sign up (username + password via email-spoofing) ────────────────────────
   // Creating a confirmed auth user needs the service role, so this stays on the
   // server. The on_auth_user_created trigger auto-inserts the public.profiles row.

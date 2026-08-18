@@ -8,7 +8,7 @@ MindGem cần một cách để người dùng trải nghiệm ngay lập tức 
 
 ## Decision
 Chúng ta quyết định tạo ra một luồng "Fake Email" ẩn dưới màn hình "Guest Mode".
-Khi user bấm "Chơi ngay" (Guest), client sẽ tự động sinh ra một email ảo (ví dụ: `guest-uuid@neurobics.local`) và đăng ký nó với Supabase Auth bằng một mật khẩu ngẫu nhiên. Mật khẩu này được lưu trong localStorage.
+Khi user bấm "Chơi ngay" (Guest), client sẽ tự động sinh ra một email ảo (ví dụ: `guest-uuid@neurobics.local`) và đăng ký nó với Supabase Auth bằng một mật khẩu ngẫu nhiên. Mật khẩu này được lưu trong LocalStorage.
 Về phía backend, hệ thống coi đây là một user hoàn toàn hợp lệ, nhưng trường `role` trong bảng `profiles` sẽ được đánh dấu là `guest`.
 
 ## Consequences

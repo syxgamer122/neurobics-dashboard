@@ -90,7 +90,13 @@ B. Chuỗi Phân giải Nhãn Nhiệm vụ (Quest Labeling Resolution Chain):
      - `games_N` -> "Chơi N trò khác nhau" / "Play N different games"
      - `play_<game>_N` -> "Chơi <Tên trò> N ván" / "Play N <Tên trò> rounds" (tra cứu qua `QUEST_GAME_NAMES`)
      - Tiền tố `w_` -> Thêm nhãn "Tuần: " / "Weekly: "
-  4. Ưu tiên 4: Fallback chuỗi an toàn "Nhiệm vụ" (tiếng Việt) hoặc "Quest" (tiếng Anh).
+    4. Ưu tiên 4: Fallback chuỗi an toàn "Nhiệm vụ" (tiếng Việt) hoặc "Quest" (tiếng Anh).
+
+  5. Hợp đồng Eligibility (Practice Contract):
+     + Online ranked: Rating=Có, XP=Có, Quest=Có, Streak=Có, Achievement điểm cao=Có
+     + Accessible practice: Rating=Không, XP=Giới hạn, Quest=Có tùy quest, Streak=Có, Achievement điểm cao=Không
+     + Offline recent: Rating=Không, XP=Giới hạn, Quest=Không hoặc giới hạn, Streak=Theo received date, Achievement=Không
+     + Offline stale: Rating=Không, XP=Không, Quest=Không, Streak=Không, Achievement=Không
 
 C. Quản lý Mạng lưới Bạn bè & Bảng xếp hạng (Social & Private Leaderboard):
 - Trạng thái kết bạn (Friendship Status & Direction):

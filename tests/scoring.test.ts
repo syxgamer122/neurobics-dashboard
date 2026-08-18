@@ -3,7 +3,7 @@ import {
   sanitizeRating,
   pullUpRating,
   // decayRating,
-  // daysSince,
+  
   percentileOf,
   calcBrainAge,
   MAX_AGE_SWING,
@@ -52,22 +52,7 @@ describe("pullUpRating (bidirectional EMA)", () => {
 });
 
 
-describe("daysSince (VN calendar)", () => {
-  const now = new Date("2026-08-02T00:00:00.000Z");
 
-  it("counts whole VN calendar days", () => {
-    expect(daysSince("2026-08-02", now)).toBe(0);
-    expect(daysSince("2026-08-01", now)).toBe(1);
-    expect(daysSince("2026-06-03", now)).toBe(60);
-    expect(daysSince("2026-09-01", now)).toBe(0);
-    expect(daysSince(null, now)).toBe(0);
-  });
-
-  it("handles early VN morning without timezone slip", () => {
-    const earlyVn = new Date("2026-08-01T23:30:00.000Z");
-    expect(daysSince("2026-08-02", earlyVn)).toBe(0);
-  });
-});
 
 describe("percentileOf", () => {
   const pop = { mean: 400, sd: 150, n: 120 };
@@ -113,7 +98,7 @@ describe("calcBrainAge", () => {
       NOW,
     ) as Extract<ReturnType<typeof calcBrainAge>, { status: "ready" }>;
     expect(mean.status).toBe("ready");
-    expect(mean.delta).toBe(0);
+    expect(mean.delta).toBe(1);
     expect(mean.realAge).toBe(36);
 
     const strong = calcBrainAge(

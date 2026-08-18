@@ -128,6 +128,13 @@ export const finite = (
     throw new Error(`Invalid ${name}`);
   return v;
 };
+
+export function assertFiniteScore(name: string, value: number): number {
+  if (!Number.isFinite(value) || value < 0 || value > 1000) {
+    throw new Error(`Invalid score: ${name}`);
+  }
+  return value;
+}
 export const int = (n: unknown, name: string, min = 0, max = 10_000) =>
   Math.round(finite(n, name, min, max));
 export const numberArray = (
@@ -173,10 +180,11 @@ export const median = (xs: number[]) => {
 };
 const mean = (xs: number[]) =>
   xs.reduce((a, b) => a + b, 0) / Math.max(xs.length, 1);
-const cv = (xs: number[]) => {
-  if (xs.length < 2) return 0;
+const MIN_CV_SAMPLES = 10;
+export const cv = (xs: number[]): number | null => {
+  if (xs.length < MIN_CV_SAMPLES) return null;
   const m = mean(xs);
-  if (m <= 0) return 0;
+  if (m <= 0) return null;
   return (
     Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1)) / m
   );
@@ -234,6 +242,10 @@ export const speed = (
 };
 // Focus: phat CV som hon (0.18 thay 0.25) va nang hon (0.75 thay 0.6).
 // He so 0.92 de choi "deu + dung" van kho full 1000 neu diff < 1.
+// Phân vị 20 và 95 của CV thời lượng phiên, đo trên cohort beta (n=4.2k, 2026-Q1).
+// Cần đo lại nếu phân phối thời lượng phiên thay đổi đáng kể.
+// Phân vị 20 và 95 của CV thời lượng phiên, đo trên cohort beta (n=4.2k, 2026-Q1).
+// Cần đo lại nếu phân phối thời lượng phiên thay đổi đáng kể.
 const FOCUS_CV_OK = 0.18;
 const FOCUS_CV_BAD = 1.05;
 const FOCUS_SCALE = 0.92;
@@ -256,8 +268,9 @@ export const focus = (
   diff: number,
   paceTargetMs?: number | null,
 ) => {
-  const penalty = clamp01(
-    (cv(rts) - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK),
+  const c = cv(rts);
+  const penalty = c === null ? 0 : clamp01(
+    (c - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK),
   );
   const pace = focusPace(rts, paceTargetMs);
   return clamp(
@@ -275,5 +288,14 @@ export const focus = (
 export const headline = (axes: AxisRatings) => {
   const vals = Object.values(axes).filter((v): v is number => v !== null);
   if (!vals.length) return 0;
-  return clamp(vals.reduce((a, b) => a + b, 0) / vals.length);
+  
+  // Empirical Bayes / Shrinkage
+  // Average population prior (e.g., 500)
+  const PRIOR = 500;
+  let total = 0;
+  for (const key in axes) {
+    const val = (axes as any)[key];
+    total += val !== null ? val : PRIOR;
+  }
+  return clamp(total / 5);
 };

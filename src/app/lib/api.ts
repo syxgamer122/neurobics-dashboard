@@ -26,7 +26,7 @@ export {
 } from "./api/auth";
 export {
   fetchProfile,
-  saveBirthYear,
+  saveBirthDate,
   deleteActiveUserAccount,
   changePassword,
   uploadAvatar,

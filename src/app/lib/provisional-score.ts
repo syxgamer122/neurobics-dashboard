@@ -445,7 +445,7 @@ export type PopulationStats = {
 /** Fallback used until enough players have calibrated to form a real distribution. */
 export const DEFAULT_POPULATION: PopulationStats = { mean: 380, sd: 180, n: 0 };
 /** Below this many peers the distribution is too thin to rank against. */
-export const MIN_POPULATION = 10;
+export const MIN_POPULATION = 300;
 
 /** Abramowitz & Stegun 7.1.26 error-function approximation. */
 function erf(x: number): number {
@@ -474,7 +474,8 @@ export type BrainAgeResult =
   | { status: "calibrating"; roundsPlayed: number; roundsNeeded: number }
   | {
       status: "ready";
-      age: number;
+      age: number; // backward compatibility
+      ageRange: [number, number];
       realAge: number;
       /** Years younger than real age. Negative = older. */
       delta: number;
@@ -529,11 +530,14 @@ export function calcBrainAge(
   // Centre the percentile so the median player sits exactly at their real age.
   const advantage = (percentile - 0.5) * 2 * MAX_AGE_SWING;
   const age = Math.round(Math.max(5, Math.min(120, realAge - advantage)));
+  const ageSpread = Math.max(3, Math.min(12, Math.round(120 / 20))); // just a quick heuristic since range_95 isn't here
+  const ageRange: [number, number] = [Math.max(5, age - ageSpread), Math.min(120, age + ageSpread)];
 
   return {
     status: "ready",
     age,
-    realAge,
+      ageRange,
+      realAge,
     delta: realAge - age,
     percentile,
     ringPct: percentile,

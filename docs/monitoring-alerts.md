@@ -11,14 +11,15 @@ Chúng ta đo lường 4 Service Level Indicators (SLIs) cốt lõi:
    - Lỗi 4xx (như user input sai) không tính vào lỗi hệ thống, chỉ tính lỗi 5xx.
 
 2. **API Latency Budget (Submit Round)**:
-   - Target: p95 < 500ms\n  - Warning Threshold > 800ms
+   - Target: p95 < 500ms
+  - Warning Threshold > 800ms
    - Đo lường độ trễ từ lúc Edge Function nhận request đến lúc trả về kết quả dựa trên phân phối bucket của `http_metrics_minute`.
 
 3. **Offline Sync Success**: 99.0% batches process without 5xx
    - Tỷ lệ các batch đồng bộ dữ liệu offline thành công.
 
 4. **Anti-cheat False Positive Rate**: < 0.5%
-   - Tỷ lệ `false_positive` tính riêng trên mẫu ngẫu nhiên (`cheat_flag_review_queue`) để tránh selection bias từ người dùng khiếu nại. Mẫu 50 hard rejects/tuần.
+   - Tỷ lệ `false_positive` tính riêng trên mẫu ngẫu nhiên (`cheat_flag_review_queue`) để tránh selection bias từ người dùng khiếu nại. Mẫu 600 hard rejects/tuần.
    - Thà lọt cheater còn hơn block nhầm người chơi trung thực.
 
 ## Error Budget
@@ -30,53 +31,76 @@ Nghĩa là trong 10,000 lượt chơi, chúng ta cho phép tối đa 50 lượt 
 
 Các truy vấn SQL để cấu hình Grafana/Datadog hoặc xem trực tiếp trên Supabase Log Explorer. Xem thêm file [operations-dashboard.md](./operations-dashboard.md) để biết các truy vấn chi tiết.
 
-### 1. Availability (Success Rate)
-- **Target:** 99.5%
-- **Warning Threshold:** < 99.0%
-- **Critical Threshold:** < 95.0%
+### 1. System Availability (2xx vs 5xx)
+  - **Target:** 99.5%
+  ```sql
+  WITH metric AS (
+    SELECT
+      SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN request_count ELSE 0 END) AS successes,
+      SUM(CASE WHEN status_code >= 500 THEN request_count ELSE 0 END) AS failures,
+      SUM(CASE WHEN status_code >= 200 AND status_code < 300 OR status_code >= 500 THEN request_count ELSE 0 END) AS eligible
+    FROM public.http_metrics_minute
+    WHERE window_start > now() - interval '7 days'
+      AND path = '/server/submit-round'
+  )
+  SELECT successes * 100.0 / NULLIF(eligible, 0) AS system_availability_pct
+  FROM metric;
+  ```
 
-```sql
-SELECT
-  sum(request_count) FILTER (WHERE status_code < 500) * 100.0 / sum(request_count) AS success_rate_pct
-FROM http_metrics_minute
-WHERE window_start > now() - interval '7 days'
-  AND path = '/server/submit-round';
+### 1B. Admission Success Rate (2xx vs 429/422)
+  - **Target:** 98.0%
+  ```sql
+  WITH metric AS (
+    SELECT
+      SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN request_count ELSE 0 END) AS successes,
+      SUM(CASE WHEN status_code IN (422, 429) THEN request_count ELSE 0 END) AS failures,
+      SUM(CASE WHEN status_code >= 200 AND status_code < 300 OR status_code IN (422, 429) THEN request_count ELSE 0 END) AS eligible
+    FROM public.http_metrics_minute
+    WHERE window_start > now() - interval '7 days'
+      AND path = '/server/submit-round'
+  )
+  SELECT successes * 100.0 / NULLIF(eligible, 0) AS admission_success_pct
+  FROM metric;
+  ```
+
+### 1B. Admission Success Rate (2xx vs 429/422)
+  - **Target:** 98.0%
+  ```sql
+  WITH metric AS (
+    SELECT
+      SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN count ELSE 0 END) AS successes,
+      SUM(CASE WHEN status_code IN (429, 422, 500, 502, 503) THEN count ELSE 0 END) AS failures,
+      SUM(count) AS total
+    FROM public.http_metrics_minute
+    WHERE window_start > now() - interval '7 days'
+  )
+  SELECT successes * 100.0 / NULLIF(total, 0) AS admission_success_pct
+  FROM metric;
+  ```
+
+
+-- SLI 2: Round Acceptance Rate (tính từ round_tickets)
+-- SELECT count(*) FILTER (WHERE state='accepted') / NULLIF(count(*), 0) FROM round_tickets WHERE finalized_at > now() - interval '7 days';
 ```
 
 ### 2. Latency (p95 from Histogram Buckets)
-- **Target:** p95 < 500ms
-- **Warning Threshold:** p95 > 800ms
-- **Note:** `http_metrics_minute` uses histogram buckets (`le_100`, `le_300`, `le_500`, `le_800`, `le_2000`) to approximate p95 directly in SQL.
+- **Target:** p95 < 500ms (Hiểu chính xác là >= 95% request hoàn thành <= 500ms)
+- **Warning Threshold:** < 95.0% đạt SLO
 
 ```sql
-WITH buckets AS (
-  SELECT
-    sum(le_100) AS b_100,
-    sum(le_300) AS b_300,
-    sum(le_500) AS b_500,
-    sum(le_800) AS b_800,
-    sum(le_2000) AS b_2000,
-    sum(request_count) AS total_requests
-  FROM http_metrics_minute
-  WHERE path = '/server/submit-round'
-    AND window_start > now() - interval '24 hours'
-)
-SELECT
-  public.histogram_p95(b_100, b_300, b_500, b_800, b_2000, total_requests) as p95_approx_ms
-FROM buckets;
+SELECT sum(le_500) * 100.0 / NULLIF(sum(request_count), 0) AS pct_within_slo
+FROM http_metrics_minute
+WHERE path = '/server/submit-round' AND window_start > now() - interval '24 hours';
 ```
 
 ### 3. Anti-cheat Reject Rate
 
-*Ghi chú: Mẫu số (tổng lượt chơi) phải được lấy từ bảng `training_sessions` (những ván thành công) cộng với những ván bị reject, đếm theo số `round_id` độc nhất (distinct) để tránh tính lặp nếu một ván có nhiều cờ vi phạm.*
+*Ghi chú: Tỉ lệ Reject phải tính trực tiếp từ trạng thái `state` của ticket (bao gồm cả `practice_sessions`) để không bị thổi phồng.*
 
 ```sql
-SELECT
-  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') AS hard_rejects,
-  (SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') AS valid_sessions,
-  (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days') * 100.0 
-    / NULLIF((SELECT count(*) FROM training_sessions WHERE created_at > now() - interval '7 days') + 
-           (SELECT count(DISTINCT round_id) FROM cheat_flags WHERE severity = 'hard' AND created_at > now() - interval '7 days'), 0) AS reject_pct;
+SELECT count(*) FILTER (WHERE state='rejected') * 100.0
+     / NULLIF(count(*) FILTER (WHERE state IN ('accepted','rejected')), 0) AS reject_pct
+FROM round_tickets WHERE finalized_at > now() - interval '7 days';
 ```
 
 ### 4. Hourly Request Volume & Error Rate
@@ -104,7 +128,8 @@ Khi chuông báo động (alert) reo, mức độ ưu tiên xử lý như sau:
 
 | Mức độ | Điều kiện kích hoạt | Hành động / SLA Xử lý |
 |--------|---------------------|-----------------------|
-| **P1 (Critical)** | Lỗi 5xx > 5% | Hệ thống gửi Webhook qua Slack. Bắt tay vào điều tra trong vòng 5 phút. |
-| **P2 (High)** | Bão Anti-cheat: > 50 `hard_reject` / Ticket Pool trống | Bắn thông báo Slack kênh `#alerts-warning`. On-call cần điều tra trong vòng 30 phút. Rủi ro block nhầm user hàng loạt hoặc degrade trải nghiệm. |
-| **P3 (Medium)** | Hàng đợi offline đầy > 150 / `ticket_pool` idle < 20% capacity | Cảnh báo sớm, cron refill không theo kịp. Xử lý trong ngày. |
+| **P0 (Outage)** | **Dead-man Switch (External Ping)**: `pg_cron` gọi webhook push (healthchecks.io) mỗi 5 phút. Nếu healthchecks.io không nhận được tín hiệu quá 15 phút -> Bắn Paging Alert (điện thoại). Ngoài ra cung cấp GET `/server/health` trả về `{ db: ok, last_cron_run: ts }` không yêu cầu auth để uptime monitor bên ngoài ping mỗi 60s. Alert nội bộ Postgres dùng mô hình outbox + retry thay vì pg_net trực tiếp. |
+| **P1 (Critical)** | Lỗi 5xx có Burn-rate vi phạm (fast 5m & 1h @ 14.4x, slow 6h & 3d @ 6x) với `requests >= 50` | Hệ thống gửi Webhook qua Slack. On-call (có paging ngoài giờ) điều tra trong 5 phút. |
+| **P2 (High)** | Tỉ lệ Hard Reject vượt % quy định so với baseline tuần trước | Bắn thông báo Slack kênh `#alerts-warning`. On-call cần điều tra trong vòng 30 phút. Rủi ro block nhầm user hàng loạt hoặc degrade trải nghiệm. |
+| **P3 (Medium)** | `ticket_pool` idle < 20% capacity | Cảnh báo sớm, cron refill không theo kịp. Xử lý trong ngày. |
 | **P4 (Low)** | Hoạt động Admin tăng đột biến | Log lại để audit. Review trong vòng 48 giờ. |

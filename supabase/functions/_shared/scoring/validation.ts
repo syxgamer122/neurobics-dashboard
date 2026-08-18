@@ -17,7 +17,8 @@ export function assertRtBounds(
   for (const r of rts) {
     if (typeof r !== "number" || !Number.isFinite(r) || r < 0)
       throw new Error(`${label}: reaction time is not a valid positive number`);
-    if (r > 0 && r < HUMAN_FLOOR_MS) throw new Error(`${label}: reaction time too fast (${r}ms < ${HUMAN_FLOOR_MS}ms)`);
+    // Removed HUMAN_FLOOR_MS check from validation per Iteration 11 architecture.
+    // It is now handled by the Signal Extractor in anticheat.ts.
     total += r;
   }
   // Tong thoi gian phan ung khong the vuot thoi gian van dau (dem bien 15s).

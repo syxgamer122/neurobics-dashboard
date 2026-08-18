@@ -17,7 +17,7 @@ import {
   changePassword,
   deleteActiveUserAccount,
   removeAvatar,
-  saveBirthYear,
+  saveBirthDate,
   uploadAvatar,
   type Profile,
 } from "../lib/api";
@@ -138,7 +138,7 @@ export function SettingsPanel({
     }
     setBirthBusy(true);
     try {
-      const next = await saveBirthYear(year);
+      const next = await saveBirthDate(`${year}-01-01`);
       onProfileChange(next);
       toast.success(t.settings_birth_ok);
     } catch (err) {

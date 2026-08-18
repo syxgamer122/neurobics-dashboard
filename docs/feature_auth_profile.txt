@@ -14,7 +14,7 @@ Các chức năng chính bao gồm:
 - Inactivity Decay: Áp dụng cơ chế giảm nhẹ chỉ số phong độ (decay) theo số ngày không hoạt động trên đường đọc (read path) để phản ánh đúng phong độ thực tế.
 - Tải lên & Xóa Avatar: Quản lý ảnh đại diện lưu trữ tại Supabase Storage bucket 'avatars'.
 - Đổi mật khẩu (Change Password): Tái xác thực với mật khẩu hiện tại trước khi cập nhật mật khẩu mới.
-- Xóa tài khoản (Delete Account): Xóa vĩnh viễn tài khoản bao gồm bản ghi auth.users, hồ sơ public.profiles và toàn bộ ảnh đại diện trên storage.
+- Xóa tài khoản (Delete Account): Thêm yêu cầu xóa vào `account_deletion_operations` (Operation Journal) để hệ thống tiến hành xóa bất đồng bộ an toàn (thu hồi session -> xóa storage -> dọn database -> xóa auth).
 - Bảo mật & Chống lạm dụng: Tích hợp xác minh người thật Cloudflare Turnstile Captcha và Rate Limiting 10 lần/15 phút dựa trên hash IP thực tế.
 
 
@@ -45,7 +45,7 @@ Database (Supabase PostgreSQL):
 1. `src/app/lib/api/auth.ts`
    - Quản lý quy tắc username, hàm normalize/assert username, đăng ký handleSignUp(), đăng nhập handleLogin() (duyệt email candidates), và đăng xuất handleLogout().
 2. `src/app/lib/api/profile.ts`
-   - Chứa các hàm tương tác hồ sơ cá nhân: fetchProfile(), saveBirthYear(), resetActiveUserScores(), deleteActiveUserAccount(), changePassword(), uploadAvatar(), removeAvatar().
+   - Chứa các hàm tương tác hồ sơ cá nhân: fetchProfile(), update_my_birth_date() via SECURITY DEFINER RPC, resetActiveUserScores(), deleteActiveUserAccount(), changePassword(), update_my_avatar() via SECURITY DEFINER RPC, removeAvatar().
 3. `src/app/lib/api/internal.ts`
    - Plumbing dùng chung: Khởi tạo Singleton Supabase Client trên globalThis, kiểu dữ liệu Profile, danh sách cột PROFILE_COLS/LEADERBOARD_COLS, hydrateProfile() (xử lý decay), sanitizeProfile(), serverPost(), và các helper ngày tháng (VN_TZ).
 4. `src/app/components/auth-screen.tsx`
@@ -53,7 +53,7 @@ Database (Supabase PostgreSQL):
 5. `supabase/functions/server/routes/auth.ts`
    - Endpoint REST POST /server/signup xử lý đăng ký tài khoản (rate limit IP hash, Turnstile check, kiểm tra reserved_usernames & profiles.username, gọi adminClient.auth.admin.createUser).
 6. `supabase/functions/server/routes/account.ts`
-   - Endpoint REST POST /server/delete-account xử lý xóa tài khoản (dọn dẹp bucket avatars, xóa auth.users bằng Service Role, fallback xóa profiles).
+   - Endpoint REST POST /server/account-deletions xử lý khởi tạo tiến trình xóa tài khoản bất đồng bộ thông qua bảng `account_deletion_operations`. Trả về HTTP 202 Accepted.
 7. `supabase/functions/server/security.ts`
    - Các tiện ích bảo mật server: consumeRateLimit() qua Postgres RPC, clientIp() trích xuất header x-forwarded-for, verifyTurnstile() xác thực token Cloudflare, authenticatedUser() giải mã Bearer JWT.
 8. `supabase/functions/server/config.ts`
@@ -67,10 +67,27 @@ Database (Supabase PostgreSQL):
 
 A. CHẾ ĐỘ GUEST (GUEST MODE) - SERVER-SIDE PROVISIONING
 - Quy trình tạo: Client gọi Edge Function `/server/signup` kèm cờ `isGuest` và mã token từ Cloudflare Turnstile.
-- Cấp phát: Server gọi `adminClient.auth.admin.createUser` tạo một tài khoản Supabase Auth thực sự (email giả định do server tự sinh, mật khẩu UUID an toàn).
-- Hồ sơ: Tài khoản nhận `role = 'guest'` trong bảng `public.profiles`. Server gửi trả mật khẩu ngẫu nhiên này về để client tự động đăng nhập.
-- Phiên làm việc: Khách nhận được JWT session token tiêu chuẩn. Mật khẩu không cần lưu trữ vĩnh viễn ở localStorage (dựa vào session refresh).
-- Lợi ích: Tương thích 100% với hệ thống RLS (Row Level Security) của PostgreSQL mà không cần các ngoại lệ bypass dành riêng cho Guest. Bot tự động không thể spam tạo Guest rác do bị vướng Turnstile. Khi cần nâng cấp tài khoản, chỉ việc Update Email và Password thật.
+
+- Cấp phát Account: Server gọi `adminClient.auth.admin.createUser` tạo một tài khoản Supabase Auth thực sự (email giả định do server tự sinh, kèm password bắt buộc).
+  ```typescript
+  const { data, error } = await adminClient.auth.admin.createUser({
+    email: `${normalizedUsername}@mindgem.local`,
+    password, // Cần truyền password do người dùng chọn
+    email_confirm: true,
+    user_metadata: { username: normalizedUsername },
+  });
+  ```
+- Tài khoản Guest: Server sinh mật khẩu ngẫu nhiên để tạo Auth user:
+  ```typescript
+  const guestPassword = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+  const { data, error } = await adminClient.auth.admin.createUser({
+    email: `${crypto.randomUUID()}@mindgem.local`,
+    password: guestPassword,
+    email_confirm: true,
+    app_metadata: { account_type: "guest" },
+  });
+  ```
+  > Response trả về guest password phải có `Cache-Control: no-store`, không được ghi vào log server, client gọi `signInWithPassword` ngay lập tức và không lưu mật khẩu vĩnh viễn (dựa vào session refresh token).
 
 B. MÔ HÌNH EMAIL-SPOOFING (@mindgem.local)
 - Định nghĩa Domain & Username Regex:
@@ -113,14 +130,20 @@ C. TURNSTILE CAPTCHA
 D. RATE LIMITING & CHỐNG LẠM DỤNG
 - Trích xuất IP an toàn (`clientIp` trong `security.ts`):
   ```typescript
+  export const TRUSTED_PROXY_HOPS = 1;
+
   export function clientIp(c: Context): string {
-    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-    return forwarded && forwarded.length > 0 ? forwarded : "unknown";
+    const header = c.req.header("x-forwarded-for");
+    if (!header) return "unknown";
+    const hops = header.split(",").map(ip => ip.trim());
+    if (hops.length === 0) return "unknown";
+    const index = Math.max(0, hops.length - TRUSTED_PROXY_HOPS);
+    return hops[index];
   }
   ```
-  Chỉ tin tưởng phần tử đầu tiên của `x-forwarded-for` do hạ tầng Supabase Edge Function tự gắn vào, không dùng `cf-connecting-ip` hay `x-real-ip` vì client có thể tự chế header này để bypass rate limit.
+  Chỉ tin tưởng phần tử rightmost-untrusted của `x-forwarded-for` do hạ tầng Supabase Edge Function tự gắn vào, không dùng `cf-connecting-ip` hay `x-real-ip` vì client có thể tự chế header này để bypass rate limit. Vị trí rightmost-untrusted được xác định bởi hằng số `TRUSTED_PROXY_HOPS`.
 - IP Hashing & Consuming Limit:
-  Tạo IP hash bằng SHA-256 từ chuỗi `mindgem-signup:${ip}`.
+  Tạo IP hash bằng HMAC-SHA256 từ chuỗi `mindgem-signup:${ip}` với rotating secret.
   Gọi RPC Postgres nguyên tử `consumeRateLimit(ipHash, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS)` với `SIGNUP_LIMIT = 10` và `SIGNUP_WINDOW_SECONDS = 900` (15 phút).
 
 E. PROFILE CACHING & INACTIVITY DECAY
@@ -137,19 +160,17 @@ F. QUẢN LÝ AVATAR (AVATAR UPLOAD & REMOVE)
 - Hằng số giới hạn (`internal.ts`):
   `AVATAR_MAX_BYTES = 2 * 1024 * 1024` (2MB).
   `AVATAR_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])`.
-- Tải ảnh đại diện (`uploadAvatar` trong `profile.ts`):
-  1. Kiểm tra định dạng MIME và dung lượng file (`<= 2MB`).
+- Tải ảnh đại diện (`update_my_avatar`):
+  1. Kiểm tra magic bytes, giới hạn pixel, decode/re-encode, xóa EXIF, chặn file polyglot (không chỉ tin tưởng MIME type). Kích thước `<= 2MB`.
   2. Xác định đường dẫn file: `${userId}/avatar.${ext}`.
-  3. Dọn dẹp file cũ: Liệt kê các file trong thư mục `${userId}/` trên bucket `avatars` và xóa những file không cùng phần mở rộng (ví dụ xóa `avatar.jpg` nếu tải lên `avatar.png`).
-  4. Thực hiện `storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" })`.
-  5. Lấy public URL và gắn mốc thời gian `?t=${Date.now()}` để phá CDN/browser cache.
-  6. Cập nhật `avatar_url` trong bảng `profiles`.
-- Xóa ảnh đại diện (`removeAvatar` trong `profile.ts`):
-  Liệt kê toàn bộ file trong `${userId}/`, xóa khỏi bucket `avatars`, và set `avatar_url = null` trong bảng `profiles`.
+  3. Client tải ảnh lên Storage `avatars`.
+  4. Client gọi RPC `update_my_avatar(p_object_path)` truyền đường dẫn file (`object_path`), KHÔNG phải truyền public URL. Hàm SQL Security Definer sẽ tự parse đường dẫn: `IF split_part(p_object_path, '/', 1) <> auth.uid()::text THEN RAISE EXCEPTION`. Nếu hợp lệ, tự `build_avatar()` thành URL để ghi vào `profiles`.
+- Xóa ảnh đại diện:
+  Gọi RPC `remove_my_avatar()` để đặt `avatar_url = null`.
 
 G. NĂM SINH (BIRTH YEAR)
-- Hàm `saveBirthYear(birthYear)` trong `profile.ts` cập nhật cột `birth_year` trong bảng `profiles` thông qua Supabase RLS.
-- Trong `use-app-state.ts`, hàm `submitBirthYear()` validate năm sinh nằm trong khoảng từ `1900` đến `năm hiện tại - 13`. Năm sinh là mốc quan trọng để tính toán Tuổi Não (Brain Age).
+- Hàm `update_my_birth_date(birthDate)` trong `profile.ts` cập nhật cột `birth_date` trong bảng `profiles` thông qua Supabase RLS.
+- Trong `use-app-state.ts`, hàm `submitBirthYear()` validate năm sinh nằm trong khoảng từ `1900` đến `năm hiện tại - 16`. Năm sinh là mốc quan trọng để tính toán Tuổi Não (Brain Age).
 
 H. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
 - Hàm `changePassword(currentPassword, newPassword)` trong `profile.ts`:
@@ -159,14 +180,17 @@ H. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
   4. Sau khi tái xác thực thành công, cập nhật mật khẩu mới qua `getSupabase().auth.updateUser({ password: newPassword })`.
 
 I. XÓA TÀI KHOẢN (ACCOUNT DELETION)
-- Hàm `deleteActiveUserAccount()` trong `profile.ts` gửi POST request tới `/server/delete-account`.
-- Xử lý tại Edge Function (`routes/account.ts`):
-  1. Xác thực Bearer Token để lấy `user.id`.
-  2. Dọn dẹp Storage: Liệt kê và xóa toàn bộ file trong `avatars/${userId}/`.
-  3. Xóa Auth User: Gọi `adminClient.auth.admin.deleteUser(userId)` bằng Service Role Key. Thao tác này sẽ tự động xóa hàng trong `public.profiles` nhờ cài đặt `ON DELETE CASCADE`.
-  4. Fallback Idempotent: Gọi thêm `adminClient.from("profiles").delete().eq("id", userId)` phòng trường hợp cơ sở dữ liệu cũ chưa có khóa ngoại CASCADE.
-- Xử lý phía Client:
-  Sau khi server trả về thành công, client gọi `auth.signOut()` và chủ động xóa toàn bộ key lưu trữ phiên làm việc `sb-*` trong `localStorage`.
+- Hàm `deleteActiveUserAccount()` gửi POST request tới `/server/account-deletions` với `Idempotency-Key`.
+- Server kiểm tra quyền, tạo bản ghi trong `account_deletion_operations` với trạng thái `requested`, và trả về HTTP 202.
+- Sau đó Orchestrator Async Worker sẽ tiến hành 5 bước một cách idempotent:
+  1. `sessions_revoked`
+  2. `storage_deleted`
+  3. `database_cleaned`
+  4. `auth_deleted`
+  5. `completed`
+- Đảm bảo Journal không bị cascade xóa theo `auth.users`. Tự xóa hoàn toàn các logic Delete Auth/Storage trực tiếp khỏi mã nguồn.
+  - Trạng thái được đặt thành `deletion_pending`, khóa toàn bộ write request mới.
+  - Sau khi Auth bị xóa (`auth_deleted`), client sẽ không còn token để tiếp tục gọi DB, nên Endpoint status chỉ nhận Opaque Token không định danh thay vì JWT.
 
 
 5. LUỒNG DỮ LIỆU (DATA FLOWS)
@@ -180,7 +204,7 @@ User (Nhập username, password, Turnstile)
   │
   ▼ (POST /server/signup + Bearer AnonKey)
 [routes/auth.ts]
-  ├─► [security.ts] clientIp() -> SHA-256 IP Hash
+  ├─► [security.ts] clientIp() -> HMAC-SHA256(rotating_secret, canonical_ip) Hash
   ├─► [security.ts] consumeRateLimit() (Check & consume 10/15min)
   ├─► [security.ts] verifyTurnstile() (Cloudflare API check)
   ├─► Check reserved_usernames & profiles.username (Chống trùng tên)
@@ -214,7 +238,7 @@ Lưu Session vào LocalStorage/Memory
 Ghi cache LocalStorage ('neurobics.cached_profile') & Set state profileState.
 
 C. Luồng Tải ảnh đại diện (Upload Avatar Flow):
-User (Chọn file ảnh) --> [uploadAvatar(file)]
+User (Chọn file ảnh) --> [update_my_avatar(file)]
   │
   ├─► Check MIME (JPEG/PNG/WebP/GIF) & Size (<= 2MB)
   ├─► List & Remove các file cũ khác extension trong avatars/{userId}
@@ -228,16 +252,13 @@ Trả về Profile mới cập nhật -> Update UI Header/Profile.
 D. Luồng Xóa tài khoản (Delete Account Flow):
 User (Nhấn "Xóa tài khoản") --> [deleteActiveUserAccount()]
   │
-  ▼ (POST /server/delete-account + Bearer Token)
+  ▼ (POST /server/account-deletions + Bearer Token)
 [routes/account.ts]
   ├─► [security.ts] authenticatedUser() -> Lấy userId từ JWT
-  ├─► adminClient.storage.from("avatars").remove(files)
-  ├─► adminClient.auth.admin.deleteUser(userId)
-  │     └─► DB ON DELETE CASCADE -> Auto DELETE FROM public.profiles
-  └─► Fallback: adminClient.from("profiles").delete().eq("id", userId)
+  └─► Insert vào `account_deletion_operations` (state = `requested`)
   │
-  ▼
-Client: getSupabase().auth.signOut() + Xóa key 'sb-*' trong LocalStorage.
+  ▼ HTTP 202 Accepted
+Client: Bắt đầu poll trạng thái xóa. Khi hoàn tất tự `signOut()`.
 
 
 6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
@@ -245,16 +266,16 @@ Client: getSupabase().auth.signOut() + Xóa key 'sb-*' trong LocalStorage.
 1. Cô lập Service Role Key:
    `EDGE_SERVICE_ROLE_KEY` chỉ tồn tại trên Deno Edge Runtime server. Client hoàn toàn không biết key này. Mọi thao tác quản trị đặc quyền (`createUser`, `deleteUser`) đều phải thông qua Edge Function API.
 2. Bảo vệ thông tin cá nhân (PII Privacy):
-   Sử dụng kỹ thuật Email-Spoofing (`username@mindgem.local`) giúp người chơi không cần cung cấp Email thật. Hệ thống chỉ thu thập thông tin cơ bản như `birth_year` (để kiểm duyệt tuổi ≥13) và `fingerprint` phục vụ chống gian lận. Khi xoá tài khoản, dữ liệu `admin_audit` vẫn được giữ 365 ngày và `cheat_flags` giữ 90 ngày (cả hai có chứa `user_id`) cho mục đích bảo mật, sau đó mới bị xoá.
+   Sử dụng kỹ thuật Email-Spoofing (`username@mindgem.local`) giúp người chơi không cần cung cấp Email thật. Hệ thống chỉ thu thập thông tin cơ bản như `birth_date` (để kiểm duyệt tuổi ≥16) và `fingerprint` phục vụ chống gian lận. Khi xoá tài khoản, dữ liệu `admin_audit` vẫn được giữ 365 ngày và `cheat_flags` giữ 90 ngày (cả hai có chứa `user_id`) cho mục đích bảo mật, sau đó mới bị xoá.
 3. Chống Bot / Auto Signup bằng Captcha:
    Bắt buộc xác thực Cloudflare Turnstile Token ở tầng server trước khi tiến hành tạo tài khoản. Token chỉ dùng được 1 lần và kiểm tra IP tương ứng.
 4. Chống Tấn công Flood / Brute-force:
-   Sử dụng IP Hash (SHA-256) và RPC `consumeRateLimit` khoá 10 lượt đăng ký trong 15 phút cho mỗi địa chỉ IP. Trích xuất IP chuẩn xác qua `x-forwarded-for`.
+   Sử dụng IP Hash (HMAC-SHA256) và RPC `consumeRateLimit` khoá 10 lượt đăng ký trong 15 phút cho mỗi địa chỉ IP. Trích xuất IP chuẩn xác qua `x-forwarded-for` (rightmost-untrusted).
 5. Validation Username & Password:
    - Regex: `^[a-z0-9_.-]{3,20}$` (Chỉ chấp nhận chữ thường, số, dấu gạch dưới, gạch ngang, chấm. Từ 3-20 ký tự). Chặn hoàn toàn khoảng trắng, ký tự đặc biệt, unicode và ký tự `@`.
    - Password tối thiểu 8 ký tự.
 6. Row Level Security (RLS) trên DB:
-   Bảng `public.profiles` áp dụng RLS: Kẻ gian không thể dùng client key sửa đổi điểm số hay thông tin của người dùng khác (`auth.uid() = id`). Hơn nữa, để bảo vệ mức độ cột (Column-level protection), quyền `UPDATE` mặc định bị `REVOKE` hoàn toàn; User chỉ được `GRANT UPDATE` trên các cột an toàn như `username`, `birth_year`, `avatar_url`, `locale`. Các cột nhạy cảm (`total_xp`, `role`, các chỉ số rating) KHÔNG THỂ bị sửa đổi trực tiếp bởi client. Mọi Security Definer RPC đều sử dụng `search_path = ''` và `REVOKE EXECUTE FROM PUBLIC`.
+   Bảng `public.profiles` áp dụng RLS: Kẻ gian không thể dùng client key sửa đổi điểm số hay thông tin của người dùng khác (`Các RPC SECURITY DEFINER (như `update_my_birth_date()`). Quyền UPDATE trực tiếp trên bảng `profiles` bị REVOKE hoàn toàn khỏi role Authenticated để ngăn chặn leo thang đặc quyền (không thể sửa role, total_xp).`).
 7. An toàn Storage Bucket:
    Giới hạn dung lượng file avatar `<= 2MB` và kiểm tra nghiêm ngặt danh sách MIME types được phép.
 
@@ -279,38 +300,89 @@ Client: getSupabase().auth.signOut() + Xóa key 'sb-*' trong LocalStorage.
    - Chi tiết: Phép so sánh chuỗi hash recovery code bằng toán tử `!==` thoát sớm khi gặp byte đầu tiên khác nhau, tạo nguy cơ rò rỉ qua Timing Attack.
    - Giải pháp: Áp dụng hàm so sánh XOR hằng thời gian (`bitwise XOR`).
 
-5. [P3] Đ30 - account.ts không dọn dẹp bảng account_recovery khi xóa tài khoản:
-   - Chi tiết: Endpoint `/server/delete-account` dọn dẹp Storage và xóa `auth.users`, nhưng nếu DB cũ chưa có khóa ngoại CASCADE thì bản ghi trong `account_recovery` bị mồ côi (trong khi route xóa của admin có bước dọn này).
-   - Giải pháp: Bổ sung lệnh xóa `account_recovery` hoặc thiết lập FK `ON DELETE CASCADE`.
+5. [P3] D30 - account.ts không dọn dẹp bảng account_recovery khi xóa tài khoản:
+   - Chi tiết: Đã được xử lý hoàn toàn trong bước `database_cleaned` của Operation Journal. Mọi bảng dữ liệu phụ trợ liên quan đến `userId` sẽ được dọn sạch trước khi xóa Auth User.
 
 6. [P3] Đ429 - Validation năm sinh chưa có ngưỡng tuổi tối thiểu:
    - Chi tiết: submitBirthYear chấp nhận year === thisYear (0 tuổi).
-   - Giải pháp đã áp dụng: Client validate year <= currentYear - 13; DB trigger trg_check_min_age chặn cứng ở tầng cuối để không phụ thuộc client.
+   - Giải pháp đã áp dụng: Client validate year <= currentYear - 16; DB trigger trg_check_min_age chặn cứng ở tầng cuối để không phụ thuộc client.
 
 
 Lưu ý MFA: Hiện chưa có luồng enroll MFA cho admin trên giao diện, admin cần enroll qua Supabase Dashboard trước khi requireAdmin(c) có hiệu lực.
 
 8.1. CẬP NHẬT KIẾN TRÚC PROD. GUEST RECOVERY (ADR-0009)
 -------------------------------------------------------------------------------
-Khách vãng lai (Guest) sau một thời gian chơi có thể chuyển đổi thành 
-tài khoản chính thức mà không bị mất dữ liệu. Theo ADR-0009, quá trình này 
-PHẢI được thực hiện thông qua endpoint `/server/upgrade-account` để đảm bảo 
-kiểm soát đặc quyền và thu hồi (revoke) các session cũ một cách an toàn. Việc gọi 
-trực tiếp `supabase.auth.updateUser()` từ Client bị nghiêm cấm vì rủi ro bảo mật.
+Khách vãng lai (Guest) sau một thời gian chơi có thể dễ dàng chuyển đổi thành 
+tài khoản chính thức mà không bị mất dữ liệu. Client chỉ cần gọi API có sẵn của 
+Supabase: API `/server/upgrade-guest` (xem ADR-0009 SSOT).
+  BẮT BUỘC thực thi: `REVOKE EXECUTE ON FUNCTION finalize_guest_upgrade_tx FROM anon, authenticated, public`. RPC này chỉ được gọi từ Backend Edge Worker có đặc quyền. Trong RPC, thực hiện `FOR UPDATE` trên `upgrade_operations` để khóa hàng, kiểm tra đúng user, đúng trạng thái `old_sessions_revoked` và token cũ đã vô hiệu hóa, ngăn chặn Privilege Escalation. Không nhận password truyền vào, client phải login lại bằng Session bootstrap.
 
 8.2. DATA EXPORT COMPLIANCE (GDPR/CCPA)
 -------------------------------------------------------------------------------
 Để tuân thủ quyền riêng tư, hệ thống cung cấp API `/server/account/export`. 
-- Khi gọi Endpoint này, Edge Function sẽ đóng gói toàn bộ dữ liệu cá nhân bao gồm `profiles`, 
-`round_tickets`, `training_sessions`, `user_achievements`, `user_quests`, `xp_events`, 
-và `friendships` thành định dạng JSON và trả về cho người dùng tải xuống.
-- Quá trình xuất dữ liệu sẽ được ghi nhận vào `admin_audit` để lưu vết thao tác.
+- Khi gọi Endpoint này, Edge Function sẽ đóng gói toàn bộ `profiles`, 
+`round_tickets`, và `training_sessions` thành định dạng JSON và trả về cho 
+người dùng để tải xuống toàn bộ dữ liệu cá nhân của mình.
 - Data Retention Policy (P2): Bổ sung pg_cron dọn dẹp hệ thống. Tài khoản Guest được tạo quá 30 ngày nhưng không có bất kỳ ván chơi nào (chưa từng nộp điểm) sẽ bị tự động thanh lọc khỏi Database.
 
 
 9. BẢO MẬT VÀ QUYỀN RIÊNG TƯ (SPRINT 3 AI AUDIT)
 -------------------------------------------------------------------------------
-- Age Gate Tầng Database: Triển khai DB Trigger `trg_check_min_age` để chặn cứng `birth_year` < 13 tuổi, đảm bảo tính nhất quán trên cả 3 tầng (UI, API, DB) thay vì chỉ tin tưởng Client.
+- Age Gate Tầng Database: Triển khai DB Trigger `trg_check_min_age` để chặn cứng `birth_year` < 16 tuổi, đảm bảo tính nhất quán trên cả 3 tầng (UI, API, DB) thay vì chỉ tin tưởng Client.
 - Quản lý Public Leaderboard: Loại trừ hoàn toàn `role = guest` khỏi bảng xếp hạng công khai (public_leaderboard) để ngăn chặn việc spam tài khoản ảo làm loãng thứ hạng người dùng thật.
 - Lưu trữ PII: Dữ liệu log `admin_audit` và `cheat_flags` có chứa `user_id` sẽ được lưu tối đa tương ứng 365 ngày và 90 ngày cho mục đích bảo mật trước khi bị xoá vĩnh viễn (đã đồng bộ với văn bản privacy-and-terms.md).
 - Bảo mật Storage: Storage RLS của bucket `avatars` được siết chặt để kiểm tra trực tiếp đuôi file (`storage.extension`) phải là file ảnh (jpg, png, webp, gif), ngăn chặn tấn công tải lên file `.html` độc hại.
+
+
+E. Profile Caching & Decay
+1. `CACHE_TTL_MS` = 7 ngày.
+2. Quá trình lấy profile:
+   - Đọc từ localStorage.
+   - Gọi `sanitizeProfile` và `hydrateProfile`.
+
+F. Quản lý Avatar
+1. `AVATAR_MAX_BYTES`: 2MB.
+2. `AVATAR_MIME`: JPEG/PNG/WebP/GIF.
+3. Quy trình dọn file cũ khác extension.
+4. Cache-bust bằng query `?t=` (timestamp).
+
+G. Năm sinh
+- Spec `update_my_birth_date`: Chỉ lưu 1 lần, ràng buộc bằng DB. Trả về thông tin cập nhật cho UI.
+
+H. Đổi mật khẩu
+1. Yêu cầu mật khẩu cũ (re-auth).
+2. Gọi `auth.signInWithPassword`.
+3. Nếu thành công, gọi `auth.updateUser` cập nhật mật khẩu mới.
+4. Đăng xuất các phiên cũ (tự động theo Supabase config).
+
+I. Xóa tài khoản
+Sơ đồ: signup -> login -> avatar -> delete
+
+1. Cô lập Service Role Key.
+2. Bảo vệ thông tin cá nhân (PII Privacy).
+3. Chống Bot / Auto Signup bằng Captcha.
+4. Chống Tấn công Flood / Brute-force.
+
+CƠ CHẾ LƯU TRỮ (STORAGE MATRIX)
+| Key                     | Nơi lưu       | Lý do                                  |
+| [brand]-ui-theme        | localStorage  | Đọc sync trước paint, tránh FOUC       |
+| sb-* (session)          | localStorage  | Supabase Auth quản lý nguyên bản       |
+| [brand].cached_profile  | localStorage  | Truy xuất đồng bộ, cấu trúc JSON nhỏ   |
+| [brand].offline_queue   | IndexedDB     | Lưu trữ nhiều ván pending, có index    |
+| [brand].obs.session     | sessionStorage| Chỉ sống trong tab                     |
+
+Cấm gọi trực tiếp localStorage/indexedDB ngoài lib/storage/ — enforce bằng ESLint no-restricted-globals.
+
+
+Negative Tests Bắt Buộc (RLS & Security Definer):
+User thường KHÔNG THỂ:
+1. Sửa `role`
+2. Sửa `admin_capabilities`
+3. Sửa `total_xp`
+4. Sửa năm trục điểm
+5. Sửa `stats_generation`
+6. Insert `xp_events`
+7. Insert `training_sessions`
+8. Gọi RPC admin
+9. Đọc friend leaderboard khi chưa accepted
+10. Chỉnh avatar URL sang path của user khác
