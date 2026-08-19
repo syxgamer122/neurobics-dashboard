@@ -7,7 +7,7 @@
  * Public API surface. Implementation lives in ./api/*; this file only re-exports
  * so every existing `from "../lib/api"` import keeps working unchanged.
  */
-export const isGuestProfile = (p: any) => p?.role === 'guest';
+export const isGuestProfile = (p: any) => p?.role === "guest";
 
 export {
   getSupabase,
@@ -114,4 +114,3 @@ export {
   type GameDefinition,
   type SessionColumn,
 } from "./game-registry";
-

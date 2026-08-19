@@ -11,11 +11,13 @@ import {
   type ActivityStats,
   type RoundGame,
   isNetworkErrorLike,
-  
   isGuestProfile,
   currentUserId,
 } from "../lib/api";
-import { DEFAULT_POPULATION, type PopulationStats } from "../lib/provisional-score";
+import {
+  DEFAULT_POPULATION,
+  type PopulationStats,
+} from "../lib/provisional-score";
 import { totalSessions } from "../lib/sessions";
 import { logError } from "../lib/logger";
 import { CALIBRATION_TARGET } from "../components/onboarding";

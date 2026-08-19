@@ -236,7 +236,12 @@ for (const f of [
   });
 }
 // Quet ca .sql / .md ngoai src
-for (const dir of ["supabase", "sql-chia-nho", "docs", "Neurobics Dashboard Design (10)/docs"]) {
+for (const dir of [
+  "supabase",
+  "sql-chia-nho",
+  "docs",
+  "Neurobics Dashboard Design (10)/docs",
+]) {
   const d = path.join(ROOT, dir);
   if (!fs.existsSync(d)) continue;
   const stack = [d];
@@ -249,24 +254,46 @@ for (const dir of ["supabase", "sql-chia-nho", "docs", "Neurobics Dashboard Desi
         fs.readFileSync(p, "utf8")
           .split("\n")
           .forEach((l, i) => {
-            if (l.includes("\uFFFD") || /[ÃÂÆ][\x80-\xBF]/.test(l) || /áº/.test(l) || /â€/.test(l)) {
+            if (
+              l.includes("\uFFFD") ||
+              /[ÃÂÆ][\x80-\xBF]/.test(l) ||
+              /áº/.test(l) ||
+              /â€/.test(l)
+            ) {
               broken++;
-              report("ERR", `${rel(p)}:${i + 1}  Encoding broken (mojibake) detected`);
+              report(
+                "ERR",
+                `${rel(p)}:${i + 1}  Encoding broken (mojibake) detected`,
+              );
             }
-            if ((e.name.endsWith(".md") || e.name.endsWith(".txt")) && /([cC]:[/\\])/i.test(l)) {
+            if (
+              (e.name.endsWith(".md") || e.name.endsWith(".txt")) &&
+              /([cC]:[/\\])/i.test(l)
+            ) {
               broken++;
-              report("ERR", `${rel(p)}:${i + 1} Absolute Windows path detected (C:/ or C:\\). Use relative paths.`);
+              report(
+                "ERR",
+                `${rel(p)}:${i + 1} Absolute Windows path detected (C:/ or C:\\). Use relative paths.`,
+              );
             }
-            if (e.name.endsWith(".md") && /^\|[^|]*\[[^|]*\][^|]*\|/.test(l) && !l.includes("](")) {
+            if (
+              e.name.endsWith(".md") &&
+              /^\|[^|]*\[[^|]*\][^|]*\|/.test(l) &&
+              !l.includes("](")
+            ) {
               broken++;
-              report("ERR", `${rel(p)}:${i + 1} Markdown table column contains brackets`);
+              report(
+                "ERR",
+                `${rel(p)}:${i + 1} Markdown table column contains brackets`,
+              );
             }
           });
       }
     }
   }
 }
-if (!broken) console.log("     OK: khong con ky tu vo hoac duong dan tuyet doi");
+if (!broken)
+  console.log("     OK: khong con ky tu vo hoac duong dan tuyet doi");
 
 // ---------- 5. Hang so SCREAMING_CASE dung ma khong khai bao ----------
 // Chay tren ban da boc chuoi VA boc JSX text.
@@ -356,19 +383,31 @@ if (fs.existsSync(docDir)) {
     const s = fs.readFileSync(f, "utf8");
     if (s.includes("[ĐÃ KHẮC PHỤC]")) {
       docIssues++;
-      report("ERR", `${rel(f)}: chua "[ĐÃ KHẮC PHỤC]". Kiem tra va dua vao known-issues.md`);
+      report(
+        "ERR",
+        `${rel(f)}: chua "[ĐÃ KHẮC PHỤC]". Kiem tra va dua vao known-issues.md`,
+      );
     }
     if (s.includes("GUEST_PROFILE_ID")) {
       docIssues++;
-      report("ERR", `${rel(f)}: chua "GUEST_PROFILE_ID" cu. Guest nay dung true auth.`);
+      report(
+        "ERR",
+        `${rel(f)}: chua "GUEST_PROFILE_ID" cu. Guest nay dung true auth.`,
+      );
     }
     if (s.includes("c:/") || s.includes("C:\\")) {
       docIssues++;
-      report("ERR", `${rel(f)}: chua duong dan tuyet doi "c:/". Can dung duong dan tuong doi.`);
+      report(
+        "ERR",
+        `${rel(f)}: chua duong dan tuyet doi "c:/". Can dung duong dan tuong doi.`,
+      );
     }
     if (/```sql[^`]*\[.*\][^`]*```/.test(s)) {
       docIssues++;
-      report("ERR", `${rel(f)}: SQL block contains brackets, which is invalid syntax`);
+      report(
+        "ERR",
+        `${rel(f)}: SQL block contains brackets, which is invalid syntax`,
+      );
     }
   }
 }
@@ -377,12 +416,18 @@ if (!docIssues) console.log("     OK");
 // ---------- 8. Hardcoded 80ms FLOOR/MIN_RT ----------
 console.log("\n===== 8. Hardcoded 80ms FLOOR/MIN_RT =====");
 let hardcoded = 0;
-for (const f of [...files, ...walk(path.join(ROOT, "supabase")).filter(f => f.endsWith('.ts'))]) {
+for (const f of [
+  ...files,
+  ...walk(path.join(ROOT, "supabase")).filter((f) => f.endsWith(".ts")),
+]) {
   const s = fs.readFileSync(f, "utf8");
   if (/const\s+[A-Z_]*(FLOOR|MIN_RT)[A-Z_]*\s*=\s*80\b/.test(s)) {
     if (!f.includes("limits.ts")) {
       hardcoded++;
-      report("ERR", `${rel(f)}: hardcoded 80ms (HUMAN_FLOOR_MS). Import from _shared/limits.ts`);
+      report(
+        "ERR",
+        `${rel(f)}: hardcoded 80ms (HUMAN_FLOOR_MS). Import from _shared/limits.ts`,
+      );
     }
   }
 }

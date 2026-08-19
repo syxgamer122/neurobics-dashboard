@@ -9,14 +9,14 @@ Deno.test("Anti-cheat regression suite", async (t) => {
       const cheat = inspectRound(c.game as Game, c.telemetry, c.elapsed);
       const isHard = hasHardFlag(cheat);
       const isSoft = softFlags(cheat).length > 0;
-      
+
       let actualOutcome = "accept";
       if (isHard) {
         actualOutcome = "hard_reject";
       } else if (isSoft) {
         actualOutcome = "soft_flag";
       }
-      
+
       assertEquals(actualOutcome, c.expected_outcome, `Failed case ${c.id}`);
     });
   }

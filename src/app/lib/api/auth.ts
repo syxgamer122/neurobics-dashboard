@@ -2,7 +2,13 @@
  * Account lifecycle: username rules, sign up, login, logout, access token
  * and recovery-code password reset.
  */
-import { getSupabase, BASE, sanitizeProfile, type Profile, getAccessToken } from "./internal";
+import {
+  getSupabase,
+  BASE,
+  sanitizeProfile,
+  type Profile,
+  getAccessToken,
+} from "./internal";
 import { logError } from "../logger";
 // Signup/login goi thang REST nen van can anon key o day.
 import { SUPABASE_ANON_KEY } from "../supabase-config";
@@ -27,9 +33,7 @@ export function assertValidUsername(username: string): string {
 
 /** Domain email giả cho tài khoản mới (brand Mindgem). */
 export const AUTH_EMAIL_DOMAIN = "mindgem.local";
-export const LEGACY_AUTH_EMAIL_DOMAINS = [
-  "neurobics.local",
-] as const;
+export const LEGACY_AUTH_EMAIL_DOMAINS = ["neurobics.local"] as const;
 
 function authEmailCandidates(username: string): string[] {
   const name = assertValidUsername(username);
@@ -54,7 +58,12 @@ export async function handleSignUp(
       "Content-Type": "application/json",
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify({ username: safeName, password, captchaToken, isAdult: true }),
+    body: JSON.stringify({
+      username: safeName,
+      password,
+      captchaToken,
+      isAdult: true,
+    }),
   });
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
@@ -83,7 +92,9 @@ export async function handleGuestSignUp(
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
     logError("Guest sign up failed:", body);
-    const reason = String(body.error ?? "Guest mode is temporarily unavailable.");
+    const reason = String(
+      body.error ?? "Guest mode is temporarily unavailable.",
+    );
     throw new Error(body.code ? `${reason} [${body.code}]` : reason);
   }
 

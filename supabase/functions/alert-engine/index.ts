@@ -10,14 +10,17 @@ serve(async (req: Request) => {
 
   // Very basic auth to ensure only pg_net can call this
   const authHeader = req.headers.get("Authorization");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("EDGE_SERVICE_ROLE_KEY") || "";
+  const serviceKey =
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
+    Deno.env.get("EDGE_SERVICE_ROLE_KEY") ||
+    "";
   if (authHeader !== `Bearer ${serviceKey}`) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
     const payload = await req.json();
-    
+
     // Log to standard logging pipeline
     logServerEvent({
       event: "alert.triggered",
@@ -32,7 +35,7 @@ serve(async (req: Request) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: `🚨 **ALERT:** ${payload.message}\n\`\`\`json\n${JSON.stringify(payload.metrics, null, 2)}\n\`\`\``
+          content: `🚨 **ALERT:** ${payload.message}\n\`\`\`json\n${JSON.stringify(payload.metrics, null, 2)}\n\`\`\``,
         }),
       });
     }

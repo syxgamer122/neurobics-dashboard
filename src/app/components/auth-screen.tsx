@@ -118,8 +118,6 @@ export function AuthScreen({
     }
   };
 
-
-
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 text-foreground relative overflow-hidden bg-background"
@@ -239,7 +237,9 @@ export function AuthScreen({
               >
                 <span
                   style={{
-                    color: usernameError ? "var(--neuro-red)" : "var(--slate-500)",
+                    color: usernameError
+                      ? "var(--neuro-red)"
+                      : "var(--slate-500)",
                   }}
                 >
                   <User size={15} />
@@ -260,7 +260,8 @@ export function AuthScreen({
                     size={14}
                     className="text-red-400 shrink-0"
                     style={{
-                      filter: "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
+                      filter:
+                        "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
                     }}
                   />
                 )}
@@ -353,7 +354,11 @@ export function AuthScreen({
 
           <button
             type="submit"
-            disabled={busy || success || ((mode === "signup" || mode === "guest") && !captchaToken)}
+            disabled={
+              busy ||
+              success ||
+              ((mode === "signup" || mode === "guest") && !captchaToken)
+            }
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
               background:

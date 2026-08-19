@@ -98,7 +98,13 @@ describe("co cung — tu choi ca van", () => {
   it("memory qua 9 cap trong 1 giay thi bi chan", () => {
     const r = inspectRound(
       "memory",
-      { timeMs: 1_000, maxLevel: 9, clearedLevels: 9, wrongClicks: 0, totalTaps: 45 },
+      {
+        timeMs: 1_000,
+        maxLevel: 9,
+        clearedLevels: 9,
+        wrongClicks: 0,
+        totalTaps: 45,
+      },
       1_000,
     );
     expect(shouldReject(r)).toBe(true);
@@ -164,7 +170,11 @@ describe("co mem — van tinh diem nhung ghi so", () => {
   it("bam deu nhu may nhung toc do nguoi: chi canh bao", () => {
     const r = inspectRound(
       "reaction",
-      { timeMs: 5_000, rts: [250, 251, 249, 250, 250, 250, 251, 249, 250, 250], falseStarts: 0 },
+      {
+        timeMs: 5_000,
+        rts: [250, 251, 249, 250, 250, 250, 251, 249, 250, 250],
+        falseStarts: 0,
+      },
       5_000,
     );
     expect(shouldReject(r)).toBe(false);
@@ -302,10 +312,13 @@ describe("shouldReject / softFlags", () => {
     );
     expect(shouldReject(r)).toBe(true);
     expect(softFlags(r)).toHaveLength(2);
-    expect(softFlags(r).every((f) => f.signal_class === "statistical")).toBe(true);
+    expect(softFlags(r).every((f) => f.signal_class === "statistical")).toBe(
+      true,
+    );
     // Tong hai loai bang tong so co.
     expect(
-      softFlags(r).length + r.flags.filter((f) => f.signal_class === "physical").length,
+      softFlags(r).length +
+        r.flags.filter((f) => f.signal_class === "physical").length,
     ).toBe(r.flags.length);
   });
 
@@ -317,34 +330,56 @@ describe("shouldReject / softFlags", () => {
 
 describe("property-based edge cases — du lieu bat thuong khong lam sap", () => {
   const ALL_GAMES = [
-    "schulte", "sudoku", "stroop", "reaction", "memory",
-    "nback", "math", "gonogo", "mental", "corsi", "trail", "search",
+    "schulte",
+    "sudoku",
+    "stroop",
+    "reaction",
+    "memory",
+    "nback",
+    "math",
+    "gonogo",
+    "mental",
+    "corsi",
+    "trail",
+    "search",
   ] as const;
 
   it("NaN trong mang rts khong lam sap", () => {
     for (const g of ALL_GAMES) {
-      expect(() => inspectRound(g, { rts: [NaN, 300, NaN] }, 5_000)).not.toThrow();
-      expect(() => inspectRound(g, { hitRts: [NaN, NaN] }, 5_000)).not.toThrow();
+      expect(() =>
+        inspectRound(g, { rts: [NaN, 300, NaN] }, 5_000),
+      ).not.toThrow();
+      expect(() =>
+        inspectRound(g, { hitRts: [NaN, NaN] }, 5_000),
+      ).not.toThrow();
     }
   });
 
   it("Infinity trong mang rts khong lam sap", () => {
     for (const g of ALL_GAMES) {
-      expect(() => inspectRound(g, { rts: [Infinity, 300, -Infinity] }, 5_000)).not.toThrow();
-      expect(() => inspectRound(g, { hitRts: [Infinity, -Infinity] }, 5_000)).not.toThrow();
+      expect(() =>
+        inspectRound(g, { rts: [Infinity, 300, -Infinity] }, 5_000),
+      ).not.toThrow();
+      expect(() =>
+        inspectRound(g, { hitRts: [Infinity, -Infinity] }, 5_000),
+      ).not.toThrow();
     }
   });
 
   it("so am trong mang rts khong lam sap", () => {
     for (const g of ALL_GAMES) {
-      expect(() => inspectRound(g, { rts: [-100, -200, 300] }, 5_000)).not.toThrow();
+      expect(() =>
+        inspectRound(g, { rts: [-100, -200, 300] }, 5_000),
+      ).not.toThrow();
       expect(() => inspectRound(g, { hitRts: [-1, -50] }, 5_000)).not.toThrow();
     }
   });
 
   it("so cuc lon khong lam sap", () => {
     for (const g of ALL_GAMES) {
-      expect(() => inspectRound(g, { rts: [1e15, 1e18, 300] }, 5_000)).not.toThrow();
+      expect(() =>
+        inspectRound(g, { rts: [1e15, 1e18, 300] }, 5_000),
+      ).not.toThrow();
       expect(() => inspectRound(g, { timeMs: 1e18 }, 5_000)).not.toThrow();
     }
   });

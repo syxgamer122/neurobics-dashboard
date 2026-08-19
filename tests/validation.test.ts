@@ -35,14 +35,20 @@ describe("assertRtBounds", () => {
   });
 
   it("tu choi phan tu khong phai so huu han hoac so am", () => {
-    for (const xau of [["100"], [null], [undefined], [NaN], [Infinity], [{}], [-1]]) {
+    for (const xau of [
+      ["100"],
+      [null],
+      [undefined],
+      [NaN],
+      [Infinity],
+      [{}],
+      [-1],
+    ]) {
       expect(() => assertRtBounds(xau, OK_ELAPSED, "stroop")).toThrow(
         "stroop: reaction time is not a valid positive number",
       );
     }
   });
-
-
 
   it("chan mang qua dai (> 5000 phan tu)", () => {
     const qua = new Array(5_001).fill(100);

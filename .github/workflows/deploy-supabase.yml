@@ -58,7 +58,7 @@ jobs:
             echo "::error::Thieu secrets:$missing"
             exit 1
           fi
-          
+
           if [ "${{ github.ref_name }}" != "main" ] && [ "$SUPABASE_PROJECT_REF" = "pujzeomddvquxeacblvr" ]; then
             echo "::error::FATAL: Chi nhanh main moi duoc phep dung project ref cua production (pujzeomddvquxeacblvr)."
             exit 1

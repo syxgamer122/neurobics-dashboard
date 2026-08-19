@@ -6,7 +6,12 @@ import {
   INSPECTOR_VERSIONS,
 } from "../../_shared/anticheat.ts";
 import { AppError } from "../../_shared/errors.ts";
-import { isGame, scoreAndValidate, SCORER_VERSIONS, TELEMETRY_SCHEMA_VERSION } from "../../_shared/round-scoring.ts";
+import {
+  isGame,
+  scoreAndValidate,
+  SCORER_VERSIONS,
+  TELEMETRY_SCHEMA_VERSION,
+} from "../../_shared/round-scoring.ts";
 import { parseTelemetry } from "../../_shared/scoring/schema.ts";
 import {
   beginRequest,
@@ -22,12 +27,14 @@ export function registerRoundRoutes(app: Hono): void {
   app.post("/server/activate-round", async (c) => {
     try {
       const user = await authenticatedUser(c);
-      const { game, config, clientBuildId, clientConfigHash } = await c.req.json();
+      const { game, config, clientBuildId, clientConfigHash } =
+        await c.req.json();
       const gameId = String(game);
       if (!isGame(gameId)) return c.json({ error: "Invalid game" }, 400);
 
       const challengeSeed = crypto.randomUUID();
-      const challengeConfig = typeof config === 'object' && config !== null ? config : {};
+      const challengeConfig =
+        typeof config === "object" && config !== null ? config : {};
 
       // Activate ticket atomically
       const { data, error } = await adminClient.rpc("activate_round_ticket", {
@@ -41,7 +48,7 @@ export function registerRoundRoutes(app: Hono): void {
         p_challenge_seed: challengeSeed,
         p_challenge_config: challengeConfig,
         p_client_build_id: clientBuildId || "unknown",
-        p_client_config_hash: clientConfigHash || "unknown"
+        p_client_config_hash: clientConfigHash || "unknown",
       });
 
       if (error) throw error;
@@ -88,25 +95,33 @@ export function registerRoundRoutes(app: Hono): void {
       const { data: ticket, error: ticketError } = await adminClient
         .from("round_tickets")
         .update({
-          state: 'processing',
+          state: "processing",
           processing_token: processingToken,
-          processing_started_at: new Date().toISOString()
+          processing_started_at: new Date().toISOString(),
         })
         .eq("id", String(roundId))
         .eq("user_id", user.id)
         .eq("state", "issued")
-        .select("id, user_id, game, started_at, expires_at, state, telemetry_version, scorer_version, inspector_version, challenge_config")
+        .select(
+          "id, user_id, game, started_at, expires_at, state, telemetry_version, scorer_version, inspector_version, challenge_config",
+        )
         .single();
-        
+
       if (ticketError || !ticket) {
         // If not found, check if it exists but is not 'issued'
-        const { data: existing } = await adminClient.from("round_tickets").select("state, expires_at").eq("id", String(roundId)).single();
+        const { data: existing } = await adminClient
+          .from("round_tickets")
+          .select("state, expires_at")
+          .eq("id", String(roundId))
+          .single();
         if (!existing) return c.json({ error: "Round ticket not found" }, 404);
-        if (existing.state === 'accepted' || existing.state === 'rejected') return c.json({ error: "Round already submitted" }, 409);
-        if (Date.parse(existing.expires_at) < Date.now()) return c.json({ error: "Round ticket expired" }, 410);
+        if (existing.state === "accepted" || existing.state === "rejected")
+          return c.json({ error: "Round already submitted" }, 409);
+        if (Date.parse(existing.expires_at) < Date.now())
+          return c.json({ error: "Round ticket expired" }, 410);
         return c.json({ error: "Round ticket unavailable" }, 409);
       }
-      
+
       if (ticket.game !== gameId)
         return c.json({ error: "Round game mismatch" }, 400);
 
@@ -114,7 +129,10 @@ export function registerRoundRoutes(app: Hono): void {
 
       // Validate schema and inject challenge config from server
       const parsedTelemetry = parseTelemetry(gameId, telemetry);
-      if (ticket.challenge_config && typeof ticket.challenge_config === 'object') {
+      if (
+        ticket.challenge_config &&
+        typeof ticket.challenge_config === "object"
+      ) {
         Object.assign(parsedTelemetry, ticket.challenge_config);
       }
 
@@ -127,8 +145,8 @@ export function registerRoundRoutes(app: Hono): void {
             p_user_id: user.id,
             p_ticket_id: ticket.id,
             p_processing_token: processingToken,
-            p_reason: "hard_cheat_detected"
-          }
+            p_reason: "hard_cheat_detected",
+          },
         );
 
         if (burnError) {
@@ -227,9 +245,11 @@ export function registerRoundRoutes(app: Hono): void {
           p_round_score: scored.headline,
           p_label: scored.label,
           p_time_ms: Math.round(scored.timeMs),
-          p_telemetry_version: ticket.telemetry_version ?? TELEMETRY_SCHEMA_VERSION,
+          p_telemetry_version:
+            ticket.telemetry_version ?? TELEMETRY_SCHEMA_VERSION,
           p_scorer_version: ticket.scorer_version ?? SCORER_VERSIONS[gameId],
-          p_inspector_version: ticket.inspector_version ?? INSPECTOR_VERSIONS[gameId],
+          p_inspector_version:
+            ticket.inspector_version ?? INSPECTOR_VERSIONS[gameId],
         },
       );
       if (error) {

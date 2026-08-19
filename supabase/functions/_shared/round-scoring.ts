@@ -22,7 +22,13 @@ import {
 import { assertCountBounds, assertRtBounds } from "./scoring/validation.ts";
 import { parseTelemetry } from "./scoring/schema.ts";
 
-export { GAME_IDS, isGame, getGameStatus, SCORER_VERSIONS, TELEMETRY_SCHEMA_VERSION } from "./scoring/core.ts";
+export {
+  GAME_IDS,
+  isGame,
+  getGameStatus,
+  SCORER_VERSIONS,
+  TELEMETRY_SCHEMA_VERSION,
+} from "./scoring/core.ts";
 export type {
   Game,
   AxisRatings,
@@ -68,11 +74,7 @@ export function scoreAndValidate(
   // 2. Bounds Validation
   assertCountBounds(game, parsedTelemetry);
   const t = parsedTelemetry as Record<string, unknown>;
-  assertRtBounds(
-    t.rts ?? t.hitRts ?? t.moveRts,
-    serverElapsedMs,
-    game,
-  );
+  assertRtBounds(t.rts ?? t.hitRts ?? t.moveRts, serverElapsedMs, game);
 
   // 3. Scoring
   const scored = SCORERS[game](asTelemetry(parsedTelemetry));

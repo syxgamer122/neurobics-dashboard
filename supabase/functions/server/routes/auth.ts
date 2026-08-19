@@ -6,37 +6,40 @@ import {
   SIGNUP_WINDOW_SECONDS,
 } from "../config.ts";
 import {
+  authenticatedUser,
   clientIp,
   consumeRateLimit,
   sha256,
   turnstileMessage,
   verifyTurnstile,
 } from "../security.ts";
-import { logServerEvent } from "../_shared/observability.ts";
+import {
+  logServerEvent,
+  requestIdFor,
+} from "../../_shared/observability.ts";
 
 export function registerAuthRoutes(app: Hono): void {
-
   // finalize guest upgrade
   app.post("/server/finalize-upgrade", async (c) => {
     try {
       const user = await authenticatedUser(c);
       const { targetEmail } = await c.req.json();
-      
+
       const { error } = await adminClient.rpc("finalize_guest_upgrade_tx", {
         p_user_id: user.id,
-        p_target_email: targetEmail
+        p_target_email: targetEmail,
       });
-      
+
       if (error) {
         logServerEvent({
           event: "auth.upgrade.finalize_error",
           level: "error",
           userId: user.id,
-          message: error.message
+          message: error.message,
         });
         return c.json({ error: error.message }, 400);
       }
-      
+
       return c.json({ success: true });
     } catch (err) {
       return c.json({ error: "Internal server error" }, 500);
@@ -49,9 +52,16 @@ export function registerAuthRoutes(app: Hono): void {
   app.post("/server/signup", async (c) => {
     try {
       // P0-2: Thêm global counter signup_total per phút với ngưỡng cứng
-      const globalAllowed = await consumeRateLimit("global_signup_budget", 300, 60);
+      const globalAllowed = await consumeRateLimit(
+        "global_signup_budget",
+        300,
+        60,
+      );
       if (!globalAllowed) {
-        return c.json({ error: "Too many signups globally. Please try again later." }, 429);
+        return c.json(
+          { error: "Too many signups globally. Please try again later." },
+          429,
+        );
       }
 
       const ip = clientIp(c);
@@ -73,17 +83,20 @@ export function registerAuthRoutes(app: Hono): void {
         );
       }
 
-      const { username, password, captchaToken, isGuest, isAdult } = await c.req.json();
-      
+      const { username, password, captchaToken, isGuest, isAdult } =
+        await c.req.json();
+
       if (!isAdult) {
-        return c.json({ error: "You must be 13 years or older to use this service." }, 403);
+        return c.json(
+          { error: "You must be 13 years or older to use this service." },
+          403,
+        );
       }
-      
+
       if (!username && !isGuest) {
         return c.json(
           {
-            error:
-              "Signup error: username is required.",
+            error: "Signup error: username is required.",
           },
           400,
         );
@@ -91,8 +104,7 @@ export function registerAuthRoutes(app: Hono): void {
       if (!captchaToken) {
         return c.json(
           {
-            error:
-              "Signup error: human verification is required.",
+            error: "Signup error: human verification is required.",
           },
           400,
         );
@@ -108,25 +120,28 @@ export function registerAuthRoutes(app: Hono): void {
           400,
         );
       }
-      
+
       // Guest Quota: Limit to 5 guests per IP per 24 hours to prevent abuse
       if (isGuest) {
         const guestIpHash = await sha256(`mindgem-guest-quota:${ip}`);
         const guestAllowed = await consumeRateLimit(guestIpHash, 5, 86400);
         if (!guestAllowed) {
           return c.json(
-            { error: "Guest account quota exceeded for this network. Please sign up for a free full account to continue." },
-            429
+            {
+              error:
+                "Guest account quota exceeded for this network. Please sign up for a free full account to continue.",
+            },
+            429,
           );
         }
       }
 
       // Dem thanh cong thuc su cho rate limit thu 2 (thay vi dung record_signup_attempt som)
 
-      const normalized = isGuest 
-        ? `guest-${crypto.randomUUID().split('-')[0]}`
+      const normalized = isGuest
+        ? `guest-${crypto.randomUUID().split("-")[0]}`
         : String(username).trim().toLowerCase();
-      
+
       const pw = isGuest ? crypto.randomUUID() : String(password);
 
       // Chi cho phep a-z 0-9 _ . - (3-20) — tranh email gia khong hop le.
@@ -205,16 +220,21 @@ export function registerAuthRoutes(app: Hono): void {
       // Update role to guest if applicable. This ensures profiles gets the correct role.
       let recoveryCode: string | undefined = undefined;
       if (isGuest && data.user) {
-        await adminClient.from("profiles").update({ role: "guest" }).eq("id", data.user.id);
-        
+        await adminClient
+          .from("profiles")
+          .update({ role: "guest" })
+          .eq("id", data.user.id);
+
         // Generate 12-char alphanumeric recovery code
-        recoveryCode = Array.from({ length: 12 }, () => 
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".charAt(Math.floor(Math.random() * 36))
+        recoveryCode = Array.from({ length: 12 }, () =>
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".charAt(
+            Math.floor(Math.random() * 36),
+          ),
         ).join("");
         const codeHash = await sha256(recoveryCode);
         await adminClient.from("account_recovery").insert({
           user_id: data.user.id,
-          code_hash: codeHash
+          code_hash: codeHash,
         });
       }
       // transaction — read it back to return to the client.
@@ -236,7 +256,12 @@ export function registerAuthRoutes(app: Hono): void {
       }
 
       if (isGuest) {
-        return c.json({ profile, _guestName: normalized, _guestPw: pw, recoveryCode });
+        return c.json({
+          profile,
+          _guestName: normalized,
+          _guestPw: pw,
+          recoveryCode,
+        });
       }
       return c.json({ profile });
     } catch (err) {
@@ -282,9 +307,12 @@ export function registerAuthRoutes(app: Hono): void {
       const email = `${profile.username}@mindgem.local`;
 
       // Update auth user's password
-      const { error: updateErr } = await adminClient.auth.admin.updateUserById(recovery.user_id, {
-        password: newPw
-      });
+      const { error: updateErr } = await adminClient.auth.admin.updateUserById(
+        recovery.user_id,
+        {
+          password: newPw,
+        },
+      );
 
       if (updateErr) {
         throw updateErr;
@@ -296,12 +324,12 @@ export function registerAuthRoutes(app: Hono): void {
         userId: recovery.user_id,
         message: "Guest account recovered using code",
         requestId: requestIdFor(c.req.raw),
-        persist: true
+        persist: true,
       });
 
       return c.json({
         _guestName: profile.username,
-        _guestPw: newPw
+        _guestPw: newPw,
       });
     } catch (err) {
       logServerEvent({
@@ -319,82 +347,104 @@ export function registerAuthRoutes(app: Hono): void {
       const authHeader = c.req.header("Authorization");
       if (!authHeader?.startsWith("Bearer "))
         return c.json({ error: "Missing authorization" }, 401);
-      
+
       const token = authHeader.slice(7);
-      const { data: userAuth, error: authErr } = await adminClient.auth.getUser(token);
-      if (authErr || !userAuth?.user) 
+      const { data: userAuth, error: authErr } =
+        await adminClient.auth.getUser(token);
+      if (authErr || !userAuth?.user)
         return c.json({ error: "Invalid session" }, 401);
-      
+
       const user = userAuth.user;
-      
+
       const { data: profile } = await adminClient
         .from("profiles")
         .select("role, username")
         .eq("id", user.id)
         .single();
-        
+
       if (profile?.role !== "guest") {
         return c.json({ error: "Account is not a guest" }, 400);
       }
 
-      const { newUsername, newPassword, newEmail, isAdult } = await c.req.json();
-      
+      const { newUsername, newPassword, newEmail, isAdult } =
+        await c.req.json();
+
       if (!isAdult) {
-        return c.json({ error: "You must be 13 years or older to use this service." }, 403);
+        return c.json(
+          { error: "You must be 13 years or older to use this service." },
+          403,
+        );
       }
-      
-      if (!/^[a-z0-9_.-]{3,20}$/.test(newUsername?.trim().toLowerCase() || "")) {
+
+      if (
+        !/^[a-z0-9_.-]{3,20}$/.test(newUsername?.trim().toLowerCase() || "")
+      ) {
         return c.json({ error: "Invalid new username" }, 400);
       }
-      
+
       if (!newPassword || newPassword.length < 8) {
         return c.json({ error: "Password must be at least 8 characters" }, 400);
       }
 
       const normalized = newUsername.trim().toLowerCase();
-      const targetEmail = newEmail ? newEmail.trim() : `${normalized}@mindgem.local`;
+      const targetEmail = newEmail
+        ? newEmail.trim()
+        : `${normalized}@mindgem.local`;
       const isSpoofed = targetEmail.endsWith("@mindgem.local");
-      
+
       // Check availability
       const { data: existing } = await adminClient
         .from("profiles")
         .select("id")
         .eq("username", normalized)
         .maybeSingle();
-        
+
       if (existing) {
         return c.json({ error: "Username is not available" }, 409);
       }
 
       // Create upgrade operation (State Machine)
-      const { error: opErr } = await adminClient.from("upgrade_operations").insert({
-        user_id: user.id,
-        target_email: targetEmail,
-        target_username: normalized,
-        status: "pending_verification"
-      });
+      const { error: opErr } = await adminClient
+        .from("upgrade_operations")
+        .insert({
+          user_id: user.id,
+          target_email: targetEmail,
+          target_username: normalized,
+          status: "pending_verification",
+        });
 
       if (opErr) {
-        if (opErr.code === '23505') return c.json({ error: "An upgrade is already in progress for this account." }, 409);
+        if (opErr.code === "23505")
+          return c.json(
+            { error: "An upgrade is already in progress for this account." },
+            409,
+          );
         throw opErr;
       }
 
       // Update auth.users (email + password).
       // If spoofed, we auto-confirm. Otherwise, Supabase sends a verification email.
-      const { error: updateAuthErr } = await adminClient.auth.admin.updateUserById(user.id, {
-        email: targetEmail,
-        password: newPassword,
-        user_metadata: { username: normalized },
-        email_confirm: isSpoofed,
-      });
-      
+      const { error: updateAuthErr } =
+        await adminClient.auth.admin.updateUserById(user.id, {
+          email: targetEmail,
+          password: newPassword,
+          user_metadata: { username: normalized },
+          email_confirm: isSpoofed,
+        });
+
       if (updateAuthErr) {
-        await adminClient.from("upgrade_operations").delete().eq("user_id", user.id);
+        await adminClient
+          .from("upgrade_operations")
+          .delete()
+          .eq("user_id", user.id);
         throw updateAuthErr;
       }
 
       // Delete old recovery codes
-      await adminClient.from("account_recovery").delete().eq("user_id", user.id);
+      await adminClient
+        .from("account_recovery")
+        .delete()
+        .eq("user_id", user.id);
 
       // Sign out all old sessions globally
       await adminClient.auth.admin.signOut(user.id, "global");
@@ -403,16 +453,16 @@ export function registerAuthRoutes(app: Hono): void {
         event: "auth.guest_upgraded",
         level: "info",
         userId: user.id,
-        message: `Guest account upgrade initiated to ${isSpoofed ? 'spoofed' : 'real'} email`,
+        message: `Guest account upgrade initiated to ${isSpoofed ? "spoofed" : "real"} email`,
         requestId: requestIdFor(c.req.raw),
-        persist: true
+        persist: true,
       });
 
-      return c.json({ 
-        success: true, 
-        username: normalized, 
+      return c.json({
+        success: true,
+        username: normalized,
         requiresLogin: true,
-        pendingVerification: !isSpoofed
+        pendingVerification: !isSpoofed,
       });
     } catch (err) {
       logServerEvent({

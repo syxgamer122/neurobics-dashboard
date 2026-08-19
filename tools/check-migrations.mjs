@@ -94,7 +94,9 @@ for (const file of files) {
 
   // P1-18: Thêm lock timeout guard vào mọi migration mới
   if (!isApplied(version) && !/set\s+lock_timeout/i.test(sql)) {
-    errors.push(`${file}: thieu lock timeout guard. Hay them dong "SET lock_timeout = '2s';" de tranh block production.`);
+    errors.push(
+      `${file}: thieu lock timeout guard. Hay them dong "SET lock_timeout = '2s';" de tranh block production.`,
+    );
   }
 }
 

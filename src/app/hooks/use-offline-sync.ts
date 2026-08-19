@@ -45,9 +45,11 @@ export function useOfflineSync(userId?: string | null) {
       try {
         const { results } = await syncOfflineQueue(userId, syncOfflineRounds);
         if (results && results.length > 0) {
-          const rejected = results.filter((r) => r.status === "rejected").length;
+          const rejected = results.filter(
+            (r) => r.status === "rejected",
+          ).length;
           if (rejected > 0) {
-             console.warn(`Sync: ${rejected} rounds rejected.`);
+            console.warn(`Sync: ${rejected} rounds rejected.`);
           }
         }
         window.dispatchEvent(new Event("offline-sync-complete"));

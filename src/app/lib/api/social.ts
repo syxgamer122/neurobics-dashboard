@@ -23,7 +23,11 @@ export async function searchPlayers(
   });
   if (error) {
     if (error.message.includes("rate_limit")) {
-      captureEvent({ event: "search.rate_limited", level: "warn", message: "Search rate limit hit" });
+      captureEvent({
+        event: "search.rate_limited",
+        level: "warn",
+        message: "Search rate limit hit",
+      });
     }
     throw new Error(`Search players failed: ${error.message}`);
   }

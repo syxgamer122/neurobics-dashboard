@@ -29,13 +29,15 @@ setEventSink((rows) => {
 });
 
 setMetricSink((path, status, latency) => {
-  const promise = adminClient.rpc("record_http_metric", {
-    p_path: path,
-    p_status_code: status,
-    p_latency: latency,
-  }).then(({ error }) => {
-    if (error) console.error(`record_http_metric failed: ${error.message}`);
-  });
+  const promise = adminClient
+    .rpc("record_http_metric", {
+      p_path: path,
+      p_status_code: status,
+      p_latency: latency,
+    })
+    .then(({ error }) => {
+      if (error) console.error(`record_http_metric failed: ${error.message}`);
+    });
   // @ts-ignore
   if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
     // @ts-ignore

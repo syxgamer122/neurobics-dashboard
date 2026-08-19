@@ -1,6 +1,6 @@
-// @ts-nocheck
-import { TELEMETRY_SCHEMA_VERSION } from "../../../src/app/lib/telemetry-version.ts";
-import { HUMAN_FLOOR_MS } from "../limits.ts";
+// Canonical telemetry schema version — must match src/app/lib/telemetry-version.ts
+export const TELEMETRY_SCHEMA_VERSION = 1;
+export const HUMAN_FLOOR_MS = 150;
 // Canonical server-side game ids. SQL constraints remain explicit by design.
 
 /**
@@ -20,7 +20,7 @@ export const SCORER_VERSIONS: Record<string, number> = {
   mental: 1,
   corsi: 1,
   trail: 1,
-  search: 1
+  search: 1,
 };
 
 /**
@@ -31,7 +31,6 @@ export const SCORER_VERSIONS: Record<string, number> = {
  * Changelog:
  *   v1 — Schema gốc cho tất cả 12 games.
  */
-
 
 export const GAME_IDS = [
   "schulte",
@@ -116,8 +115,14 @@ export const NO_AXES: AxisRatings = {
   memory: null,
 };
 export const MAX = 1000;
-export const clamp = (n: number) => { if (!Number.isFinite(n) || isNaN(n)) return 0; return Math.max(0, Math.min(MAX, Math.round(n))); };
-export const clamp01 = (n: number) => { if (!Number.isFinite(n) || isNaN(n)) return 0; return Math.max(0, Math.min(1, n)); };
+export const clamp = (n: number) => {
+  if (!Number.isFinite(n) || isNaN(n)) return 0;
+  return Math.max(0, Math.min(MAX, Math.round(n)));
+};
+export const clamp01 = (n: number) => {
+  if (!Number.isFinite(n) || isNaN(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+};
 export const finite = (
   n: unknown,
   name: string,
@@ -270,9 +275,8 @@ export const focus = (
   paceTargetMs?: number | null,
 ) => {
   const c = cv(rts);
-  const penalty = c === null ? 0 : clamp01(
-    (c - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK),
-  );
+  const penalty =
+    c === null ? 0 : clamp01((c - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK));
   const pace = focusPace(rts, paceTargetMs);
   return clamp(
     MAX *
@@ -289,7 +293,7 @@ export const focus = (
 export const headline = (axes: AxisRatings) => {
   const vals = Object.values(axes).filter((v): v is number => v !== null);
   if (!vals.length) return 0;
-  
+
   // Empirical Bayes / Shrinkage
   // Average population prior (e.g., 500)
   const PRIOR = 500;

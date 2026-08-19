@@ -6,20 +6,20 @@ import {
   XP_MAX,
 } from "../config.ts";
 import { authenticatedUser, requireAdmin } from "../security.ts";
-import { logServerEvent, requestIdFor } from "../_shared/observability.ts";
-import { AXIS_COLUMNS } from "../_shared/axes.ts";
+import { logServerEvent, requestIdFor } from "../../_shared/observability.ts";
+import { AXIS_COLUMNS } from "../../_shared/axes.ts";
 
 export function registerAdminRoutes(app: Hono): void {
   app.get("/server/admin-list-profiles", async (c) => {
     try {
       const user = await requireAdmin(c, "list_profiles");
-      
+
       const { data, error } = await adminClient
         .from("profiles_decayed")
         .select(PROFILE_COLS)
         .order("created_at", { ascending: false })
         .limit(100);
-        
+
       if (error) throw error;
       return c.json({ profiles: data });
     } catch (err) {
@@ -33,22 +33,31 @@ export function registerAdminRoutes(app: Hono): void {
   app.post("/server/admin-grant", async (c) => {
     try {
       const user = await requireAdmin(c, "grant");
-      const { targetId, axes = {}, xp, mode = "add", reason = "Admin manual grant" } = await c.req.json();
+      const {
+        targetId,
+        axes = {},
+        xp,
+        mode = "add",
+        reason = "Admin manual grant",
+      } = await c.req.json();
       if (!targetId || !["add", "set"].includes(mode))
         return c.json({ error: "Invalid admin grant" }, 400);
-      
+
       const reqId = requestIdFor(c.req.raw) || "";
 
       // Call the atomic RPC to lock, update profiles, record xp_events, and write admin_audit
       const { data, error } = await adminClient.rpc("admin_grant", {
         p_target_id: targetId,
-        p_xp_amount: xp !== undefined && Number.isFinite(Number(xp)) ? Math.round(Number(xp)) : null,
+        p_xp_amount:
+          xp !== undefined && Number.isFinite(Number(xp))
+            ? Math.round(Number(xp))
+            : null,
         p_xp_mode: mode,
         p_axes: Object.keys(axes).length > 0 ? axes : null,
         p_axes_mode: mode,
         p_reason: reason,
         p_admin_id: user.id,
-        p_request_id: reqId
+        p_request_id: reqId,
       });
 
       if (error) throw error;
@@ -80,18 +89,19 @@ export function registerAdminRoutes(app: Hono): void {
         p_target_id: targetId,
         p_reason: reason,
         p_admin_id: user.id,
-        p_request_id: reqId
+        p_request_id: reqId,
       });
 
       if (error) throw error;
-      
+
       const { data: updated, error: refreshError } = await adminClient
         .from("profiles_decayed")
         .select(PROFILE_COLS)
         .eq("id", targetId)
         .single();
-      
-      if (refreshError || !updated) throw refreshError ?? new Error("Target disappeared");
+
+      if (refreshError || !updated)
+        throw refreshError ?? new Error("Target disappeared");
       return c.json({ profile: updated });
     } catch (err) {
       return c.json(
@@ -136,7 +146,7 @@ export function registerAdminRoutes(app: Hono): void {
         .select("username")
         .eq("id", targetId)
         .single();
-        
+
       // Xoa auth truoc; FK ON DELETE CASCADE don profile va cac bang con.
       const { error: authErr } =
         await adminClient.auth.admin.deleteUser(targetId);

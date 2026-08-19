@@ -149,10 +149,6 @@ export const DECAY_FLOOR_RATIO = 0.35;
  */
 export const VN_UTC_OFFSET = "+07:00";
 
-
-
-
-
 // ─── Small stats helpers ───────────────────────────────────────────────
 
 export function median(xs: number[]): number {
@@ -531,13 +527,16 @@ export function calcBrainAge(
   const advantage = (percentile - 0.5) * 2 * MAX_AGE_SWING;
   const age = Math.round(Math.max(5, Math.min(120, realAge - advantage)));
   const ageSpread = Math.max(3, Math.min(12, Math.round(120 / 20))); // just a quick heuristic since range_95 isn't here
-  const ageRange: [number, number] = [Math.max(5, age - ageSpread), Math.min(120, age + ageSpread)];
+  const ageRange: [number, number] = [
+    Math.max(5, age - ageSpread),
+    Math.min(120, age + ageSpread),
+  ];
 
   return {
     status: "ready",
     age,
-      ageRange,
-      realAge,
+    ageRange,
+    realAge,
     delta: realAge - age,
     percentile,
     ringPct: percentile,

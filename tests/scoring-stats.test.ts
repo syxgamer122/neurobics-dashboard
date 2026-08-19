@@ -6,7 +6,6 @@ import {
   EMA_ALPHA,
   EMA_ALPHA_DOWN,
   RATING_SNAP,
-  
   DECAY_GRACE_DAYS,
   DECAY_PER_WEEK,
   // DECAY_FLOOR_RATIO,
@@ -18,7 +17,7 @@ import {
   clamp01,
   sanitizeRating,
   applyRoundRating,
-  
+
   // daysSince,
   median,
   mean,
@@ -251,8 +250,6 @@ describe("lapseRate", () => {
   });
 });
 
-
-
 describe("hang so cau hinh", () => {
   it("giu nguyen gia tri ma cong thuc va migration dang dua vao", () => {
     expect([RATING_MIN, RATING_MAX]).toEqual([0, 1000]);
@@ -267,8 +264,6 @@ describe("hang so cau hinh", () => {
     expect(DEFAULT_POPULATION).toEqual({ mean: 380, sd: 180, n: 0 });
   });
 });
-
-
 
 import { cv } from "../supabase/functions/_shared/scoring/core";
 

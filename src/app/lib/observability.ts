@@ -130,7 +130,10 @@ export function scrubContext(context: ObsContext | undefined): ObsContext {
       budget -= 4;
     } else if (safeKey === "request_id" || safeKey === "session_id") {
       const text = String(value);
-      out[safeKey] = text.length > Math.min(MAX_TEXT_LEN, budget) ? `${text.slice(0, Math.min(MAX_TEXT_LEN, budget) - 1)}\u2026` : text;
+      out[safeKey] =
+        text.length > Math.min(MAX_TEXT_LEN, budget)
+          ? `${text.slice(0, Math.min(MAX_TEXT_LEN, budget) - 1)}\u2026`
+          : text;
       budget -= text.length;
     } else {
       const text = scrubText(value, Math.min(MAX_TEXT_LEN, budget));

@@ -1,7 +1,7 @@
 import type { Hono } from "npm:hono@4.12.27";
 import { adminClient } from "../config.ts";
 import { authenticatedUser, consumeRateLimit, clientIp } from "../security.ts";
-import { logServerEvent } from "../_shared/observability.ts";
+import { logServerEvent } from "../../_shared/observability.ts";
 
 export function registerAccountRoutes(app: Hono): void {
   // ─── Delete own account (auth user + profile + avatars) ─────────────────────
@@ -74,7 +74,13 @@ export function registerAccountRoutes(app: Hono): void {
           level: "warn",
           message: `Rate limit exceeded for data export: ${userId}`,
         });
-        return c.json({ error: "Too many requests. You can only export data once per 24 hours." }, 429);
+        return c.json(
+          {
+            error:
+              "Too many requests. You can only export data once per 24 hours.",
+          },
+          429,
+        );
       }
 
       logServerEvent({
@@ -86,7 +92,7 @@ export function registerAccountRoutes(app: Hono): void {
       await adminClient.from("admin_audit").insert({
         action: "export_data",
         target_user_id: userId,
-        details: { ip: clientIp(c) }
+        details: { ip: clientIp(c) },
       });
 
       // Gather profile
@@ -108,10 +114,22 @@ export function registerAccountRoutes(app: Hono): void {
         .select("*")
         .eq("user_id", userId);
 
-      const { data: achievements } = await adminClient.from("user_achievements").select("*").eq("user_id", userId);
-      const { data: quests } = await adminClient.from("user_quests").select("*").eq("user_id", userId);
-      const { data: xp_events } = await adminClient.from("xp_events").select("*").eq("user_id", userId);
-      const { data: friendships } = await adminClient.from("friendships").select("*").or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+      const { data: achievements } = await adminClient
+        .from("user_achievements")
+        .select("*")
+        .eq("user_id", userId);
+      const { data: quests } = await adminClient
+        .from("user_quests")
+        .select("*")
+        .eq("user_id", userId);
+      const { data: xp_events } = await adminClient
+        .from("xp_events")
+        .select("*")
+        .eq("user_id", userId);
+      const { data: friendships } = await adminClient
+        .from("friendships")
+        .select("*")
+        .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
 
       return c.json({
         export_date: new Date().toISOString(),

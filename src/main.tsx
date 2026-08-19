@@ -47,7 +47,6 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
         level: "warn",
         message: String(err),
       });
-    }
+    },
   });
 }
-

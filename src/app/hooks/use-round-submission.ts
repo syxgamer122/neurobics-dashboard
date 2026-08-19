@@ -15,7 +15,11 @@ import {
   type SubmittedRound,
   isNetworkErrorLike,
 } from "../lib/api";
-import { sanitizeRating, pullUpRating, type AxisRatings } from "../lib/provisional-score";
+import {
+  sanitizeRating,
+  pullUpRating,
+  type AxisRatings,
+} from "../lib/provisional-score";
 import { AXIS_META, type AxisKey } from "../lib/axes";
 import type {
   RoundAxisRow,
@@ -323,5 +327,3 @@ export function useRoundSubmission({
     submitTelemetry,
   };
 }
-
-

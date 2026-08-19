@@ -16,16 +16,22 @@ test.describe("Admin Flow", () => {
     }
   });
 
-  test("direct URL navigation to admin is blocked for guests", async ({ page }) => {
+  test("direct URL navigation to admin is blocked for guests", async ({
+    page,
+  }) => {
     // Try navigating directly — should redirect or show access denied
     await page.goto("/#admin");
     // Guest should see either Access Denied or be redirected
     const accessDenied = page.locator("text=Access Denied");
     const guestLabel = page.locator("text=Guest");
-    await expect(accessDenied.or(guestLabel).first()).toBeVisible({ timeout: 3000 });
+    await expect(accessDenied.or(guestLabel).first()).toBeVisible({
+      timeout: 3000,
+    });
   });
 
-  test("admin-only API endpoints reject unauthorized requests", async ({ page }) => {
+  test("admin-only API endpoints reject unauthorized requests", async ({
+    page,
+  }) => {
     // Verify that admin routes return 401/403 for non-admin
     const response = await page.request.post("/server/admin/grant-xp", {
       data: { userId: "test", amount: 100 },

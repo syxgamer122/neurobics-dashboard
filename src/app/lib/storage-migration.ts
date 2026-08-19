@@ -4,9 +4,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
 // @ts-nocheck
-import { captureEvent } from './observability';
+import { captureEvent } from "./observability";
 
-const LEGACY_PREFIXES = ['mindgem.'] as const;
+const LEGACY_PREFIXES = ["mindgem."] as const;
 
 export function migrateLegacyStorageKeys(): void {
   let count = 0;
@@ -15,16 +15,15 @@ export function migrateLegacyStorageKeys(): void {
     if (!key) continue;
     const legacy = LEGACY_PREFIXES.find((p) => key.startsWith(p));
     if (!legacy) continue;
-    const nextKey = key.replace(legacy, 'neurobics.');
+    const nextKey = key.replace(legacy, "neurobics.");
     if (localStorage.getItem(nextKey) === null) {
       localStorage.setItem(nextKey, localStorage.getItem(key)!);
     }
     localStorage.removeItem(key);
     count++;
   }
-  
+
   if (count > 0) {
-    captureEvent({ event: 'storage.migrated', message: String(count) });
+    captureEvent({ event: "storage.migrated", message: String(count) });
   }
 }
-

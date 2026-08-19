@@ -208,7 +208,8 @@ export async function serverPost<T = void>(
   payload: unknown,
 ): Promise<T> {
   const token = await getAccessToken();
-  if (!token) throw new ServerError("Not authenticated.", "unauthenticated", 401);
+  if (!token)
+    throw new ServerError("Not authenticated.", "unauthenticated", 401);
   const res = await fetch(`${BASE}/${path}`, {
     method: "POST",
     headers: {
@@ -219,12 +220,15 @@ export async function serverPost<T = void>(
   });
   const body = await res
     .json()
-    .catch(() => ({ error: "Invalid server response", code: "invalid_response" }));
+    .catch(() => ({
+      error: "Invalid server response",
+      code: "invalid_response",
+    }));
   if (!res.ok) {
     throw new ServerError(
       body.error ?? `${path} failed (${res.status})`,
       body.code,
-      res.status
+      res.status,
     );
   }
   return body as T;
@@ -271,4 +275,3 @@ export function vnMonthStartUtc(now: Date = new Date()): Date {
 
 export const numOrNull = (v: unknown): number | null =>
   v === null || v === undefined ? null : Number(v);
-

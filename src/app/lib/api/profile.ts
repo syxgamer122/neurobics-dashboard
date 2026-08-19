@@ -16,7 +16,6 @@ import {
 } from "./internal";
 import { logError } from "../logger";
 
-
 export async function fetchProfile(): Promise<Profile | null> {
   const userId = await currentUserId();
   if (!userId) return null;
@@ -57,7 +56,7 @@ export async function saveBirthDate(birthDate: string): Promise<Profile> {
     .select(PROFILE_COLS)
     .eq("id", userId)
     .single();
-    
+
   if (refetchError) throw refetchError;
   return sanitizeProfile(updated as Profile);
 }
@@ -181,8 +180,9 @@ export async function uploadAvatar(file: File): Promise<Profile> {
   // Bust CDN/browser cache after overwrite.
   const avatarUrl = `${pub.publicUrl}?t=${Date.now()}`;
 
-  const { error } = await getSupabase()
-    .rpc("set_my_avatar", { p_avatar_url: avatarUrl });
+  const { error } = await getSupabase().rpc("set_my_avatar", {
+    p_avatar_url: avatarUrl,
+  });
   if (error) {
     throw new Error(describeError(error, "Save avatar URL failed"));
   }
@@ -209,12 +209,13 @@ export async function removeAvatar(): Promise<Profile> {
     await getSupabase().storage.from("avatars").remove(paths);
   }
 
-  const { error } = await getSupabase()
-    .rpc("set_my_avatar", { p_avatar_url: null });
+  const { error } = await getSupabase().rpc("set_my_avatar", {
+    p_avatar_url: null,
+  });
   if (error) {
     throw new Error(describeError(error, "Clear avatar URL failed"));
   }
-  
+
   const { data: updated, error: refetchError } = await getSupabase()
     .from("profiles")
     .select(PROFILE_COLS)
@@ -223,4 +224,3 @@ export async function removeAvatar(): Promise<Profile> {
   if (refetchError) throw refetchError;
   return hydrateProfile(updated as Profile);
 }
-

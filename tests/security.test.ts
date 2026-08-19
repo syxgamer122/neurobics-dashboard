@@ -42,13 +42,18 @@ describe("requireAdmin JWT verification", () => {
       error: new Error("Invalid JWT signature"),
     } as any);
 
-    await expect(requireAdmin(mockany)).rejects.toThrow("Invalid or expired session");
-    
+    await expect(requireAdmin(mockany)).rejects.toThrow(
+      "Invalid or expired session",
+    );
+
     // Ensure getUser was actually called with the fake token
     expect(adminClient.auth.getUser).toHaveBeenCalledWith(fakeToken);
   });
 });
-import { AUTH_EMAIL_DOMAIN, LEGACY_AUTH_EMAIL_DOMAINS } from "../src/app/lib/api/auth";
+import {
+  AUTH_EMAIL_DOMAIN,
+  LEGACY_AUTH_EMAIL_DOMAINS,
+} from "../src/app/lib/api/auth";
 describe("Auth Domains", () => {
   it("auth domains must be distinct", () => {
     const all = [AUTH_EMAIL_DOMAIN, ...LEGACY_AUTH_EMAIL_DOMAINS];
@@ -62,18 +67,23 @@ describe("clientIp", () => {
   it("extracts rightmost untrusted IP from x-forwarded-for", () => {
     // With TRUSTED_PROXY_HOPS = 1, the trusted proxy is the last one (Edge).
     // The IP before that is the untrusted client.
-    const mockContext = (xff: string) => ({
-      req: {
-        header: (n: string) => n === "x-forwarded-for" ? xff : null
-      }
-    } as any);
+    const mockContext = (xff: string) =>
+      ({
+        req: {
+          header: (n: string) => (n === "x-forwarded-for" ? xff : null),
+        },
+      }) as any;
 
     // Standard case: client -> trusted proxy
-    expect(clientIp(mockContext("203.0.113.1, 198.51.100.1"))).toBe("203.0.113.1");
+    expect(clientIp(mockContext("203.0.113.1, 198.51.100.1"))).toBe(
+      "203.0.113.1",
+    );
 
     // Spoofed case: spoofed_client -> real_client -> trusted_proxy
     // Since TRUSTED_PROXY_HOPS = 1, it should take real_client, NOT spoofed_client
-    expect(clientIp(mockContext("1.2.3.4, 203.0.113.1, 198.51.100.1"))).toBe("203.0.113.1");
+    expect(clientIp(mockContext("1.2.3.4, 203.0.113.1, 198.51.100.1"))).toBe(
+      "203.0.113.1",
+    );
 
     // Only one IP (e.g. direct connection or proxy didn't append)
     expect(clientIp(mockContext("203.0.113.1"))).toBe("203.0.113.1");
@@ -83,4 +93,3 @@ describe("clientIp", () => {
     expect(clientIp({ req: { header: () => null } } as any)).toBe("unknown");
   });
 });
-

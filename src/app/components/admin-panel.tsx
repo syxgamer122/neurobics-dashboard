@@ -5,13 +5,10 @@
 /* eslint-disable no-console */
 // @ts-nocheck
 import { useCallback, useEffect, useState } from "react";
-import {
-  AXIS_COLUMNS,
-  type AxisKey,
-} from "../lib/api";
+import { AXIS_COLUMNS, type AxisKey } from "../lib/api";
 import { levelFromXp } from "../lib/xp";
 import {
-    adminApplyGrant,
+  adminApplyGrant,
   adminDeleteUser,
   adminResetScores,
   adminListProfiles,
@@ -26,9 +23,9 @@ import {
   AdminOverview,
   AdminShell,
   ApiIntegrationPanel,
-    parseGrantField,
+  parseGrantField,
   ProfilesGrid,
-    type GrantMode,
+  type GrantMode,
 } from "./admin";
 
 const EMPTY_GRANT: AdminGrant["axes"] = {};
@@ -60,10 +57,7 @@ export function AdminPanel({
   const [grantMode, setGrantMode] = useState<GrantMode>("add");
 
   const pushLog = useCallback((msg: string) => {
-    setLog((prev) => [
-      ...prev,
-      `[${new Date().toLocaleTimeString()}] ${msg}`,
-    ]);
+    setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   }, []);
 
   const fetchProfiles = useCallback(async () => {
@@ -240,4 +234,3 @@ export function AdminPanel({
     </AdminShell>
   );
 }
-

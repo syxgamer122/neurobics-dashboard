@@ -3,7 +3,6 @@ import {
   sanitizeRating,
   pullUpRating,
   // decayRating,
-  
   percentileOf,
   calcBrainAge,
   MAX_AGE_SWING,
@@ -50,9 +49,6 @@ describe("pullUpRating (bidirectional EMA)", () => {
     expect(pullUpRating(4200, 600)).toBe(600);
   });
 });
-
-
-
 
 describe("percentileOf", () => {
   const pop = { mean: 400, sd: 150, n: 120 };
@@ -135,13 +131,25 @@ describe("calcBrainAge", () => {
   });
 });
 
-
-
-
 it("math logic axis is time-independent", async () => {
-  const { scoreMath } = await import("../supabase/functions/_shared/scoring/standard-games.ts");
-  const fast = scoreMath({ timeMs: 16_000, difficulty: "medium", correct: 20, wrong: 0, totalProblems: 20, rts: Array(20).fill(800) });
-  const slow = scoreMath({ timeMs: 60_000, difficulty: "medium", correct: 20, wrong: 0, totalProblems: 20, rts: Array(20).fill(3000) });
+  const { scoreMath } =
+    await import("../supabase/functions/_shared/scoring/standard-games.ts");
+  const fast = scoreMath({
+    timeMs: 16_000,
+    difficulty: "medium",
+    correct: 20,
+    wrong: 0,
+    totalProblems: 20,
+    rts: Array(20).fill(800),
+  });
+  const slow = scoreMath({
+    timeMs: 60_000,
+    difficulty: "medium",
+    correct: 20,
+    wrong: 0,
+    totalProblems: 20,
+    rts: Array(20).fill(3000),
+  });
   expect(fast.axes.logic).toBe(slow.axes.logic);
   expect(fast.axes.speed! > slow.axes.speed!).toBe(true);
 });

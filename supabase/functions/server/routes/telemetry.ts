@@ -18,7 +18,7 @@ export function registerTelemetryRoutes(app: Hono): void {
     const ip =
       (c.req.header("x-forwarded-for") ?? "unknown").split(",")[0]?.trim() ??
       "unknown";
-      
+
     try {
       const allowed = await consumeRateLimit(`telemetry:${ip}`, 60, 60);
       if (!allowed) {
@@ -26,11 +26,12 @@ export function registerTelemetryRoutes(app: Hono): void {
         return c.json({ ok: true, dropped: true }, 202);
       }
     } catch {
-       return c.json({ ok: true, dropped: true }, 202);
+      return c.json({ ok: true, dropped: true }, 202);
     }
 
     const raw = await c.req.text();
-    if (new TextEncoder().encode(raw).byteLength > 32_000) return c.json({ error: "Payload too large" }, 413);
+    if (new TextEncoder().encode(raw).byteLength > 32_000)
+      return c.json({ error: "Payload too large" }, 413);
 
     let payload: unknown;
     try {

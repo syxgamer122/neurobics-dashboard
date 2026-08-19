@@ -26,14 +26,15 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*\/storage\/v1\/object\/public\/avatars\//,
+            urlPattern:
+              /^https:\/\/.*\.supabase\.co\/.*\/storage\/v1\/object\/public\/avatars\//,
             handler: "CacheFirst",
             options: {
               cacheName: "avatar-cache",
               expiration: { maxEntries: 100, maxAgeSeconds: 7 * 86400 },
             },
-          }
-        ]
+          },
+        ],
       },
       manifest: false, // Su dung file manifest co san tai public/manifest.webmanifest
     }),
@@ -48,4 +49,3 @@ export default defineConfig({
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ["**/*.svg", "**/*.csv"],
 });
-

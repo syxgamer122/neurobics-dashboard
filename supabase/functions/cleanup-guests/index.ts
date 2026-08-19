@@ -4,7 +4,10 @@ import { logServerEvent } from "../_shared/observability.ts";
 
 // Initialize Supabase Admin Client
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("EDGE_SERVICE_ROLE_KEY") || "";
+const supabaseServiceKey =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
+  Deno.env.get("EDGE_SERVICE_ROLE_KEY") ||
+  "";
 
 const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -30,17 +33,25 @@ serve(async (req: Request) => {
     // Find all guest profiles created > 30 days ago that have no training sessions
     // Using a left join or NOT IN is tricky with PostgREST, so we'll fetch guests
     // and then check sessions. For performance, we can query profiles with a specific condition.
-    
+
     // 1. Fetch abandoned guests via RPC (includes 30 days and 0 sessions check)
-    const { data: guests, error: fetchErr } = await adminClient
-      .rpc("get_abandoned_guests");
+    const { data: guests, error: fetchErr } = await adminClient.rpc(
+      "get_abandoned_guests",
+    );
 
     if (fetchErr) throw fetchErr;
 
     if (!guests || guests.length === 0) {
-      return new Response(JSON.stringify({ ok: true, deleted: 0, msg: "No abandoned guests found." }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          deleted: 0,
+          msg: "No abandoned guests found.",
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     let deletedCount = 0;
@@ -48,8 +59,10 @@ serve(async (req: Request) => {
     // 2. Delete the abandoned guests
     for (const guest of guests) {
       // Abandoned guest -> delete from auth.users via Admin API
-      const { error: deleteErr } = await adminClient.auth.admin.deleteUser(guest.id);
-      
+      const { error: deleteErr } = await adminClient.auth.admin.deleteUser(
+        guest.id,
+      );
+
       if (!deleteErr) {
         deletedCount++;
       }
@@ -64,7 +77,6 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ ok: true, deleted: deletedCount }), {
       headers: { "Content-Type": "application/json" },
     });
-
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logServerEvent({

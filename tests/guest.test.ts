@@ -7,10 +7,15 @@ vi.mock("../supabase/functions/server/config", () => ({
       insert: vi.fn().mockResolvedValue({ error: null }),
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { is_guest: true, id: "guest-123" }, error: null })
+      single: vi
+        .fn()
+        .mockResolvedValue({
+          data: { is_guest: true, id: "guest-123" },
+          error: null,
+        }),
     }),
   },
-  PROFILE_COLS: "id, role, username"
+  PROFILE_COLS: "id, role, username",
 }));
 
 // Dummy test just to verify our assertion
@@ -19,7 +24,7 @@ describe("Guest Offline Branch Clean-up (P1-1)", () => {
     // According to ADR-0007, guests no longer use pure offline client-side computation.
     // They authenticate using real server-backed accounts with 'guest' flag.
     // const isGuest = true;
-    
+
     // Instead of branching locally, the system expects them to submit via standard Edge Functions
     // meaning the submitRound endpoint will write directly to training_sessions.
     const submittedToBackend = true; // This verifies the branch logic

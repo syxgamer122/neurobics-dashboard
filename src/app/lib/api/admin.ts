@@ -10,10 +10,8 @@
 import {
   getSupabase,
   describeError,
-  
   sanitizeProfile,
   hydrateProfile,
-  
   serverPost,
   type Profile,
 } from "./internal";
@@ -24,7 +22,9 @@ import { type AxisKey } from "../axes";
 // ─── Admin: operate on ANY user (requires admin RLS policy) ──────────────────
 
 export async function adminListProfiles(): Promise<Profile[]> {
-  const result = await serverGet<{ profiles: Profile[] }>("admin-list-profiles");
+  const result = await serverGet<{ profiles: Profile[] }>(
+    "admin-list-profiles",
+  );
   return result.profiles.map(hydrateProfile);
 }
 
@@ -83,4 +83,3 @@ export async function adminResetScores(targetId: string): Promise<Profile> {
 export async function adminDeleteUser(targetId: string): Promise<void> {
   await serverPost<{ ok: true }>("admin-delete-user", { targetId });
 }
-

@@ -12,18 +12,55 @@ import {
   scoreStroop,
   scoreReaction,
   scoreMemory,
-    scoreMath,
-          } from "../supabase/functions/_shared/scoring/standard-games";
+  scoreMath,
+} from "../supabase/functions/_shared/scoring/standard-games";
 
 const TIME_FREE_AXES = ["logic", "memory"] as const;
 
 const GAMES = {
-  schulte: { fn: scoreSchulte, base: { cells: 25, hitRts: Array(25).fill(800), timeMs: 25 * 800, wrongClicks: 0 } },
-  sudoku: { fn: scoreSudoku, base: { difficulty: "Medium", placements: 20, moveRts: Array(20).fill(1500), mistakes: 0, reEntries: 0, repeatMistakes: 0, actualClues: 30 } },
-  stroop: { fn: scoreStroop, base: { totalStimuli: 30, wrongClicks: 0, rts: Array(30).fill(1000) } },
-  reaction: { fn: scoreReaction, base: { rts: Array(10).fill(300), falseStarts: 0 } },
-  memory: { fn: scoreMemory, base: { clearedLevels: 5, maxLevel: 5, wrongClicks: 0 } },
-  math: { fn: scoreMath, base: { difficulty: "medium", totalProblems: 20, correct: 20, wrong: 0, rts: Array(20).fill(1500) } },
+  schulte: {
+    fn: scoreSchulte,
+    base: {
+      cells: 25,
+      hitRts: Array(25).fill(800),
+      timeMs: 25 * 800,
+      wrongClicks: 0,
+    },
+  },
+  sudoku: {
+    fn: scoreSudoku,
+    base: {
+      difficulty: "Medium",
+      placements: 20,
+      moveRts: Array(20).fill(1500),
+      mistakes: 0,
+      reEntries: 0,
+      repeatMistakes: 0,
+      actualClues: 30,
+    },
+  },
+  stroop: {
+    fn: scoreStroop,
+    base: { totalStimuli: 30, wrongClicks: 0, rts: Array(30).fill(1000) },
+  },
+  reaction: {
+    fn: scoreReaction,
+    base: { rts: Array(10).fill(300), falseStarts: 0 },
+  },
+  memory: {
+    fn: scoreMemory,
+    base: { clearedLevels: 5, maxLevel: 5, wrongClicks: 0 },
+  },
+  math: {
+    fn: scoreMath,
+    base: {
+      difficulty: "medium",
+      totalProblems: 20,
+      correct: 20,
+      wrong: 0,
+      rts: Array(20).fill(1500),
+    },
+  },
 };
 
 describe("Orthogonality Test", () => {
@@ -32,9 +69,11 @@ describe("Orthogonality Test", () => {
       // Provide valid timeMs
       const fastBase = { ...base, timeMs: 10000 };
       const slowBase = { ...base, timeMs: 60000 };
-      
+
       const fastRts = (base as any).rts ? (base as any).rts.map(() => 400) : [];
-      const slowRts = (base as any).rts ? (base as any).rts.map(() => 2500) : [];
+      const slowRts = (base as any).rts
+        ? (base as any).rts.map(() => 2500)
+        : [];
 
       const fast = fn({ ...fastBase, rts: fastRts, moveRts: fastRts });
       const slow = fn({ ...slowBase, rts: slowRts, moveRts: slowRts });
@@ -45,11 +84,14 @@ describe("Orthogonality Test", () => {
         }
       }
 
-      if (fastRts.length > 0 && fast.axes.speed !== undefined && fast.axes.speed !== null) {
+      if (
+        fastRts.length > 0 &&
+        fast.axes.speed !== undefined &&
+        fast.axes.speed !== null
+      ) {
         // speed should be greater for fast (unless capped at MAX)
         expect(fast.axes.speed).toBeGreaterThanOrEqual(slow.axes.speed!);
       }
     });
   }
 });
-

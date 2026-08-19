@@ -39,7 +39,7 @@ export function clientIp(c: Context): string {
   const header = c.req.header("x-forwarded-for");
   if (!header) return "unknown";
 
-  const hops = header.split(",").map(ip => ip.trim());
+  const hops = header.split(",").map((ip) => ip.trim());
   if (hops.length === 0) return "unknown";
 
   // The last proxy (rightmost) is the edge closest to our app.
@@ -119,7 +119,8 @@ export async function requireAdmin(c: Context, capability?: string) {
   const token = authHeader.slice(7);
 
   // 1. Verify token signature
-  const { data: authData, error: authErr } = await adminClient.auth.getUser(token);
+  const { data: authData, error: authErr } =
+    await adminClient.auth.getUser(token);
   if (authErr || !authData.user) throw new Error("Invalid or expired session");
 
   // 2. Verify JWT signature & AAL securely using the JWT secret
@@ -127,11 +128,15 @@ export async function requireAdmin(c: Context, capability?: string) {
   if (!jwtSecret) throw new Error("Missing SUPABASE_JWT_SECRET in environment");
 
   try {
-    const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(jwtSecret), {
-      issuer: "supabase", // Adjust to match Supabase's default or your env
-      audience: "authenticated",
-    });
-    
+    const { payload } = await jose.jwtVerify(
+      token,
+      new TextEncoder().encode(jwtSecret),
+      {
+        issuer: "supabase", // Adjust to match Supabase's default or your env
+        audience: "authenticated",
+      },
+    );
+
     if (payload.aal !== "aal2") {
       throw new Error("Admin actions require MFA (aal2)");
     }
@@ -141,17 +146,25 @@ export async function requireAdmin(c: Context, capability?: string) {
       throw new Error("Admin actions require recent step-up authentication.");
     }
 
-    const mfaClaim = payload.amr.find((x: any) => x.method === "totp" || x.method === "mfa");
+    const mfaClaim = payload.amr.find(
+      (x: any) => x.method === "totp" || x.method === "mfa",
+    );
     if (!mfaClaim || !mfaClaim.timestamp) {
       throw new Error("Admin actions require recent step-up authentication.");
     }
 
-    const mfaAge = (Date.now() / 1000) - mfaClaim.timestamp;
-    if (mfaAge > 300) { // 5 minutes
-      throw new Error("Admin actions require recent step-up authentication. Please re-authenticate MFA.");
+    const mfaAge = Date.now() / 1000 - mfaClaim.timestamp;
+    if (mfaAge > 300) {
+      // 5 minutes
+      throw new Error(
+        "Admin actions require recent step-up authentication. Please re-authenticate MFA.",
+      );
     }
   } catch (e) {
-    if (e instanceof Error && (e.message.includes("MFA") || e.message.includes("step-up"))) {
+    if (
+      e instanceof Error &&
+      (e.message.includes("MFA") || e.message.includes("step-up"))
+    ) {
       throw e;
     }
     console.warn("JWT verification failed for admin action", e);
@@ -166,12 +179,15 @@ export async function requireAdmin(c: Context, capability?: string) {
     .select("role, admin_capabilities")
     .eq("id", userId)
     .single();
-  
+
   if (error || data?.role !== "admin") {
     throw new Error("Admin access denied");
   }
 
-  if (capability && (!data.admin_capabilities || !data.admin_capabilities.includes(capability))) {
+  if (
+    capability &&
+    (!data.admin_capabilities || !data.admin_capabilities.includes(capability))
+  ) {
     throw new Error(`Admin capability missing: ${capability}`);
   }
 

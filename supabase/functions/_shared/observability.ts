@@ -105,8 +105,7 @@ function scrubContext(value: unknown): Record<string, unknown> {
     ) {
       // Whitelist these keys to prevent UUID redaction
       out[safeKey] = typeof raw === "string" ? raw : String(raw);
-    }
-    else out[safeKey] = scrubText(raw);
+    } else out[safeKey] = scrubText(raw);
   }
   return out;
 }
@@ -174,7 +173,11 @@ export function sanitizeClientEvents(
 // ─── Sink (index.ts nap vao) ──────────────────────────────────────────────
 
 export type EventSink = (rows: ObservabilityRow[]) => void;
-export type MetricSink = (path: string, status: number, latency: number) => void;
+export type MetricSink = (
+  path: string,
+  status: number,
+  latency: number,
+) => void;
 
 let sink: EventSink | null = null;
 let metricSink: MetricSink | null = null;
@@ -195,7 +198,11 @@ export function persistEvents(rows: ObservabilityRow[]): void {
   }
 }
 
-export function recordHttpMetric(path: string, status: number, latency: number): void {
+export function recordHttpMetric(
+  path: string,
+  status: number,
+  latency: number,
+): void {
   if (!metricSink) return;
   try {
     metricSink(path, status, latency);
@@ -265,11 +272,7 @@ export function logRequest(entry: RequestLog): void {
   // Chi luu ben vung nhung gi dang xem lai: loi server va 4xx bat thuong.
   // GIO DA CO metrics minute, khong can luu HTTP 200 submit-round nua
   // (tranh lam phinh bang observability_events chi de lay mau so).
-  if (
-    entry.status >= 500 || 
-    entry.status === 429 || 
-    entry.status === 422
-  ) {
+  if (entry.status >= 500 || entry.status === 429 || entry.status === 422) {
     persistEvents([
       {
         source: "server",

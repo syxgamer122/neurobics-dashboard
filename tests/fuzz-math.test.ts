@@ -6,7 +6,11 @@
 // @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { parseTelemetry } from "../supabase/functions/_shared/scoring/schema.ts";
-import { clamp01, assertFiniteScore, finite } from "../supabase/functions/_shared/scoring/core.ts";
+import {
+  clamp01,
+  assertFiniteScore,
+  finite,
+} from "../supabase/functions/_shared/scoring/core.ts";
 
 describe("Fuzz Math Bounds", () => {
   it("clamp01 should never return NaN", () => {
@@ -32,4 +36,3 @@ describe("Fuzz Math Bounds", () => {
     expect(() => finite(Infinity, "test")).toThrow();
   });
 });
-
