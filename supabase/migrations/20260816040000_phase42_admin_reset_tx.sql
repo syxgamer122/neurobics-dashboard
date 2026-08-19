@@ -1,4 +1,4 @@
--- AI Review: Make admin_reset_stats increment stats_generation
+Ôªø-- AI Review: Make admin_reset_stats increment stats_generation
 CREATE OR REPLACE FUNCTION public.admin_reset_stats_tx(
   p_target uuid,
   p_actor uuid
@@ -11,7 +11,7 @@ AS $$
 DECLARE
   v_generation bigint;
 BEGIN
-  -- Tang stats_generation v‡ reset c·c tr?c
+  -- Tang stats_generation v√† reset c√°c tr?c
   UPDATE public.profiles
   SET
     stats_generation = stats_generation + 1,
