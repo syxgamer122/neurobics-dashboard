@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- AI Review: Add last_activity_at for guest cleanup
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_activity_at timestamptz;
 

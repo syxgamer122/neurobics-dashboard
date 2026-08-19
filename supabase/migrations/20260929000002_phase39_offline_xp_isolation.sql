@@ -1,24 +1,24 @@
--- AI Review Phase 38: Round Tickets State Machine & Server-bound Config
+SET lock_timeout = '2s';
+-- AI Review Phase 39: Offline XP Isolation
 
--- 1. Add Config & Seed columns
-ALTER TABLE public.round_tickets
-  ADD COLUMN IF NOT EXISTS challenge_seed text,
-  ADD COLUMN IF NOT EXISTS challenge_config jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS config_version integer NOT NULL DEFAULT 1;
+-- 1. Add event_type to xp_events
+ALTER TABLE public.xp_events
+  ADD COLUMN IF NOT EXISTS event_type text NOT NULL DEFAULT 'online_round'
+  CHECK (event_type IN ('online_round', 'offline_practice', 'quest', 'achievement', 'admin_grant'));
 
--- 2. Add State Machine columns
-ALTER TABLE public.round_tickets
-  ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'issued'
-    CHECK (state IN ('issued', 'processing', 'accepted', 'rejected', 'expired')),
-  ADD COLUMN IF NOT EXISTS processing_token uuid,
-  ADD COLUMN IF NOT EXISTS processing_started_at timestamptz;
+-- Update existing offline rounds
+UPDATE public.xp_events xe
+SET event_type = 'offline_practice'
+FROM public.training_sessions ts
+WHERE xe.source_key = ts.ticket_id::text
+  AND ts.provenance = 'offline_sync';
 
--- Set default states for existing tickets
-UPDATE public.round_tickets SET state = 'accepted' WHERE submitted_at IS NOT NULL AND state = 'issued';
-UPDATE public.round_tickets SET state = 'expired' WHERE submitted_at IS NULL AND expires_at < now() AND state = 'issued';
+-- 2. Add practice_xp column to profiles
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS practice_xp integer NOT NULL DEFAULT 0;
 
--- 3. Rewrite submit_round_transaction
-DROP FUNCTION IF EXISTS public.submit_round_transaction(uuid, uuid, text, jsonb, integer, text, integer, integer, integer, integer, timestamptz, text, integer);
+-- 3. Rewrite submit_round_transaction to separate practice_xp
+DROP FUNCTION IF EXISTS public.submit_round_transaction(uuid, uuid, text, jsonb, integer, text, integer, integer, integer, integer, timestamptz, text, integer, uuid);
 
 CREATE OR REPLACE FUNCTION public.submit_round_transaction(
   p_user_id uuid,
@@ -49,7 +49,9 @@ DECLARE
   v_streak integer;
   v_xp integer := 0;
   v_today_xp integer := 0;
+  v_today_practice_xp integer := 0;
   v_old_xp integer;
+  v_old_practice integer;
   v_old_level integer;
   v_new_level integer;
   v_idle integer;
@@ -75,30 +77,43 @@ BEGIN
       RAISE EXCEPTION 'invalid_processing_token';
     END IF;
   ELSE
-    -- For offline sync, mock the ticket fields
     v_ticket.started_at := coalesce(p_occurred_at, now());
   END IF;
 
-  -- Lock profile
   SELECT * INTO v_profile FROM public.profiles WHERE id = p_user_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Profile not found'; END IF;
 
-  v_today_xp := coalesce((
-    SELECT sum(xp_awarded) FROM public.xp_events
-    WHERE user_id = p_user_id AND (created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = v_today
-  ), 0);
-
-  IF (SELECT count(*) FROM public.training_sessions WHERE user_id = p_user_id AND (recorded_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = v_today) > 500 THEN
-    v_xp := 0;
-  ELSIF v_today_xp < 500 THEN
-    v_xp := LEAST(CASE WHEN p_provenance = 'online' THEN 10 ELSE 2 END, 500 - v_today_xp);
+  IF p_provenance = 'online' THEN
+    v_today_xp := coalesce((
+      SELECT sum(xp_awarded) FROM public.xp_events
+      WHERE user_id = p_user_id 
+        AND event_type = 'online_round' 
+        AND (created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = v_today
+    ), 0);
+    IF (SELECT count(*) FROM public.training_sessions WHERE user_id = p_user_id AND (recorded_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = v_today) > 500 THEN
+      v_xp := 0;
+    ELSIF v_today_xp < 500 THEN
+      v_xp := LEAST(10, 500 - v_today_xp);
+    ELSE
+      v_xp := 0;
+    END IF;
   ELSE
-    v_xp := 0;
+    v_today_practice_xp := coalesce((
+      SELECT sum(xp_awarded) FROM public.xp_events
+      WHERE user_id = p_user_id 
+        AND event_type = 'offline_practice' 
+        AND (created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = v_today
+    ), 0);
+    IF v_today_practice_xp < 30 THEN
+      v_xp := LEAST(2, 30 - v_today_practice_xp);
+    ELSE
+      v_xp := 0;
+    END IF;
   END IF;
 
   IF v_xp > 0 THEN
-    INSERT INTO public.xp_events (user_id, game, round_score, xp_awarded, source_key, stats_generation)
-    VALUES (p_user_id, p_game, p_round_score, v_xp, coalesce(p_ticket_id::text, gen_random_uuid()::text), v_profile.stats_generation);
+    INSERT INTO public.xp_events (user_id, game, round_score, xp_awarded, source_key, stats_generation, event_type)
+    VALUES (p_user_id, p_game, p_round_score, v_xp, coalesce(p_ticket_id::text, gen_random_uuid()::text), v_profile.stats_generation, CASE WHEN p_provenance = 'online' THEN 'online_round' ELSE 'offline_practice' END);
   END IF;
 
   INSERT INTO public.training_sessions(
@@ -129,8 +144,14 @@ BEGIN
   );
 
   v_old_xp := coalesce(v_profile.total_xp, 0);
+  v_old_practice := coalesce(v_profile.practice_xp, 0);
   v_old_level := coalesce(v_profile.level, 1);
-  v_new_level := public.calculate_level(v_old_xp + v_xp);
+  
+  IF p_provenance = 'online' THEN
+    v_new_level := public.calculate_level(v_old_xp + v_xp);
+  ELSE
+    v_new_level := v_old_level;
+  END IF;
 
   v_idle := GREATEST(0, (EXTRACT(EPOCH FROM (now() - coalesce(v_profile.last_active_date, v_profile.created_at))) / 86400)::integer);
   
@@ -155,20 +176,23 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO v_recent FROM public.training_sessions
-  WHERE user_id = p_user_id AND (recorded_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= v_today - interval '2 days';
+  WHERE user_id = p_user_id AND provenance = 'online' AND (recorded_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= v_today - interval '2 days';
 
   v_streak := v_profile.synapse_streak;
-  IF v_recent > 0 AND (v_profile.last_active_date AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < v_today THEN
-    v_streak := coalesce(v_streak, 0) + 1;
-  ELSIF v_recent = 0 THEN
-    v_streak := 1;
+  IF p_provenance = 'online' THEN
+    IF v_recent > 0 AND (v_profile.last_active_date AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < v_today THEN
+      v_streak := coalesce(v_streak, 0) + 1;
+    ELSIF v_recent = 0 THEN
+      v_streak := 1;
+    END IF;
   END IF;
 
   UPDATE public.profiles
   SET
-    total_xp = v_old_xp + v_xp,
+    total_xp = v_old_xp + CASE WHEN p_provenance = 'online' THEN v_xp ELSE 0 END,
+    practice_xp = v_old_practice + CASE WHEN p_provenance = 'online' THEN 0 ELSE v_xp END,
     level = v_new_level,
-    last_active_date = now(),
+    last_active_date = CASE WHEN p_provenance = 'online' THEN now() ELSE last_active_date END,
     synapse_streak = v_streak,
     speed_score = v_speed,
     focus_score = v_focus,
@@ -203,7 +227,7 @@ BEGIN
 
   RETURN jsonb_build_object(
     'xpAwarded', v_xp,
-    'totalXp', v_old_xp + v_xp,
+    'totalXp', v_old_xp + CASE WHEN p_provenance = 'online' THEN v_xp ELSE 0 END,
     'level', v_new_level,
     'leveledUp', v_new_level > v_old_level,
     'streak', v_streak
@@ -211,28 +235,3 @@ BEGIN
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.submit_round_transaction(uuid, uuid, text, jsonb, integer, text, integer, integer, integer, integer, timestamptz, text, integer, uuid) TO service_role;
-
--- 4. Reject Ticket function (for cheat detection)
-CREATE OR REPLACE FUNCTION public.reject_round_ticket(
-  p_user_id uuid,
-  p_ticket_id uuid,
-  p_processing_token uuid,
-  p_reason text
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  UPDATE public.round_tickets
-  SET state = 'rejected',
-      submitted_at = now(),
-      completed_at = now()
-  WHERE id = p_ticket_id
-    AND user_id = p_user_id
-    AND state = 'processing'
-    AND processing_token = p_processing_token;
-END;
-$$;
-GRANT EXECUTE ON FUNCTION public.reject_round_ticket(uuid, uuid, uuid, text) TO service_role;

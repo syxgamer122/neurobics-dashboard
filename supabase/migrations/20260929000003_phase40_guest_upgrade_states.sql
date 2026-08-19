@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- AI Review Phase 40: Guest Upgrade State Machine Fixes
 
 -- 1. Alter upgrade_operations status constraint

@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- AI Review: Separate offline practice physically
 CREATE TABLE IF NOT EXISTS public.practice_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
