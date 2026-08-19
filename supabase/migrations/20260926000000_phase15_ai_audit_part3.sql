@@ -22,7 +22,8 @@ EXECUTE FUNCTION public.check_min_age();
 
 -- 2. P2/P3: Exclude guests from public leaderboard
 -- We also ensure it queries from profiles_decayed (the new Single Source of Truth)
-CREATE OR REPLACE VIEW public.public_leaderboard AS
+DROP VIEW IF EXISTS public.public_leaderboard;
+CREATE VIEW public.public_leaderboard AS
 SELECT
   p.id,
   p.username,

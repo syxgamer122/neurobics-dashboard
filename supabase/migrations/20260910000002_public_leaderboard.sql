@@ -18,9 +18,11 @@ SET level = GREATEST(
 -- 20260910000002_public_leaderboard.sql
 -- ==============================================================================
 
--- Create a secure view for the public leaderboard
-create or replace view public.public_leaderboard as
-select
+-- Remote DB có cấu trúc cột khác nên phải DROP VIEW trước khi CREATE VIEW
+DROP VIEW IF EXISTS public.public_leaderboard;
+
+CREATE VIEW public.public_leaderboard AS
+SELECT
   p.id,
   p.username,
   p.avatar_url,
@@ -33,9 +35,9 @@ select
     p.focus_score,
     p.cfop_spatial_record,
     p.last_active_date
-  ) as cognitive_index
-from public.profiles p
-where not p.flagged;
+  ) AS cognitive_index
+FROM public.profiles p
+WHERE COALESCE(p.flagged, false) = false;
 
 -- Grant access to the view
-grant select on public.public_leaderboard to authenticated, anon;
+GRANT SELECT ON public.public_leaderboard TO authenticated, anon;

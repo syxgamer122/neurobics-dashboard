@@ -158,16 +158,56 @@ $$;
 
 
 -- 4. Create profiles_decayed view as single source of truth for UI
-CREATE OR REPLACE VIEW public.profiles_decayed AS
+DROP VIEW IF EXISTS public.profiles_decayed CASCADE;
+CREATE VIEW public.profiles_decayed AS
 SELECT 
-  p.id, p.username, p.avatar_url, p.role, p.birth_year, p.total_xp, p.last_active_date,
-  p.schulte_sessions, p.sudoku_sessions, p.stroop_sessions, p.reaction_sessions, p.memory_sessions, p.nback_sessions, p.math_sessions, p.gonogo_sessions, p.mental_sessions, p.corsi_sessions, p.trail_sessions, p.search_sessions, p.created_at, p.synapse_streak, p.peak_rating_logic, p.peak_rating_focus, p.peak_rating_speed, p.peak_rating_memory, p.peak_rating_spatial, p.stats_epoch, p.is_adult, p.rating_model_version, p.flagged,
+  p.id, 
+  p.username, 
+  p.avatar_url, 
+  p.role, 
+  p.birth_year, 
+  p.total_xp, 
+  p.level, 
+  p.last_active_date,
+  p.schulte_sessions, 
+  p.sudoku_sessions, 
+  p.stroop_sessions, 
+  p.reaction_sessions, 
+  p.memory_sessions, 
+  p.nback_sessions, 
+  p.math_sessions, 
+  p.gonogo_sessions, 
+  p.mental_sessions, 
+  p.corsi_sessions, 
+  p.trail_sessions, 
+  p.search_sessions, 
+  p.created_at, 
+  p.synapse_streak, 
+  p.peak_rating_logic, 
+  p.peak_rating_focus, 
+  p.peak_rating_speed, 
+  p.peak_rating_memory, 
+  p.peak_rating_spatial, 
+  p.stats_epoch, 
+  p.is_adult, 
+  p.rating_model_version, 
+  p.flagged,
   public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as focus_score,
   public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as speed_score,
   public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as memory_score,
   public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as spatial_score,
   public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as algebraic_logic_score,
-  public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as cfop_spatial_record
+  public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as cfop_spatial_record,
+  LEAST(
+    ROUND((
+      COALESCE(public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0)
+    ) / 5.0)::integer,
+    (COALESCE(p.schulte_sessions, 0) + COALESCE(p.sudoku_sessions, 0) + COALESCE(p.stroop_sessions, 0) + COALESCE(p.reaction_sessions, 0) + COALESCE(p.memory_sessions, 0) + COALESCE(p.nback_sessions, 0) + COALESCE(p.math_sessions, 0) + COALESCE(p.gonogo_sessions, 0) + COALESCE(p.mental_sessions, 0) + COALESCE(p.corsi_sessions, 0) + COALESCE(p.trail_sessions, 0) + COALESCE(p.search_sessions, 0)) * 25
+  ) as cognitive_index
 FROM public.profiles p;
 
 -- Allow authenticated users to query the view
@@ -196,8 +236,8 @@ BEGIN
          count(case when latency <= 2000 then 1 end),
          count(case when latency <= 5000 then 1 end)
   INTO v_total, b100, b500, b1000, b2000, b5000
-  FROM public.http_metrics_raw
-  WHERE created_at > now() - interval '15 minutes';
+  FROM public.http_metrics_minute
+  WHERE window_start > now() - interval '15 minutes';
 
   IF v_total = 0 THEN
     v_p95 := 0;
