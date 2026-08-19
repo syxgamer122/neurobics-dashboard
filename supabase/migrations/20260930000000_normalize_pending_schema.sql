@@ -55,8 +55,13 @@ ALTER TABLE public.profiles
 UPDATE public.profiles
 SET 
   last_activity_at = COALESCE(last_activity_at, last_active_date::timestamptz, created_at, now()),
-  level = GREATEST(1, FLOOR((-1 + SQRT(1 + GREATEST(COALESCE(total_xp, 0), 0)::numeric / 12.5)) / 2)::integer + 1)
-WHERE last_activity_at IS NULL OR level IS NULL;
+  level = GREATEST(1, FLOOR((-1 + SQRT(1 + GREATEST(COALESCE(total_xp, 0), 0)::numeric / 12.5)) / 2)::integer + 1),
+  search_visible = COALESCE(search_visible, true)
+WHERE last_activity_at IS NULL OR level IS NULL OR search_visible IS NULL;
+
+ALTER TABLE public.profiles
+  ALTER COLUMN search_visible SET DEFAULT true,
+  ALTER COLUMN search_visible SET NOT NULL;
 
 -- ------------------------------------------------------------------------------
 -- 3. XP LEDGER & SINGLE SOURCE OF TRUTH (xp_events)
@@ -499,6 +504,10 @@ GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 -- ------------------------------------------------------------------------------
 -- 10. CANONICAL SEARCH & POPULATION STATS RPCS
 -- ------------------------------------------------------------------------------
+-- Clean up stale function overloads
+DROP FUNCTION IF EXISTS public.get_population_stats(integer);
+DROP FUNCTION IF EXISTS public.get_population_stats(integer, integer);
+
 CREATE OR REPLACE FUNCTION public.get_population_stats(
   p_min_rounds integer DEFAULT 5,
   p_rating_model_version integer DEFAULT 1
@@ -519,21 +528,54 @@ $body$;
 
 GRANT EXECUTE ON FUNCTION public.get_population_stats(integer, integer) TO authenticated, anon;
 
-CREATE OR REPLACE FUNCTION public.search_players(p_query text, p_limit integer DEFAULT 20)
-RETURNS table(id uuid, username text, avatar_url text, total_xp integer, level integer, cognitive_index integer)
+-- Explicit DROP FUNCTION before recreate to allow changes in RETURNS TABLE signature
+DROP FUNCTION IF EXISTS public.search_players(text, integer);
+DROP FUNCTION IF EXISTS public.search_players(text);
+
+CREATE FUNCTION public.search_players(
+  p_query text,
+  p_limit integer DEFAULT 20
+)
+RETURNS TABLE (
+  id uuid,
+  username text,
+  avatar_url text,
+  total_xp integer,
+  level integer,
+  cognitive_index integer
+)
 LANGUAGE sql
+STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $body$
-  SELECT id, username, avatar_url, total_xp, level, cognitive_index
-  FROM public.profiles_decayed
-  WHERE search_visible = true 
-    AND username ILIKE ('%' || p_query || '%')
-  ORDER BY total_xp DESC
-  LIMIT LEAST(p_limit, 50);
+  SELECT
+    d.id::uuid,
+    d.username::text,
+    d.avatar_url::text,
+    COALESCE(d.total_xp, 0)::integer,
+    COALESCE(d.level, 1)::integer,
+    COALESCE(d.cognitive_index, 0)::integer
+  FROM public.profiles_decayed AS d
+  JOIN public.profiles AS p
+    ON p.id = d.id
+  WHERE auth.uid() IS NOT NULL
+    AND d.id <> auth.uid()
+    AND p.search_visible = true
+    AND length(trim(COALESCE(p_query, ''))) >= 2
+    AND d.username ILIKE (
+      '%' || trim(p_query) || '%'
+    )
+  ORDER BY d.total_xp DESC NULLS LAST
+  LIMIT GREATEST(
+    1,
+    LEAST(COALESCE(p_limit, 20), 50)
+  );
 $body$;
 
-GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated, anon;
+REVOKE ALL ON FUNCTION public.search_players(text, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.search_players(text, integer) FROM anon;
+GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated, service_role;
 
 -- ------------------------------------------------------------------------------
 -- 11. CRON JOBS & OBSERVABILITY (Safely wrapped)
