@@ -1,19 +1,38 @@
 /* =============================================================================
-   NEUROBICS DASHBOARD - CONSOLIDATED PENDING MIGRATIONS FOR REVIEW
+   NEUROBICS DASHBOARD - CONSOLIDATED PENDING MIGRATIONS (UPDATED)
    Total Pending Files: 43
+   Range: 20260910000002_public_leaderboard.sql -> 20260929000006_phase43_practice_sessions.sql
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
    [1/43] File: 20260910000002_public_leaderboard.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
+-- 0. Ensure level & rating_model_version exist on profiles
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS level integer NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS rating_model_version integer NOT NULL DEFAULT 1;
+
+UPDATE public.profiles
+SET level = GREATEST(
+  1,
+  FLOOR(
+    (-1 + SQRT(
+      1 + GREATEST(COALESCE(total_xp, 0), 0)::numeric / 12.5
+    )) / 2
+  )::integer + 1
+);
+
 -- ==============================================================================
 -- 20260910000002_public_leaderboard.sql
 -- ==============================================================================
 
--- Create a secure view for the public leaderboard
-create or replace view public.public_leaderboard as
-select
+-- Remote DB có cấu trúc cột khác nên phải DROP VIEW trước khi CREATE VIEW
+DROP VIEW IF EXISTS public.public_leaderboard;
+
+CREATE VIEW public.public_leaderboard AS
+SELECT
   p.id,
   p.username,
   p.avatar_url,
@@ -26,17 +45,18 @@ select
     p.focus_score,
     p.cfop_spatial_record,
     p.last_active_date
-  ) as cognitive_index
-from public.profiles p
-where not p.flagged;
+  ) AS cognitive_index
+FROM public.profiles p
+WHERE COALESCE(p.flagged, false) = false;
 
 -- Grant access to the view
-grant select on public.public_leaderboard to authenticated, anon;
+GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 
 /* -----------------------------------------------------------------------------
    [2/43] File: 20260910000003_alert_engine.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260910000003_alert_engine.sql
 -- ==============================================================================
@@ -153,6 +173,7 @@ $$;
    [3/43] File: 20260910000004_stats_epoch.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260910000004_stats_epoch.sql
 -- ==============================================================================
@@ -226,6 +247,7 @@ $$;
    [4/43] File: 20260910000005_drop_http_metrics_raw.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260910000005_drop_http_metrics_raw.sql
 -- ==============================================================================
@@ -286,6 +308,7 @@ DROP TABLE IF EXISTS public.http_metrics_raw;
    [5/43] File: 20260910000006_ticket_pool_jobs.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260910000006_ticket_pool_jobs.sql
 -- ==============================================================================
@@ -332,6 +355,7 @@ $$;
    [6/43] File: 20260910000007_reject_rate.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260910000007_reject_rate.sql
 -- ==============================================================================
@@ -1514,37 +1538,62 @@ $$;
    [12/43] File: 20260918000001_phase12_decay_db.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260918000001_phase12_decay_db.sql
 -- ==============================================================================
 
-SET lock_timeout = '2s';
-
--- 1. Hàm tính effective_rating với decay
+-- 1. Hàm tính effective_rating với decay (hỗ trợ double precision / numeric)
 CREATE OR REPLACE FUNCTION public.effective_rating(
-  p_current_score int,
-  p_peak_score int,
-  p_idle_days float
-) RETURNS int
-LANGUAGE plpgsql IMMUTABLE AS $$
+  p_current_score double precision,
+  p_peak_score integer,
+  p_idle_days double precision
+)
+RETURNS integer
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
 DECLARE
-  v_floor int;
-  v_decay int;
+  v_current double precision := COALESCE(p_current_score, 0);
+  v_peak double precision := COALESCE(p_peak_score, 0)::double precision;
+  v_idle double precision := GREATEST(COALESCE(p_idle_days, 0), 0);
+  v_floor integer;
+  v_decay integer;
 BEGIN
-  -- Trục 35% của đỉnh là giá trị tối thiểu không bao giờ thủng
-  v_floor := floor(p_peak_score * 0.35);
-  IF p_current_score <= v_floor THEN
-    RETURN p_current_score;
+  -- Không giảm thấp hơn 35% điểm đỉnh
+  v_floor := FLOOR(v_peak * 0.35)::integer;
+
+  IF v_current <= v_floor THEN
+    RETURN ROUND(v_current)::integer;
   END IF;
-  
-  IF p_idle_days <= 14 THEN
-    RETURN p_current_score;
+
+  IF v_idle <= 14 THEN
+    RETURN ROUND(v_current)::integer;
   END IF;
-  
-  -- Mỗi ngày giảm 1%, tính từ ngày 15
-  v_decay := floor(p_current_score * ((p_idle_days - 14) * 0.01));
-  RETURN GREATEST(v_floor, p_current_score - v_decay);
+
+  -- Từ ngày 15 trở đi giảm 1% mỗi ngày
+  v_decay := FLOOR(
+    v_current * ((v_idle - 14) * 0.01)
+  )::integer;
+
+  RETURN GREATEST(
+    v_floor,
+    ROUND(v_current - v_decay)::integer
+  );
 END;
+$$;
+
+-- Overload hỗ trợ numeric
+CREATE OR REPLACE FUNCTION public.effective_rating(
+  p_current_score numeric,
+  p_peak_score numeric,
+  p_idle_days numeric
+)
+RETURNS integer
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT public.effective_rating(p_current_score::double precision, p_peak_score::integer, p_idle_days::double precision);
 $$;
 
 -- 2. Hàm tính cognitive_index dưới DB
@@ -1576,22 +1625,23 @@ BEGIN
 END;
 $$;
 
--- 3. Cập nhật trigger hoặc view cho leaderboard
-CREATE OR REPLACE VIEW public.friend_leaderboard AS
+-- 3. Cập nhật view cho friend_leaderboard
+DROP VIEW IF EXISTS public.friend_leaderboard;
+CREATE VIEW public.friend_leaderboard AS
 SELECT 
   p.id,
   p.username,
   p.avatar_url,
   p.total_xp,
   public.compute_cognitive_index(
-    public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
-    public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
-    public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
-    public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
-    public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400)
+    public.effective_rating(p.focus_score, p.peak_rating_focus, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.speed_score, p.peak_rating_speed, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.memory_score, p.peak_rating_memory, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision)
   ) as cognitive_index
 FROM public.profiles p
-WHERE p.role = 'user'; -- Không tính guest
+WHERE p.role = 'user';
 
 /* -----------------------------------------------------------------------------
    [13/43] File: 20260918000002_phase12_age_gate.sql
@@ -1611,6 +1661,8 @@ CHECK (birth_year IS NULL OR birth_year <= extract(year from now())::int - 13);
 /* -----------------------------------------------------------------------------
    [14/43] File: 20260925000000_phase13_ai_audit_part2.sql
    ----------------------------------------------------------------------------- */
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS rating_model_version integer NOT NULL DEFAULT 1;
 
 -- ==============================================================================
 -- 20260925000000_phase13_ai_audit_part2.sql
@@ -1695,7 +1747,7 @@ BEGIN
       WHERE e.created_at >= coalesce(p2.stats_epoch, '1970-01-01'::timestamptz)
       GROUP BY 1
     ) x ON x.user_id = p.id 
-    WHERE coalesce(p.total_xp, 0) <> coalesce(x.s, 0);
+    WHERE coalesce(p.total_xp, p.level, 0) <> coalesce(x.s, 0);
 
     IF v_mismatches > 0 THEN
       PERFORM public.trigger_alert('xp_ledger_mismatch', 'P1', format('Found %s users with mismatched XP!', v_mismatches));
@@ -1770,16 +1822,56 @@ $$;
 
 
 -- 4. Create profiles_decayed view as single source of truth for UI
-CREATE OR REPLACE VIEW public.profiles_decayed AS
+DROP VIEW IF EXISTS public.profiles_decayed CASCADE;
+CREATE VIEW public.profiles_decayed AS
 SELECT 
-  p.id, p.username, p.avatar_url, p.role, p.birth_year, p.total_xp, p.last_active_date,
-  p.schulte_sessions, p.sudoku_sessions, p.stroop_sessions, p.reaction_sessions, p.memory_sessions, p.nback_sessions, p.math_sessions, p.gonogo_sessions, p.mental_sessions, p.corsi_sessions, p.trail_sessions, p.search_sessions, p.created_at, p.synapse_streak, p.peak_rating_logic, p.peak_rating_focus, p.peak_rating_speed, p.peak_rating_memory, p.peak_rating_spatial, p.stats_epoch, p.is_adult, p.rating_model_version, p.flagged,
+  p.id, 
+  p.username, 
+  p.avatar_url, 
+  p.role, 
+  p.birth_year, 
+  p.total_xp, 
+  p.level, 
+  p.last_active_date,
+  p.schulte_sessions, 
+  p.sudoku_sessions, 
+  p.stroop_sessions, 
+  p.reaction_sessions, 
+  p.memory_sessions, 
+  p.nback_sessions, 
+  p.math_sessions, 
+  p.gonogo_sessions, 
+  p.mental_sessions, 
+  p.corsi_sessions, 
+  p.trail_sessions, 
+  p.search_sessions, 
+  p.created_at, 
+  p.synapse_streak, 
+  p.peak_rating_logic, 
+  p.peak_rating_focus, 
+  p.peak_rating_speed, 
+  p.peak_rating_memory, 
+  p.peak_rating_spatial, 
+  p.stats_epoch, 
+  p.is_adult, 
+  p.rating_model_version, 
+  p.flagged,
   public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as focus_score,
   public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as speed_score,
   public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as memory_score,
   public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as spatial_score,
   public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as algebraic_logic_score,
-  public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as cfop_spatial_record
+  public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as cfop_spatial_record,
+  LEAST(
+    ROUND((
+      COALESCE(public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0) +
+      COALESCE(public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400), 0)
+    ) / 5.0)::integer,
+    (COALESCE(p.schulte_sessions, 0) + COALESCE(p.sudoku_sessions, 0) + COALESCE(p.stroop_sessions, 0) + COALESCE(p.reaction_sessions, 0) + COALESCE(p.memory_sessions, 0) + COALESCE(p.nback_sessions, 0) + COALESCE(p.math_sessions, 0) + COALESCE(p.gonogo_sessions, 0) + COALESCE(p.mental_sessions, 0) + COALESCE(p.corsi_sessions, 0) + COALESCE(p.trail_sessions, 0) + COALESCE(p.search_sessions, 0)) * 25
+  ) as cognitive_index
 FROM public.profiles p;
 
 -- Allow authenticated users to query the view
@@ -1808,8 +1900,8 @@ BEGIN
          count(case when latency <= 2000 then 1 end),
          count(case when latency <= 5000 then 1 end)
   INTO v_total, b100, b500, b1000, b2000, b5000
-  FROM public.http_metrics_raw
-  WHERE created_at > now() - interval '15 minutes';
+  FROM public.http_metrics_minute
+  WHERE window_start > now() - interval '15 minutes';
 
   IF v_total = 0 THEN
     v_p95 := 0;
@@ -1853,6 +1945,7 @@ $$;
    [15/43] File: 20260926000000_phase15_ai_audit_part3.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260926000000_phase15_ai_audit_part3.sql
 -- ==============================================================================
@@ -1876,7 +1969,8 @@ EXECUTE FUNCTION public.check_min_age();
 
 -- 2. P2/P3: Exclude guests from public leaderboard
 -- We also ensure it queries from profiles_decayed (the new Single Source of Truth)
-CREATE OR REPLACE VIEW public.public_leaderboard AS
+DROP VIEW IF EXISTS public.public_leaderboard;
+CREATE VIEW public.public_leaderboard AS
 SELECT
   p.id,
   p.username,
@@ -2306,19 +2400,23 @@ $$;
 
 -- We already have the cron job schedule, just make sure we update it to every minute instead of 5 minutes.
 -- Because pg_cron extensions might not be active in local migrations, we wrap it in a DO block.
-DO $$
+DO $do$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.unschedule('top_up_ticket_pool');
-    PERFORM cron.schedule('top_up_ticket_pool', '* * * * *', $$SELECT public.top_up_ticket_pool()$$);
+    PERFORM cron.schedule(
+      'top_up_ticket_pool',
+      '* * * * *',
+      $job$SELECT public.top_up_ticket_pool()$job$
+    );
   END IF;
 END;
-$$;
+$do$;
 
 /* -----------------------------------------------------------------------------
    [17/43] File: 20260927010000_phase17_population_stats_guest.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 CREATE OR REPLACE FUNCTION public.get_population_stats(p_min_rounds integer default 5)
 RETURNS table(mean double precision, sd double precision, n bigint)
 LANGUAGE sql
@@ -2356,6 +2454,7 @@ $$;
    [18/43] File: 20260927020000_phase18_needs_rescore.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- migration
 ALTER TABLE training_sessions
   ADD COLUMN IF NOT EXISTS needs_rescore boolean NOT NULL DEFAULT false;
@@ -2366,7 +2465,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_needs_rescore
    [19/43] File: 20260927030000_phase19_histogram_p95.sql
    ----------------------------------------------------------------------------- */
 
-CREATE OR REPLACE FUNCTION public.histogram_p95(
+SET lock_timeout = '2s';
+﻿CREATE OR REPLACE FUNCTION public.histogram_p95(
   b100 bigint, b300 bigint, b500 bigint,
   b800 bigint, b2000 bigint, total bigint
 ) RETURNS numeric LANGUAGE plpgsql IMMUTABLE AS $$
@@ -2385,6 +2485,7 @@ END $$;
    [20/43] File: 20260927040000_phase20_fp_rate.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 CREATE TABLE IF NOT EXISTS public.cheat_flag_review_queue (
   flag_id uuid PRIMARY KEY REFERENCES public.cheat_flags(id) ON DELETE CASCADE,
   sampled_at timestamptz NOT NULL DEFAULT now(),
@@ -2418,7 +2519,8 @@ SELECT cron.schedule(
    [21/43] File: 20260927050000_phase21_strict_profile_rpc.sql
    ----------------------------------------------------------------------------- */
 
-BEGIN;
+SET lock_timeout = '2s';
+﻿BEGIN;
 REVOKE UPDATE ON TABLE public.profiles FROM authenticated, anon;
 
 CREATE OR REPLACE FUNCTION public.set_my_birth_year(p_birth_year smallint) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
@@ -2447,6 +2549,11 @@ COMMIT;
 /* -----------------------------------------------------------------------------
    [22/43] File: 20260927060000_phase22_idempotency_and_ledger.sql
    ----------------------------------------------------------------------------- */
+
+SET lock_timeout = '2s';
+ALTER TABLE public.xp_events 
+  ADD COLUMN IF NOT EXISTS event_type text DEFAULT 'round_award',
+  ADD COLUMN IF NOT EXISTS round_id uuid;
 
 BEGIN;
 
@@ -2562,7 +2669,8 @@ COMMIT;
    [23/43] File: 20260927070000_phase23_offline_sync_rpc.sql
    ----------------------------------------------------------------------------- */
 
-BEGIN;
+SET lock_timeout = '2s';
+﻿BEGIN;
 CREATE OR REPLACE FUNCTION public.submit_offline_round_tx(
   p_user_id uuid,
   p_client_round_id text,
@@ -2627,7 +2735,8 @@ COMMIT;
    [24/43] File: 20260927080000_phase24_offline_practice.sql
    ----------------------------------------------------------------------------- */
 
--- Phase 24: Offline Practice
+SET lock_timeout = '2s';
+﻿-- Phase 24: Offline Practice
 
 BEGIN;
 CREATE OR REPLACE FUNCTION public.submit_round_transaction(
@@ -2818,7 +2927,8 @@ COMMIT;
    [25/43] File: 20260927090000_phase25_admin_reset_stats_atomicity.sql
    ----------------------------------------------------------------------------- */
 
--- Phase 25: Admin Mutation Atomicity
+SET lock_timeout = '2s';
+﻿-- Phase 25: Admin Mutation Atomicity
 
 BEGIN;
 
@@ -2908,6 +3018,7 @@ COMMIT;
    [26/43] File: 20260927100000_phase26_security_hardening.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- Phase 26: SECURITY DEFINER Hardening and Player Search Privacy
 
 BEGIN;
@@ -2997,85 +3108,41 @@ COMMIT;
    [27/43] File: 20260927110000_phase27_session_versioning.sql
    ----------------------------------------------------------------------------- */
 
-믯쎿슯슿쎽슯슿ⶽⴀ 倀栀愀猀攀 ㈀㜀㨀 匀攀猀猀椀漀渀 嘀攀爀猀椀漀渀椀渀最ഀ
-਍䈀䔀䜀䤀一㬀ഀ
-਍ⴀⴀ ㄀⸀ 䄀搀搀 爀愀琀椀渀最开洀漀搀攀氀开瘀攀爀猀椀漀渀 琀漀 瀀爀漀昀椀氀攀猀ഀ
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS rating_model_version integer DEFAULT 1 NOT NULL;਍ഀ
--- 2. Update population stats to filter by model version਍䌀刀䔀䄀吀䔀 伀刀 刀䔀倀䰀䄀䌀䔀 䘀唀一䌀吀䤀伀一 瀀甀戀氀椀挀⸀最攀琀开瀀漀瀀甀氀愀琀椀漀渀开猀琀愀琀猀⠀ഀ
-  p_min_rounds integer default 5,਍  瀀开洀漀搀攀氀开瘀攀爀猀椀漀渀 椀渀琀攀最攀爀 搀攀昀愀甀氀琀 ㄀ഀ
-)਍刀䔀吀唀刀一匀 琀愀戀氀攀⠀洀攀愀渀 搀漀甀戀氀攀 瀀爀攀挀椀猀椀漀渀Ⰰ 猀搀 搀漀甀戀氀攀 瀀爀攀挀椀猀椀漀渀Ⰰ 渀 戀椀最椀渀琀⤀ഀ
-LANGUAGE sql਍匀吀䄀䈀䰀䔀ഀ
-SECURITY DEFINER਍匀䔀吀 猀攀愀爀挀栀开瀀愀琀栀 㴀 ✀✀ഀ
-AS $body$਍  圀䤀吀䠀 挀愀氀椀戀爀愀琀攀搀 䄀匀 ⠀ഀ
-    SELECT cognitive_index as idx਍    䘀刀伀䴀 瀀甀戀氀椀挀⸀瀀爀漀昀椀氀攀猀开搀攀挀愀礀攀搀ഀ
-    WHERE NOT flagged AND role != 'guest'਍      䄀一䐀 爀愀琀椀渀最开洀漀搀攀氀开瘀攀爀猀椀漀渀 㴀 挀漀愀氀攀猀挀攀⠀瀀开洀漀搀攀氀开瘀攀爀猀椀漀渀Ⰰ ㄀⤀ഀ
-      AND (਍        挀漀愀氀攀猀挀攀⠀猀挀栀甀氀琀攀开猀攀猀猀椀漀渀猀Ⰰ 　⤀ഀ
-        + coalesce(sudoku_sessions, 0)਍        ⬀ 挀漀愀氀攀猀挀攀⠀猀琀爀漀漀瀀开猀攀猀猀椀漀渀猀Ⰰ 　⤀ഀ
-        + coalesce(reaction_sessions, 0)਍        ⬀ 挀漀愀氀攀猀挀攀⠀洀攀洀漀爀礀开猀攀猀猀椀漀渀猀Ⰰ 　⤀ഀ
-        + coalesce(nback_sessions, 0)਍        ⬀ 挀漀愀氀攀猀挀攀⠀洀愀琀栀开猀攀猀猀椀漀渀猀Ⰰ 　⤀ഀ
-        + coalesce(gonogo_sessions, 0)਍        ⬀ 挀漀愀氀攀猀挀攀⠀洀攀渀琀愀氀开猀攀猀猀椀漀渀猀Ⰰ 　⤀ഀ
-        + coalesce(corsi_sessions, 0)਍        ⬀ 挀漀愀氀攀猀挀攀⠀琀爀愀椀氀开猀攀猀猀椀漀渀猀Ⰰ 　⤀ഀ
-        + coalesce(search_sessions, 0)਍      ⤀ 㸀㴀 挀漀愀氀攀猀挀攀⠀瀀开洀椀渀开爀漀甀渀搀猀Ⰰ 㔀⤀ഀ
-  )਍  匀䔀䰀䔀䌀吀 ഀ
-    coalesce(avg(idx), 380) as mean,਍    挀漀愀氀攀猀挀攀⠀猀琀搀搀攀瘀开猀愀洀瀀⠀椀搀砀⤀Ⰰ ㄀㠀　⤀ 愀猀 猀搀Ⰰഀ
-    count(*) as n਍  䘀刀伀䴀 挀愀氀椀戀爀愀琀攀搀㬀ഀ
-$body$;਍ഀ
--- Update signatures to accept p_scorer_version, they already do in DB but we update them਍ⴀⴀ 䄀挀琀甀愀氀氀礀Ⰰ 眀愀椀琀⸀ 䤀 眀椀氀氀 樀甀猀琀 爀攀搀攀昀椀渀攀 猀甀戀洀椀琀开爀漀甀渀搀开琀爀愀渀猀愀挀琀椀漀渀 愀渀搀 猀甀戀洀椀琀开漀昀昀氀椀渀攀开爀漀甀渀搀开琀砀 琀漀 琀愀欀攀 瀀开猀挀漀爀攀爀开瘀攀爀猀椀漀渀 愀渀搀 猀攀琀 椀琀⸀ഀ
--- But since they are complex, I'll extract them from phase24 / phase23 and inject the param.਍ഀ
-CREATE OR REPLACE FUNCTION public.submit_round_transaction(
-  p_user_id uuid,
-  p_ticket_id uuid,
-  p_game text,
-  p_axes jsonb,
-  p_round_score integer,
-  p_label text default null,
-  p_time_ms integer default 0,
-  p_telemetry_version integer default null,
-  p_scorer_version text default null,
-  p_inspector_version integer default null,
-  p_occurred_at timestamptz default null,
-  p_provenance text default 'online',
-  p_scorer_version integer default 1,
-  p_shared_inspector_version integer default null
+SET lock_timeout = '2s';
+-- ==============================================================================
+-- 20260927110000_phase27_session_versioning.sql
+-- ==============================================================================
+
+-- 1. Ensure rating_model_version column exists on profiles
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS rating_model_version integer NOT NULL DEFAULT 1;
+
+-- 2. Update get_population_stats to filter by model version
+CREATE OR REPLACE FUNCTION public.get_population_stats(
+  p_min_rounds integer default 5,
+  p_rating_model_version integer default 1
 )
-RETURNS jsonb
-LANGUAGE plpgsql
+RETURNS table(mean double precision, sd double precision, n bigint)
+LANGUAGE sql
 SECURITY DEFINER
-SET search_path = ''
-AS $
-DECLARE
-  v_ticket public.round_tickets%rowtype;
+SET search_path = public
+AS $body$
+  SELECT 
+    coalesce(avg(cognitive_index), 500)::double precision as mean,
+    coalesce(stddev_pop(cognitive_index), 100)::double precision as sd,
+    count(*)::bigint as n
+  FROM public.profiles
+  WHERE (schulte_sessions + sudoku_sessions + stroop_sessions + reaction_sessions + memory_sessions + nback_sessions + math_sessions + gonogo_sessions + mental_sessions + corsi_sessions + trail_sessions + search_sessions) >= p_min_rounds
+    AND rating_model_version = p_rating_model_version;
+$body$;
 
-
-CREATE OR REPLACE FUNCTION public.submit_offline_round_tx(
-  p_user_id uuid,
-  p_client_round_id text,
-  p_game text,
-  p_started_at timestamptz,
-  p_axes jsonb,
-  p_round_score integer,
-  p_label text,
-  p_time_ms integer,
-  p_is_hard_cheat boolean,
-  p_cheat_reasons jsonb,
-  p_scorer_version integer default null
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $
-DECLARE
-  v_ticket_id uuid;
-
-
-COMMIT;਍ഀ
-਍
+GRANT EXECUTE ON FUNCTION public.get_population_stats(integer, integer) TO authenticated, anon;
 
 /* -----------------------------------------------------------------------------
    [28/43] File: 20260927120000_phase28_p0_rls_columns.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 BEGIN;
 
 -- 1. Revoke global UPDATE on profiles from anon and authenticated
@@ -3090,17 +3157,18 @@ COMMIT;
    [29/43] File: 20260927130000_phase29_p0_idempotency_locks.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 BEGIN;
 
 -- 1. Thêm các Unique Constraints để tránh race conditions (lost-update, duplicated rewards)
-ALTER TABLE public.round_tickets ADD CONSTRAINT round_tickets_user_client_round_unique UNIQUE (user_id, client_round_id);
+-- duplicate constraint removed
 
 -- Lưu ý: Nếu round_id chưa tồn tại trên training_sessions thì thêm, nhưng mặc định training_sessions sinh id uuid nên round_id chính là id. 
 -- Giả sử ID của ticket chính là round_id của training_sessions thì:
 -- Wait, in training_sessions, round_tickets id = round_id? 
 -- The table might not have round_id, it just has id. Actually let's check schema.
 -- I'll use the unique constraint mentioned by the reviewer.
-ALTER TABLE public.training_sessions ADD CONSTRAINT training_sessions_round_unique UNIQUE (id);
+-- redundant unique constraint on PK removed
 
 CREATE UNIQUE INDEX IF NOT EXISTS xp_events_round_award_unique ON public.xp_events (round_id) WHERE event_type = 'round_award';
 
@@ -3129,6 +3197,7 @@ COMMIT;
    [30/43] File: 20260927140000_phase30_guest_upgrade.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 BEGIN;
 
 -- 1. Create upgrade_operations table for the state machine
@@ -3185,6 +3254,7 @@ COMMIT;
    [31/43] File: 20260927160001_phase32_manual_reviews.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.manual_reviews (
@@ -3224,6 +3294,7 @@ COMMIT;
    [32/43] File: 20260927160002_phase35_final_ai_review.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 BEGIN;
 
 -- ==============================================================================
@@ -3440,6 +3511,7 @@ COMMIT;
    [33/43] File: 20260927170000_phase36_submit_round_idempotency.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 BEGIN;
 
 -- Add submitted_at to round_tickets if not exists to track exact consumption
@@ -3661,6 +3733,10 @@ COMMIT;
    [34/43] File: 20260927180000_phase37_offline_tx.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
+DROP FUNCTION IF EXISTS public.record_cheat_flag(uuid, text, text, text, jsonb, uuid);
+DROP FUNCTION IF EXISTS public.record_cheat_flag(uuid, text, text, text, jsonb);
+
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.submit_offline_round_tx(
@@ -3747,6 +3823,7 @@ COMMIT;
    [35/43] File: 20260928120000_phase28_histogram_p95.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- Migration: phase28_histogram_p95
 -- Description: Create shared function for p95 calculation
 
@@ -3769,6 +3846,7 @@ END $$;
    [36/43] File: 20260928130000_phase40_iter11_contracts.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- Migration: Iteration 11 Contract Drifts
 -- Phase 40
 
@@ -3787,7 +3865,7 @@ REVOKE UPDATE (username, birth_year, avatar_url) ON TABLE public.profiles FROM a
 GRANT UPDATE (username, birth_date, avatar_url) ON TABLE public.profiles TO authenticated;
 
 -- Drop old column (optional, can be done later, but we drop it now)
-ALTER TABLE public.profiles DROP COLUMN IF EXISTS birth_year;
+-- Keep birth_year for backward compatibility during expand-contract phase
 
 -- 2. Round Tickets: Version Pinning and State
 ALTER TABLE public.round_tickets
@@ -3904,6 +3982,7 @@ GRANT EXECUTE ON FUNCTION public.finalize_guest_upgrade_tx TO service_role;
    [37/43] File: 20260928140000_phase40_iter13_fixes.sql
    ----------------------------------------------------------------------------- */
 
+SET lock_timeout = '2s';
 -- Iteration 13 Fixes
 
 -- 1. Modify cheat_flags table
@@ -4244,7 +4323,7 @@ SET lock_timeout = '2s';
 -- 1. Add event_type to xp_events
 ALTER TABLE public.xp_events
   ADD COLUMN IF NOT EXISTS event_type text NOT NULL DEFAULT 'online_round'
-  CHECK (event_type IN ('online_round', 'offline_practice', 'quest', 'achievement', 'admin_grant'));
+  CHECK (event_type IN ('online_round', 'offline_practice', 'quest', 'achievement', 'admin_grant', 'round_award'));
 
 -- Update existing offline rounds
 UPDATE public.xp_events xe

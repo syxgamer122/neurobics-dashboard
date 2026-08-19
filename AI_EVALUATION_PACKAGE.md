@@ -1,14 +1,13 @@
-# TAI LIEU TONG HOP DONG BO VOI DOCS (CHO AI DANH GIA)
+# TAI LIEU TONG HOP DONG BO VOI DOCS (CAP NHAT MOI NHAT CHO AI DANH GIA)
 
 > File nay duoc tong hop truc tiep tu cac file tai lieu trong thu muc docs/ va 43 file migration SQL dang cho day vao Supabase Production.
 
-## 1. BOI CANH DATABASE VA CAC LOI VUA GAP
-- Remote Database ban dau duoc tao thu cong tren Supabase SQL Editor.
-- Cac migration ban dau da duoc ap dung / danh dau baseline.
-- Hien co 43 file migration (tu 20260910000002_public_leaderboard.sql den 20260929000006_phase43_practice_sessions.sql) dang can duoc chay.
-- Bang public.profiles tren Database that co cac cot: id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, total_xp, last_active_date, 12 cot session counters, created_at.
-- LUU Y CAC COT KHONG TON TAI TREN PROFILES: level, spatial_score (ten that la cfop_spatial_record), lang, locale.
-- Loi vua gap: 20260910000002_public_leaderboard.sql bao loi: column p.level does not exist.
+## 1. BOI CANH DATABASE & TIEN DO MIGRATION HIEN TAI
+- Database Remote da apply thanh cong tat ca migration den truoc 20260910000002_public_leaderboard.sql.
+- Hien tai con dung 43 file migration (tu 20260910000002 den 20260929000006) dang can chay.
+- Bang public.profiles tren Database that co cac cot: id, username, avatar_url, role, birth_year, algebraic_logic_score, memory_score, speed_score, focus_score, cfop_spatial_record, total_xp, last_active_date, 12 cot session counters, created_at, level, rating_model_version.
+- LUU Y CAC COT KHONG TON TAI TREN PROFILES: spatial_score (ten that la cfop_spatial_record), lang, locale.
+- Cac fix vua thuc hien: level & rating_model_version da duoc them, effective_rating da duoc sua sang nhan double precision/numeric, DROP VIEW IF EXISTS da duoc bo sung truoc moi view.
 
 ## 2. NGUYEN TAC KIEN TRUC (DOCS/ARCHITECTURE-CONTRACTS.MD)
 # System Architecture Contracts
@@ -476,5 +475,5 @@ that, de nguoi doc sau hieu tai sao.
 5. **Sao luu truoc thay doi lon.** Supabase Dashboard > Database > Backups.
 
 
-## 6. DANH SACH 43 MIGRATION CHUA CHAY
-> Xem chi tiet toan bo code SQL cua 43 file tai: ALL_PENDING_MIGRATIONS.sql
+## 6. TOAN BO CODE 43 MIGRATION CHUA CHAY
+> Xem chi tiet toan bo code SQL cua 43 file da duoc cap nhat day du tai: ALL_PENDING_MIGRATIONS.sql
