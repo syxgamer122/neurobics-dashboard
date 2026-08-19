@@ -71,5 +71,13 @@
   },
   "workspaces": [
     "."
-  ]
+  ],
+  "resolutions": {
+    "vitest": "^3.2.6",
+    "nanoid": "^3.3.18"
+  },
+  "overrides": {
+    "vitest": "^3.2.6",
+    "nanoid": "^3.3.18"
+  }
 }
