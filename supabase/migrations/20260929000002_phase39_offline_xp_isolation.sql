@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- AI Review Phase 39: Offline XP Isolation
 
 -- 1. Add event_type to xp_events

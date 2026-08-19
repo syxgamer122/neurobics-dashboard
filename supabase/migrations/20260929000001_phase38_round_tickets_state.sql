@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- AI Review Phase 38: Round Tickets State Machine & Server-bound Config
 
 -- 1. Add Config & Seed columns

@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 ﻿-- AI Review: Make admin_reset_stats increment stats_generation
 CREATE OR REPLACE FUNCTION public.admin_reset_stats_tx(
   p_target uuid,
