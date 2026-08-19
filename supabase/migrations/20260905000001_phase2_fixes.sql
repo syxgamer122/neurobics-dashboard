@@ -31,28 +31,28 @@ AS $$
     -- Math.round((speed + focus + logic + memory + spatial) / 5)
     ROUND(
       (
-        COALESCE(p.speed_score, 0) + 
-        COALESCE(p.focus_score, 0) + 
-        COALESCE(p.algebraic_logic_score, 0) + 
-        COALESCE(p.memory_score, 0) + 
-        COALESCE(p.spatial_score, 0)
+        COALESCE((p).speed_score, 0) + 
+        COALESCE((p).focus_score, 0) + 
+        COALESCE((p).algebraic_logic_score, 0) + 
+        COALESCE((p).memory_score, 0) + 
+        COALESCE((p).spatial_score, 0)
       ) / 5.0
     )::integer,
     
     -- Cap by total_sessions * 25
     (
-      COALESCE(p.schulte_sessions, 0) +
-      COALESCE(p.sudoku_sessions, 0) +
-      COALESCE(p.stroop_sessions, 0) +
-      COALESCE(p.reaction_sessions, 0) +
-      COALESCE(p.memory_sessions, 0) +
-      COALESCE(p.nback_sessions, 0) +
-      COALESCE(p.math_sessions, 0) +
-      COALESCE(p.gonogo_sessions, 0) +
-      COALESCE(p.mental_sessions, 0) +
-      COALESCE(p.corsi_sessions, 0) +
-      COALESCE(p.trail_sessions, 0) +
-      COALESCE(p.search_sessions, 0)
+      COALESCE((p).schulte_sessions, 0) +
+      COALESCE((p).sudoku_sessions, 0) +
+      COALESCE((p).stroop_sessions, 0) +
+      COALESCE((p).reaction_sessions, 0) +
+      COALESCE((p).memory_sessions, 0) +
+      COALESCE((p).nback_sessions, 0) +
+      COALESCE((p).math_sessions, 0) +
+      COALESCE((p).gonogo_sessions, 0) +
+      COALESCE((p).mental_sessions, 0) +
+      COALESCE((p).corsi_sessions, 0) +
+      COALESCE((p).trail_sessions, 0) +
+      COALESCE((p).search_sessions, 0)
     ) * 25
   );
 $$;
