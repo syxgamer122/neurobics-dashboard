@@ -12,8 +12,8 @@ ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS birth_year_min_age;
 ALTER TABLE public.profiles ADD CONSTRAINT birth_date_min_age CHECK (birth_date IS NULL OR birth_date <= current_date - interval '16 years');
 
 -- Update RLS to allow updating birth_date instead of birth_year
-REVOKE UPDATE (username, birth_year, avatar_url, locale) ON TABLE public.profiles FROM authenticated;
-GRANT UPDATE (username, birth_date, avatar_url, locale) ON TABLE public.profiles TO authenticated;
+REVOKE UPDATE (username, birth_year, avatar_url) ON TABLE public.profiles FROM authenticated;
+GRANT UPDATE (username, birth_date, avatar_url) ON TABLE public.profiles TO authenticated;
 
 -- Drop old column (optional, can be done later, but we drop it now)
 ALTER TABLE public.profiles DROP COLUMN IF EXISTS birth_year;
