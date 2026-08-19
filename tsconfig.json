@@ -26,7 +26,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
 
     // Chi kiem tra, khong xuat file. Vite lo phan build.
     "noEmit": true,
