@@ -35,7 +35,7 @@ AS $$
         COALESCE((p).focus_score, 0) + 
         COALESCE((p).algebraic_logic_score, 0) + 
         COALESCE((p).memory_score, 0) + 
-        COALESCE((p).spatial_score, 0)
+        COALESCE((p).cfop_spatial_record, 0)
       ) / 5.0
     )::integer,
     
@@ -65,7 +65,6 @@ SELECT
     username,
     avatar_url,
     total_xp,
-    spatial_score,
     algebraic_logic_score,
     memory_score,
     speed_score,

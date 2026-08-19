@@ -42,7 +42,6 @@ BEGIN
     focus_score = COALESCE((p_patch->>'focus_score')::int, focus_score),
     speed_score = COALESCE((p_patch->>'speed_score')::int, speed_score),
     memory_score = COALESCE((p_patch->>'memory_score')::int, memory_score),
-    spatial_score = COALESCE((p_patch->>'spatial_score')::int, spatial_score),
     algebraic_logic_score = COALESCE((p_patch->>'algebraic_logic_score')::int, algebraic_logic_score),
     cfop_spatial_record = COALESCE((p_patch->>'cfop_spatial_record')::int, cfop_spatial_record)
   WHERE id = p_target_id
@@ -164,7 +163,7 @@ SELECT
   public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as focus_score,
   public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as speed_score,
   public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as memory_score,
-  public.effective_rating(p.spatial_score, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as spatial_score,
+  public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as spatial_score,
   public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as algebraic_logic_score,
   public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400) as cfop_spatial_record
 FROM public.profiles p;

@@ -11,7 +11,6 @@ SELECT
     username,
     avatar_url,
     total_xp,
-    spatial_score,
     algebraic_logic_score,
     memory_score,
     speed_score,

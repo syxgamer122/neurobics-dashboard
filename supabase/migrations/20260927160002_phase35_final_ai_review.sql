@@ -128,7 +128,7 @@ BEGIN
       v_patch := jsonb_set(v_patch, '{focus}', p_axes->'focus');
     END IF;
     IF p_axes ? 'spatial' THEN
-      UPDATE public.profiles SET spatial_score = CASE WHEN p_axes_mode = 'set' THEN (p_axes->>'spatial')::integer ELSE coalesce(spatial_score, 0) + (p_axes->>'spatial')::integer END WHERE id = p_target_id;
+      
       v_patch := jsonb_set(v_patch, '{spatial}', p_axes->'spatial');
     END IF;
     IF p_axes ? 'logic' THEN
@@ -173,7 +173,6 @@ BEGIN
     synapse_streak = 0,
     speed_score = null,
     focus_score = null,
-    spatial_score = null,
     algebraic_logic_score = null,
     memory_score = null,
     peak_rating_speed = 0,

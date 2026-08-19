@@ -71,7 +71,7 @@ SELECT
     public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
     public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
     public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
-    public.effective_rating(p.spatial_score, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
+    public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400),
     public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_played_at, now()))) / 86400)
   ) as cognitive_index
 FROM public.profiles p
