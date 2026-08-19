@@ -1,34 +1,59 @@
+SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260918000001_phase12_decay_db.sql
 -- ==============================================================================
 
-SET lock_timeout = '2s';
-
--- 1. Hàm tính effective_rating với decay
+-- 1. Hàm tính effective_rating với decay (hỗ trợ double precision / numeric)
 CREATE OR REPLACE FUNCTION public.effective_rating(
-  p_current_score int,
-  p_peak_score int,
-  p_idle_days float
-) RETURNS int
-LANGUAGE plpgsql IMMUTABLE AS $$
+  p_current_score double precision,
+  p_peak_score integer,
+  p_idle_days double precision
+)
+RETURNS integer
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
 DECLARE
-  v_floor int;
-  v_decay int;
+  v_current double precision := COALESCE(p_current_score, 0);
+  v_peak double precision := COALESCE(p_peak_score, 0)::double precision;
+  v_idle double precision := GREATEST(COALESCE(p_idle_days, 0), 0);
+  v_floor integer;
+  v_decay integer;
 BEGIN
-  -- Trục 35% của đỉnh là giá trị tối thiểu không bao giờ thủng
-  v_floor := floor(p_peak_score * 0.35);
-  IF p_current_score <= v_floor THEN
-    RETURN p_current_score;
+  -- Không giảm thấp hơn 35% điểm đỉnh
+  v_floor := FLOOR(v_peak * 0.35)::integer;
+
+  IF v_current <= v_floor THEN
+    RETURN ROUND(v_current)::integer;
   END IF;
-  
-  IF p_idle_days <= 14 THEN
-    RETURN p_current_score;
+
+  IF v_idle <= 14 THEN
+    RETURN ROUND(v_current)::integer;
   END IF;
-  
-  -- Mỗi ngày giảm 1%, tính từ ngày 15
-  v_decay := floor(p_current_score * ((p_idle_days - 14) * 0.01));
-  RETURN GREATEST(v_floor, p_current_score - v_decay);
+
+  -- Từ ngày 15 trở đi giảm 1% mỗi ngày
+  v_decay := FLOOR(
+    v_current * ((v_idle - 14) * 0.01)
+  )::integer;
+
+  RETURN GREATEST(
+    v_floor,
+    ROUND(v_current - v_decay)::integer
+  );
 END;
+$$;
+
+-- Overload hỗ trợ numeric
+CREATE OR REPLACE FUNCTION public.effective_rating(
+  p_current_score numeric,
+  p_peak_score numeric,
+  p_idle_days numeric
+)
+RETURNS integer
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT public.effective_rating(p_current_score::double precision, p_peak_score::integer, p_idle_days::double precision);
 $$;
 
 -- 2. Hàm tính cognitive_index dưới DB
@@ -60,19 +85,20 @@ BEGIN
 END;
 $$;
 
--- 3. Cập nhật trigger hoặc view cho leaderboard
-CREATE OR REPLACE VIEW public.friend_leaderboard AS
+-- 3. Cập nhật view cho friend_leaderboard
+DROP VIEW IF EXISTS public.friend_leaderboard;
+CREATE VIEW public.friend_leaderboard AS
 SELECT 
   p.id,
   p.username,
   p.avatar_url,
   p.total_xp,
   public.compute_cognitive_index(
-    public.effective_rating(p.focus_score, p.peak_rating_focus, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400),
-    public.effective_rating(p.speed_score, p.peak_rating_speed, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400),
-    public.effective_rating(p.memory_score, p.peak_rating_memory, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400),
-    public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400),
-    public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400)
+    public.effective_rating(p.focus_score, p.peak_rating_focus, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.speed_score, p.peak_rating_speed, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.memory_score, p.peak_rating_memory, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.cfop_spatial_record, p.peak_rating_spatial, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision),
+    public.effective_rating(p.algebraic_logic_score, p.peak_rating_logic, (EXTRACT(EPOCH FROM (now() - coalesce(p.last_active_date::timestamptz, p.created_at))) / 86400.0)::double precision)
   ) as cognitive_index
 FROM public.profiles p
-WHERE p.role = 'user'; -- Không tính guest
+WHERE p.role = 'user';
