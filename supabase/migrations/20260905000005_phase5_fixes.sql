@@ -37,8 +37,7 @@ EXECUTE FUNCTION public.guard_profile_scores();
 
 -- 2. Offline Sync Idempotency (P0)
 -- Ensure round_tickets has a unique constraint for user_id + client_round_id
-ALTER TABLE public.round_tickets
-ADD CONSTRAINT round_tickets_client_round_uniq UNIQUE (user_id, client_round_id);
+
 
 -- 3. Transactional Admin Audit (P0)
 -- Strict Append-Only for Admin Audit
