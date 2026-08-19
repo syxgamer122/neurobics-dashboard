@@ -1,6 +1,6 @@
-# Adding a game to Mindgem
+# Adding a game to MindGem
 
-Mindgem uses typed registries so a missing integration fails during tests or typecheck instead of appearing later in production.
+MindGem uses typed registries so a missing integration fails during tests or typecheck instead of appearing later in production.
 
 ## 1. Client catalog
 
@@ -30,6 +30,8 @@ Add the id to server `GAME_IDS` in `scoring/core.ts`. The exhaustive `Record<Gam
 ## 4. Anti-cheat and validation
 
 Add an inspector to `GAME_INSPECTORS` in `_shared/anticheat.ts`. The exhaustive registry forces coverage.
+
+Add a Zod telemetry schema to `TelemetrySchema` inside `supabase/functions/_shared/scoring/schema.ts` to strictly validate payload structure from the client.
 
 Add telemetry count/bound checks in `_shared/scoring/validation.ts` when the game has game-specific invariants.
 
@@ -61,13 +63,22 @@ No manual game list is needed. These derive from the client registry:
 
 Add the `tagKey` and `descriptionKey` to both `i18n/vi.ts` and `i18n/en.ts`. The registry parity audit verifies both languages.
 
-## 8. Tests
+## 8. Bump Version Constants
+
+Theo `version-policy.md`, khi thêm game mới hoặc sửa đổi telemetry, bạn BẮT BUỘC phải quản lý phiên bản các hằng số:
+- `SCORERS_BY_VERSION`: Khai báo phiên bản công thức tính điểm cho game mới (`new_game: 1`). **KHÔNG** tăng phiên bản của các game cũ (Per-Scorer Versioning).
+- `INSPECTOR_VERSIONS[game]`: Tăng lên nếu có thay đổi ngưỡng anti-cheat riêng cho game này. Tăng `SHARED_INSPECTOR_VERSION (xem version-policy.md)` nếu đổi luật chung.
+- `TELEMETRY_SCHEMA_VERSION`: Tăng lên nếu shape/dữ liệu của telemetry truyền lên bị thay đổi.
+
+## 9. Tests
 
 Add honest, invalid, exploit and anti-cheat cases to `tests/sim-games.ts`.
 
 Run:
 
 ```powershell
+pnpm run db:lint
+supabase db start
 pnpm run typecheck
 pnpm run scan
 pnpm run test:sim
@@ -84,10 +95,10 @@ pnpm run build
 - exact client/server game-id parity
 - both runtime type guards
 
-## 9. Deploy
+## 10. Deploy
 
-Run the SQL migration first, then deploy the server function:
+Run the SQL migration before deployment, then deploy the server function:
 
 ```powershell
-npx supabase functions deploy server --project-ref pujzeomddvquxeacblvr
+npx supabase functions deploy server --project-ref <YOUR_PROJECT_REF>
 ```

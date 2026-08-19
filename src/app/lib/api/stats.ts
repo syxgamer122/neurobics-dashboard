@@ -6,7 +6,7 @@ import {
   MIN_POPULATION,
   DEFAULT_POPULATION,
   type PopulationStats,
-} from "../scoring";
+} from "../provisional-score";
 import { totalSessions } from "../sessions";
 import {
   getSupabase,
@@ -100,7 +100,7 @@ export async function fetchLeaderboard(): Promise<Profile[]> {
           error.message,
         );
         const fb = await getSupabase()
-          .from("profiles")
+          .from("public_leaderboard")
           .select(LEADERBOARD_COLS)
           .limit(LEADERBOARD_FALLBACK_LIMIT);
         if (fb.error) {
@@ -156,7 +156,7 @@ export async function fetchPopulationStats(): Promise<PopulationStats> {
   );
 
   const fb = await getSupabase()
-    .from("profiles")
+    .from("public_leaderboard")
     .select(LEADERBOARD_COLS)
     .limit(POPULATION_FALLBACK_LIMIT);
 

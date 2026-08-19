@@ -94,10 +94,10 @@ describe("humanizeQuestCode — dich tu cau truc ma", () => {
 
   it("play_<tro>_N voi tro da biet", () => {
     expect(humanizeQuestCode("q_play_schulte_2", "vi")).toBe(
-      "Chơi Schulte 2 ván",
+      "Chơi Schulte Table 2 ván",
     );
     expect(humanizeQuestCode("q_play_schulte_2", "en")).toBe(
-      "Play 2 Schulte rounds",
+      "Play 2 Schulte Table rounds",
     );
     expect(humanizeQuestCode("q_play_math_5", "vi")).toBe(
       "Chơi Math Sprint 5 ván",

@@ -137,13 +137,10 @@ describe("getLevelTitle / getLevelColor", () => {
 });
 
 describe("calculateRoundXp", () => {
-  it("san 15 XP, thuong them 1 XP moi 50 diem", () => {
+  it("rewards score properly with base 15 and max 60", () => {
     expect(calculateRoundXp(0)).toBe(15);
-    expect(calculateRoundXp(49)).toBe(15);
-    expect(calculateRoundXp(50)).toBe(16);
-    expect(calculateRoundXp(250)).toBe(20);
-    expect(calculateRoundXp(500)).toBe(25);
-    expect(calculateRoundXp(999)).toBe(34);
+    expect(calculateRoundXp(500)).toBe(38);
+    expect(calculateRoundXp(1000)).toBe(60);
   });
 
   it("khong bao gio vuot tran moi van", () => {
@@ -152,6 +149,12 @@ describe("calculateRoundXp", () => {
     for (let s = 0; s <= 1000; s += 7) {
       expect(calculateRoundXp(s)).toBeLessThanOrEqual(MAX_XP_PER_ROUND);
     }
+  });
+
+  it("ap dung fatigue khi choi nhieu van trong ngay", () => {
+    expect(calculateRoundXp(1000, 0)).toBe(60);
+    expect(calculateRoundXp(1000, 1)).toBe(51); // 60 * 0.85
+    expect(calculateRoundXp(1000, 10)).toBe(6); // 60 * 0.1 = 6
   });
 
   it("diem am van duoc XP san — khong bao gio am", () => {

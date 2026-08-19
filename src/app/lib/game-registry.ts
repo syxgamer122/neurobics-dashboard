@@ -22,6 +22,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "spatial",
     sessionColumn: "schulte_sessions",
     stageWidth: "lg",
+    status: "active",
   },
   {
     id: "sudoku",
@@ -34,6 +35,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "memory",
     sessionColumn: "sudoku_sessions",
     stageWidth: "md",
+    status: "active",
   },
   {
     id: "stroop",
@@ -46,6 +48,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "speed",
     sessionColumn: "stroop_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "reaction",
@@ -58,6 +61,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "focus",
     sessionColumn: "reaction_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "memory",
@@ -70,6 +74,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "spatial",
     sessionColumn: "memory_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "nback",
@@ -82,6 +87,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "focus",
     sessionColumn: "nback_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "math",
@@ -94,6 +100,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "speed",
     sessionColumn: "math_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "gonogo",
@@ -106,6 +113,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "speed",
     sessionColumn: "gonogo_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "mental",
@@ -118,6 +126,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "speed",
     sessionColumn: "mental_sessions",
     stageWidth: "md",
+    status: "active",
   },
   {
     id: "corsi",
@@ -130,6 +139,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "spatial",
     sessionColumn: "corsi_sessions",
     stageWidth: "sm",
+    status: "active",
   },
   {
     id: "trail",
@@ -142,6 +152,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "focus",
     sessionColumn: "trail_sessions",
     stageWidth: "md",
+    status: "active",
   },
   {
     id: "search",
@@ -154,6 +165,7 @@ export const GAME_REGISTRY = [
     secondaryAxis: "speed",
     sessionColumn: "search_sessions",
     stageWidth: "md",
+    status: "active",
   },
 ] as const satisfies readonly {
   id: string;
@@ -166,6 +178,7 @@ export const GAME_REGISTRY = [
   secondaryAxis: AxisKey;
   sessionColumn: `${string}_sessions`;
   stageWidth: "sm" | "md" | "lg";
+  status: "active" | "internal" | "disabled";
 }[];
 
 export type GameDefinition = (typeof GAME_REGISTRY)[number];

@@ -41,8 +41,7 @@ du lieu nao. Sau khi chay, kiem tra:
 pnpm run db:status     # supabase migration list --linked
 ```
 
-Cot Local va Remote phai khop het. Nhung version chi co o Local nghia la baseline
-chua ghi du — dung `db push` cho den khi khop.
+Cot Local va Remote phai khop het. Neu Local va Remote khong khop, DUNG deploy. Khong chay `db push`. Khoi phuc mot ban sao production (restore) sang moi truong co lap, so sanh schema va xac minh tung migration truoc khi danh dau applied. Tuyet doi khong dung "migration truoc, server sau" neu co the mat du lieu; dung chien luoc expand-contract (them truoc, backfill, sau do moi drop).
 
 ---
 
@@ -68,8 +67,8 @@ Workflow can 3 secrets trong **Settings > Secrets and variables > Actions**:
 | Secret | Lay o dau |
 | --- | --- |
 | `SUPABASE_ACCESS_TOKEN` | https://supabase.com/dashboard/account/tokens |
-| `SUPABASE_PROJECT_REF` | `pujzeomddvquxeacblvr` |
-| `SUPABASE_DB_PASSWORD` | Settings > Database > Database password |
+| `SUPABASE_PROJECT_REF` | `<YOUR_PROJECT_REF>` (Phân chia theo GitHub Environment: tạo riêng cho `staging` và `production`) |
+| `SUPABASE_DB_PASSWORD` | Settings > Database > Database password (Phân chia theo Environment) |
 
 Thieu bat ky secret nao, workflow bao loi ro rang o buoc **Verify secrets** thay
 vi that bai giua duong voi thong diep kho hieu.

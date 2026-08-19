@@ -1,0 +1,1952 @@
+================================================================================
+docs/feature_admin.txt
+================================================================================
+
+===============================================================================
+TỔNG HỢP TÍNH NĂNG: QUẢN TRỊ ADMIN (ADMIN CONTROL-PLANE)
+DỰ ÁN: MINDGEM
+===============================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+-------------------------------------------------------------------------------
+Tính năng Quản trị Admin (Admin Panel / DB Control Plane) là hệ thống trung tâm 
+dành riêng cho quản trị viên (người dùng có quyền role === "admin") trong dự án 
+MindGem. System này cho phép Super Admin theo dõi toàn bộ hệ thống 
+theo thời gian thực, quản lý hồ sơ người chơi, thao tác điều chỉnh điểm số các 
+trục nhận thức, xử lý dữ liệu và quản trị tài khoản người dùng.
+
+Các khả năng chính của tính năng Admin:
+- Giao diện Control Plane chuyên biệt: Cyberpunk / Database Dashboard với hiệu ứng 
+  neon, hiển thị trạng thái kết nối Supabase, độ trễ cơ sở dữ liệu (DB Latency) 
+  và tổng số lượng người dùng (profiles).
+- Quản lý người dùng & Bảng dữ liệu Live Data Grid: Hiển thị danh sách toàn bộ 
+  người chơi (`public.profiles`) với các thông số điểm trục (Logic, Memory, Speed, 
+  Focus, Spatial), XP và số lượt chơi (Sessions).
+- Điều chỉnh điểm chỉ số & XP (Admin Grant): Cho phép cộng thêm (`add`) hoặc 
+  gán đè (`set`) điểm số cho 5 trục nhận thức và điểm kinh nghiệm (Total XP) của 
+  bất kỳ người dùng nào, hỗ trợ nút bấm nhanh preset (10, 50, 100, 500, 1000).
+- Reset điểm số (Reset Scores): Đưa toàn bộ điểm chỉ số 5 trục, XP và số liệu 
+  phiên chơi của người dùng được chọn về 0.
+- Xóa tài khoản vĩnh viễn (Danger Zone / Delete User): Xóa hoàn toàn người dùng 
+  bao gồm Avatar lưu trữ ở Supabase Storage, Auth Account trong Supabase Auth 
+  và thông tin Profile trong cơ sở dữ liệu Postgres.
+- MFA Required (Bảo mật 2FA): Yêu cầu quản trị viên phải xác thực 2 bước (MFA). Mọi hành động chỉnh sửa/xóa đều phải qua hàm `requireAdmin` kiểm tra `aal === "aal2"` trong JWT.
+- Nhật ký hoạt động (Activity Log): Theo dõi log thao tác console client-side của phiên bản Admin hiện hành.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+-------------------------------------------------------------------------------
+Mô hình triển khai tách biệt giữa Client (React / Next.js UI) và Server (Supabase 
+Edge Functions running Deno + Hono Framework), giao tiếp qua HTTPS RESTful API.
+
+[ Client UI Layer ] 
+  └─ AdminPanel (Container / Controller)
+       ├─ AdminShell (Theme Shell & Layout Grid)
+       ├─ AdminOverview (System Telemetry & Metrics)
+       ├─ AdminControls (Grant / Reset / Delete Forms)
+       ├─ ProfilesGrid (Live User Table)
+       ├─ ActivityLog (Console Log Monitor)
+       └─ AccessDenied (Security Fallback Guard)
+
+[ Client API Layer ]
+  └─ src/app/lib/api/admin.ts (SDK wrappers using serverPost)
+
+[ Server Edge Layer ]
+  └─ supabase/functions/server/routes/admin.ts (Hono API endpoints)
+       ├─ POST /server/admin-grant  (Apply points/XP)
+       ├─ POST /server/admin-reset  (Zero out scores)
+       └─ POST /server/admin-delete-user (Purge Auth + Storage + Profile)
+
+[ Database & Auth Layer ]
+  ├─ Supabase Auth (admin.deleteUser)
+  ├─ Supabase Storage (bucket: "avatars")
+  ├─ Postgres Table: public.profiles
+  └─ Postgres RPC: sync_achievements_for(p_user)
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+-------------------------------------------------------------------------------
+1. src/app/components/admin-panel.tsx
+   - Component container chính điều phối state (danh sách user, user được chọn, 
+     trạng thái loading/busy, console log), xử lý logic gọi API và hiển thị panel.
+2. src/app/components/admin/admin-controls.tsx
+   - Component bảng điều khiển tác vụ admin: Form nhập điểm cộng/gán cho 5 trục 
+     và XP, nút preset nhanh, nút Reset điểm và Danger Zone xóa tài khoản.
+3. src/app/components/admin/admin-overview.tsx
+   - Component hiển thị tổng quan telemetry: Trạng thái kết nối Supabase, DB 
+     Latency với đồ thị sóng động, tổng số người dùng và target user đang chọn.
+4. src/app/components/admin/admin-shell.tsx
+   - Component khung giao diện chung (Shell) màu tối (#04060D), lưới hiệu ứng 
+     cyberpunk, nút EXIT quay lại Dashboard và nhãn "SUPER ADMIN — HỮU MẠNH".
+5. src/app/components/admin/profiles-grid.tsx
+   - Component hiển thị bảng dữ liệu Live Data Grid từ `public.profiles`, cho 
+     phép chọn người dùng để thao tác và làm mới danh sách.
+6. src/app/components/admin/grants.ts
+   - Định nghĩa kiểu dữ liệu `GrantMode` ("add" | "set"), `GrantAxes`, hằng số 
+     `EMPTY_GRANT` và hàm utility `parseGrantField()` chuyển đổi input.
+7. src/app/components/admin/constants.ts
+   - Định nghĩa bảng màu chủ đạo `ADMIN_COLORS` (green, blue, amber, red, purple) 
+     và danh sách log khởi động console mồi `consoleBoot`.
+8. src/app/components/admin/ui.tsx
+   - Các UI sub-component dùng chung không giữ state: `Panel` (bảng kính mờ), 
+     và `ActionBtn` (nút bấm có trạng thái hover/loading).
+9. src/app/lib/api/admin.ts
+   - Tầng Client SDK xuất các hàm API client: `adminFetchUser`, `adminApplyGrant`, 
+     `adminAddPoints`, `adminResetScores`, `adminDeleteUser`.
+10. supabase/functions/server/routes/admin.ts
+    - Server route handler chạy trên Deno Edge Function, xử lý các endpoint 
+      `/server/admin-grant`, `/server/admin-reset`, `/server/admin-delete-user`.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+-------------------------------------------------------------------------------
+A. KIỂU DỮ LIỆU VÀ MAPPING CỘT (TYPES & COLUMN MAPPING):
+
+- Kiểu chế độ grant (GrantMode):
+  `type GrantMode = "add" | "set";`
+
+- Kiểu giá trị form grant (GrantAxes):
+  `type GrantAxes = Record<AxisKey, string>;`
+  với `AxisKey = "logic" | "memory" | "speed" | "focus" | "spatial"`
+
+- Payload gửi tới server (AdminGrant):
+  ```typescript
+  type AdminGrant = {
+    axes?: Partial<Record<AxisKey, number>>;
+    xp?: number;
+    mode?: "add" | "set";
+  };
+  ```
+
+- Mapping từ AxisKey sang Cột Database (AXIS_COLUMNS):
+  - logic   -> `algebraic_logic_score`
+  - memory  -> `memory_score`
+  - speed   -> `speed_score`
+  - focus   -> `focus_score`
+  - spatial -> `spatial_score`
+
+B. HẰNG SỐ VÀ CÁC NGƯỠNG AN TOÀN (CONSTANTS & BOUNDS):
+
+- Bảng màu Admin Control-Plane (ADMIN_COLORS):
+  - green:  "#00FF9C" (Màu chủ đạo neon)
+  - blue:   "#00D4FF" (Màu chỉ số / latency)
+  - amber:  "#F59E0B" (Màu cảnh báo / XP)
+  - red:    "#F43F5E" (Màu nguy hiểm / xóa)
+  - purple: "#A855F7" (Màu target user / selected)
+
+- Ngưỡng giới hạn điểm số trục (Axis Bounds):
+  `[0, 1000]` điểm. Mọi phép cộng/gán đều được kẹp (clamp) bằng công thức:
+  `nextScore = Math.max(0, Math.min(1000, Math.round(calculatedScore)))`
+
+- Ngưỡng giới hạn XP (XP_MAX Bound):
+  `XP_MAX = 200,000,000` (200 triệu XP, tương ứng level ~2000).
+  Edge Function chỉ làm tròn delta bằng `Math.round(calculatedDelta)`. Ràng buộc biên nằm ở RPC admin_grant_tx — chặn abs(delta) > 10,000,000 và chặn tổng sau khi cộng vượt XP_MAX = 200,000,000.
+  *Lý do thiết kế*: Tránh trường hợp Admin gõ nhầm nhiều chữ số 0 làm `total_xp` 
+  vượt quá giới hạn, đẩy level lên hàng triệu và làm hỏng Bảng xếp hạng.
+
+C. THUẬT TOÁN & LOGIC XỬ LÝ CHÍNH:
+
+1. Logic tính toán Grant (Thêm / Gán điểm):
+   - Nếu `mode === "set"`: Giá trị mới = `amount`
+   - Nếu `mode === "add"`: Giá trị mới = `current_score + amount`
+   - Kẹp vào khoảng `[0, 1000]` cho 5 trục. Với XP, truyền thẳng `delta` xuống RPC `admin_grant_tx`. RPC sẽ chặn cứng lỗi với `abs(delta) > 10,000,000` hoặc nếu tổng vượt `200,000,000`.
+
+2. Tự động đồng bộ Huy hiệu / Thành tựu (Badge Auto-Sync):
+   Khi XP được cập nhật thành công qua Admin Grant, server chủ động gọi RPC:
+   `await adminClient.rpc("sync_achievements_for", { p_user: targetId });`
+   Giúp huy hiệu của người dùng được cập nhật ngay lập tức mà không phải chờ 
+   người dùng tự mở bảng thành tựu.
+
+3. Logic Reset Scores:
+   Gọi RPC `admin_reset_stats`:
+   ```sql
+   admin_reset_stats(p_target uuid, p_actor uuid)
+   -- stats_epoch = now()
+   -- 5 trục = 0, session counters = 0
+   -- last_active_date = now()   -- tránh decay tối đa ngay sau reset, fix lỗi daysSince(null)
+   -- KHÔNG xóa xp_events (ngoại trừ game = \'achievement\' để tránh double XP) (giữ audit trail)
+   ```
+
+
+
+4. Logic Xóa tài khoản Triệt để (3-Tier Account Purge):
+   - Bước 1: Liệt kê và xóa toàn bộ file ảnh đại diện trong Supabase Storage bucket 
+     `avatars` tại thư mục `${targetId}/*`.
+   - Bước 2: Gọi Supabase Auth Admin API để xóa người dùng khỏi hệ thống xác thực:
+     `await adminClient.auth.admin.deleteUser(targetId);`
+     Nếu DB có thiết lập FK `ON DELETE CASCADE`, profile sẽ tự động bị xóa.
+   - Bước 3: Đảm bảo tính an toàn (fallback), gọi lệnh xóa trực tiếp trong DB:
+     `await adminClient.from("profiles").delete().eq("id", targetId);`
+   - Chống tự xóa: Server kiểm tra `if (targetId === user.id)` và từ chối xóa với 
+     mã lỗi HTTP 400 (`Use delete-account for your own account`).
+
+5. Console Log Buffer & DB Latency Telemetry:
+   - Client duy trì mảng `log` chứa tối đa 60 dòng gần nhất, định dạng 
+     `[HH:mm:ss] Action details`.
+   - Đo thời gian query DB thực tế bằng `performance.now()` khi fetch leaderboard.
+   - `AdminOverview` có hiệu ứng sóng nhịp tim (pulse wave) cập nhật qua 
+     `setInterval` 1400ms dùng hàm lượng giác: `Math.sin((index + beat) * 0.9)`.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+-------------------------------------------------------------------------------
+LUỒNG 1: KHỞI TẠO VÀ TẢI DỮ LIỆU BẢNG (LOAD LEADERBOARD)
+[User Click Admin Button]
+  │
+  ▼
+[AdminPanel Render] ──► Check profile.role === "admin"
+  │                       ├─ NO  ──► Render <AccessDenied />
+  │                       └─ YES ──► Execute fetchProfiles()
+  ▼
+[fetchLeaderboard()] ──► HTTP GET /rest/v1/profiles (Supabase JS Client)
+  │
+  ▼
+[Receive Data] ──► Calculate Latency (performance.now() delta)
+  │             ──► Set `rows` state & `dataQuality`
+  ▼
+[Render UI] ──► <AdminOverview /> + <ProfilesGrid /> + <ActivityLog />
+
+-------------------------------------------------------------------------------
+LUỒNG 2: CỘNG THÊM HOẶC GÁN ĐIỂM (APPLY GRANT)
+[Admin Select User & Fill Form] ──► Click "CỘNG ĐIỂM" / "GÁN GIÁ TRỊ"
+  │
+  ▼
+[handleApplyGrant()] ──► Parse values via parseGrantField()
+  │
+  ▼
+[adminApplyGrant(targetId, grant)] ──► serverPost("admin-grant", payload)
+  │
+  ▼
+[POST /server/admin-grant (Edge Function)]
+  │
+  ├─ 1. Authenticate JWT: `authenticatedUser(c)`
+  ├─ 2. Authorize Admin Role: `requireAdmin(c)`
+  ├─ 3. Query current target profile row from `profiles`
+  ├─ 4. Compute new values: (mode === "set" ? val : current + val)
+  ├─ 5. Clamp values: Axes [0..1000]
+  ├─ 6. Call RPC admin_grant_tx to append xp_events ledger and update axes
+  ├─ 7. Execute RPC `sync_achievements_for` (if XP updated)
+  ├─ 8. Log Audit Event: Insert row into `admin_audit` table (ADR-0006)
+  └─ 9. Return HTTP 200 OK `{ profile: updatedData }`
+  │
+  ▼
+[Client Response Handler]
+  ├─ Push success string to ActivityLog
+  ├─ If (target.id === profile.id) ──► trigger `onProfileChange(updated)`
+  ├─ Update `selectedUser` state
+  └─ Trigger `fetchProfiles()` to refresh Live Data Grid
+
+-------------------------------------------------------------------------------
+LUỒNG 3: RESET ĐIỂM SỐ (RESET SCORES)
+[Admin Click "RESET ALL TO 0"]
+  │
+  ▼
+[adminResetScores(targetId)] ──► serverPost("admin-reset", { targetId })
+  │
+  ▼
+[POST /server/admin-reset]
+    --> 1. Check auth & requireAdmin
+    --> 2. Call RPC admin_reset_stats to update stats_epoch=now() and reset axes/sessions (without deleting ledger xp_events)
+    --> 3. Delete records from `user_achievements` and `user_quests` to clear progress
+    --> 4. Log Audit Event: Insert row into `admin_audit` table (ADR-0006)
+    <-- 5. Return `{ profile: updatedData }`
+  │
+  ▼
+[Client UI] ──► Update log, update `selectedUser`, refresh leaderboard
+
+-------------------------------------------------------------------------------
+LUỒNG 4: XÓA NGƯỜI DÙNG (DELETE USER)
+[Admin Click "DELETE ACCOUNT"] ──► Set confirmDelete = true (Step 1)
+  │
+  ▼
+[Admin Click "XÓA" Confirmation] (Step 2)
+  │
+  ▼
+[adminDeleteUser(targetId)] ──► serverPost("admin-delete-user", { targetId })
+  │
+  ▼
+[POST /server/admin-delete-user]
+  ├─ Check auth & requireAdmin
+  ├─ Guard Check: `targetId !== user.id` (Prevent self-deletion here)
+  ├─ Storage Purge: Delete files in `avatars` bucket at `${targetId}/*`
+  ├─ Auth Purge: `adminClient.auth.admin.deleteUser(targetId)`
+  ├─ DB Fallback Purge: Delete row from `profiles`
+  └─ Return `{ ok: true }`
+  │
+  ▼
+[Client UI]
+  ▪ Set `selectedUser = null`
+  ▪ Reset confirm state
+  ▪ `fetchProfiles()` (Refresh table)
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+-------------------------------------------------------------------------------
+1. Phân quyền Phòng thủ Đa tầng (Multi-Layer Defense in Depth):
+   - Tầng UI Client: Kiểm tra `profile.role === "admin"`. Nếu không phải admin, 
+     hệ thống chặn không render panel mà hiển thị giao diện `<AccessDenied />`.
+   - Tầng Client SDK: Mọi hàm tác vụ trong `admin-panel.tsx` đều có guard clause 
+     `if (!isAdmin || busy) return;`.
+   - Tầng Server Authentication: Endpoint gọi `authenticatedUser(c)` để xác thực 
+     JWT bearer token từ header request.
+   - Tầng Server Authorization: Endpoint gọi `requireAdmin(c)` để truy vấn 
+     bảng `profiles` kiểm tra cột `role === 'admin'` và đồng thời kiểm tra token 
+     JWT xem `aal === 'aal2'` (MFA). Nếu vi phạm, lập tức từ chối bằng mã lỗi 
+     HTTP 403 Forbidden.
+
+2. Sử dụng Service Role (Admin Client):
+   Server Edge Function dùng `adminClient` (khởi tạo với `SUPABASE_SERVICE_ROLE_KEY`) 
+   để có quyền tối cao bypass RLS khi thực hiện các tác vụ quản trị hệ thống và 
+   thao tác với Supabase Auth Admin SDK.
+
+3. Kẹp biên Dữ liệu & Chống ô nhiễm (Input Sanitation & Bounds Enforcement):
+   - Hàm `parseGrantField()` loại bỏ khoảng trắng, kiểm tra `Number.isFinite()`, 
+     chỉ chấp nhận giá trị số hợp lệ.
+   - Kẹp biên 5 trục chỉ số trong khoảng `[0, 1000]`.
+   - RPC sẽ lo phần giới hạn an toàn của XP delta và tổng XP. Mọi giá trị delta vô lý đều bị từ chối ở tầng database.
+
+4. Chống Tự Xóa Tài khoản Không An Toàn:
+   Server kiểm tra `if (targetId === user.id)` trong route `admin-delete-user` 
+   để ngăn Admin dùng nhầm route xóa người dùng khác nhằm tự xóa chính mình, bắt 
+   buộc phải dùng quy trình `delete-account` cá nhân chuẩn để dọn dẹp session.
+
+5. Audit Logging (Ghi vết kiểm toán):
+   Các thao tác can thiệp dữ liệu như `admin.grant` và `admin.reset` được ghi log 
+   server bất biến thông qua bảng `admin_audit` (ADR-0006) với thông tin chi tiết: 
+   actor (ID của Admin thực hiện), target_id, action, details (axes, xp) và 
+   timestamp. Bảng này lưu trữ 365 ngày để phục vụ điều tra.
+
+
+
+
+================================================================================
+docs/feature_anticheat_observability.txt
+================================================================================
+
+================================================================================
+TÀI LIỆU TỔNG HỢP TÍNH NĂNG: CHỐNG GIAN LẬN & QUAN SÁT HỆ THỐNG
+(ANTI-CHEAT & OBSERVABILITY) - DỰ ÁN MINDGEM
+================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Tính năng Chống gian lận (Anti-cheat) và Quan sát hệ thống (Observability) cung cấp cơ chế bảo vệ tính toàn vẹn điểm số của trò chơi huấn luyện nhận thức MindGem, đồng thời giám sát sức khỏe hệ thống từ Client đến Server Edge Functions.
+
+- Chống gian lận (Anti-cheat):
+  + Nguyên tắc cốt lõi: "Thà lọt còn hơn bắt oan" (Better to miss a cheater than ban an innocent player).
+  + Kiểm tra toàn bộ dữ liệu đo đạc hành vi (telemetry - thời gian phản ứng, nhịp bấm, số lượt chạm...) phía Server trước khi tính điểm và cấp XP.
+  + Phân loại cờ gian lận thành 2 mức:
+    * Hard Flags: Từ chối ván chơi ngay lập tức (HTTP 422), đốt vé chơi (round ticket) để chống tấn công dò ngưỡng (oracle attack), ghi log vi phạm nghiêm trọng vào database.
+    * Soft Flags: Vẫn chấp nhận ván chơi và tính điểm bình thường, nhưng ghi nhận cảnh báo nghi vấn vào hệ thống theo dõi mức độ tin cậy.
+
+- Quan sát hệ thống (Observability):
+  + Cung cấp giải pháp giám sát tập trung, chuẩn hóa log và vết lỗi cho cả Client (Browser) và Server (Supabase Edge Functions).
+  + Ghi log cấu trúc dạng một dòng JSON (structured single-line JSON) giúp lọc và đếm sự kiện trực tiếp trên dashboard.
+  + Định danh từng request bằng requestId (Header `x-request-id`) xuyên suốt từ Client -> CDN -> Middleware -> Router -> DB.
+  + Tự động làm sạch dữ liệu cá nhân (PII Redaction: ẩn JWT, API keys, password, email, UUIDs, chuỗi số dài).
+  + Đẩy dữ liệu lỗi/sự kiện từ Client về Server theo lô (batching) với cơ chế chống spam (rate limiting) và khử trùng lặp (deduplication).
+  + Lưu trữ các sự kiện warn/error/fatal vào bảng database `observability_events`.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Hệ thống được chia làm 2 tầng chính:
+
+A. Tầng Client (Browser / React App):
+   - `src/app/lib/logger.ts`: Bộ bọc (wrapper) logger toàn ứng dụng.
+     + Trong môi trường DEV: In ra console trình duyệt.
+     + Trong môi trường PROD: Tắt hoàn toàn console log để tránh rò rỉ thông tin hệ thống, tự động điều hướng lỗi (`logError`) và cảnh báo (`logWarn`) sang module observability.
+   - `src/app/lib/observability.ts`: Trình thu thập lỗi và sự kiện độc lập (pure JS).
+     + Tự động lắng nghe sự kiện toàn cục: `window.onerror`, `unhandledrejection`, `visibilitychange`, `pagehide`.
+     + Quản lý hàng đợi bộ nhớ (in-memory queue), gom lô tối đa 20 sự kiện / 10 giây.
+     + Khử trùng lặp lỗi trong cửa sổ 60 giây bằng thuật toán hash djb2.
+     + Làm sạch PII dữ liệu trước khi gửi.
+     + Gửi dữ liệu theo phương thức HTTP POST đến endpoint `/server/telemetry` sử dụng `fetch` với `keepalive: true`.
+
+B. Tầng Server (Supabase Edge Functions - Deno & Hono Framework):
+   - `supabase/functions/_shared/anticheat.ts`: Mô-đun anti-cheat thuần (pure functions), chứa toàn bộ các quy tắc kiểm tra thời gian thực và hành vi người chơi cho 12 trò chơi.
+   - `supabase/functions/_shared/observability.ts`: Mô-đun observability phía server. Quản lý việc sinh requestId, format JSON log, làm sạch PII, định nghĩa sink lưu trữ vào Database.
+   - `supabase/functions/_shared/errors.ts`: Lớp `AppError` định nghĩa các lỗi nghiệp vụ có cấu trúc kèm HTTP Status Code chuẩn (400, 401, 409, 410, 422).
+   - `supabase/functions/server/middleware.ts`: Hono middleware đo độ trễ request, tự động cấp phát `x-request-id`, log HTTP request dạng JSON, xử lý ngoại lệ toàn cục (`onError`) và cấu hình CORS.
+   - `supabase/functions/server/routes/rounds.ts`: Route xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`). Tích hợp bộ kiểm tra `inspectRound`, thực hiện đốt ticket khi phát hiện Hard flag và gọi RPC `record_cheat_flag`.
+   - `supabase/functions/server/routes/telemetry.ts`: Endpoint tiếp nhận telemetry public (`/server/telemetry`), tích hợp rate limiter (60 request/phút/IP), giới hạn payload 32KB, sanitize sự kiện và xóa bỏ `user_id` do client tự khai báo để chống giả mạo danh tính.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+1. `supabase/functions/_shared/anticheat.ts`: Chứa logic kiểm tra anti-cheat phía server cho 12 game, định nghĩa CheatFlag, CheatReport, hard/soft flag và hàm `inspectRound`.
+2. `supabase/functions/_shared/observability.ts`: Module observability phía server, xử lý `x-request-id`, log JSON, PII redaction, sanitize client payload và sink lưu trữ DB.
+3. `supabase/functions/_shared/errors.ts`: Định nghĩa lớp `AppError` chứa HTTP status (400, 401, 409, 410, 422) và mã lỗi `code`.
+4. `supabase/functions/server/middleware.ts`: Middleware Hono cấp phát `x-request-id`, đo thời gian xử lý, log HTTP request, xử lý lỗi 500 toàn cục và cấu hình CORS.
+5. `supabase/functions/server/routes/rounds.ts`: Routes xử lý vòng đời ván chơi (`start-round`, `submit-round`, `sync-offline-rounds`), tích hợp anti-cheat, đốt ticket khi dính hard flag, ghi vi phạm qua RPC `record_cheat_flag`.
+6. `supabase/functions/server/routes/telemetry.ts`: Route nhận telemetry công khai (`/server/telemetry`), rate limit theo IP, kiểm tra kích thước payload, ép `user_id = null` và ghi vào bảng `observability_events`.
+7. `src/app/lib/observability.ts`: Thư viện observability client, thu thập lỗi runtime, gom lô (batching), lọc PII, khử trùng lặp (deduplication) và đẩy về server.
+8. `src/app/lib/logger.ts`: Wrapper logger phía client, ẩn console log ở Production và tự động chuyển sang telemetry module.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+
+A. BỘ KIỂM TRA ANTI-CHEAT (`inspectRound` TRONG `_shared/anticheat.ts`)
+--------------------------------------------------------------------------------
+Các hằng số & hàm toán học cơ bản:
+- `HUMAN_FLOOR_MS = 80`: Ngưỡng sàn thời gian phản ứng vật lý tối thiểu của con người (80ms).
+- `ROBOT_CV = 0.04`: Hệ số biến thiên (Coefficient of Variation $CV = \sigma / \mu$) tối thiểu. Nếu $CV < 0.04$ khi số mẫu $N \ge 10$, nhịp thao tác bị coi là quá đều đặn như máy móc (metronomic / bot). Hàm `cv(xs)` sẽ tự động trả về `1.0` nếu có ít hơn 10 mẫu để tránh false positive.
+- Các hàm thống kê: `median(xs)`, `mean(xs)`, `cv(xs)`, `nums(v)` (lọc lấy danh sách số hợp lệ $\ge 0$).
+
+Hàm kiểm tra chung (Shared Inspectors):
+1. `inspectShared(t, serverElapsedMs)`:
+   - So sánh `t.timeMs` (thời gian client khai báo) với `serverElapsedMs` (thời gian Server đo từ lúc tạo ticket).
+   - Nếu `timeMs - serverElapsedMs > 5000ms` -> Cờ **soft** ("Client time far exceeds server elapsed").
+2. `inspectSubThreshold(t, game)`:
+   - Tìm các mẫu thời gian phản ứng nằm trong khoảng cận trên của ngưỡng người $[80ms, 120ms)$.
+   - Nếu số mẫu trong khoảng này chiếm $\ge 50\%$ tổng số mẫu -> Cờ **soft** ("Majority of reaction times below 120ms").
+
+Chi tiết kiểm tra từng trò chơi (12 Game Inspectors):
+1. `reaction` (Phản ứng nhanh):
+   - Cỡ mẫu $N < 3 \to$ Không kiểm tra.
+   - Lấy danh sách mẫu $< 80ms$ (`below`). Nếu `below.length >= 3` và tỷ lệ `below / total >= 40%` -> Cờ **hard** ("Multiple reactions below human floor"). Ngược lại nếu `below.length > 0` -> Cờ **soft** ("Isolated sub-floor reaction").
+   - Các mẫu rác (`< HUMAN_FLOOR_MS`) sẽ bị loại bỏ khỏi luồng tính `median` và `cv` để giảm false positive.
+   - Nếu `median(rts) < 130ms` -> Cờ **hard** ("Reaction median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Reaction timing too metronomic").
+2. `schulte` (Bảng Schulte):
+   - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
+   - Nếu `median(hitRts) < 150ms` -> Cờ **hard** ("Schulte hit median impossibly low").
+   - Nếu `cv(hitRts) < 0.04` -> Cờ **soft** ("Schulte timing too metronomic").
+3. `stroop` (Thử thách Stroop):
+   - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
+   - Nếu `median(rts) < 200ms` -> Cờ **hard** ("Stroop median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Stroop timing too metronomic").
+4. `sudoku` (Điền số Sudoku):
+   - Với các bước di chuyển (`moveRts.length >= 5`):
+     * Nếu `median(moveRts) < 120ms` -> Cờ **hard** ("Sudoku move median impossibly low").
+     * Nếu `cv(moveRts) < 0.04` -> Cờ **soft** ("Sudoku timing too metronomic").
+   - Kiểm tra cấp độ: Nếu `difficulty` là "Master" hoặc "Extreme" và `timeMs < 45.000ms` (45 giây) -> Cờ **soft** ("Sudoku expert board finished too fast").
+5. `memory` (Ghi nhớ chuỗi):
+   - Lấy `clearedLevels` (hoặc fallback `maxLevel`).
+   - Nếu `cleared < 3` -> Bỏ qua (không kết luận vì quá ít dữ liệu, tránh bắt oan người chơi thua ở cấp 1-2).
+   - Thiếu `totalTaps` -> tối đa chỉ cờ **soft** ("Memory pace implausibly fast (estimated)"). Sẽ update `TELEMETRY_SCHEMA_VERSION` thành 2 khi nào front-end gửi được `totalTaps`, lúc đó mới được hard reject.
+
+6. `nback` (Ghi nhớ N-Back):
+   - Cỡ mẫu $N < 3 \to$ Không kiểm tra.
+   - Nếu `median(rts) < 150ms` -> Cờ **hard** ("N-Back median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("N-Back timing too metronomic").
+7. `math` (Tính nhẩm nhanh):
+   - Cỡ mẫu $N < 4 \to$ Không kiểm tra.
+   - Nếu `median(rts) < 250ms` -> Cờ **hard** ("Math median impossibly low").
+   - Nếu `cv(rts) < 0.04` -> Cờ **soft** ("Math timing too metronomic").
+   - Nếu `difficulty === "hard"`, trả lời đúng toàn bộ (`correct === totalProblems`), và `median(rts) < 1200ms` -> Cờ **soft** ("Perfect hard math finished too fast").
+8. `gonogo` (Ức chế phản xạ Go/No-Go):
+   - Với $N \ge 3$: Nếu `median(rts) < 160ms` -> Cờ **hard**; `cv(rts) < 0.04` -> Cờ **soft**.
+   - Kiểm tra ức chế hoàn hảo: Nếu `nogoTrials >= 8`, `goTrials >= 16`, không có lỗi bấm nhầm (`falseAlarms === 0`), đúng toàn bộ lượt Go (`hits === goTrials`), số mẫu $N \ge 12$, và `median(rts) < 220ms` -> Cờ **soft** ("Perfect inhibition with very fast Go RTs").
+9. `mental` (Xoay hình không gian):
+   - Với $N \ge 4$: Nếu `median(rts) < 250ms` -> Cờ **hard** ("Mental Rotation median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
+   - Hoàn hảo siêu tốc: Nếu `trials >= 16`, `correct === trials`, $N \ge 12$, và `median(rts) < 450ms` -> Cờ **soft** ("Perfect mental rotation finished too fast").
+10. `corsi` (Thử thách Corsi Block):
+    - Với $N \ge 4$: Nếu `median(rts) < 180ms` -> Cờ **hard** ("Corsi tap median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
+    - Kỷ lục chuỗi: Nếu `span >= 8` và số lần thử `trials <= span` -> Cờ **soft** ("Corsi span very high with too few trials").
+11. `trail` (Nối điểm Trail Making):
+    - Với $N \ge 5$: Nếu `median(rts) < 200ms` -> Cờ **hard** ("Trail Making hop median impossibly low"); `cv(rts) < 0.04` -> Cờ **soft**.
+    - Quét điểm hoàn hảo: Nếu `nodes >= 20`, `wrongClicks === 0`, và `timeMs < nodes * 260ms` -> Cờ **soft** ("Perfect trail finished implausibly fast").
+12. `search` (Tìm kiếm đối tượng):
+    - Nếu điểm số `score > 80` -> Cờ **soft** ("search: score exceeds human limits").
+    - Nếu $N \ge 10$ và `cv(rts) < 0.04` -> Cờ **soft** ("search: mechanically steady pace (robot)").
+
+Đảm bảo kiểu dữ liệu toàn diện (Exhaustive Registry):
+`GAME_INSPECTORS satisfies Record<Game, GameInspector>` bắt buộc mọi Game mới thêm vào enum `Game` phải có hàm inspector tương ứng, nếu thiếu sẽ báo lỗi TypeScript ở thời điểm biên dịch.
+
+Quy trình xử lý tại Route `/server/submit-round`:
+- Gọi `inspectRound(gameId, telemetry, serverElapsedMs)`.
+- Khi dính **Hard Flag**:
+  + **Đốt ticket lập tức**: Cập nhật `round_tickets.submitted_at = new Date().toISOString()` trước khi phản hồi HTTP 422. Việc này triệt hạ khả năng biến anti-cheat thành Oracle thử lại (retry oracle attack).
+  + Ghi lại từng hard flag vào DB bằng RPC `record_cheat_flag(p_user_id, p_game, p_reason, p_severity, p_details)`.
+  + Ghi log server cảnh báo `anticheat.hard_reject`.
+  + Trả về lỗi HTTP 422 Unprocessable Entity: `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_hard", flags: ["timing_patterns_rejected"] }`.
+- Khi dính **Soft Flag**:
+  + Duyệt qua danh sách soft flags và gọi RPC `record_cheat_flag` lưu vết vào DB.
+  + Ván chơi **vẫn tiếp tục** được tính điểm, tính XP và lưu kết quả bình thường.
+
+
+B. LÀM SẠCH VÀ BẢO VỆ DỮ LIỆU CÁ NHÂN (REDACTION PII)
+--------------------------------------------------------------------------------
+Cả phía Client và Server đều áp dụng các quy tắc lọc PII (Personally Identifiable Information) và Secret Keys nghiêm ngặt thông qua mảng `REDACTIONS`:
+
+Danh sách Regex Lọc (`REDACTIONS`):
+1. Chuỗi JWT: chuỗi regex -> `"[jwt]"`
+2. Các khóa bảo mật / Token: `/(apikey|api_key|access_token|refresh_token|token|secret|password|authorization)(\s*[:=]\s*)[^\s,;"'}]+/gi` -> `"$1$2[redacted]"`
+3. Địa chỉ Email: chuỗi regex -> `"[email]"`
+4. Mã định danh UUID: `/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi` -> `"[uuid]"`
+5. Chuỗi số dài (>= 9 chữ số): chuỗi regex -> `"[num]"`
+
+Hàm xử lý:
+- `scrubText(input, maxLen = 300)`: Chuyển đối tượng thành chuỗi, áp dụng lần lượt mảng `REDACTIONS`, chuẩn hóa khoảng trắng dư thừa và cắt ngắn chuỗi nếu dài quá `maxLen` kèm ký tự `…`.
+- `scrubContext(context)`: Giới hạn tối đa 20 đối tượng key-value, tên key tối đa 40 ký tự. Các giá trị kiểu `number`, `boolean`, `null` được giữ nguyên; giá trị dạng văn bản/đối tượng khác được chạy qua `scrubText`. Tổng độ dài văn bản được quản lý theo ngân sách ký tự (budget $\le 2000$).
+
+
+C. QUẢN LÝ REQUEST ID VÀ LOG CẤU TRÚC SERVER (`_shared/observability.ts`, `middleware.ts`)
+--------------------------------------------------------------------------------
+- Cấp phát Request ID:
+  + Dùng `WeakMap<Request, string>` để lưu giữ requestId tương ứng với từng HTTP Request object.
+  + Hàm `beginRequest(req)`: Kiểm tra header ưu tiên từ CDN (`x-request-id` hoặc `cf-ray`). Nếu không có, tự động sinh UUID mới bằng `crypto.randomUUID()`.
+  + Phía Middleware: Gán header `x-request-id` vào `Response` trả về cho Client.
+- Ghi Log dạng Cấu trúc (`logRequest`, `logServerEvent`):
+  + In log dưới dạng 1 dòng JSON duy nhất qua `console.log(JSON.stringify(line))`.
+  + Các trường chuẩn: `ts`, `level` (`debug` | `info` | `warn` | `error` | `fatal`), `event`, `requestId`, `method`, `path`, `status`, `durationMs`, `context`.
+  + Lưu trữ bền vững (Persistence):
+    * `logRequest`: Tự động ghi vào bảng `observability_events` khi `status >= 500` hoặc `status === 429` hoặc `status === 422`.
+    * `logServerEvent`: Tự động ghi vào DB khi `level` thuộc nhóm `warn`, `error`, `fatal` (hoặc cờ `persist: true`).
+
+
+D. QUẢN LÝ LỖI ỨNG DỤNG (`AppError` & `middleware.ts`)
+--------------------------------------------------------------------------------
+- Lớp `AppError`:
+  ```ts
+  export class AppError extends Error {
+    constructor(
+      message: string,
+      readonly status: 400 | 401 | 409 | 410 | 422,
+      readonly code: string,
+    ) {
+      super(message);
+      this.name = "AppError";
+    }
+  }
+  ```
+- Giúp ánh xạ chuẩn xác các HTTP status code chuyên biệt (400 Invalid Game/Payload, 401 Unauthorized, 409 Already Submitted, 410 Expired Ticket, 422 Anti-cheat Reject) mà không bị rơi vào kịch bản bắt lầm regex biến lỗi validation thành lỗi 401 (khiến client tự động đăng xuất người dùng).
+- Bộ xử lý ngoại lệ toàn cục (`app.onError` trong `middleware.ts`): Bắt tất cả các lỗi chưa được xử lý (unhandled exception), log sự kiện `http.unhandled_error` level `error` và trả về JSON 500 chuẩn `{ error: "Internal error", requestId }`.
+
+
+E. OBSERVABILITY VÀ LOGGER PHÍA CLIENT (`src/app/lib/observability.ts`, `src/app/lib/logger.ts`)
+--------------------------------------------------------------------------------
+- Module `logger.ts`:
+  + Khi ở môi trường DEV (`import.meta.env.DEV === true`): Cho phép in ra console thông thường (`console.error`, `console.warn`, `console.info`).
+  + Khi ở Production: Vô hiệu hóa toàn bộ console log để ngăn rò rỉ tên bảng, tên cột, truy vấn Postgres trong DevTools. Chuyển hướng `logError` sang `captureError` và `logWarn` sang `captureMessage`.
+- Thư viện `observability.ts`:
+  + Quản lý bởi bộ thu thập `Collector` (`createCollector`).
+  + Khử trùng lặp lỗi (Deduplication): Tạo dấu vân tay (fingerprint) bằng thuật toán hash djb2 từ chuỗi `(event | level | normalizedMessage | route)`. Nếu lỗi trùng lặp xuất hiện lại trong vòng 60 giây (`DEDUPE_WINDOW_MS = 60_000`), hệ thống chỉ tăng biến đếm `count` chứ không gửi lại sự kiện rác.
+  + Tự động đăng ký lắng nghe sự kiện trình duyệt trong `initObservability()`:
+    * `window.onerror`: Bắt lỗi JavaScript runtime chưa được try/catch.
+    * `window.onunhandledrejection`: Bắt lỗi Promise reject không có `.catch()`.
+    * `visibilitychange` (khi trang bị ẩn) & `pagehide`: Tự động gọi `flush()` để gửi toàn bộ sự kiện còn trong queue đi lập tức.
+    * Đặt lịch định kỳ: `setInterval(() => sink.flush(), 10.000)` (mỗi 10 giây flush 1 lần).
+  + Gom lô (Batching): Đẩy tối đa 20 sự kiện / 1 lô request.
+  + Phiên làm việc (Session): Tự động cấp và lưu trữ `sessionId` ngẫu nhiên trong `sessionStorage` với key `neurobics.obs.session`.
+
+
+F. ROUTE TIẾP NHẬN TELEMETRY VÀ RATE LIMITING (`supabase/functions/server/routes/telemetry.ts`)
+--------------------------------------------------------------------------------
+- Endpoint: `POST /server/telemetry` (Public, không yêu cầu Authorization token vì lỗi thường xảy ra trước khi có phiên đăng nhập).
+- Các lớp bảo vệ:
+  1. Rate Limiting: Khai báo `createRateLimiter({ limit: 60, windowMs: 60_000 })`. Giới hạn tối đa 60 request / 1 phút / 1 địa chỉ IP (`x-forwarded-for`). Khi vượt ngưỡng, trả về HTTP 202 `{ ok: true, dropped: true }` im lặng để không làm hỏng trải nghiệm client.
+  2. Giới hạn kích thước Body: Kiểm tra độ dài chuỗi JSON `raw.length > 32.000` bytes (32KB) -> Trả lỗi HTTP 413 `Payload too large`.
+  3. Giới hạn số lượng sự kiện: Hàm `sanitizeClientEvents` cắt tối đa 20 sự kiện / lô payload.
+  4. Chống giả mạo danh tính (Identity Spoofing Protection): Mọi đối tượng sự kiện từ Client gửi lên đều bị đè trường `user_id: null`. Client không được tự khai báo danh tính trên endpoint công khai này. Việc đối soát người dùng sẽ dựa trên `session_id` hoặc so khớp `request_id` với các log server.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+--------------------------------------------------------------------------------
+
+A. LUỒNG CHƠI VÁN & KIỂM TRA ANTI-CHEAT (`submit-round`):
+1. Người chơi hoàn thành ván -> Client gửi `POST /server/submit-round` chứa `{ roundId, game, telemetry, fingerprint }`.
+2. Middleware nhận request -> Cấp/trích xuất `x-request-id` -> Đánh dấu mốc thời gian bắt đầu request.
+3. Router `rounds.ts` xác thực Auth Token người dùng -> Truy vấn DB lấy vé chơi `round_tickets`.
+4. Server đo thời gian thực đã trôi qua: `serverElapsedMs = Date.now() - ticket.started_at`.
+5. Chạy hàm kiểm tra `inspectRound(gameId, telemetry, serverElapsedMs)`:
+   - NẾU DÍNH HARD FLAG:
+     * Cập nhật ngay `round_tickets.submitted_at = now()` (đốt ticket).
+     * Gọi RPC `record_cheat_flag` lưu chi tiết cờ Hard vào DB.
+     * Log sự kiện cảnh báo server `anticheat.hard_reject`.
+     * Trả về HTTP 422 `{ error: "Round rejected: suspicious timing patterns.", code: "anticheat_hard", ... }`.
+   - NẾU CHỈ DÍNH SOFT FLAG HOẶC HỢP LỆ:
+     * Duyệt mảng Soft flags và gọi RPC `record_cheat_flag` cho từng cờ.
+     * Liên kết thiết bị nếu có fingerprint qua RPC `link_device`.
+     * Gọi `scoreAndValidate` để tính điểm chuẩn xác.
+     * Gọi RPC `submit_round_transaction` cập nhật các trục nhận thức, điểm số và XP vào DB.
+     * Trả về HTTP 200 kèm dữ liệu kết quả ván chơi & mảng `cheatFlags`.
+6. Middleware `finally` block thực hiện log JSON dòng `http.request` chứa `durationMs` và HTTP status code.
+
+B. LUỒNG GHI LOG OBSERVABILITY TỪ CLIENT VỀ SERVER:
+1. Xuất hiện lỗi ở Client (hoặc gọi `logError`/`logWarn`) -> Đẩy thông tin vào `observability.ts`.
+2. Hàm `scrubText` & `scrubContext` tiến hành xóa PII (JWT, email, token) -> Tính fingerprint bằng djb2 -> Kiểm tra khử trùng lặp trong 60 giây.
+3. Sự kiện hợp lệ được đưa vào Hàng đợi (Queue).
+4. Khi Queue đủ 20 sự kiện hoặc sau 10 giây (hoặc khi người dùng đóng/ẩn tab) -> Client gọi `fetch(".../server/telemetry", { keepalive: true })`.
+5. Server `telemetry.ts` tiếp nhận request -> Kiểm tra Rate Limit theo IP (60/phút) -> Kiểm tra Body $\le 32KB$ -> Sanitization dữ liệu & ép `user_id = null` -> Chèn mảng dòng log vào bảng database `observability_events`.
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+- Chống tấn công dò ngưỡng Anti-cheat (Anti-cheat Oracle Prevention): Đốt ticket (`submitted_at = now()`) lập tức trước khi phản hồi HTTP 422. Kẻ gian không thể sử dụng lại ticket để thử lại nhiều lần nhằm dò tìm mốc thời gian vừa đủ qua mặt hệ thống.
+- Chống giả mạo danh tính (User Identity Spoofing Protection): Endpoint `/server/telemetry` tuyệt đối không tin tưởng field `userId` từ client gửi lên và luôn đè thành `null`.
+- Cấu hình CORS an toàn: Chỉ cho phép danh sách Origin được duyệt (`ALLOWED_ORIGINS`) và hạn chế danh sách Header (`Content-Type`, `Authorization`, `apikey`, `x-client-info`).
+- Giới hạn hạn ngạch (Rate Limiting):
+  + Tạo vé ván chơi (`start-round`): Tối đa 20 ván bắt đầu trong 1 phút (`MAX_TICKET_STARTS_PER_MINUTE`) cho mỗi user để chống làm kiệt quệ DB.
+  + Tiếp nhận Telemetry (`telemetry`): Tối đa 60 lô/phút/IP để ngăn ngừa các cuộc tấn công từ chối dịch vụ (DoS) vào bảng log DB.
+- Bảo vệ dữ liệu cá nhân (PII Redaction): Tự động quét và loại bỏ các chuỗi nhạy cảm (JWT, Token, Email, UUID, số dài) ở cả 2 đầu Client và Server.
+- Ràng buộc kiểu chặt chẽ (Exhaustive Type Checking): Sử dụng cú pháp `satisfies Record<Game, GameInspector>` buộc trình biên dịch TypeScript cảnh báo ngay lập tức nếu có trò chơi mới mà chưa viết bộ kiểm tra anti-cheat.
+
+
+
+
+================================================================================
+docs/feature_auth_profile.txt
+================================================================================
+
+================================================================================
+TÍNH NĂNG: XÁC THỰC & HỒ SƠ NGƯỜI DÙNG (AUTH & PROFILE) - MINDGEM
+================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Tính năng Xác thực & Hồ sơ người dùng (Auth & Profile) quản lý toàn bộ vòng đời tài khoản và dữ liệu hồ sơ người chơi trong hệ thống MindGem.
+
+Các chức năng chính bao gồm:
+- Chế độ Khách (Guest mode): Tài khoản khách là tài khoản Supabase `auth.users` thực sự với mật khẩu được tạo ngẫu nhiên. Việc tạo tài khoản khách được thực hiện thông qua Edge Function `/server/signup` với cờ `isGuest` và yêu cầu xác thực Cloudflare Turnstile để chống bot spam. Mọi tính toán điểm và XP đều được Server xử lý y hệt người dùng thật.
+- Đăng ký (Sign up): Đăng ký tài khoản bằng Username + Password thông qua cơ chế Email-Spoofing (@mindgem.local). Không yêu cầu người dùng cung cấp email thật.
+- Đăng nhập (Login): Đăng nhập bằng Username + Password. Hỗ trợ tự động fallback kiểm tra domain email cũ (@neurobics.local) cho các tài khoản tạo trước khi rebrand.
+- Quản lý Hồ sơ (Profile): Lưu trữ 5 trục chỉ số nhận thức (Spatial, Logic, Memory, Speed, Focus), cấp độ (Level), tổng điểm XP (total_xp), lịch sử số ván chơi (session counters), năm sinh (birth_year) dùng để tính tuổi não (Brain Age).
+- Inactivity Decay: Áp dụng cơ chế giảm nhẹ chỉ số phong độ (decay) theo số ngày không hoạt động trên đường đọc (read path) để phản ánh đúng phong độ thực tế.
+- Tải lên & Xóa Avatar: Quản lý ảnh đại diện lưu trữ tại Supabase Storage bucket 'avatars'.
+- Đổi mật khẩu (Change Password): Tái xác thực với mật khẩu hiện tại trước khi cập nhật mật khẩu mới.
+- Xóa tài khoản (Delete Account): Xóa vĩnh viễn tài khoản bao gồm bản ghi auth.users, hồ sơ public.profiles và toàn bộ ảnh đại diện trên storage.
+- Bảo mật & Chống lạm dụng: Tích hợp xác minh người thật Cloudflare Turnstile Captcha và Rate Limiting 10 lần/15 phút dựa trên hash IP thực tế.
+
+
+2. KIẾN TRÚC (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Tính năng được thiết kế theo kiến trúc Client/Server rõ ràng với sự hỗ trợ của Supabase (PostgreSQL + Auth + Storage + Edge Functions):
+
+Client-side (Vite + React + TypeScript):
+- Interface & Components: `auth-screen.tsx`, `turnstile-widget.tsx`, `settings-panel.tsx`.
+- State Management: `use-app-state.ts` quản lý state profileState, khôi phục session, profile caching và năm sinh.
+- API Layer: `src/app/lib/api/auth.ts`, `src/app/lib/api/profile.ts`, `src/app/lib/api/internal.ts`.
+- Singleton Client: `getSupabase()` lưu trên `globalThis.__neurobics_supabase_client__` nhằm tránh khởi tạo nhiều GoTrueClient gây ra lỗi split-session.
+- Guest Engine: Xử lý giao diện và session storage cho chế độ Guest, tự động call API đăng ký ẩn.
+
+Server-side (Supabase Edge Functions / Deno / Hono):
+- Routes: `routes/auth.ts` (POST /server/signup), `routes/account.ts` (POST /server/delete-account).
+- Config: `config.ts` khởi tạo `adminClient` bằng `EDGE_SERVICE_ROLE_KEY` (hoặc `SUPABASE_SERVICE_ROLE_KEY`) để thực hiện các thao tác quản trị tài khoản (`auth.admin`).
+- Security Utilities: `security.ts` cung cấp các hàm trích xuất IP chuẩn `clientIp()`, tiêu thụ rate limit `consumeRateLimit()`, xác thực Turnstile `verifyTurnstile()`, và middleware `authenticatedUser()`.
+
+Database (Supabase PostgreSQL):
+- `auth.users`: Lưu trữ thông tin tài khoản Supabase Auth (email giả, password hash).
+- `public.profiles`: Lưu trữ hồ sơ người chơi. Trigger DB `on_auth_user_created` tự động chèn hàng mới vào `public.profiles` ngay khi `auth.users` được tạo.
+- Storage Bucket `avatars`: Bucket công khai lưu trữ ảnh đại diện theo cấu trúc `avatars/{userId}/avatar.{ext}`.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+1. `src/app/lib/api/auth.ts`
+   - Quản lý quy tắc username, hàm normalize/assert username, đăng ký handleSignUp(), đăng nhập handleLogin() (duyệt email candidates), và đăng xuất handleLogout().
+2. `src/app/lib/api/profile.ts`
+   - Chứa các hàm tương tác hồ sơ cá nhân: fetchProfile(), saveBirthYear(), resetActiveUserScores(), deleteActiveUserAccount(), changePassword(), uploadAvatar(), removeAvatar().
+3. `src/app/lib/api/internal.ts`
+   - Plumbing dùng chung: Khởi tạo Singleton Supabase Client trên globalThis, kiểu dữ liệu Profile, danh sách cột PROFILE_COLS/LEADERBOARD_COLS, hydrateProfile() (xử lý decay), sanitizeProfile(), serverPost(), và các helper ngày tháng (VN_TZ).
+4. `src/app/components/auth-screen.tsx`
+   - Giao diện người dùng cho Đăng nhập / Đăng ký, hiển thị lỗi DB constraint khi username trùng, cảnh báo không lưu email thật, nhúng TurnstileWidget, và nút chơi ngay ở chế độ Guest (gọi thẳng `/server/signup`).
+5. `supabase/functions/server/routes/auth.ts`
+   - Endpoint REST POST /server/signup xử lý đăng ký tài khoản (rate limit IP hash, Turnstile check, kiểm tra reserved_usernames & profiles.username, gọi adminClient.auth.admin.createUser).
+6. `supabase/functions/server/routes/account.ts`
+   - Endpoint REST POST /server/delete-account xử lý xóa tài khoản (dọn dẹp bucket avatars, xóa auth.users bằng Service Role, fallback xóa profiles).
+7. `supabase/functions/server/security.ts`
+   - Các tiện ích bảo mật server: consumeRateLimit() qua Postgres RPC, clientIp() trích xuất header x-forwarded-for, verifyTurnstile() xác thực token Cloudflare, authenticatedUser() giải mã Bearer JWT.
+8. `supabase/functions/server/config.ts`
+   - Khởi tạo adminClient bằng Service Role Key, định nghĩa hằng số SIGNUP_LIMIT = 10, SIGNUP_WINDOW_SECONDS = 900, PROFILE_COLS.
+9. `src/app/hooks/use-app-state.ts`
+   - React hook quản lý trạng thái toàn bộ app: Session restore, profile caching (neurobics.cached_profile với TTL 7 ngày), xử lý năm sinh, logout.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+
+A. CHẾ ĐỘ GUEST (GUEST MODE) - SERVER-SIDE PROVISIONING
+- Quy trình tạo: Client gọi Edge Function `/server/signup` kèm cờ `isGuest` và mã token từ Cloudflare Turnstile.
+- Cấp phát: Server gọi `adminClient.auth.admin.createUser` tạo một tài khoản Supabase Auth thực sự (email giả định do server tự sinh, mật khẩu UUID an toàn).
+- Hồ sơ: Tài khoản nhận `role = 'guest'` trong bảng `public.profiles`. Server gửi trả mật khẩu ngẫu nhiên này về để client tự động đăng nhập.
+- Phiên làm việc: Khách nhận được JWT session token tiêu chuẩn. Mật khẩu không cần lưu trữ vĩnh viễn ở localStorage (dựa vào session refresh).
+- Lợi ích: Tương thích 100% với hệ thống RLS (Row Level Security) của PostgreSQL mà không cần các ngoại lệ bypass dành riêng cho Guest. Bot tự động không thể spam tạo Guest rác do bị vướng Turnstile. Khi cần nâng cấp tài khoản, chỉ việc Update Email và Password thật.
+
+B. MÔ HÌNH EMAIL-SPOOFING (@mindgem.local)
+- Định nghĩa Domain & Username Regex:
+  ```typescript
+  export const USERNAME_RE = /^[a-z0-9_.-]{3,20}$/i;
+  export const AUTH_EMAIL_DOMAIN = "mindgem.local";
+  export const LEGACY_AUTH_EMAIL_DOMAINS = ["neurobics.local"] as const;
+  ```
+- Chuyển đổi Username -> Candidate Emails:
+  ```typescript
+  function authEmailCandidates(username: string): string[] {
+    const name = assertValidUsername(username);
+    return [AUTH_EMAIL_DOMAIN, ...LEGACY_AUTH_EMAIL_DOMAINS].map((d) => `${name}@${d}`);
+  }
+  ```
+- Luồng Đăng nhập (`handleLogin`):
+  Thử đăng nhập bằng `signInWithPassword` lần lượt qua từng email candidate (`username@mindgem.local` trước, `username@neurobics.local` sau). Nếu thành công trả về `access_token`.
+- Luồng Đăng ký trên Server (`routes/auth.ts`):
+  Tự động sinh email `${normalized_username}@mindgem.local` và truyền `email_confirm: true` khi gọi `adminClient.auth.admin.createUser` để xác nhận tài khoản ngay lập tức mà không cần gửi mail xác thực.
+
+C. TURNSTILE CAPTCHA
+- Client Widget (`TurnstileWidget` trong `auth-screen.tsx`):
+  Render widget Cloudflare Turnstile, nhận `captchaToken` và truyền lên server khi gửi form Signup.
+- Server Verification (`security.ts`):
+  ```typescript
+  export async function verifyTurnstile(token: string, ip: string): Promise<TurnstileVerdict> {
+    const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+    const body = new URLSearchParams({ secret, response: token });
+    if (ip !== "unknown") body.set("remoteip", ip);
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body,
+    });
+    const result = await response.json();
+    return { ok: result.success === true, codes: result["error-codes"] ?? [] };
+  }
+  ```
+- Trả lỗi thân thiện: Hàm `turnstileMessage(codes)` dịch các mã lỗi của Cloudflare (như `timeout-or-duplicate`, `invalid-input-response`) thành thông điệp tiếng Anh rõ ràng cho người dùng.
+
+D. RATE LIMITING & CHỐNG LẠM DỤNG
+- Trích xuất IP an toàn (`clientIp` trong `security.ts`):
+  ```typescript
+  export function clientIp(c: Context): string {
+    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+    return forwarded && forwarded.length > 0 ? forwarded : "unknown";
+  }
+  ```
+  Chỉ tin tưởng phần tử đầu tiên của `x-forwarded-for` do hạ tầng Supabase Edge Function tự gắn vào, không dùng `cf-connecting-ip` hay `x-real-ip` vì client có thể tự chế header này để bypass rate limit.
+- IP Hashing & Consuming Limit:
+  Tạo IP hash bằng SHA-256 từ chuỗi `mindgem-signup:${ip}`.
+  Gọi RPC Postgres nguyên tử `consumeRateLimit(ipHash, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS)` với `SIGNUP_LIMIT = 10` và `SIGNUP_WINDOW_SECONDS = 900` (15 phút).
+
+E. PROFILE CACHING & INACTIVITY DECAY
+- Caching Client (`use-app-state.ts`):
+  - Key local storage: `neurobics.cached_profile`.
+  - Cấu trúc lưu trữ: `{ userId: p.id, profile: p, at: new Date().toISOString() }`.
+  - TTL: 7 ngày (`CACHE_TTL_MS = 7 * 24 * 3600_000`).
+  - Khi khởi động app hoặc gặp lỗi mạng, nếu tìm thấy cache có `cached.userId === userId` và chưa hết TTL thì dùng cache này.
+  - Profile Sanitize & Hydration / Decay (`internal.ts`):
+    - `sanitizeProfile(p)`: Chuẩn hóa các chỉ số 5 trục (Spatial, Logic, Memory, Speed, Focus) về khoảng `[0, 1000]`.
+    - `hydrateProfile(p)`: Xử lý hiển thị chỉ số đã decay trên UI dựa trên dữ liệu đã tính toán từ phía Server.
+
+F. QUẢN LÝ AVATAR (AVATAR UPLOAD & REMOVE)
+- Hằng số giới hạn (`internal.ts`):
+  `AVATAR_MAX_BYTES = 2 * 1024 * 1024` (2MB).
+  `AVATAR_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])`.
+- Tải ảnh đại diện (`uploadAvatar` trong `profile.ts`):
+  1. Kiểm tra định dạng MIME và dung lượng file (`<= 2MB`).
+  2. Xác định đường dẫn file: `${userId}/avatar.${ext}`.
+  3. Dọn dẹp file cũ: Liệt kê các file trong thư mục `${userId}/` trên bucket `avatars` và xóa những file không cùng phần mở rộng (ví dụ xóa `avatar.jpg` nếu tải lên `avatar.png`).
+  4. Thực hiện `storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" })`.
+  5. Lấy public URL và gắn mốc thời gian `?t=${Date.now()}` để phá CDN/browser cache.
+  6. Cập nhật `avatar_url` trong bảng `profiles`.
+- Xóa ảnh đại diện (`removeAvatar` trong `profile.ts`):
+  Liệt kê toàn bộ file trong `${userId}/`, xóa khỏi bucket `avatars`, và set `avatar_url = null` trong bảng `profiles`.
+
+G. NĂM SINH (BIRTH YEAR)
+- Hàm `saveBirthYear(birthYear)` trong `profile.ts` cập nhật cột `birth_year` trong bảng `profiles` thông qua Supabase RLS.
+- Trong `use-app-state.ts`, hàm `submitBirthYear()` validate năm sinh nằm trong khoảng từ `1900` đến `năm hiện tại - 13`. Năm sinh là mốc quan trọng để tính toán Tuổi Não (Brain Age).
+
+H. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
+- Hàm `changePassword(currentPassword, newPassword)` trong `profile.ts`:
+  1. Kiểm tra `newPassword.length >= 8` và `newPassword !== currentPassword`.
+  2. Gọi `getSupabase().auth.getUser()` lấy email hiện tại.
+  3. Tái xác thực người dùng bằng `signInWithPassword({ email: user.email, password: currentPassword })`. Nếu thất bại, ném lỗi "Current password is incorrect."
+  4. Sau khi tái xác thực thành công, cập nhật mật khẩu mới qua `getSupabase().auth.updateUser({ password: newPassword })`.
+
+I. XÓA TÀI KHOẢN (ACCOUNT DELETION)
+- Hàm `deleteActiveUserAccount()` trong `profile.ts` gửi POST request tới `/server/delete-account`.
+- Xử lý tại Edge Function (`routes/account.ts`):
+  1. Xác thực Bearer Token để lấy `user.id`.
+  2. Dọn dẹp Storage: Liệt kê và xóa toàn bộ file trong `avatars/${userId}/`.
+  3. Xóa Auth User: Gọi `adminClient.auth.admin.deleteUser(userId)` bằng Service Role Key. Thao tác này sẽ tự động xóa hàng trong `public.profiles` nhờ cài đặt `ON DELETE CASCADE`.
+  4. Fallback Idempotent: Gọi thêm `adminClient.from("profiles").delete().eq("id", userId)` phòng trường hợp cơ sở dữ liệu cũ chưa có khóa ngoại CASCADE.
+- Xử lý phía Client:
+  Sau khi server trả về thành công, client gọi `auth.signOut()` và chủ động xóa toàn bộ key lưu trữ phiên làm việc `sb-*` trong `localStorage`.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOWS)
+--------------------------------------------------------------------------------
+
+A. Luồng Đăng ký Tài khoản (Sign Up Flow):
+User (Nhập username, password, Turnstile)
+  │
+  ▼
+[AuthScreen.tsx] --(validate form & regex)--> [handleSignUp()]
+  │
+  ▼ (POST /server/signup + Bearer AnonKey)
+[routes/auth.ts]
+  ├─► [security.ts] clientIp() -> SHA-256 IP Hash
+  ├─► [security.ts] consumeRateLimit() (Check & consume 10/15min)
+  ├─► [security.ts] verifyTurnstile() (Cloudflare API check)
+  ├─► Check reserved_usernames & profiles.username (Chống trùng tên)
+  ├─► adminClient.auth.admin.createUser({ email: username@mindgem.local, email_confirm: true })
+  │     └─► [DB Trigger] on_auth_user_created -> Auto INSERT INTO public.profiles
+  └─► Trả về { profile }
+  │
+  ▼
+[handleLogin()] -> getSupabase().auth.signInWithPassword() -> Lưu JWT Session
+  │
+  ▼
+[onAuthed(profile)] -> Chuyển sang màn hình Dashboard.
+
+B. Luồng Đăng nhập (Login Flow):
+User (Nhập username, password)
+  │
+  ▼
+[AuthScreen.tsx] --> [handleLogin(username, password)]
+  │
+  ├─► Candidate 1: username@mindgem.local
+  │     └─► getSupabase().auth.signInWithPassword() -> Thất bại?
+  ├─► Candidate 2: username@neurobics.local
+  │     └─► getSupabase().auth.signInWithPassword() -> Thành công!
+  ▼
+Lưu Session vào LocalStorage/Memory
+  │
+  ▼
+[fetchProfile()] -> Read public.profiles -> [hydrateProfile()] (Tính Decay)
+  │
+  ▼
+Ghi cache LocalStorage ('neurobics.cached_profile') & Set state profileState.
+
+C. Luồng Tải ảnh đại diện (Upload Avatar Flow):
+User (Chọn file ảnh) --> [uploadAvatar(file)]
+  │
+  ├─► Check MIME (JPEG/PNG/WebP/GIF) & Size (<= 2MB)
+  ├─► List & Remove các file cũ khác extension trong avatars/{userId}
+  ├─► Upload file mới: avatars/{userId}/avatar.{ext} (upsert: true)
+  ├─► Gen Public URL + Query Timestamp: ?t=Date.now()
+  └─► UPDATE public.profiles SET avatar_url = url WHERE id = userId
+  │
+  ▼
+Trả về Profile mới cập nhật -> Update UI Header/Profile.
+
+D. Luồng Xóa tài khoản (Delete Account Flow):
+User (Nhấn "Xóa tài khoản") --> [deleteActiveUserAccount()]
+  │
+  ▼ (POST /server/delete-account + Bearer Token)
+[routes/account.ts]
+  ├─► [security.ts] authenticatedUser() -> Lấy userId từ JWT
+  ├─► adminClient.storage.from("avatars").remove(files)
+  ├─► adminClient.auth.admin.deleteUser(userId)
+  │     └─► DB ON DELETE CASCADE -> Auto DELETE FROM public.profiles
+  └─► Fallback: adminClient.from("profiles").delete().eq("id", userId)
+  │
+  ▼
+Client: getSupabase().auth.signOut() + Xóa key 'sb-*' trong LocalStorage.
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+1. Cô lập Service Role Key:
+   `EDGE_SERVICE_ROLE_KEY` chỉ tồn tại trên Deno Edge Runtime server. Client hoàn toàn không biết key này. Mọi thao tác quản trị đặc quyền (`createUser`, `deleteUser`) đều phải thông qua Edge Function API.
+2. Bảo vệ thông tin cá nhân (PII Privacy):
+   Sử dụng kỹ thuật Email-Spoofing (`username@mindgem.local`) giúp người chơi không cần cung cấp Email thật. Hệ thống chỉ thu thập thông tin cơ bản như `birth_year` (để kiểm duyệt tuổi ≥13) và `fingerprint` phục vụ chống gian lận. Khi xoá tài khoản, dữ liệu `admin_audit` vẫn được giữ 365 ngày và `cheat_flags` giữ 90 ngày (cả hai có chứa `user_id`) cho mục đích bảo mật, sau đó mới bị xoá.
+3. Chống Bot / Auto Signup bằng Captcha:
+   Bắt buộc xác thực Cloudflare Turnstile Token ở tầng server trước khi tiến hành tạo tài khoản. Token chỉ dùng được 1 lần và kiểm tra IP tương ứng.
+4. Chống Tấn công Flood / Brute-force:
+   Sử dụng IP Hash (SHA-256) và RPC `consumeRateLimit` khoá 10 lượt đăng ký trong 15 phút cho mỗi địa chỉ IP. Trích xuất IP chuẩn xác qua `x-forwarded-for`.
+5. Validation Username & Password:
+   - Regex: `^[a-z0-9_.-]{3,20}$` (Chỉ chấp nhận chữ thường, số, dấu gạch dưới, gạch ngang, chấm. Từ 3-20 ký tự). Chặn hoàn toàn khoảng trắng, ký tự đặc biệt, unicode và ký tự `@`.
+   - Password tối thiểu 8 ký tự.
+6. Row Level Security (RLS) trên DB:
+   Bảng `public.profiles` áp dụng RLS: Kẻ gian không thể dùng client key sửa đổi điểm số hay thông tin của người dùng khác (`auth.uid() = id`).
+7. An toàn Storage Bucket:
+   Giới hạn dung lượng file avatar `<= 2MB` và kiểm tra nghiêm ngặt danh sách MIME types được phép.
+
+
+7. RESOLVED RISKS (ĐÃ KHẮC PHỤC)
+--------------------------------------------------------------------------------
+(Tổng hợp từ tài liệu đánh giá kiến trúc `ai_review.md` liên quan đến Auth & Profile)
+
+1. [P0] Đ5 - Cache Profile dùng chung 1 key duy nhất trong LocalStorage:
+   - Chi tiết: Key `neurobics.cached_profile` hiện không gắn `userId`. Nếu User A đăng nhập trên máy chung, sau đó đóng trình duyệt (chưa logout). User B mở máy đăng nhập khi mạng chập chờn, code fallback sẽ đọc cache cũ của User A và hiển thị toàn bộ hồ sơ, XP, chỉ số của User A cho User B.
+   - Giải pháp đã áp dụng: Cấu trúc cache lưu `{ userId, profile, at }` và khi đọc BẮT BUỘC kiểm tra `cached.userId === currentUserId`.
+
+2. [P1] Đ6 - Luồng Khôi phục tài khoản (Account Recovery) chưa thu hồi Session cũ & mất mã vĩnh viễn:
+   - Chi tiết: Route recovery chỉ đổi mật khẩu mà không gọi `signOut(userId, "global")` làm cho session/token cũ của kẻ tấn công vẫn tiếp tục sử dụng được. Đồng thời xóa mã recovery mà không cấp mã mới, khiến tài khoản không thể khôi phục lần 2 nếu lại quên mật khẩu.
+   - Giải pháp: Gọi `signOut("global")` sau khi đổi mật khẩu và xoay mã recovery mới (`mintRecoveryCode()`) lưu lại DB.
+
+3. [P1] Đ7 - TOCTOU trong Rate-limit Signup (Đã khắc phục):
+   - Chi tiết: Trước đây kiểm tra rate limit bằng `check_signup_rate_limit` (chỉ hỏi) rồi mới ghi nhận sau. Khi có N request đồng thời, tất cả đều thấy "còn lượt".
+   - Giải pháp: Chuyển sang dùng `consumeRateLimit` tiêu thụ lượt nguyên tử ngay đầu request.
+
+4. [P1] Đ8 - So sánh Hash không hằng-thời-gian (Constant-Time Comparison):
+   - Chi tiết: Phép so sánh chuỗi hash recovery code bằng toán tử `!==` thoát sớm khi gặp byte đầu tiên khác nhau, tạo nguy cơ rò rỉ qua Timing Attack.
+   - Giải pháp: Áp dụng hàm so sánh XOR hằng thời gian (`bitwise XOR`).
+
+5. [P3] Đ30 - account.ts không dọn dẹp bảng account_recovery khi xóa tài khoản:
+   - Chi tiết: Endpoint `/server/delete-account` dọn dẹp Storage và xóa `auth.users`, nhưng nếu DB cũ chưa có khóa ngoại CASCADE thì bản ghi trong `account_recovery` bị mồ côi (trong khi route xóa của admin có bước dọn này).
+   - Giải pháp: Bổ sung lệnh xóa `account_recovery` hoặc thiết lập FK `ON DELETE CASCADE`.
+
+6. [P3] Đ429 - Validation năm sinh chưa có ngưỡng tuổi tối thiểu:
+   - Chi tiết: submitBirthYear chấp nhận year === thisYear (0 tuổi).
+   - Giải pháp đã áp dụng: Client validate year <= currentYear - 13; DB trigger trg_check_min_age chặn cứng ở tầng cuối để không phụ thuộc client.
+
+
+Lưu ý MFA: Hiện chưa có luồng enroll MFA cho admin trên giao diện, admin cần enroll qua Supabase Dashboard trước khi requireAdmin(c) có hiệu lực.
+
+8.1. CẬP NHẬT KIẾN TRÚC PROD. GUEST RECOVERY (ADR-0009)
+-------------------------------------------------------------------------------
+Khách vãng lai (Guest) sau một thời gian chơi có thể dễ dàng chuyển đổi thành 
+tài khoản chính thức mà không bị mất dữ liệu. Client chỉ cần gọi API có sẵn của 
+Supabase: `supabase.auth.updateUser({ email, password })`. Dữ liệu sẽ tự động 
+được bảo toàn vì Guest ngay từ đầu đã là một Auth User thực thụ (ADR-0007).
+
+8.2. DATA EXPORT COMPLIANCE (GDPR/CCPA)
+-------------------------------------------------------------------------------
+Để tuân thủ quyền riêng tư, hệ thống cung cấp API `/server/account/export`. 
+- Khi gọi Endpoint này, Edge Function sẽ đóng gói toàn bộ `profiles`, 
+`round_tickets`, và `training_sessions` thành định dạng JSON và trả về cho 
+người dùng để tải xuống toàn bộ dữ liệu cá nhân của mình.
+- Data Retention Policy (P2): Bổ sung pg_cron dọn dẹp hệ thống. Tài khoản Guest được tạo quá 30 ngày nhưng không có bất kỳ ván chơi nào (chưa từng nộp điểm) sẽ bị tự động thanh lọc khỏi Database.
+
+
+9. BẢO MẬT VÀ QUYỀN RIÊNG TƯ (SPRINT 3 AI AUDIT)
+-------------------------------------------------------------------------------
+- Age Gate Tầng Database: Triển khai DB Trigger `trg_check_min_age` để chặn cứng `birth_year` < 13 tuổi, đảm bảo tính nhất quán trên cả 3 tầng (UI, API, DB) thay vì chỉ tin tưởng Client.
+- Quản lý Public Leaderboard: Loại trừ hoàn toàn `role = guest` khỏi bảng xếp hạng công khai (public_leaderboard) để ngăn chặn việc spam tài khoản ảo làm loãng thứ hạng người dùng thật.
+- Lưu trữ PII: Dữ liệu log `admin_audit` và `cheat_flags` có chứa `user_id` sẽ được lưu tối đa tương ứng 365 ngày và 90 ngày cho mục đích bảo mật trước khi bị xoá vĩnh viễn (đã đồng bộ với văn bản privacy-and-terms.md).
+- Bảo mật Storage: Storage RLS của bucket `avatars` được siết chặt để kiểm tra trực tiếp đuôi file (`storage.extension`) phải là file ảnh (jpg, png, webp, gif), ngăn chặn tấn công tải lên file `.html` độc hại.
+
+
+================================================================================
+docs/feature_games_scoring.txt
+================================================================================
+
+================================================================================
+TỔNG HỢP TÍNH NĂNG: HỆ THỐNG GAME & CHẤM ĐIỂM (GAMES & SCORING)
+DỰ ÁN: MINDGEM
+================================================================================
+
+--------------------------------------------------------------------------------
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Hệ thống Game & Chấm điểm (Games & Scoring) là trái tim nhận thức của ứng dụng MindGem. Hệ thống chịu trách nhiệm:
+- Quản lý danh mục 12 trò chơi rèn luyện trí não theo chuẩn nhận thức (Cognitive Training Standards).
+- Thu thập dữ liệu đo xa (Telemetry) chi tiết từ người chơi (tốc độ phản ứng từng lượt, số lần bấm sai, độ trễ nhịp độ, số cấp độ qua được...).
+- Chấm điểm đa chiều (Multi-axis Cognitive Scoring) trên 5 trục năng lực chính: Speed (Tốc độ), Focus (Tập trung), Spatial (Không gian), Logic (Tư duy logic), Memory (Ghi nhớ).
+- Áp dụng mô hình tính điểm không hội tụ (Non-converging Radar), loại bỏ hoàn toàn yếu tố thời gian ở các trò Logic & Memory để ngăn người chơi nhanh làm lệch toàn bộ chỉ số.
+- Cập nhật điểm Elo/Rating hệ thống theo mô hình trung bình động lũy thừa hai chiều (Bidirectional EMA), hỗ trợ khởi động lạnh (Cold Start) và giảm điểm tự nhiên do không hoạt động (Inactivity Decay).
+- Tính chỉ số nhận thức toàn cầu (Cognitive Index), tuổi não (Brain Age) so sánh với dân số peers thực tế thông qua hàm bù sai số Bayes (Bayesian Shrinkage Error Function).
+- Cung cấp hệ thống XP & Level tách biệt với điểm kỹ năng (Rating), thưởng cho mức độ gắn kết (Engagement) của người dùng.
+- Bảo mật quy trình chơi bằng hệ thống vé một lần (Round Tickets), kiểm tra chống gian lận đa tầng (Server-side Anti-cheat) và hỗ trợ lưu/đồng bộ ván chơi ngoại tuyến (Offline Queue & Sync).
+
+--------------------------------------------------------------------------------
+2. KIẾN TRÚC (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Hệ thống được thiết kế theo kiến trúc Client-Server chặt chẽ:
+- Client (React / Vite + TypeScript):
+  + Quản lý state trò chơi, giao diện người dùng (Game Stage), thu thập Telemetry thời gian thực.
+  + Mint và quản lý vòng đời vé ván chơi (Round Ticket Lifecycle) qua hook `useRoundSubmission`.
+  + Dự phòng Offline Queue trong LocalStorage khi mất kết nối mạng.
+  + Đọc và hiển thị điểm preview trên UI qua các helper `pullUpRating`, `calcBrainAge`, `getLevelProgress`.
+- Server (Supabase Edge Functions + Hono Framework + Postgres DB):
+  + Là NƠI CHẤM ĐIỂM VÀ VALIDATE DUY NHẤT (Server is the only scorer). Client không bao giờ được tự gửi điểm rating lên server.
+  + Định tuyến API qua Hono routes (`/server/start-round`, `/server/submit-round`, `/server/sync-offline-rounds`).
+  + Thực thi kiểm tra thời gian server thực tế (`serverElapsedMs`), kiểm tra giới hạn vật lý (`assertRtBounds`, `assertCountBounds`), chạy kiểm tra chống gian lận (`inspectRound`).
+  + Tính điểm từng trục (`scoreAndValidate`) và thực hiện giao dịch nguyên tử trong Postgres DB qua RPC `submit_round_transaction`.
+  + Ghi nhận cheat flags qua RPC `record_cheat_flag` và liên kết thiết bị qua `link_device`.
+
+--------------------------------------------------------------------------------
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+1. `src/app/lib/game-registry.ts`
+   - Single source of truth cho danh mục 12 game client: id, title, accent, icon, tagKey, primaryAxis, secondaryAxis, sessionColumn, stageWidth.
+2. `src/app/lib/scoring.ts`
+   - Định nghĩa kiểu Telemetry client, hằng số thang điểm (0-1000), thuật toán EMA (`applyRoundRating`), thống kê (median, mean, CV, lapseRate), tính Tuổi Não (`calcBrainAge`) và phân phối dân số.
+3. `src/app/lib/axes.ts`
+   - Mapping giữa phím trục nhận thức (speed, focus, spatial, logic, memory) và màu sắc UI, xuất kiểu dữ liệu AxisKey.
+4. `src/app/lib/sessions.ts`
+   - Tiện ích tính tổng số lượt chơi (`totalSessions`) từ các cột session counters trong profile người dùng.
+5. `src/app/lib/xp.ts`
+   - Thuật toán XP & Level: tính XP nhận được sau ván chơi (`calculateRoundXp`), tính Level từ tổng XP (`levelFromXp`), danh hiệu (Level Title) và tiến trình Level.
+6. `src/app/lib/api/rounds.ts`
+   - Hàm API client giao tiếp với server: `startRound` (lấy ticket), `submitRound` (nộp kết quả), `syncOfflineRounds` (đồng bộ ngoại tuyến).
+7. `src/app/lib/api/stats.ts`
+   - Tính toán Chỉ số Nhận thức (`cognitiveIndex`), Độ phủ Trục (`axesCovered`), lấy Bảng xếp hạng (`fetchLeaderboard`) và Phân phối Dân số (`fetchPopulationStats`).
+8. `src/app/lib/use-game-lifecycle.ts`
+   - Hook lắng nghe sự kiện vòng đời trình duyệt (visibilitychange, pagehide, blur) để tạm dừng hoặc dọn dẹp trạng thái ván chơi khi chuyển tab.
+9. `src/app/hooks/use-round-submission.ts`
+   - Hook client quản lý toàn bộ quy trình: chuẩn bị ticket, bắt đầu chơi, gửi telemetry ván chơi, xử lý lỗi mạng & offline queue fallback, cập nhật UI overlay.
+10. `supabase/functions/_shared/round-scoring.ts`
+    - Entrypoint duy nhất trên server để chấm điểm & validate ván chơi (`scoreAndValidate`), kết nối các scorer từng game và kiểm tra khoảng thời gian hợp lệ.
+11. `supabase/functions/_shared/scoring/core.ts`
+    - Thư viện nguyên thủy chấm điểm server: định nghĩa `Telemetry`, `ScoredRound`, các hàm toán học (`speed`, `focus`, `headline`, `median`, `cv`, `statSamples`, `clamp`).
+12. `supabase/functions/_shared/scoring/standard-games.ts`
+    - Hàm chấm điểm server cho 6 trò tiêu chuẩn: Schulte Table, Sudoku, Stroop Test, Reaction Time, Memory Matrix, Math Sprint.
+13. `supabase/functions/_shared/scoring/advanced-games.ts`
+    - Hàm chấm điểm server cho 6 trò nâng cao: N-Back, Go/No-Go, Mental Rotation, Corsi Block, Trail Making, Visual Search.
+14. `supabase/functions/_shared/scoring/validation.ts`
+    - Bộ kiểm tra ràng buộc dữ liệu telemetry thô trước khi chấm: `assertCountBounds`, `assertRtBounds`, chặn thời gian phản ứng dưới ngưỡng người (`HARD_MIN_RT_MS = 80ms`).
+15. `supabase/functions/_shared/axes.ts`
+    - Định nghĩa ma trận ánh xạ duy nhất giữa phím trục nhận thức (`AxisKey`) và tên cột tương ứng trong cơ sở dữ liệu Postgres `profiles`.
+16. `supabase/functions/server/routes/rounds.ts`
+    - Các API endpoint của server Hono: `POST /server/start-round` (cấp vé), `POST /server/submit-round` (chấm điểm & lưu nguyên tử), `POST /server/sync-offline-rounds` (đồng bộ lô ngoại tuyến).
+
+--------------------------------------------------------------------------------
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+
+4.1. DANH MỤC 12 TRÒ CHƠI (GAME REGISTRY)
+Mỗi game được khai báo nhất quán với các thuộc tính:
+- Schulte Table (`schulte`): Focus (chính), Spatial (phụ) | Stage: lg | Col: `schulte_sessions`
+- Sudoku (`sudoku`): Logic (chính), Memory (phụ) | Stage: md | Col: `sudoku_sessions`
+- Stroop Test (`stroop`): Focus (chính), Speed (phụ) | Stage: sm | Col: `stroop_sessions`
+- Reaction Time (`reaction`): Speed (chính), Focus (phụ) | Stage: sm | Col: `reaction_sessions`
+- Memory Matrix (`memory`): Memory (chính), Spatial (phụ) | Stage: sm | Col: `memory_sessions`
+- N-Back (`nback`): Memory (chính), Focus (phụ) | Stage: sm | Col: `nback_sessions`
+- Math Sprint (`math`): Logic (chính), Speed (phụ) | Stage: sm | Col: `math_sessions`
+- Go / No-Go (`gonogo`): Focus (chính), Speed (phụ) | Stage: sm | Col: `gonogo_sessions`
+- Mental Rotation (`mental`): Spatial (chính), Speed (phụ) | Stage: md | Col: `mental_sessions`
+- Corsi Block (`corsi`): Memory (chính), Spatial (phụ) | Stage: sm | Col: `corsi_sessions`
+- Trail Making (`trail`): Speed (chính), Focus (phụ) | Stage: md | Col: `trail_sessions`
+- Visual Search (`search`): Focus (chính), Speed (phụ) | Stage: md | Col: `search_sessions`
+
+4.2. THANG ĐIỂM VÀ TÍNH ĐIỂM ELO / RATING (EMA MODEL)
+- Thang điểm chuẩn: `RATING_MIN = 0`, `RATING_MAX = 1000`.
+  - Chữa lành dữ liệu cũ (Auto-heal): `sanitizeRating(val)`
+    + `val < 0` hoặc không phải số -> 0.
+    + `val > 1000` -> kẹp xuống chính xác 1000 (đảm bảo không bao giờ reset về 0 gây mất điểm oan), đồng thời ghi lại log cảnh báo (`console.warn` / telemetry) khi việc kẹp này xảy ra để phục vụ điều tra.
+- Thuật toán cập nhật EMA hai chiều (`applyRoundRating` / `pullUpRating`):
+  + Nếu điểm cũ `prev <= 0` (Cold Start): Điểm ván đầu trở thành baseline ban đầu.
+  + Nếu `gap = round - prev > 0` (Bứt phá): `EMA = prev + 0.4 * gap`, kẹp `max(prev + 3, EMA)`.
+  + Nếu `gap < 0` (Giảm phong độ): `EMA = prev + 0.28 * gap`, kẹp `min(prev - 3, EMA)`.
+  + Khoảng cách `|gap| <= 3` (`RATING_SNAP`): Nhảy thẳng về điểm ván mới để tránh tiệm cận vô hạn sat biên 999.
+
+4.3. THIẾT KẾ CÁC TRỤC ĐỘC LẬP & CÔNG THỨC CHẤM ĐIỂM CHI TIẾT
+Mỗi trục nhận tín hiệu đầu vào riêng biệt:
+- Logic & Memory: HOÀN TOÀN KHÔNG CÓ THÀNH PHẦN THỜI GIAN. Người chơi nhanh không thể đẩy 5 trục lên cùng lúc nếu không suy luận đúng hoặc nhớ chính xác.
+- Speed: Dựa trên MEDIAN response time (không dùng tổng thời gian hay trung bình cộng, chống nhiễu do dừng 1 nhịp).
+  + Thuật toán Speed không bảo hòa (v54 non-saturating smooth exponential fill):
+    * `raw = target / max(median(statRts), 1)`
+    * `base = MAX * diff`
+    * Nếu `raw <= 1` (chậm hơn target): `clamp(base * Math.pow(raw, 1.3))` (phạt lũy thừa 1.3).
+    * Nếu `raw > 1` (nhanh hơn target): `clamp(base + (MAX - base) * (1 - exp(-ln(raw) * 1.6)) * 0.85)` (lấp đầy khoảng trống tiệm cận 0.85).
+- Focus: Đo độ ổn định nhịp độ (Coefficient of Variation - CV), tỷ lệ xao nhãng (Lapse Rate), độ chính xác và phạt nếu nhịp chơi quá chậm so với target.
+  + `penalty = clamp01((cv(rts) - 0.18) / (1.05 - 0.18))`
+  + `pace = clamp01((4 * target - median) / (3 * target))`
+  + `focus = MAX * diff * 0.92 * (1 - penalty * 0.75) * (1 - lapseRate * 1.15) * (accuracy ^ 1.15) * (pace ^ 1.25)`
+- Headline Score: Trung bình cộng các trục active trong ván (`headline = sum(active_axes) / count(active_axes)`).
+
+Chi tiết công thức từng game trên server (`round-scoring.ts`):
+1. Schulte Table:
+   - Input: `cells` (9, 16, 25, 36), `hitRts`, `wrongClicks`, `failed`.
+   - Speed: `speed(statRts, perTarget, diff) * completion`.
+   - Focus: `focus(statRts, accuracy, diff, perTarget) * completion`.
+   - Spatial: Trục phụ. Lấy 1/3 mảng RT giai đoạn cuối (`late`): `clamp(MAX * 0.87 * diff * min(1, ratio(per * 1.25, median(late))) * accuracy * completion)`.
+2. Sudoku:
+   - Input: `difficulty` (Easy->Extreme), `placements`, `moveRts`, `mistakes`, `reEntries`, `repeatMistakes`, `actualClues`.
+   - Độ khó thực tế `effectiveSudokuDiff` điều chỉnh theo `actualClues` thực tế.
+   - Logic: `clamp(MAX * diff * (1 - mistakes/3)^1.35)`. Ván `failed` giảm còn 35%.
+   - Memory: `retention = 1 - (reEntries + repeat*1.75) / max(3, placements*0.2)`. `clamp(MAX * diff * retention)`.
+   - Speed: `speed(statRts, per, diff) * completion`.
+3. Stroop Test:
+   - Input: `totalStimuli`, `wrongClicks`, `rts`. `STROOP_TRIALS = 30`.
+   - Speed: `speed(statRts, 1400, 0.78) * completion`.
+   - Focus: `focus(statRts, accuracy, 0.78, 1400) * completion`.
+4. Reaction Time:
+   - Input: `rts` (8-12 mẫu), `falseStarts`.
+   - `accuracy = rts.length / (rts.length + falseStarts * 2.5)`.
+   - Speed: `speed(statRts, 280, 0.95)`. Target 280ms, diff 0.95.
+   - Focus: `focus(statRts, accuracy, 0.88, 280)`.
+5. Memory Matrix:
+   - Input: `clearedLevels` / `maxLevel`, `wrongClicks`.
+   - `progression = clamp01(level / 16)`.
+   - `progressionFactor = PROG_FLOOR + (1 - PROG_FLOOR) * (progression ^ 0.75)` với `PROG_FLOOR = 0.24`.
+   - Memory: `clamp(MAX * 0.88 * progressionFactor * accuracy)`.
+   - Spatial: `clamp(MAX * 0.82 * progressionFactor * accuracy)`.
+6. N-Back:
+   - Input: `n` (1-6), `trials`, `hits`, `misses`, `falseAlarms`, `rts`.
+   - `hitRate = hits / targets`, `faRate = falseAlarms / nonTargets`, `accuracy = hitRate - faRate * 0.95`. `depth = n / 6`.
+   - Memory: `clamp(MAX * (accuracy ^ 1.2) * (0.62 + 0.36 * depth))`.
+   - Focus: `clamp(MAX * (accuracy ^ 1.15) * (0.62 + 0.32 * (1 - faRate)) * (0.72 + 0.26 * depth))`.
+   - Speed: `speed(rts, 620, 0.82)`.
+7. Math Sprint:
+   - Input: `difficulty`, `totalProblems`, `correct`, `wrong`, `rts`.
+   - Logic: `clamp(MAX * diff * accuracy)`.
+   - Speed: `speed(clean, target, diff) * (0.55 + 0.45 * accuracy)`.
+8. Go / No-Go:
+   - Input: `trials` (30-48), `goTrials`, `nogoTrials`, `hits`, `misses`, `falseAlarms`, `correctRejections`, `rts`.
+   - `accuracy = clamp01(hitRate) * clamp01(1 - faRate)` (phép nhân chống chiêu trò bấm mọi ô hoặc không bấm ô nào).
+   - Focus: `clamp(MAX * 0.9 * (accuracy ^ 1.15) * (0.62 + 0.38 * (1 - faRate * 1.35)))`.
+   - Speed: `speed(statRts, 420, 0.88) * Math.pow(1 - faRate, 0.9)`.
+9. Mental Rotation:
+   - Input: `trials` (20-32), `correct`, `wrong`, `rts`, `angles`, `mirrors`, `correctFlags`.
+   - `angleLoad`: Trung bình `|sin(angle/2)|` của các câu đúng. `angleFactor = 0.78 + 0.24 * meanAngleLoad`.
+   - Spatial: `clamp(MAX * 0.95 * (accuracy ^ 1.15) * angleFactor)`.
+   - Speed: `speed(statRts, 1400, 0.72)`.
+10. Corsi Block:
+    - Input: `span` (0-9), `trials`, `correctTrials`, `taps`, `wrongClicks`, `rts`.
+    - `spanNorm = (span - 2) / 6`. `spanFactor = SPAN_FLOOR + (1 - SPAN_FLOOR) * (spanNorm ^ exp)`.
+    - Memory: `clamp(MAX * 0.95 * spanFactor(0.65) * (0.7 + 0.3 * accuracy))`.
+    - Spatial: `clamp(MAX * 0.84 * spanFactor(0.6) * ((1 - errorRate) ^ 1.2))`.
+11. Trail Making:
+    - Input: `nodes` (12-40), `mode` ("A" | "B"), `wrongClicks`, `rts`.
+    - Target: Mode A = 760ms, Mode B = 1100ms. Diff: Mode A = 0.78, Mode B = 0.90.
+    - Speed: `speed(statRts, target, diff)`.
+    - Focus: `focus(statRts, accuracy, diff, target)`.
+12. Visual Search:
+    - Input: `totalTimeMs`, `score`, `mistakes`, `rts`.
+    - Speed: `speed(statRts, 1100, 0.85)`.
+    - Focus: `focus(statRts, accuracy, 0.85, 1100)`.
+
+4.4. TÍNH CHỈ SỐ NHẬN THỨC VÀ TUỔI NÃO (COGNITIVE INDEX & BRAIN AGE)
+- Chỉ số nhận thức toàn cầu (`cognitiveIndex`):
+  + Từ Phase 12 (Tuần 3), `cognitive_index` được tính toán hoàn toàn trên Database (qua DB function `compute_cognitive_index` và View `friend_leaderboard`).
+  + **Decay (Suy giảm)**: Trước khi tính Index, từng trục được tính `effective_rating()` dựa trên `peak_rating`. Decay bắt đầu sau 15 ngày không chơi (mỗi ngày -1%), và chạm đáy ở 35% của đỉnh phong độ.
+  + **Nội suy (Interpolation)**: `compute_cognitive_index()` tính trung bình cộng 5 trục `effective_rating`. Những trục chưa từng chơi (score = 0) sẽ được nội suy (phạt 30%) dựa trên trung bình các trục đã mở.
+- Tuổi não (`calcBrainAge`):
+  + Yêu cầu đủ `CALIBRATION_ROUNDS = 5` ván chơi calibration.
+  + Biên độ tuổi tối đa: `MAX_AGE_SWING = 12` năm.
+  + Phân tầng tuổi: Hệ thống sử dụng 5 tầng tuổi riêng biệt: 13-17, 18-24, 25-34, 35-49, 50+. Percentile của user được tính so với population *của đúng tầng tuổi đó*.
+  + Xử lý mẫu nhỏ (Bayesian Shrinkage): Khi một tầng tuổi chưa đủ `MIN_POPULATION (mặc định 10) * 4` (32 người), hệ thống sẽ hòa trộn (blend) phân phối của tầng đó với *phân phối toàn cục thực tế* của toàn hệ thống, thay vì dùng một hằng số cứng. (Chỉ dùng `DEFAULT_POPULATION = { mean: 380, sd: 180 }` nếu toàn bộ hệ thống chưa ai chơi).
+  + Tính Percentile bằng công thức xấp xỉ hàm lỗi Abramowitz & Stegun (`erf`):
+    `z = (index - mean) / sd`
+    `percentile = clamp01(0.5 * (1 + erf(z / sqrt(2))))`
+  + `advantage = (percentile - 0.5) * 2 * MAX_AGE_SWING`
+  + `brainAge = round(clamp(realAge - advantage, 5, 120))`
+
+4.5. HỆ THỐNG XP & LEVEL (ENGAGEMENT SYSTEM)
+- XP thưởng theo ván chơi (`calculateRoundXp`):
+  + `base = 15`, `perf = (score / 1000) * 45` (tối đa 60 XP/ván).
+  + Hệ số mệt mỏi trong ngày (`fatigue = max(0.1, 1 - roundIndexToday * 0.15)`).
+- Derive Level từ tổng XP (`levelFromXp`):
+  + `completed = floor((-1 + sqrt(1 + totalXp / 12.5)) / 2)`
+  + `level = completed + 1`
+  + XP tích lũy yêu cầu cho level L: `xpRequiredForLevel(L) = 50 * (L - 1) * L`.
+- Danh hiệu Level:
+  + Level 1-4: Novice (#94A3B8)
+  + Level 5-9: Explorer (#10B981)
+  + Level 10-19: Thinker (#00D4FF)
+  + Level 20-34: Strategist (#A855F7)
+  + Level 35-49: Neural Master (#F59E0B)
+  + Level >= 50: Neuro Sage (#F43F5E)
+
+4.6. HÀNG ĐỢI VÀ ĐỒNG BỘ NGOẠI TUYẾN (OFFLINE QUEUE & SYNC)
+- Khi mất kết nối mạng, hook `useRoundSubmission` tạo ticket giả dạng `offline-{game}-{timestamp}`.
+- Ván chơi hoàn tất được đẩy vào hàng đợi LocalStorage `neurobics.offline_queue.[userId]` (tối đa 200 ván, cơ chế FIFO) thông qua `pushOfflineRound`.
+- Mỗi ván ngoại tuyến sinh một `clientRoundId` (UUID) duy nhất.
+- Khi có mạng trở lại, hook `useOfflineSync` tự động gửi lô tối đa 25 ván tới `/server/sync-offline-rounds`.
+- Server đối chiếu `clientRoundId` trong bảng `round_tickets` để đảm bảo tính bất biến/tránh ghi trùng (Idempotency).
+
+--------------------------------------------------------------------------------
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+--------------------------------------------------------------------------------
+
+[BƯỚC 1: MỞ GAME & LẤY TICKET]
+Người dùng click chọn game trên UI -> `useRoundSubmission.prepareRound(game)`
+    - Client gọi POST /server/start-round { game }
+  - Server kiểm tra Auth User & Rate limit (tối đa 20 ván/phút)
+  - Server đóng vé cũ chưa nộp (nếu có) và cấp phát vé mới từ `ticket_pool` qua RPC `start_round_with_pool` (Pre-mint pool giảm cold-start - ADR-0008).
+  └─ Server trả về { roundId, game, startedAt, expiresAt } (thời gian sống 3 giờ)
+
+[BƯỚC 2: CHƠI GAME & GHI TELEMETRY]
+Người dùng bắt đầu chơi (`beginPlay`) -> Lưu `performance.now()`
+  └─ Trong quá trình chơi, Game Component thu thập:
+     - Mảng thời gian phản ứng từng câu (`rts` / `hitRts` / `moveRts`)
+     - Số lần bấm sai (`wrongClicks` / `mistakes` / `falseAlarms` / `falseStarts`)
+     - Cấp độ đạt được (`maxLevel` / `clearedLevels` / `span`)
+     - Tổng thời gian hoàn thành ván (`timeMs`)
+
+[BƯỚC 3: NỘP VÁN CHƠI & CHẤM ĐIỂM SERVER]
+Người dùng hoàn thành ván -> Game gọi handler nộp dữ liệu -> `submitRound(roundId, game, telemetry)`
+  └─ Client gửi POST /server/submit-round { roundId, game, telemetry, fingerprint }
+  └─ Server kiểm tra ticket trong DB:
+     + Ticket phải tồn tại, đúng user, đúng game, chưa submitted, chưa hết hạn.
+  └─ Server tính thời gian trôi qua thực tế trên Server: `serverElapsedMs = Date.now() - ticket.started_at`.
+  └─ Lớp chống gian lận `inspectRound(game, telemetry, serverElapsedMs)`:
+     + Nếu dính HARD FLAG -> Đốt ticket lập tức, ghi RPC `record_cheat_flag`, trả 422 `anticheat_hard`.
+     + Nếu dính SOFT FLAG -> Ghi log cảnh báo qua `record_cheat_flag`, vẫn tiếp tục chấm điểm.
+  └─ Lớp Validate & Scoring `scoreAndValidate(game, telemetry, serverElapsedMs)`:
+     + Chạy `assertCountBounds` & `assertRtBounds` (chặn RT < 80ms hoặc RT > 60s).
+     + Gọi Scorer tương ứng trong `SCORERS[game]` để tính điểm các trục.
+     + Kiểm tra `scored.timeMs <= serverElapsedMs + 15000ms`.
+  └─ Server thực thi RPC Postgres Transaction `submit_round_transaction`:
+     + Cập nhật các cột điểm tương ứng trong `profiles` bằng công thức EMA.
+     + Tăng cột session counter của game tương ứng (vd: `schulte_sessions = schulte_sessions + 1`).
+     + Thêm dòng vào `training_sessions` & `xp_events`.
+     + Trigger trg_xp_events_apply tự cộng xp_awarded vào profiles.total_xp.
+        + Level được derive từ total_xp (levelFromXp), không lưu cột riêng.
+     + Đánh dấu ticket `submitted_at = now()`.
+  └─ Server trả về thông tin profile mới cập nhật + các trục điểm thu được (`axes`, `headline`, `xpAwarded`, `leveledUp`).
+
+[BƯỚC 4: HIỂN THỊ KẾT QUẢ VÀ CẬP NHẬT UI]
+Client nhận phản hồi thành công -> `useRoundSubmission` xử lý:
+  └─ Cập nhật state `profile` của ứng dụng.
+  └─ Tính toán hiệu số điểm tăng/giảm cho từng trục (`applyAxes`).
+  └─ Hiển thị màn hình Overlay Kết quả Ván chơi (`RoundResultOverlay`).
+  └─ Tăng `gamificationKey` để kích hoạt hiệu ứng chúc mừng (Confetti / Level up animation).
+
+--------------------------------------------------------------------------------
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+1. Ranh giới Server-Client (Server-Only Scoring):
+   - Mọi thuật toán chấm điểm và quy tắc tính EMA thực sự nằm duy nhất tại `supabase/functions/_shared/round-scoring.ts`. Client chỉ giữ kiểu dữ liệu DTO và hàm tính preview tạm thời.
+2. Xác thực Vé Ván chơi (Ticket-based Lifecycle):
+   - Người dùng không thể gửi trực tiếp điểm số vào DB. Mọi ván chơi phải có `roundId` gắn với 1 vé hợp lệ sinh ra từ server trước thời điểm chơi.
+   - Mỗi người dùng chỉ có 1 vé active tại một thời điểm (vé cũ tự đóng khi mint vé mới).
+   - Khống chế tốc độ tạo vé: Tối đa 20 vé/phút (`MAX_TICKET_STARTS_PER_MINUTE`).
+3. Kiểm tra Ràng buộc Thời gian & Dữ liệu Vật lý:
+   - `serverElapsedMs` do server tự đo dựa trên thời gian tạo vé. Dữ liệu client khai báo không thể vượt quá `serverElapsedMs + 15s`.
+   - Ngưỡng thời gian phản ứng con người (`HARD_MIN_RT_MS = 80ms`): Bất kỳ lượt bấm nào dưới 80ms đều bị coi là vi phạm giới hạn sinh học con người.
+   - Giới hạn số lượng phần tử (`rts.length <= 5000`) chống tấn công từ chối dịch vụ (DoS) bằng payload khổng lồ.
+   - Kiểm tra tính nhất quán logic (`assertCountBounds`): `correct + wrong == trials`, `hits + misses == goTrials`, `falseAlarms <= nogoTrials`...
+4. Tầng Chống Gian Lận Đa Cấp (Anti-cheat Inspection):
+   - Hard Flags: Huỷ ván ngay lập tức và đốt vé (burn ticket) trước khi trả về HTTP 422 để ngăn kẻ gian dùng API làm Oracle dò ngưỡng.
+   - Soft Flags: Ghi vết gian lận nghi vấn vào cơ sở dữ liệu (`cheat_flags`) để phân tích hành vi mà không ảnh hưởng trực tiếp đến trải nghiệm người chơi bình thường.
+   - Liên kết dấu vân tay thiết bị (`link_device`) lưu tối đa 200 ký tự fingerprint để phát hiện bot/multi-account.
+
+--------------------------------------------------------------------------------
+
+
+9. TOÁN HỌC VÀ TÍNH TRỰC GIAO (SPRINT 3 AI AUDIT)
+-------------------------------------------------------------------------------
+- Cập nhật Math Sprint: Lược bỏ thành phần thời gian (`pace`) ra khỏi công thức tính trục `logic` của game Math Sprint. Logic điểm giờ đây tuân thủ tuyệt đối tính trực giao: thời gian chỉ ảnh hưởng đến Speed, và độ chính xác chỉ ảnh hưởng đến Logic/Memory.
+- Cập nhật Iframe Origin: Thêm bảo mật `e.origin === window.location.origin` cho sự kiện `EXIT_GAME` ở Arcade Panel để tránh các rủi ro Cross-Origin Message Spoofing.
+- Slack Webhook: URL webhook của Slack được chuyển vào trong `supabase_vault` và đọc thông qua truy vấn mật thay vì dùng GUC (Global User Configuration), tránh rò rỉ khi hàm `SECURITY DEFINER` được gọi.
+
+
+================================================================================
+docs/feature_gamification_social.txt
+================================================================================
+
+TỔNG HỢP TÍNH NĂNG GAMIFICATION (THÀNH TỰU, NHIỆM VỤ, XÃ HỘI & LỊCH SỬ TIẾN TRÌNH) - MINDGEM
+====================================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+----------------------------------------------------------------------------------------------------
+Phân hệ Gamification & Social trong dự án MindGem là hệ thống cốt lõi nhằm thúc đẩy động lực luyện tập hàng ngày (user engagement & retention), theo dõi Chỉ số Nhận thức (Cognitive Index - CI), vinh danh thành tựu cá nhân và kết nối cộng đồng người chơi.
+
+Phân hệ bao gồm 4 trụ cột chức năng chính:
+- Thành tựu (Achievements / Badges): Hệ thống 52+ huy hiệu danh hiệu được chia thành 5 hạng (Đồng, Bạc, Vàng, Bạch kim, Kim cương) và 6 nhóm mục tiêu. Người chơi mở khoá danh hiệu thông qua việc tích luỹ số ván, nâng cao cấp độ, chinh phục các chỉ số nhận thức và vượt qua thử thách riêng của từng trò chơi. Phần thưởng XP tương ứng được hệ thống tự động cộng vào tài khoản.
+- Nhiệm vụ (Daily & Weekly Quests): Hệ thống gồm 3 nhiệm vụ ngày (làm mới lúc 00:00 GMT+7) và 3 nhiệm vụ tuần (làm mới vào thứ Hai GMT+7). Tiến độ nhiệm vụ được tính toán tự động dựa trên kết quả luyện tập thực tế. Người chơi chủ động bấm nút "NHẬN" (Claim) trên giao diện để thu thập điểm kinh nghiệm (XP).
+- Xã hội & Bảng xếp hạng Bạn bè (Social & Friends Leaderboard): Cho phép tìm kiếm người chơi khác theo tên tài khoản (tối thiểu 2 ký tự), gửi/chấp nhận/từ chối lời mời kết bạn, huỷ kết bạn và theo dõi Bảng xếp hạng riêng (Private Leaderboard) để so kè Chỉ số Nhận thức (CI) và Tổng XP tích luỹ với danh sách bạn bè đã kết nối.
+- Lịch sử Luyện tập & Tiến trình (Training History & Progress Chart): Ghi nhận chi tiết từng ván đấu (thời gian, điểm số, 5 trục nhận thức Speed, Focus, Spatial, Logic, Memory, XP thưởng), quản lý Kỷ lục cá nhân (Personal Bests) theo từng trò chơi (đặc biệt hỗ trợ kỷ lục phân mảnh theo cấu hình ma trận và chế độ chơi cho Schulte Grid), cùng biểu đồ tiến trình 7/30/90 ngày trực quan với tính năng hỗ trợ người mù màu.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+----------------------------------------------------------------------------------------------------
+Hệ thống được thiết kế theo mô hình Client-Server chặt chẽ kết hợp với triết lý Security Definer RPC trên nền tảng Supabase (PostgreSQL) và Next.js / React Frontend:
+
+A. Tầng Client (Frontend):
+- Vị trí: `src/app/components/` và `src/app/lib/`
+- Vai trò: Đảm nhận toàn bộ việc hiển thị giao diện UI panels (`AchievementsPanel`, `QuestsPanel`, `FriendsPanel`, `HistoryPanel`, `ProgressChart`), quản lý trạng thái local, điều hướng bộ lọc (Filter), tối ưu hóa hiệu năng nạp trang (Lazy loading thư viện đồ họa Recharts), và định nghĩa catalog nhãn hiển thị đa ngôn ngữ (Việt - Anh) kèm cơ chế fallback nhãn nhiệm vụ an toàn.
+
+B. Tầng Server & Database (Backend):
+- Vị trí: Supabase PostgreSQL Stored Procedures / RPC Functions & Edge Functions
+- Vai trò: Đảm nhận 100% logic nghiệp vụ, tính toán điều kiện mở khoá thành tựu (`sync_achievements`), theo dõi tiến độ nhiệm vụ ngày/tuần (`get_daily_quests`), kiểm tra điều kiện và trao thưởng XP nguyên tử (`claim_quest`), quản lý quan hệ kết bạn hai chiều (`send_friend_request`, `respond_friend_request`, `remove_friend`, `get_friends`, `get_friend_leaderboard`) và tổng hợp dữ liệu tiến trình (`get_progress_series`, `get_personal_bests`, `get_schulte_config_bests`).
+
+C. Triết lý Bảo mật Nguyên tắc Trung tâm:
+- Trình duyệt tuyệt đối KHÔNG bao giờ tự tuyên bố hoàn thành nhiệm vụ, mở thành tựu hay tự cộng điểm XP. Tất cả mọi cờ mở khoá và điểm thưởng đều do các Stored Procedures (chạy với quyền `SECURITY DEFINER`) kiểm tra từ bảng dữ liệu gốc (`training_sessions`, `profiles`) và cấp phát trực tiếp tại cơ sở dữ liệu.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+----------------------------------------------------------------------------------------------------
+1. `src/app/lib/achievements.ts`:
+   Định nghĩa danh mục hiển thị toàn bộ huy hiệu (mã badge, icon emoji, XP thưởng, hạng tier, nhóm category, tên & mô tả đa ngôn ngữ vi/en), bảng màu đại diện cho các hạng và tính tổng XP huy hiệu.
+
+2. `src/app/lib/quest-labels.ts`:
+   Quản lý nhãn hiển thị nhiệm vụ phía client; chứa từ điển nhãn tĩnh `QUEST_LABELS`, hàm `humanizeQuestCode` dịch mã kỹ thuật thành câu tiếng Việt/Anh đọc được, và hàm `resolveQuestLabel` xử lý chuỗi ưu tiên hiển thị.
+
+3. `src/app/lib/api/gamification.ts`:
+   Cung cấp các hàm API Client gọi RPC Supabase cho thành tựu và nhiệm vụ (`syncAchievements`, `fetchAchievementProgress`, `fetchDailyQuests`, `claimQuest`).
+
+4. `src/app/lib/api/social.ts`:
+   Cung cấp các hàm API Client gọi RPC Supabase cho tính năng xã hội và bạn bè (`searchPlayers`, `fetchFriends`, `sendFriendRequest`, `respondFriendRequest`, `removeFriend`, `fetchFriendLeaderboard`).
+
+5. `src/app/lib/api/history.ts`:
+   Cung cấp các hàm API Client truy vấn Supabase RLS và RPC cho lịch sử ván đấu (`fetchTrainingHistory`), kỷ lục cá nhân (`fetchPersonalBests`, `fetchSchulteConfigBests`) và chuỗi tiến trình (`fetchProgressSeries`).
+
+6. `src/app/components/achievements-panel.tsx`:
+   Component React hiển thị Bảng Thành tựu: hỗ trợ lọc theo nhóm, thanh tiến độ công việc, trạng thái khoá/mở huy hiệu, sắp xếp huy hiệu gần hoàn thành lên trước và thông báo Toast khi có thành tựu mới.
+
+7. `src/app/components/quests-panel.tsx`:
+   Component React hiển thị Bảng Nhiệm vụ: chia làm 2 phần Nhiệm vụ Hôm nay và Nhiệm vụ Tuần này, hiển thị tiến độ dạng thanh phần trăm, nút bấm "NHẬN" nhận thưởng XP và xử lý trạng thái chờ.
+
+8. `src/app/components/friends-panel.tsx`:
+   Component React quản lý Mạng lưới Bạn bè: tích hợp ô tìm kiếm người chơi có hoãn gõ (debounce), hiển thị danh sách lời mời đến/đi, danh sách bạn bè và Bảng xếp hạng riêng so kè Chỉ số Nhận thức (CI).
+
+9. `src/app/components/history-panel.tsx`:
+   Component React hiển thị Lịch sử Luyện tập: bao gồm các thẻ Kỷ lục cá nhân (Personal Best) cho từng game, bộ lọc danh sách 100 ván đấu gần đây và nạp bất đồng bộ (Lazy Load) biểu đồ tiến trình.
+
+10. `src/app/components/progress-chart.tsx`:
+    Component React vẽ biểu đồ tiến trình 7/30/90 ngày bằng thư viện Recharts: biểu diễn XP & số ván đấu (ComposedChart), diễn biến 5 trục nhận thức (LineChart) kèm kiểu nét đứt accessible hỗ trợ người mù màu.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+----------------------------------------------------------------------------------------------------
+A. Danh mục Thành tựu & Phân hạng (Achievements Catalog):
+- 5 Hạng Huy hiệu (Tiers) kèm mã màu chuẩn:
+  + Bronze (Đồng): `#B45309`
+  + Silver (Bạc): `#94A3B8`
+  + Gold (Vàng): `#F59E0B`
+  + Platinum (Bạch kim): `#22D3EE`
+  + Diamond (Kim cương): `#A855F7`
+- 6 Nhóm Huy hiệu (Categories):
+  + `volume`: Số ván chơi tích luỹ (1, 10, 50, 100, 250, 500, 1000 ván).
+  + `level`: Cấp độ và mốc XP (Cấp 5, 10, 20, 30, 50 và mốc 10.000 XP).
+  + `mastery`: Điểm mốc trục nhận thức (Một trục đạt 500/800/900/950, Cả 5 trục đạt 500/700/850).
+  + `breadth`: Tính toàn diện theo trò (Chơi đủ tất cả các trò, Mỗi trò chơi ≥ 10 ván, Mỗi trò đạt 600+ điểm).
+  + `score`: Thành tích điểm cao trong một ván (Đạt 900+, 950+, 990+, và 10 ván đạt 950+).
+  + `game`: Thành tích riêng của từng trò (Schulte 700/900/6x6, Sudoku 700/900/Extreme, Stroop 700/900, Reaction 700/900, Memory Matrix 700/900, N-Back 700/900/5-Back, Math Sprint 700/900, Go/No-Go 700/900, Mental Rotation 700/900).
+- Sắp xếp thông minh: Component `AchievementsPanel` tự động sắp xếp danh sách hiển thị bằng thuật toán: Huy hiệu đã mở khoá xếp theo thứ tự tier; Huy hiệu CHƯA mở khoá được ưu tiên xếp theo tỷ lệ hoàn thành (`progress / goal`) giảm dần để người chơi thấy ngay các mục tiêu sắp đạt được.
+
+B. Chuỗi Phân giải Nhãn Nhiệm vụ (Quest Labeling Resolution Chain):
+Để đảm bảo giao diện KHÔNG BAO GIỜ hiển thị mã kỹ thuật thô (như `w_games_7` hay `q_rounds_3`), hàm `resolveQuestLabel(code, lang, serverTitle)` thực hiện phân giải theo 4 cấp ưu tiên nghiêm ngặt:
+  1. Ưu tiên 1: `serverTitle` trả về từ database RPC (nếu có và khác chuỗi mã `code`).
+  2. Ưu tiên 2: Ánh xạ cứng từ từ điển `QUEST_LABELS[code][lang]`.
+  3. Ưu tiên 3: Hàm `humanizeQuestCode(code, lang)` tự động phân tích cấu trúc mã dạng snake_case:
+     - `rounds_N` -> "Chơi N ván" / "Play N rounds"
+     - `score_N` -> "Đạt N+ trong một ván" / "Score N+ in one round"
+     - `score_N_M` -> "Đạt N+ trong M ván" / "Score N+ in M rounds"
+     - `games_N` -> "Chơi N trò khác nhau" / "Play N different games"
+     - `play_<game>_N` -> "Chơi <Tên trò> N ván" / "Play N <Tên trò> rounds" (tra cứu qua `QUEST_GAME_NAMES`)
+     - Tiền tố `w_` -> Thêm nhãn "Tuần: " / "Weekly: "
+  4. Ưu tiên 4: Fallback chuỗi an toàn "Nhiệm vụ" (tiếng Việt) hoặc "Quest" (tiếng Anh).
+
+C. Quản lý Mạng lưới Bạn bè & Bảng xếp hạng (Social & Private Leaderboard):
+- Trạng thái kết bạn (Friendship Status & Direction):
+  Bảng `friendships` trong cơ sở dữ liệu lưu các cặp (`user_id`, `friend_id`, `status`: `'pending' | 'accepted'`). RPC `get_friends` tự động ánh xạ góc nhìn người dùng hiện tại thành 3 hướng (`direction`):
+  + `'incoming'`: Lời mời kết bạn từ người khác gửi tới mình (cho phép Nút Chấp nhận / Từ chối).
+  + `'outgoing'`: Lời mời kết bạn do mình gửi đi đang chờ đối phương phản hồi.
+  + `'friend'`: Hai bên đã chấp nhận kết bạn (`status = 'accepted'`).
+- Bảng xếp hạng riêng (`fetchFriendLeaderboard` / RPC `get_friend_leaderboard`):
+  Chỉ trả về danh sách bao gồm bạn bè chính thức (`status = 'accepted'`) và bản thân người dùng (`is_me: true`). Bảng xếp hạng được sắp xếp giảm dần theo Chỉ số Nhận thức (`cognitive_index`), giúp người chơi so kè trình độ trực tiếp với bạn bè.
+
+D. Kỷ lục Cá nhân Chuyên sâu & Schulte Config Bests:
+- `fetchPersonalBests`: Trả về kỷ lục tổng quan từng game (`best_score`, `best_time_ms`, `avg_score`, `rounds`, `total_xp`).
+- `fetchSchulteConfigBests`: Do game Schulte Grid có nhiều kích thước ma trận (3x3, 4x4, 5x5, 6x6) và 3 chế độ chơi (`classic`, `reverse`, `dual`), RPC `get_schulte_config_bests` trả về kỷ lục riêng biệt cho từng cấu hình. Phía client sử dụng helper `schulteBestMapKey(size, mode)` tạo key dạng `${grid_size}_${mode}` để tra cứu cực nhanh.
+
+E. Biểu đồ Tiến trình Hỗ trợ Accessibility (Progress Chart):
+- Nạp bất đồng bộ (Code Splitting): Thư viện Recharts có dung lượng ~100KB được tách thành chunk riêng thông qua `React.lazy` và `Suspense` (`ChartFallback`). Người dùng ở màn hình chính không phải nạp trước chunk này.
+- Accessible Design cho 5 Trục Nhận thức: Do khoảng 8% nam giới dính chứng mù màu đỏ - lục, ngoài 5 màu sắc phân biệt (`speed`: xanh lá `#10B981`, `focus`: tím `#A855F7`, `spatial`: hổ phách `#F59E0B`, `logic`: xanh lam `#00D4FF`, `memory`: hồng `#F43F5E`), mỗi trục được gán một kiểu nét đứt (`strokeDasharray`) riêng biệt (`focus`: `6 3`, `spatial`: `2 3`, `logic`: `10 3 2 3`, `memory`: `1 4`). Nhờ đó, người dùng vẫn phân biệt được các đường biểu diễn khi in đen trắng hoặc khi không nhìn rõ màu sắc.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+----------------------------------------------------------------------------------------------------
+A. Luồng Mở khoá Thành tựu & Đọc Tiến độ:
+  1. Người dùng chuyển sang tab Thành tựu -> `AchievementsPanel` được mount.
+  2. `useEffect` kích hoạt `syncAchievements()` gửi yêu cầu RPC `sync_achievements` tới Supabase.
+  3. Database chạy Stored Procedure quét bảng `training_sessions` và `profiles` của người dùng:
+     - Kiểm tra điều kiện từng thành tựu chưa mở.
+     - Nếu đủ điều kiện, ghi nhận bản ghi mở khoá vào bảng `user_achievements`, và ghi 1 giao dịch thưởng XP vào bảng `xp_events` (DB Trigger sẽ tự cộng vào `profiles.total_xp`).
+     - Trả về danh sách các huy hiệu kèm thuộc tính `newly_unlocked`.
+  4. Nếu có huy hiệu `newly_unlocked === true`, client phát hiệu ứng Toast "Mở khoá thành tựu mới!".
+  5. Tiếp theo, client gọi `fetchAchievementProgress()` -> RPC `get_achievement_progress` trả về mảng `AchievementProgress[]` chứa tỷ lệ `progress / goal`.
+  6. Component tính toán tổng XP đã đạt, số lượng huy hiệu đã mở, sắp xếp danh sách huy hiệu và render ra màn hình.
+
+B. Luồng Làm Nhiệm vụ & Nhận thưởng XP:
+  1. Người dùng hoàn thành một ván luyện tập -> Hệ thống lưu ván vào `training_sessions`.
+  2. Người dùng mở tab Nhiệm vụ -> `QuestsPanel` gọi `fetchDailyQuests()` -> RPC `get_daily_quests`.
+  3. Database tổng hợp số ván đấu, điểm số đạt được trong ngày (tính từ 00:00 giờ Việt Nam) và trong tuần (tính từ 00:00 thứ Hai giờ Việt Nam), so sánh với các mốc nhiệm vụ và trả về danh sách `DailyQuest[]`.
+  4. Nếu một nhiệm vụ có `progress >= goal` và `claimed === false`, nút "NHẬN" (Claim) sáng lên.
+  5. Người dùng nhấn "NHẬN" -> Client gọi `claimQuest(code)` -> RPC `claim_quest(p_code)`.
+  6. Database kiểm tra nguyên tử: khẳng định nhiệm vụ đã đạt và chưa từng nhận thưởng -> đặt `claimed = true` trong bảng `user_quests` -> ghi nhận một giao dịch vào bảng `xp_events` (Mô hình Ledger) -> DB Trigger `trg_xp_events_apply` sẽ tự động cộng thêm `xp_awarded` vào `profiles.total_xp` mà không cần query cập nhật trực tiếp -> trả về số XP thưởng.
+  7. Client nhận kết quả, hiển thị Toast "Đã nhận +X XP", làm mới lại danh sách nhiệm vụ và phát sự kiện `onClaimed` để cập nhật tổng XP trên thanh Header.
+
+C. Luồng Tìm kiếm người chơi & Kết bạn:
+  1. Người dùng nhập tên tài khoản cần tìm vào ô Search trong `FriendsPanel`.
+  2. `useEffect` sử dụng timer hoãn (debounce 350ms, rate limit DB-level 15 req/5 phút). Khi từ khóa `query.trim().length >= 2`, hàm `searchPlayers(query)` được gọi -> RPC `search_players`.
+  3. Database trả về tối đa 10 kết quả phù hợp (`PlayerSearchResult[]`).
+  4. Người dùng nhấn nút "Kết bạn" bên cạnh tên người chơi -> Gọi `sendFriendRequest(targetId)` -> RPC `send_friend_request`.
+  5. Database chèn bản ghi mới vào bảng `friendships` với `status = 'pending'`.
+  6. Client hiển thị Toast "Đã gửi lời mời", xóa từ khóa tìm kiếm và gọi lại `load()` (`fetchFriends()` & `fetchFriendLeaderboard()`) để cập nhật giao diện.
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+----------------------------------------------------------------------------------------------------
+A. Nguyên tắc Chống Gian lận XP & Thành tựu (Server-Enforced Integrity):
+- Toàn bộ điều kiện hoàn thành nhiệm vụ và mở khoá thành tựu được kiểm tra trực tiếp từ các ván đấu hợp lệ lưu trên server (`training_sessions`). Các ván đấu này bắt buộc phải trải qua quy trình anti-cheat (`scoreAndValidate`, `inspectRound`) ở Edge Function trước khi được ghi vào cơ sở dữ liệu.
+- Phía Client không gửi bất kỳ tham số cờ hoàn thành nào lên server. RPC `claim_quest` và `sync_achievements` tự động xác minh tính hợp lệ và chỉ cộng XP một lần duy nhất (Idempotent).
+
+B. Bảo mật Context & Quyền truy cập (Supabase RLS & Security Definer):
+- Tất cả các hàm RPC liên quan đến Gamification và Social đều sử dụng `SECURITY DEFINER` và tự động trích xuất `auth.uid()` từ JWT Token do Supabase Auth quản lý. Người dùng không thể truyền `user_id` giả mạo để nhận thưởng hộ tài khoản khác.
+- Các thao tác xã hội (`respondFriendRequest`, `removeFriend`) kiểm tra nghiêm ngặt quyền sở hữu: chỉ có người nhận mới có quyền chấp nhận/từ chối lời mời (`friendship_id`), và chỉ có hai người trong cuộc mới có quyền hủy kết bạn.
+- Bảng xếp hạng bạn bè (`get_friend_leaderboard`) áp dụng INNER JOIN bắt buộc kiểm tra `status = 'accepted'`, đảm bảo không rò rỉ Chỉ số Nhận thức (CI) cho người lạ.
+
+C. Validation & Giới hạn Tải (Rate Limiting & Input Sanitization):
+- Tìm kiếm người chơi (`searchPlayers`): Bắt buộc từ khóa tìm kiếm tối thiểu 2 ký tự (`query.trim().length >= 2`), ép kiểu và cắt khoảng trắng, giới hạn tối đa 10 kết quả (`p_limit: 10`), kết hợp hoãn gõ (debounce 350ms, rate limit DB-level 15 req/5 phút) phía UI để ngăn chặn tấn công Spam RPC Request.
+- Phân trang Lịch sử (`fetchTrainingHistory`): Giới hạn tham số `limit` trong khoảng an toàn `[1, 200]` (`Math.min(Math.max(opts.limit ?? 50, 1), 200)`), phòng tránh việc truy vấn hàng ngàn dòng dữ liệu gây cạn kiệt bộ nhớ trình duyệt.
+
+
+
+
+================================================================================
+docs/feature_offline_pwa.txt
+================================================================================
+
+===============================================================================
+TỔNG HỢP TÍNH NĂNG: OFFLINE & PWA (PROGRESSIVE WEB APP)
+DỰ ÁN: MINDGEM
+===============================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+-------------------------------------------------------------------------------
+Tính năng Offline & Progressive Web App (PWA) trong hệ thống MindGem cung cấp trải nghiệm liền mạch cho người dùng ngay cả khi không có kết nối Internet hoặc khi kết nối mạng chập chờn. 
+
+Mục tiêu chính của hệ thống bao gồm:
+- PWA Support: Khả năng cài đặt ứng dụng trực tiếp lên thiết bị (Desktop, Android, iOS) với giao diện độc lập (display: standalone), hỗ trợ biểu tượng tùy chỉnh (maskable icons), phối màu giao diện mượt mà (#050914) và bộ lắng nghe sự kiện cài đặt chuẩn hóa.
+- Offline Playing (Chế độ chơi ngoại tuyến): Cho phép người dùng tiếp tục chơi các trò chơi rèn luyện trí nhận thức khi không có mạng. Các ván đấu được tạm lưu ở bộ nhớ local và tự động tính điểm / XP tạm thời để hiển thị kết quả ngay tức thì.
+- Guest Mode (Chế độ chơi thử dành cho Khách): Người dùng mới có thể trải nghiệm toàn bộ các game mà không cần đăng ký tài khoản. Điểm số và tiến trình được đồng bộ lên máy chủ y hệt người dùng đã đăng ký (ADR-0007).
+- Offline Queue & Auto Sync: Lưu giữ các ván chơi chưa đồng bộ trong LocalStorage (`neurobics.offline_queue.[userId]`) theo cơ chế FIFO (tối đa 200 ván). Khi thiết bị có mạng trở lại, hệ thống sẽ tự động kích hoạt tiến trình đồng bộ theo từng batch (tối đa 25 ván/batch) lên Supabase Edge Functions server.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+-------------------------------------------------------------------------------
+Hệ thống được thiết kế theo kiến trúc phân tầng (Client-Server Split) độc lập nhưng phối hợp chặt chẽ qua cơ chế Ticket và Event-Driven.
+
+[CLIENT LAYER]
+  ├── PWA Manager (use-pwa-install.ts)
+  │     └── Lắng nghe beforeinstallprompt, appinstalled, display-mode: standalone
+  ├── Round Submission Orchestrator (use-round-submission.ts)
+  │     ├── Check Profile -> estimateRoundResult()
+  │     ├── Online Auth User -> startRound() + submitRound() (api.ts)
+  │     └── Offline Fallback -> pushOfflineRound() (offline-queue.ts) + estimateRoundResult()
+  ├── Offline Storage & Queue (offline-queue.ts)
+  │     ├── LocalStorage key: "neurobics.offline_queue.[userId]" (FIFO max 200)
+  │     └── Event: "offline-queue-updated"
+  └── Auto Sync Engine (use-offline-sync.ts)
+        ├── Lắng nghe "online" & "offline-queue-updated"
+        └── Gọi syncOfflineQueue(syncOfflineRounds) -> Batch API
+
+[SERVER LAYER - Supabase Edge Function / Hono]
+  ├── Ticket Manager (POST /server/start-round)
+  │     ├── Mint 1-time round_ticket
+  │     └── Rate limit: 20 ticket starts / phút / user
+  ├── Direct Submission (POST /server/submit-round)
+  │     ├── Validate ticket & serverElapsedMs
+  │     ├── Anti-cheat Inspection (hard reject / soft flag)
+  │     └── RPC: submit_round_transaction
+  └── Offline Batch Sync (POST /server/sync-offline-rounds)
+        ├── Validate batch size (<= 25 rounds)
+        ├── Validate offline round age (<= 7 ngày)
+        ├── Check idempotency qua client_round_id
+        ├── Mint real ticket in DB per round
+        ├── Anti-cheat Inspection (+ Soft Flag "Offline sync timing bypass")
+        └── RPC: submit_round_transaction per valid round
+
+
+3. CÁC FILE LIÊN QUAN & VAI TRÒ (RELATED FILES)
+-------------------------------------------------------------------------------
+1. src/app/lib/offline-queue.ts
+   - Quản lý hàng đợi ván đấu offline trong LocalStorage (`neurobics.offline_queue.[userId]`), giới hạn FIFO tối đa 200 ván, gửi event `offline-queue-updated` và cung cấp hàm `syncOfflineQueue` đồng bộ theo batch.
+
+2. src/app/hooks/use-offline-sync.ts
+   - React Hook quản lý trạng thái tự động đồng bộ khi thiết bị khôi phục mạng (`online` event) hoặc khi có ván mới nạp vào hàng đợi, sử dụng `syncingRef` chống gọi trùng lặp.
+
+3. src/app/hooks/use-pwa-install.ts
+   - React Hook theo dõi trạng thái cài đặt PWA, bắt sự kiện `beforeinstallprompt` và `appinstalled`, hỗ trợ nhận diện môi trường iOS và Standalone mode qua `useSyncExternalStore`.
+
+4. src/app/hooks/use-round-submission.ts
+   - Hook trung tâm điều phối vòng đời ván chơi (khởi tạo ticket, nộp ván, tự động fallback sang offline queue khi mất mạng, hiển thị kết quả và cập nhật UI profile).
+
+5. (Đã gỡ bỏ: src/app/lib/guest.ts - Logic Guest nay sử dụng cơ chế Auth thật qua Server)
+
+6. supabase/functions/server/routes/rounds.ts
+   - Route server trên Supabase Edge Function xử lý cấp ticket (`start-round`), nộp ván trực tiếp (`submit-round`), và xử lý batch ván offline (`sync-offline-rounds`).
+
+7. public/manifest.webmanifest
+   - File cấu hình Web App Manifest của PWA khai báo tên ứng dụng, màu chủ đề (`#050914`), chế độ hiển thị `standalone`, định hướng màn hình `portrait-primary` và bộ icon chuẩn.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+-------------------------------------------------------------------------------
+
+A. CẤU TRÚC DỮ LIỆU & TYPE DEFINITIONS
+```typescript
+// 1. Payload ván offline lưu trong LocalStorage (offline-queue.ts)
+  export interface OfflineRoundPayload {
+    clientRoundId: string;   // UUID do client tự sinh bằng crypto.randomUUID()
+    schemaVersion: number;   // Mặc định là 1
+    game: RoundGame;         // Tên trò chơi (schulte, sudoku, stroop,...)
+    telemetry: unknown;      // Dữ liệu chi tiết ván chơi (rts, hitRts, errors,...)
+    fingerprint: string;     // Dấu vân thiết bị ("offline" hoặc "offline-fallback")
+    startedAt: string;       // Thời điểm bắt đầu ván (ISO String)
+    clientElapsedMs: number; // Thời gian chơi tính bằng ms tại client
+    createdAt: string;       // Thời điểm lưu vào hàng đợi (ISO String)
+    userId: string;          // ID người dùng để tránh rò rỉ dữ liệu chéo khi đổi tài khoản
+  }
+
+// 2. Trạng thái phản hồi đồng bộ từ Server (offline-queue.ts)
+export type SyncResult = {
+  clientRoundId: string;
+  status: "ok" | "duplicate" | "rejected" | "error";
+  error?: string;
+  code?: string;
+};
+
+// 3. Sự kiện trước khi cài đặt PWA (use-pwa-install.ts)
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+}
+
+// 4. (Đã gỡ bỏ: Guest Profile ảo - Chế độ khách nay sử dụng true auth với JWT token)
+```
+
+B. CÁC HẰNG SỐ QUAN TRỌNG
+- `OFFLINE_QUEUE_KEY`: `"neurobics.offline_queue.[userId]"` - Key lưu trữ hàng đợi trong LocalStorage.
+- `MAX_QUEUE`: `200` - Số lượng ván đấu tối đa lưu giữ trong hàng đợi local (FIFO).
+- `MAX_SYNC_BATCH`: `25` - Số ván tối đa gửi lên server trong 1 HTTP request đồng bộ.
+- `MAX_OFFLINE_AGE_MS`: `7 * 24 * 3600_000` (7 ngày) - Tuổi thọ tối đa của ván offline được server chấp nhận.
+- `MAX_TICKET_STARTS_PER_MINUTE`: `20` - Hạn ngạch tạo ticket khởi tạo ván / phút / user trên server.
+
+C. THUẬT TOÁN & LOGIC XỬ LÝ CHI TIẾT
+
+1. Hàng đợi Offline & Quản lý Bộ nhớ (`offline-queue.ts`):
+   - Khi ghi ván mới (`pushOfflineRound`):
+     ```typescript
+     const queue = getOfflineQueue();
+     if (queue.length >= MAX_QUEUE) {
+       queue.shift(); // Thuật toán FIFO: loại bỏ ván cũ nhất khi đạt ngưỡng 200
+     }
+     queue.push({
+       ...round,
+       clientRoundId: crypto.randomUUID(),
+       schemaVersion: 1,
+       createdAt: new Date().toISOString(),
+     });
+     writeOfflineQueue(queue); // Ghi vào localStorage & dispatch event "offline-queue-updated"
+     ```
+   - Chống Race Condition khi đồng bộ (`syncOfflineQueue`):
+     Để tránh mất các ván người dùng vừa hoàn thành trong lúc request API `syncEndpoint` đang chờ (await), hàm sẽ đọc lại hàng đợi tươi (`freshQueue = getOfflineQueue()`) trước khi tiến hành lọc bỏ các ván đã chốt (`settledIds` chứa trạng thái `ok`, `duplicate`, `rejected`):
+     ```typescript
+     const freshQueue = getOfflineQueue();
+     const newQueue = freshQueue.filter((item) => !settledIds.has(item.clientRoundId));
+     writeOfflineQueue(newQueue);
+     ```
+
+2. Tự động Đồng bộ Ngoại tuyến (`use-offline-sync.ts`):
+   - Hook lắng nghe 2 sự kiện: `window.addEventListener("online", handleOnline)` và `window.addEventListener("offline-queue-updated", onQueueUpdated)`.
+   - Sử dụng `syncingRef = useRef(false)` làm cờ khóa (Mutex) chống việc kích hoạt nhiều tiến trình đồng bộ song song khi có nhiều sự kiện phát ra liên tiếp.
+   - Khi đồng bộ thành công, kích hoạt sự kiện toàn cục `window.dispatchEvent(new Event("offline-sync-complete"))`.
+
+3. Cài đặt PWA & Kiểm tra Môi trường (`use-pwa-install.ts`):
+   - Sử dụng pattern React 18 `useSyncExternalStore` để đăng ký lắng nghe sự kiện mà không bị tearing trong chế độ Concurrent Rendering.
+   - Nhận diện môi trường iOS:
+     ```typescript
+     function detectIos(): boolean {
+       if (typeof navigator === "undefined") return false;
+       return (
+         /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+       );
+     }
+     ```
+   - Nhận diện chế độ Standalone (Đã cài đặt):
+     ```typescript
+     function detectStandalone(): boolean {
+       if (typeof window === "undefined") return false;
+       const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
+       return Boolean(iosStandalone || window.matchMedia("(display-mode: standalone)").matches);
+     }
+     ```
+
+4. Luồng Chơi & Dự phòng Ngoại tuyến (`use-round-submission.ts`):
+   - Khi chọn Game: Gọi `prepareRound(game)`. 
+     
+     + Gọi API `startRound(game)` để lấy ticket thật từ server.
+     + Nếu Mất mạng (`isNetworkErrorLike(err)`): Tự động cấp ticket dự phòng `offline-{game}-{now}`.
+   - Khi Hoàn thành Ván (`completeRound`):
+     
+     + Nếu ticket là `"offline-"` hoặc lệnh `submitRound` ném lỗi mạng (`isNetworkErrorLike`):
+       Gọi `pushOfflineRound(...)` để đẩy vào queue local, đồng thời tính điểm tạm thời bằng `estimateRoundResult` để cập nhật UI ngay cho người chơi.
+
+5. Chấm điểm Cục bộ (`estimateRoundResult`):
+   - Khách (Guest) được xử lý y hệt người dùng thật thông qua cơ chế Server Auth. Tất cả ván chơi đều được gửi lên máy chủ hoặc offline queue.
+   - Sử dụng một module riêng trên client (UI-only) để tính điểm tạm thời (provisional). Kết quả này được hiển thị dưới dạng "Pending Sync" và không làm thay đổi bảng xếp hạng hay Brain Age cho đến khi được server xác nhận. Tuyệt đối không import các logic chống gian lận hay `scoreAndValidate` từ server (để tránh rò rỉ ngưỡng anti-cheat).
+
+6. Xử lý Đồng bộ ở Server (`supabase/functions/server/routes/rounds.ts`):
+   - Endpoint `POST /server/sync-offline-rounds` nhận mảng `rounds` (tối đa 25 ván).
+   - Kiểm tra thời gian khởi tạo ván `startedAt`: Từ chối nếu `startedAt` lớn hơn thời gian hiện tại > 60s hoặc cũ hơn 7 ngày (`MAX_OFFLINE_AGE_MS`).
+   - Kiểm tra Idempotency: Tra cứu DB `round_tickets` xem đã có ticket nào chứa `client_round_id` này và đã `submitted_at` chưa. Nếu rồi -> Trả về status `"duplicate"`.
+   - Tạo Ticket Thật: Nếu chưa có ticket, insert một bản ghi ticket thật vào DB `round_tickets` với `client_round_id`.
+   - Kiểm tra Anti-cheat (`inspectRound`): Bổ sung Soft Flag đặc thù: `"Offline sync: timing verification bypassed"`. Nếu phát hiện Hard Flag gian lận -> Đốt ticket (`submitted_at = now`) và trả về status `"rejected"` với code `"anticheat_hard"`.
+   - Ghi nhận giao dịch DB (`submit_round_transaction`): Cập nhật Rating trục, XP, và lịch sử ván chơi nguyên tử (Atomic Transaction) qua RPC Supabase.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOWS)
+-------------------------------------------------------------------------------
+
+LUỒNG 1: NGƯỜI DÙNG CHƠI GAME KHI KHÔNG CÓ MẠNG (OFFLINE PLAYING)
+[User Click Play] 
+       │
+       ▼
+[useRoundSubmission: prepareRound()]
+       │ ──(Gọi API startRound)──► [Mất mạng / Network Error]
+       │                                     │
+       ▼                                     ▼
+[Sinh Fake Ticket: "offline-game-170000"] ◄──┘
+       │
+       ▼
+[User hoàn thành trò chơi]
+       │
+       ▼
+[completeRound()] ──► Phát hiện ticket "offline-*" (hoặc submitRound bị Network Error)
+       │
+       ├──► 1. pushOfflineRound() ──► Ghi vào LocalStorage ("neurobics.offline_queue.[userId]")
+       │                                   │
+       │                                   ▼
+       │                             Dispatch event "offline-queue-updated"
+       │
+       └──► 2. estimateRoundResult() ──► Tính điểm & XP tạm thời bằng Client Scorer
+                                           │
+                                           ▼
+                                     Cập nhật Profile UI & Hiển thị Result Overlay
+
+
+LUỒNG 2: TỰ ĐỘNG ĐỒNG BỘ KHI KHÔI PHỤC KẾT NỐI (AUTO SYNC)
+[Thiết bị có kết nối Internet trở lại] ──► Phát sự kiện window "online"
+                                                    │
+                                                    ▼
+                                      [useOfflineSync: handleOnline()]
+                                                    │
+                                     (Kiểm tra syncingRef === false & queue.length > 0)
+                                                    │
+                                                    ▼
+                                      [syncOfflineQueue(syncOfflineRounds)]
+                                                    │
+                                                    ▼
+                             [POST /server/sync-offline-rounds] (Max 25 rounds/batch)
+                                                    │
+       ┌────────────────────────────────────────────┴────────────────────────────────────────────┐
+       ▼                                                                                         ▼
+[Lặp từng ván offline]:                                                                    [Xử lý lỗi Batch]:
+ 1. Kiểm tra age <= 7 ngày & format hợp lệ.                                                 Nếu lỗi Server 500:
+ 2. Check DB qua client_round_id -> Trùng? -> status: "duplicate".                          Ném Exception -> Keep queue -> Retry sau.
+ 3. Insert ticket thật vào DB round_tickets.
+ 4. Run inspectRound() (+ Soft flag offline). -> Hard cheat? -> status: "rejected".
+ 5. Call RPC submit_round_transaction() -> Thành công -> status: "ok".
+       │
+       ▼
+[Server trả về JSON: { results: [{ clientRoundId, status }, ...] }]
+       │
+       ▼
+[Client lọc settledIds (status === "ok" | "duplicate" | "rejected")]
+       │
+       ▼
+[Đọc lại freshQueue từ LocalStorage -> Lọc bỏ các item thuộc settledIds -> Ghi lại LocalStorage]
+       │
+       ▼
+Dispatch event "offline-sync-complete" & Cập nhật pendingCount = 0
+
+
+LUỒNG 3: CÀI ĐẶT ỨNG DỤNG PWA (PWA INSTALLATION)
+[Trình duyệt tải trang web]
+       │
+       ▼
+[Kiểm tra manifest.webmanifest & Service Worker]
+       │
+       ▼
+[Trình duyệt phát sự kiện "beforeinstallprompt"]
+       │
+       ▼
+[usePwaInstall: event.preventDefault() & Lưu vào deferredPrompt]
+       │
+       ▼
+[UI hiển thị nút "Cài đặt ứng dụng / Install App"]
+       │
+       ▼
+[User nhấn nút Install] ──► Call install() ──► deferredPrompt.prompt()
+                                                     │
+                                                     ▼
+                                           [User chọn "Install"]
+                                                     │
+                                                     ▼
+                                    Trình duyệt phát event "appinstalled"
+                                                     │
+                                                     ▼
+                                 installed = true, deferredPrompt = null
+                                                     │
+                                                     ▼
+                                    UI cập nhật trạng thái đã cài đặt
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+-------------------------------------------------------------------------------
+1. Chống Spam & DoS Server:
+   - Client Queue Cap: Giới hạn tối đa 200 ván trong LocalStorage (`MAX_QUEUE = 200`). Sử dụng cơ chế FIFO đẩy ván cũ nhất ra ngoài khi đầy.
+   - Server Batch Limit: Giới hạn tối đa 25 ván cho mỗi lượt request đồng bộ (`MAX_SYNC_BATCH = 25`). Nếu gửi > 25 ván, server lập tức từ chối với HTTP 413 (Payload Too Large).
+   - Server Ticket Rate Limit: Tối đa 20 lượt khởi tạo ticket (`start-round`) trong vòng 1 phút cho mỗi người dùng (`MAX_TICKET_STARTS_PER_MINUTE = 20`).
+
+2. Ràng buộc Thời gian & Tính Hợp lệ của Ván Offline:
+   - Server kiểm tra `startedAt`: Từ chối ván nếu thời gian bắt đầu nằm ở tương lai (> 60s so với server clock) hoặc vượt quá 7 ngày tuổi (`MAX_OFFLINE_AGE_MS = 7 * 24 * 3600_000`).
+   - Server kẹp giới hạn `clientElapsedMs`: Không tin tưởng tuyệt đối con số client gửi lên. Giá trị `elapsed` bắt buộc nằm trong khoảng `[500ms, 2 giờ]`:
+     `const elapsed = Math.min(Math.max(Number(clientElapsedMs) || 0, 500), 2 * 3600_000);`
+
+3. Idempotency & Chống Replay Attack:
+   - Mỗi ván offline khi tạo ở client được gán một `clientRoundId` ngẫu nhiên chuẩn UUIDv4 (`crypto.randomUUID()`).
+   - Server lưu `client_round_id` vào bảng `round_tickets`. Trước khi xử lý, server tra cứu `client_round_id` để phát hiện ván đã được nộp trước đó. Nếu đã chốt, trả về status `"duplicate"` mà không cộng điểm lần hai.
+
+4. Anti-Cheat & Ghi nhận Dấu vết Gian lận:
+   - Mặc dù ván offline không có `serverElapsedMs` chính xác từ ticket thời gian thực, server vẫn chạy toàn bộ bộ kiểm tra Anti-cheat `inspectRound(gameId, telemetry, elapsed)`.
+   - Tự động chèn Soft Flag: `"Offline sync: timing verification bypassed"` để phân biệt ván đấu ngoại tuyến với ván đấu trực tuyến.
+   - Nếu vi phạm Hard Flag (như gian lận phản xạ siêu nhiên, dữ liệu telemetry vô lý): Ticket bị hủy ngay lập tức và ván đấu bị từ chối (`status: "rejected"`).
+
+
+
+
+7. TRẢ KẾT QUẢ ĐỒNG BỘ (SYNC RESULT UX)
+- Khi `sync-offline-rounds` trả về `SyncResult` với các ván bị `rejected` (do anti-cheat hoặc quá 7 ngày), Client cần hiển thị Summary Notification cho người chơi. VD: "Đã đồng bộ 18 ván, 2 ván không hợp lệ bị từ chối". Các ván rejected sẽ bị loại bỏ khỏi queue im lặng nếu không có thông báo này.
+- Cảnh báo dung lượng hàng đợi: Nếu `queue.length > 150`, hiển thị cảnh báo đỏ trên UI yêu cầu người dùng kết nối mạng (tránh chạm giới hạn 200 dẫn đến FIFO đẩy ván cũ ra ngoài).
+- Ưu tiên đồng bộ: Các ván chơi sắp quá hạn 7 ngày cần được xếp lên đầu batch đồng bộ (ưu tiên gửi trước).
+- Cảnh báo sắp quá hạn: Nếu có ván offline nằm trong queue quá 6 ngày (sắp quá hạn 7 ngày), hiển thị thông báo khẩn cấp trước 24h để người chơi kịp online đồng bộ.
+
+
+================================================================================
+docs/feature_ui_dashboard.txt
+================================================================================
+
+================================================================================
+TỔNG HỢP TÍNH NĂNG: GIAO DIỆN & DASHBOARD (UI ARCHITECTURE)
+Dự án: MindGem
+================================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+--------------------------------------------------------------------------------
+Tính năng Giao diện & Dashboard (UI Architecture) chịu trách nhiệm toàn bộ về mặt hiển thị, điều hướng, quản lý trạng thái giao diện người dùng (UI state), đa ngôn ngữ (i18n), chuyển đổi giao diện sáng/tối (Theme management), quy trình hướng dẫn & hiệu chuẩn người dùng mới (Onboarding & Calibration), cùng hệ thống điều hướng qua thanh Dock nổi (Floating Dock) và thanh tiêu đề (AppHeader).
+
+Hệ thống giao diện được thiết kế theo phong cách Cyberpunk / Glassmorphic hiện đại với tone màu neon (Cyan #00D4FF, Purple #A855F7, Green #10B981, Red #F43F5E), hỗ trợ hiển thị đáp ứng (Responsive Layout) tối ưu trên cả thiết bị di động (Mobile), máy tính bảng (Tablet) và máy tính để bàn (Desktop).
+
+Các phân vùng chức năng chính bao gồm:
+- Bảng điều khiển nhận thức (Dashboard): Hiển thị Chỉ số Nhận thức tổng hợp (Cognitive Index Card), Ma trận 5 trục nhận thức (Cognitive Matrix Card qua biểu đồ Radar), Cấp độ & Điểm kinh nghiệm XP (Level Card), Nhiệm vụ hằng ngày (Quests Panel) và Danh hiệu (Achievements Panel).
+- Đấu trường (Play Arena): Nơi chứa 12 trò chơi luyện tập nhận thức (Cognitive Games) và Khu vực giải trí Arcade (Arcade Zone) hỗ trợ 3 trò chơi cổ điển chơi offline.
+- Lịch sử luyện tập (History Panel): Hiển thị lịch sử các ván chơi đã thực hiện.
+- Hồ sơ cá nhân & Cài đặt (Profile Page & Settings Panel): Hiển thị thông tin cá nhân, cấp độ phân quyền (GUEST / STD / Ω-1), quản lý avatar (tải lên/xoá), năm sinh, cài đặt ngôn ngữ (VI/EN), cài đặt PWA, đổi mật khẩu và xoá tài khoản vĩnh viễn.
+- Bảng quản trị (Admin Panel / God Mode): Dành riêng cho tài khoản có quyền Admin (Role: "admin" / Clearance: "Ω-1").
+- Hệ thống Onboarding & Calibration: Hướng dẫn người dùng mới qua 3 bước và theo dõi 5 ván chơi đầu tiên để thiết lập đường cơ sở (baseline) cho hồ sơ nhận thức.
+- Lưới an toàn lỗi (Error Boundary): Bắt exception React 18 ở cấp màn hình (Screen) hoặc cấp khối (Inline) để tránh hiện tượng trắng màn hình và tự động gửi log lỗi về hệ thống giám sát.
+
+
+2. KIẾN TRÚC (ARCHITECTURE)
+--------------------------------------------------------------------------------
+Ứng dụng được xây dựng trên nền tảng React 18, TypeScript, Tailwind CSS, Lucide Icons và Vite. Kiến trúc UI tuân theo các nguyên lý mở rộng và tối ưu hiệu năng:
+
+2.1. Cấu trúc Provider & Hook Hierarchy:
+- App (Entry point)
+  └─ LangProvider (Cung cấp context đa ngôn ngữ useLang, LangContext)
+      ├─ Toaster (Sonner notification system, theme "dark", position "top-center")
+      └─ AppInner (Quản lý state tổng qua custom hooks)
+          ├─ useAppState: Quản lý Auth check, Profile state, Active Page, Selected Game, Round Result, Calibration/Onboarding state, Guest mode.
+          ├─ useOfflineSync: Kích hoạt listener ngầm tự động đồng bộ ván chơi offline khi có mạng.
+          ├─ useRoundSubmission: Quản lý khởi tạo ticket ván chơi, xử lý callback hoàn thành ván, cập nhật profile và hiển thị RoundResultOverlay.
+          ├─ AmbientBackground: Nền chuyển động hiệu ứng ánh sáng neon.
+          ├─ AppHeader: Thanh điều hướng phía trên.
+          ├─ AppRouter: Bộ chuyển đổi View chính theo activePage ("dashboard", "play", "history", "profile").
+          ├─ RoundResultOverlay: Overlay hiển thị điểm số và biến động rating sau mỗi ván.
+          ├─ OnboardingOverlay: Dialog hướng dẫn người dùng mới.
+          ├─ FloatingDock: Thanh điều hướng 5 tab nổi cố định ở đáy màn hình.
+          └─ AccessDeniedOverlay: Dialog cảnh báo truy cập trái phép khi người dùng không phải Admin nhấn vào tab "god".
+
+2.2. Phân tách Code (Code Splitting & Lazy Loading):
+Để tránh tình trạng phình to bundle ban đầu (First Load Bundle), các thành phần nặng được phân tách thành các async chunk chỉ tải khi cần thiết (Dynamic Import via React.lazy):
+- AdminPanel (~1000 dòng code, chỉ Admin mới tải).
+- CognitiveMatrixCard (Chứa thư viện Recharts ~100KB).
+- 12 Cognitive Games: CorsiBlockGame, GoNoGoGame, MathSprintGame, MemoryMatrixGame, MentalRotationGame, NBackGame, ReactionTimeGame, SchulteTableGame, StroopGame, SudokuGame, TrailMakingGame, VisualSearchGame.
+- 3 Arcade Games: FlappyGame, DinoGame, SnakeGame.
+
+2.3. Lưới an toàn Lỗi (Boundary Hierarchy):
+- Cấp 1 (Root ErrorBoundary): Bọc ngoài AdminPanel và AppRoot với variant="screen" để bắt lỗi toàn trang.
+- Cấp 2 (Inline ErrorBoundary): Bọc quanh CognitiveMatrixCard và từng ActiveGame trong PlayArena với variant="inline". Việc này đảm bảo nếu 1 ván game hỏng hoặc 1 biểu đồ bị vỡ thì phần còn lại của ứng dụng vẫn hoạt động bình thường. `key={selectedGame}` được dùng để tự động reset trạng thái lỗi khi người dùng chuyển sang game khác.
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+--------------------------------------------------------------------------------
+- src/app/App.tsx
+  Component gốc thiết lập LangProvider, Toaster, kiểm tra Auth, lazy load AdminPanel, render AppHeader, AppRouter, FloatingDock, RoundResultOverlay, OnboardingOverlay, AccessDeniedOverlay.
+
+- src/app/AppRouter.tsx
+  Bộ điều hướng chính render các trang (Dashboard, Play Arena, History, Profile) theo `activePage`, tính toán dữ liệu 5 trục cho radar chart, kiểm tra quyền Admin và hiển thị banner calibration.
+
+- src/app/components/floating-dock.tsx
+  Thanh điều hướng nổi cố định ở đáy màn hình với 5 tab (Dashboard, Play, History, Profile, God/Admin), hiệu ứng hover/active với neon glow và safe-area inset cho mobile/desktop.
+
+- src/app/components/app/app-header.tsx
+  Thanh tiêu đề top navigation hiển thị logo MindGem, phiên bản app, giải đấu (League), avatar & username người dùng, nút chuyển đổi ngôn ngữ VI/EN, ThemeToggle và nút Đăng xuất.
+
+- src/app/components/app/play-arena.tsx
+  Đấu trường trò chơi hỗ trợ 2 tab (Game Nhận Thức 12 trò & Arcade 3 trò offline), quản lý lazy-load từng game chunk kèm ErrorBoundary inline fallback và nút quay lại đấu trường.
+
+- src/app/components/app/profile-page.tsx
+  Màn hình hồ sơ cá nhân hiển thị chỉ số nhận thức (Cognitive Index), cấp độ phân quyền (GUEST / STD / Ω-1), tích hợp FriendsPanel, SettingsPanel, nút xem lại Onboarding và Đăng xuất.
+
+- src/app/components/app/arcade-panel.tsx
+  Khu vực giải trí Arcade Zone offline với 3 game cổ điển (T-Rex Runner, Flappy Bird, Snake) dạng modal full-screen truyền sự kiện qua `postMessage` (EXIT_GAME).
+
+- src/app/components/dashboard/cognitive-index-card.tsx
+  Card hiển thị Chỉ số nhận thức tổng hợp (Cognitive Index) tính bằng trung bình 5 trục trên thang điểm tối đa RATING_MAX (1000), kèm progress bar phân cấp từ Apprentice đến Mastermind.
+
+- src/app/components/dashboard/level-card.tsx
+  Card hiển thị cấp độ người dùng (LV), danh hiệu tương ứng, điểm XP tiến trình trong cấp hiện tại (xpIntoLevel / xpNeeded) và tổng điểm XP tích luỹ (total_xp).
+
+- src/app/components/onboarding.tsx
+  Overlay hướng dẫn người dùng mới (3 bước: Giới thiệu, Hiệu chuẩn 5 ván, Nhịp luyện tập) và Banner hiệu chuẩn hiển thị tiến độ 5/5 ván cơ sở.
+
+- src/app/components/settings-panel.tsx
+  Bảng cài đặt tài khoản (đổi avatar 2MB, lưu năm sinh 1900-hiện tại, đổi ngôn ngữ VI/EN, cài đặt PWA app, đổi mật khẩu 8+ ký tự, xoá tài khoản vĩnh viễn với xác nhận gõ username).
+
+- src/app/components/error-boundary.tsx
+  Lưới an toàn Class Component bắt exception React 18, gửi log crash lên observability (captureError), flush telemetry và hiển thị giao diện khôi phục ("screen" hoặc "inline").
+
+- src/app/lib/i18n.ts
+  Hệ thống đa ngôn ngữ định nghĩa LangContext, useLang, kiểu Lang ("vi" | "en") và Translation, tách khỏi provider để phục vụ Vite Fast Refresh.
+
+- src/app/lib/i18n/vi.ts
+  Từ điển dịch thuật tiếng Việt bao gồm toàn bộ văn bản UI, mô tả game, thông báo lỗi, onboarding, settings, chuỗi trong ván chơi.
+
+- src/app/lib/i18n/en.ts
+  Từ điển dịch thuật tiếng Anh duy trì đồng bộ key với vi.ts.
+
+- src/app/components/theme-provider.tsx
+  Context provider quản lý theme giao diện ("dark" | "light" | "system"), lưu localStorage key "[brand]-ui-theme" và thao tác với document.documentElement.classList.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+--------------------------------------------------------------------------------
+4.1. Hệ thống Đa ngôn ngữ (i18n Engine):
+- `LangContext` trong `i18n.ts` cung cấp context cho ngôn ngữ hiện tại (`lang`), hàm đảo ngôn ngữ (`toggle`), và dictionary (`t`).
+- Để đảm bảo Vite Fast Refresh (HMR) hoạt động mượt mà không bị full page reload mỗi khi chỉnh sửa chuỗi bản dịch, các hằng số và context được tách riêng trong `i18n.ts`, còn React Provider nằm ở `lang-provider.tsx`.
+- `vi.ts` và `en.ts` duy trì sự đồng bộ key (Key parity) tuyệt đối qua type assertion `export const en: typeof vi`. Hỗ trợ các hàm định dạng chuỗi động (Template functions) như:
+  + `yrs_younger: (n: number) => string`
+  + `brain_age_calibrating: (played: number, needed: number) => string`
+  + `calibration_remaining: (remaining: number) => string`
+
+4.2. Hệ thống Chủ đề & Style (Theme & Glassmorphism):
+- `ThemeProvider` lưu theme lựa chọn vào `localStorage` với key `"[brand]-ui-theme"`. Khi theme là `"system"`, app dùng `window.matchMedia("(prefers-color-scheme: dark)")` để tự động chọn chế độ.
+- Thao tác trực tiếp với DOM qua `root.classList.remove("light", "dark")` và `root.classList.add(...)`.
+- Thiết kế UI kết hợp CSS Variables và Tailwind classes: `--neuro-panel-rgb`, `--neuro-cyan-rgb`, `--neuro-purple-rgb`, `--neuro-green-rgb`, `--neuro-red-rgb`, `--glass-blur`.
+- Hiệu ứng kính mờ `backdrop-filter: blur(...)` kết hợp viền mỏng neon `border: 1px solid rgba(var(--neuro-cyan-rgb), 0.14)` giúp các card và thanh Dock giữ nguyên độ tương phản trên mọi nền ambient.
+
+4.3. Thanh điều hướng nổi (Floating Dock):
+- Cố định ở đáy màn hình `fixed bottom-0 left-1/2 -translate-x-1/2 z-40`.
+- Sử dụng `env(safe-area-inset-bottom)` để tránh bị che bởi thanh điều hướng hệ điều hành iOS/Android.
+- 5 tab điều hướng:
+  + `dashboard` (LayoutDashboard, accent: #00D4FF - Cyan)
+  + `play` (Gamepad2, accent: #A855F7 - Purple)
+  + `history` (History, accent: #10B981 - Green)
+  + `profile` (UserCog, accent: #F59E0B - Amber)
+  + `god` (Terminal, accent: #00FF9C - Neon Green)
+- Tooltip hiển thị phía trên icon khi hover (chỉ áp dụng trên Desktop `hidden sm:block`).
+- Tự động ẩn Dock khi `RoundResultOverlay` hoặc `OnboardingOverlay` mở để tránh đè nút bấm hành động (CTA).
+
+4.4. Quy trình Onboarding & Hiệu chuẩn (Calibration Baseline):
+- Hằng số `CALIBRATION_TARGET = 5`.
+- `OnboardingOverlay`: Modal 3 bước (Giới thiệu -> Hiệu chuẩn 5 ván -> Nhịp luyện tập). Hỗ trợ bấm phím `Escape` để đóng dialog.
+- `CalibrationBanner`: Hiện ở đầu Dashboard cho đến khi người dùng hoàn thành đủ 5 ván. Hiển thị 5 vạch tiến độ `ProgressSegments`. Khi đạt 5/5 ván, banner đổi sang tone màu xanh lá (#34D399) thông báo hiệu chuẩn hoàn tất.
+
+4.5. Đấu trường & Tải game động (Play Arena & Dynamic Lazy Loading):
+- `PlayArena` chia làm 2 tab: "Game Nhận Thức" (12 game) và "Arcade" (3 game offline).
+- Map `GAME_COMPONENTS` ánh xạ từng `RoundGame` sang canonical wrapper component truyền `onComplete` và `onPlayStart`.
+- `GameChunkFallback` hiển thị spinner `Loader2` trong lúc chunk JS của trò chơi đang tải qua mạng.
+- Khi một game được chọn (`selectedGame`), giao diện chuyển sang chế độ sân chơi (`gameStageClass(selectedGame)`).
+- Boundary được đặt bên ngoài `Suspense` để bắt được cả lỗi runtime crash trong game lẫn lỗi mạng khi tải chunk JS (network failure / stale chunk after deploy).
+
+4.6. Khu vực Arcade (Arcade Zone):
+- Chứa 3 game cổ điển: Dino Runner (🦕), Flappy Bird (🐦), Snake (🐍).
+- Chạy trong `ArcadeModal` full-screen (`bg-black/95`, `z-[70]`).
+- Các game Arcade truyền tín hiệu đóng màn hình thông qua window message event:
+  `window.addEventListener("message", (e) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.origin !== window.location.origin) return; if (e.data?.type === "EXIT_GAME") onClose(); })`.
+
+4.7. Quản lý Hồ sơ & Bảng Cài đặt (Profile Page & Settings Panel):
+- Tích hợp 4 nhóm thiết lập chính trong `SettingsPanel`:
+  1. Thẻ định danh (Identity Card): Upload/Remove Avatar (File API, validate < 2MB, JPEG/PNG/WebP/GIF), hiển thị Level/XP bar, role badge (OPERATOR / OMEGA-1).
+  2. Thông tin cá nhân & Ngôn ngữ: Nhập năm sinh (validate năm hiện tại - 13), nút đổi nhanh ngôn ngữ VI/EN.
+  3. Cài đặt Ứng dụng PWA: Tích hợp hook `usePwaInstall()`, tự động phát hiện thiết bị iOS hoặc trình duyệt hỗ trợ `beforeinstallprompt` để hiển thị nút "CÀI ĐẶT MINDGEM".
+  4. Đổi Mật khẩu & Vùng Nguy Hiểm (Danger Zone): Đổi mật khẩu (validate `newPw === confirmPw` & tối thiểu 8 ký tự), Xoá tài khoản vĩnh viễn (yêu cầu gõ chính xác username để xác nhận).
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+--------------------------------------------------------------------------------
+5.1. Luồng chuyển trang & Chuyển chế độ game:
+[Người dùng click Tab trên Dock / Header]
+       │
+       ▼
+[FloatingDock / AppHeader gọi onSelect(page)]
+       │
+       ▼
+[useAppState cập nhật activePage / selectedGame]
+       │
+       ▼
+[AppRouter re-render view tương ứng (dashboard | play | history | profile)]
+       │
+       ├─► Nếu activePage === "dashboard": Build cognitiveData từ profile score, tính levelProgress, render CognitiveIndexCard, LevelCard, QuestsPanel, AchievementsPanel.
+       └─► Nếu activePage === "play" & chọn game: PlayArena kích hoạt lazy chunk của ActiveGame -> Hiển thị GameChunkFallback trong lúc tải -> Render Game UI.
+
+5.2. Luồng chơi ván & Gửi kết quả:
+[Người dùng chọn Game trong PlayArena]
+       │
+       ▼
+[PlayArena gọi beginPlay(selectedGame)]
+       │
+       ▼
+[useRoundSubmission tạo Ticket ván chơi (online hoặc offline ticket)]
+       │
+       ▼
+[Người dùng hoàn thành ván game]
+       │
+       ▼
+[Game gọi onComplete(telemetry)]
+       │
+       ▼
+[makeGameHandler nhận telemetry -> gọi submitTelemetry / estimateRoundResult]
+       │
+       ├─► Nếu ONLINE: POST telemetry lên server Edge Function -> Trả về kết quả scored & updated profile -> Cập nhật Profile state -> Cập nhật Gamification Key.
+       └─► Nếu OFFLINE / Lỗi mạng: Push ván chơi vào offline queue (pushOfflineRound) -> Tính điểm local (estimateRoundResult) -> Cập nhật tạm Profile state.
+       │
+       ▼
+[Hiển thị RoundResultOverlay cho người dùng xem điểm ván, XP thưởng & biến động rating các trục]
+       │
+       ▼
+[Người dùng bấm CONTINUE -> Đóng overlay -> Trigger refreshProfile() để đồng bộ lại dữ liệu chuẩn từ server]
+
+5.3. Luồng cập nhật Cài đặt Tài khoản:
+[Người dùng thay đổi thông tin trong SettingsPanel (Avatar / Năm sinh / Password)]
+       │
+       ▼
+[Gọi API tương ứng (uploadAvatar / saveBirthYear / changePassword)]
+       │
+       ▼
+[API xử lý thành công -> Trả về Profile mới]
+       │
+       ▼
+[Gọi onProfileChange(nextProfile) -> cập nhật profileRef & state trong useAppState -> UI re-render toàn bộ các card phụ thuộc (Header, LevelCard, Identity Card)]
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+--------------------------------------------------------------------------------
+6.1. Phân quyền Người dùng (Role & Permission Scoping):
+- Chế độ Khách (Guest Mode): Kiểm tra qua `isGuestProfile(profile)`. Điểm số và tiến trình ván chơi được đồng bộ lên máy chủ y hệt người dùng thông thường (ADR-0007). Các tính năng cộng đồng như History và Quests bị vô hiệu hoá, Settings chỉ hiển thị các tuỳ chọn cơ bản cho đến khi nâng cấp tài khoản.
+- Quyền Admin (Clearance Ω-1):
+  + Chỉ hiển thị nút "God Mode" / Admin Panel trên FloatingDock nếu `profile.role === "admin"`.
+  + Nếu người dùng không có quyền Admin cố tình truy cập tab "god", hệ thống chặn ngay lập tức và hiển thị `AccessDeniedOverlay` với mã cảnh báo "AUTHORIZATION LEVEL: INSUFFICIENT".
+
+6.2. Validation dữ liệu phía Client (Client-side Validation):
+- Avatar Upload: Kiểm tra file type (`image/jpeg`, `image/png`, `image/webp`, `image/gif`), giới hạn dung lượng file tối đa 2 MB trước khi gửi.
+- Năm sinh (Birth Year): Bắt buộc là số nguyên `Number.isFinite(year)`, thuộc khoảng `year <= new Date().getFullYear() - 13`.
+- Đổi mật khẩu: Kiểm tra độ dài tối thiểu 8 ký tự, bắt buộc nhập đúng mật khẩu hiện tại, kiểm tra `newPw === confirmPw`.
+- Xoá tài khoản: Yêu cầu người dùng gõ chính xác từng ký tự tên đăng nhập (`deleteConfirm.trim().toLowerCase() === profile.username.toLowerCase()`) để tránh việc vô tình xoá tài khoản.
+
+6.3. Bảo vệ Lỗi & Quyền riêng tư (Error Isolation & Telemetry):
+- `ErrorBoundary` tự động cắt ngắn component stack trace (tối đa 400 ký tự) và loại bỏ thông tin nhạy cảm trước khi gửi sự kiện `ui.crash` lên server observability.
+- Đảm bảo exception ở các phần tử giao diện con không làm lộ token hoặc dữ liệu cá nhân ra màn hình người dùng.
+
+
+
+
+* CHÚ THÍCH: Mặc dù hệ thống đã rebrand thành MindGem, các key lưu trữ (localStorage, sessionStorage) như `[brand]-ui-theme`, `[brand].cached_profile`, `[brand].offline_queue`, `[brand].obs.session` được giữ nguyên tên cũ để không làm mất session và dữ liệu của người dùng hiện tại.*
+
+
+---
+## LATEST UPDATES (PHASE 24-27)
+- **Phase 26 (Security Definer Hardening):**
+  - Thêm `search_visible` (mặc định `true`) vào `profiles` cho phép ẩn danh tài khoản.
+  - RPC `search_players` và `send_friend_request` được đóng gói lại với `SET search_path = ''` và kiểm tra gắt gao `auth.uid()`.
+  - Rate limiting được tích hợp ngay trong `search_players` qua RPC `check_rate_limit` ở cấp độ CSDL (15 req / 5 phút).
+- **Phase 27 (Session Versioning):**
+  - Mô hình chấm điểm nay được phiên bản hoá qua `profiles.rating_model_version` (với các session truyền `p_scorer_version`).
+  - View `profiles_decayed` và hàm `get_population_stats` nay lọc trực tiếp theo `rating_model_version`, tránh trộn điểm cũ mới.
+- **Export Data (CCPA/GDPR):** Mở rộng endpoint `/server/account/export` để trích xuất cả thành tựu, nhiệm vụ, sổ cái điểm kinh nghiệm (xp_events), và danh sách bạn bè.
+- **Brand Fixes:** Trả domain gốc về `mindgem.local`, email pháp lý về `privacy@mindgem.org`.

@@ -1,0 +1,326 @@
+===============================================================================
+TỔNG HỢP TÍNH NĂNG: QUẢN TRỊ ADMIN (ADMIN CONTROL-PLANE)
+DỰ ÁN: MINDGEM
+===============================================================================
+
+1. TỔNG QUAN (OVERVIEW)
+-------------------------------------------------------------------------------
+Tính năng Quản trị Admin (Admin Panel / DB Control Plane) là hệ thống trung tâm 
+dành riêng cho quản trị viên (người dùng có quyền role === "admin") trong dự án 
+MindGem. System này cho phép Super Admin theo dõi toàn bộ hệ thống 
+theo thời gian thực, quản lý hồ sơ người chơi, thao tác điều chỉnh điểm số các 
+trục nhận thức, xử lý dữ liệu và quản trị tài khoản người dùng.
+
+Các khả năng chính của tính năng Admin:
+- Giao diện Control Plane chuyên biệt: Cyberpunk / Database Dashboard với hiệu ứng 
+  neon, hiển thị trạng thái kết nối Supabase, độ trễ cơ sở dữ liệu (DB Latency) 
+  và tổng số lượng người dùng (profiles).
+- Quản lý người dùng & Bảng dữ liệu Live Data Grid: Hiển thị danh sách toàn bộ 
+  người chơi (`public.profiles`) với các thông số điểm trục (Logic, Memory, Speed, 
+  Focus, Spatial), XP và số lượt chơi (Sessions).
+- Điều chỉnh điểm chỉ số & XP (Admin Grant): Cho phép cộng thêm (`add`) hoặc 
+  gán đè (`set`) điểm số cho 5 trục nhận thức và điểm kinh nghiệm (Total XP) của 
+  bất kỳ người dùng nào, hỗ trợ nút bấm nhanh preset (10, 50, 100, 500, 1000).
+- Reset điểm số (Reset Scores): Đưa toàn bộ điểm chỉ số 5 trục, XP và số liệu 
+  phiên chơi của người dùng được chọn về 0.
+- Xóa tài khoản vĩnh viễn (Danger Zone / Delete User): Xóa hoàn toàn người dùng 
+  bao gồm Avatar lưu trữ ở Supabase Storage, Auth Account trong Supabase Auth 
+  và thông tin Profile trong cơ sở dữ liệu Postgres.
+- MFA Required (Bảo mật 2FA): Yêu cầu quản trị viên phải xác thực 2 bước (MFA). Mọi hành 
+  động chỉnh sửa/xóa đều phải qua hàm `requireAdmin` kiểm tra `aal === "aal2"` trong JWT.
+  *Lưu ý: Hiện chưa có luồng enroll MFA cho admin trên giao diện, admin cần enroll qua Supabase Dashboard trước khi requireAdmin(c) có hiệu lực.*
+- Nhật ký hoạt động (Activity Log): Theo dõi log thao tác console client-side của phiên bản Admin hiện hành.
+
+
+2. KIẾN TRÚC HỆ THỐNG (ARCHITECTURE)
+-------------------------------------------------------------------------------
+Mô hình triển khai tách biệt giữa Client (React / Vite UI) và Server (Supabase 
+Edge Functions running Deno + Hono Framework), giao tiếp qua HTTPS RESTful API.
+
+[ Client UI Layer ] 
+  └─ AdminPanel (Container / Controller)
+       ├─ AdminShell (Theme Shell & Layout Grid)
+       ├─ AdminOverview (System Telemetry & Metrics)
+       ├─ AdminControls (Grant / Reset / Delete Forms)
+       ├─ ProfilesGrid (Live User Table)
+       ├─ ActivityLog (Console Log Monitor)
+       └─ AccessDenied (Security Fallback Guard)
+
+[ Client API Layer ]
+  └─ src/app/lib/api/admin.ts (SDK wrappers using serverPost)
+
+[ Server Edge Layer ]
+  └─ supabase/functions/server/routes/admin.ts (Hono API endpoints)
+       ├─ POST /server/admin-grant  (Apply points/XP)
+       ├─ POST /server/admin-reset  (Zero out scores)
+       └─ POST /server/admin-delete-user (Purge Auth + Storage + Profile)
+
+[ Database & Auth Layer ]
+  ├─ Supabase Auth (admin.deleteUser)
+  ├─ Supabase Storage (bucket: "avatars")
+  ├─ Postgres Table: public.profiles
+  └─ Postgres RPC: sync_achievements (Lưu ý: user_achievements cần có stats_generation để người dùng có thể cày lại sau khi admin reset)_for(p_user)
+
+
+3. CÁC FILE LIÊN QUAN (RELATED FILES)
+-------------------------------------------------------------------------------
+1. src/app/components/admin-panel.tsx
+   - Component container chính điều phối state (danh sách user, user được chọn, 
+     trạng thái loading/busy, console log), xử lý logic gọi API và hiển thị panel.
+2. src/app/components/admin/admin-controls.tsx
+   - Component bảng điều khiển tác vụ admin: Form nhập điểm cộng/gán cho 5 trục 
+     và XP, nút preset nhanh, nút Reset điểm và Danger Zone xóa tài khoản.
+3. src/app/components/admin/admin-overview.tsx
+   - Component hiển thị tổng quan telemetry: Trạng thái kết nối Supabase, DB 
+     Latency với đồ thị sóng động, tổng số người dùng và target user đang chọn.
+4. src/app/components/admin/admin-shell.tsx
+   - Component khung giao diện chung (Shell) màu tối (#04060D), lưới hiệu ứng 
+     cyberpunk, nút EXIT quay lại Dashboard và nhãn "SUPER ADMIN — HỮU MẠNH".
+5. src/app/components/admin/profiles-grid.tsx
+   - Component hiển thị bảng dữ liệu Live Data Grid từ `public.profiles`, cho 
+     phép chọn người dùng để thao tác và làm mới danh sách.
+6. src/app/components/admin/grants.ts
+   - Định nghĩa kiểu dữ liệu `GrantMode` ("add" | "set"), `GrantAxes`, hằng số 
+     `EMPTY_GRANT` và hàm utility `parseGrantField()` chuyển đổi input.
+7. src/app/components/admin/constants.ts
+   - Định nghĩa bảng màu chủ đạo `ADMIN_COLORS` (green, blue, amber, red, purple) 
+     và danh sách log khởi động console mồi `consoleBoot`.
+8. src/app/components/admin/ui.tsx
+   - Các UI sub-component dùng chung không giữ state: `Panel` (bảng kính mờ), 
+     và `ActionBtn` (nút bấm có trạng thái hover/loading).
+9. src/app/lib/api/admin.ts
+   - Tầng Client SDK xuất các hàm API client: `adminFetchUser`, `adminApplyGrant`, 
+     `adminAddPoints`, `adminResetScores`, `adminDeleteUser`.
+10. supabase/functions/server/routes/admin.ts
+    - Server route handler chạy trên Deno Edge Function, xử lý các endpoint 
+      `/server/admin-grant`, `/server/admin-reset`, `/server/admin-delete-user`.
+
+
+4. CHI TIẾT TRIỂN KHAI (IMPLEMENTATION DETAILS)
+-------------------------------------------------------------------------------
+A. KIỂU DỮ LIỆU VÀ MAPPING CỘT (TYPES & COLUMN MAPPING):
+
+- Kiểu chế độ grant (GrantMode):
+  `type GrantMode = "add" | "set";`
+
+- Kiểu giá trị form grant (GrantAxes):
+  `type GrantAxes = Record<AxisKey, string>;`
+  với `AxisKey = "logic" | "memory" | "speed" | "focus" | "spatial"`
+
+- Payload gửi tới server (AdminGrant):
+  ```typescript
+  type AdminGrant = {
+    axes?: Partial<Record<AxisKey, number>>;
+    xp?: number;
+    mode?: "add" | "set";
+  };
+  ```
+
+- Mapping từ AxisKey sang Cột Database (AXIS_COLUMNS):
+  - logic   -> `algebraic_logic_score`
+  - memory  -> `memory_score`
+  - speed   -> `speed_score`
+  - focus   -> `focus_score`
+  - spatial -> `spatial_score`
+
+B. HẰNG SỐ VÀ CÁC NGƯỠNG AN TOÀN (CONSTANTS & BOUNDS):
+
+- Bảng màu Admin Control-Plane (ADMIN_COLORS):
+  - green:  "#00FF9C" (Màu chủ đạo neon)
+  - blue:   "#00D4FF" (Màu chỉ số / latency)
+  - amber:  "#F59E0B" (Màu cảnh báo / XP)
+  - red:    "#F43F5E" (Màu nguy hiểm / xóa)
+  - purple: "#A855F7" (Màu target user / selected)
+
+- Ngưỡng giới hạn điểm số trục (Axis Bounds):
+  `[0, 1000]` điểm. Mọi phép cộng/gán đều được kẹp (clamp) bằng công thức:
+  `nextScore = Math.max(0, Math.min(1000, Math.round(calculatedScore)))`
+
+- Ngưỡng giới hạn XP (XP_MAX Bound):
+  `XP_MAX = 200,000,000` (200 triệu XP, tương ứng level ~2000).
+  Edge Function chỉ làm tròn delta bằng `Math.round(calculatedDelta)`. Ràng buộc biên nằm ở RPC admin_grant_tx — chặn abs(delta) > 10,000,000 và chặn tổng sau khi cộng vượt XP_MAX = 200,000,000.
+  *Lý do thiết kế*: Tránh trường hợp Admin gõ nhầm nhiều chữ số 0 làm `total_xp` 
+  vượt quá giới hạn, đẩy level lên hàng triệu và làm hỏng Bảng xếp hạng.
+
+C. THUẬT TOÁN & LOGIC XỬ LÝ CHÍNH:
+
+1. Logic tính toán Grant (Thêm / Gán điểm):
+   - Nếu `mode === "set"`: Giá trị mới = `amount`
+   - Nếu `mode === "add"`: Giá trị mới = `current_score + amount`
+   - Kẹp vào khoảng `[0, 1000]` cho 5 trục. Với XP, truyền thẳng `delta` xuống RPC `admin_grant_tx`. RPC sẽ chặn cứng lỗi với `abs(delta) > 10,000,000` hoặc nếu tổng vượt `200,000,000`.
+
+2. Tự động đồng bộ Huy hiệu / Thành tựu (Badge Auto-Sync):
+   Khi XP được cập nhật thành công qua Admin Grant, server chủ động gọi RPC:
+   `await adminClient.rpc("sync_achievements (Lưu ý: user_achievements cần có stats_generation để người dùng có thể cày lại sau khi admin reset)_for", { p_user: targetId });`
+   Giúp huy hiệu của người dùng được cập nhật ngay lập tức mà không phải chờ 
+   người dùng tự mở bảng thành tựu.
+
+3. Logic Reset Scores:
+   Gọi RPC `admin_reset_stats`:
+   ```sql
+   admin_reset_stats(p_target uuid, p_actor uuid)
+   -- stats_generation = stats_generation + 1
+   -- 5 trục = 0, session counters = 0
+   -- last_active_date = now()   -- tránh decay tối đa ngay sau reset, fix lỗi daysSince(null)
+   -- TUYỆT ĐỐI KHÔNG DELETE TRONG xp_events. Ghi đè bằng cách thay đổi stats_generation. Tránh phá vỡ invariant ledger.
+   ```
+
+
+
+4. Logic Xóa tài khoản (Account Deletion Journal):
+      Tiến trình xóa sử dụng Operation Journal chung (orchestration) cho cả Self-delete và Admin-delete qua bảng `account_deletion_operations`:
+   - `requested`
+   - `sessions_revoked`
+   - `storage_deleted`
+   - `database_cleaned`
+   - `auth_deleted`
+   - `completed`
+
+   Mỗi operation cần: `idempotency_key`, `target_user_id`, `actor_user_id`, `state`, `attempt_count`, `next_retry_at`, `last_error`, `completed_at`.
+   API trả 202 Accepted trong lúc xử lý. UI hiển thị trạng thái đang xóa. Admin Delete và Self Delete chia sẻ chung state machine này, nhưng khác biệt ở kiểm tra capability và đối tượng audit. Chống tự xóa trong Admin flow: Server kiểm tra `if (targetId === user.id)` và từ chối.
+   *Kiểm tra bắt buộc*: Self-delete phải kiểm tra `NOT EXISTS (SELECT 1 FROM public.legal_holds WHERE subject_user_id = user.id AND released_at IS NULL)`. Nếu đang bị legal hold, trả về lỗi 403 Forbidden (nghĩa vụ lưu trữ pháp lý cao hơn quyền erasure).
+5. Console Log Buffer & DB Latency Telemetry:
+   - Client duy trì mảng `log` chứa tối đa 60 dòng gần nhất, định dạng 
+     `[HH:mm:ss] Action details`.
+   - Đo thời gian query DB thực tế bằng `performance.now()` khi fetch leaderboard.
+   - `AdminOverview` có hiệu ứng sóng nhịp tim (pulse wave) cập nhật qua 
+     `setInterval` 1400ms dùng hàm lượng giác: `Math.sin((index + beat) * 0.9)`.
+
+
+5. LUỒNG DỮ LIỆU (DATA FLOW)
+-------------------------------------------------------------------------------
+LUỒNG 1: KHỞI TẠO VÀ TẢI DỮ LIỆU BẢNG (LOAD LEADERBOARD)
+[User Click Admin Button]
+  │
+  ▼
+[AdminPanel Render] ──► Check profile.role === "admin"
+  │                       ├─ NO  ──► Render <AccessDenied />
+  │                       └─ YES ──► Execute fetchProfiles()
+  ▼
+[fetchLeaderboard()] ──► HTTP GET /server/admin-users (Supabase JS Client)
+  │
+  ▼
+[Receive Data] ──► Calculate Latency (performance.now() delta)
+  │             ──► Set `rows` state & `dataQuality`
+  ▼
+[Render UI] ──► <AdminOverview /> + <ProfilesGrid /> + <ActivityLog />
+
+-------------------------------------------------------------------------------
+LUỒNG 2: CỘNG THÊM HOẶC GÁN ĐIỂM (APPLY GRANT)
+[Admin Select User & Fill Form] ──► Click "CỘNG ĐIỂM" / "GÁN GIÁ TRỊ"
+  │
+  ▼
+[handleApplyGrant()] ──► Parse values via parseGrantField()
+  │
+  ▼
+[adminApplyGrant(targetId, grant)]  ┌────────────────────────────────────────────────────────┐
+  │ EDGE FUNCTION: /server/admin-grant                     │
+  │────────────────────────────────────────────────────────│
+  │ 1. Validate Admin JWT (MFA/recent AAL2 verify)         │
+  │ 2. Check Input (targetId, action, axes, xp...)         │
+  │ 3. Call RPC `admin_grant_tx(raw mode, raw amount)`     │
+  │    (Bảng `admin_operations` (actor_id, idempotency_key) khóa giao dịch nguyên tử bên trong DB)                │
+  │    - SELECT target FOR UPDATE                          │
+  │    - Tính add/set                                      │
+  │    - Ghi xp_events ledger                              │
+  │    - Update profile projection (clamp 0..1000)         │
+  │    - Insert admin_audit (ADR-0006)                     │
+  │    - Insert outbox event                               │
+  │    - Commit                                            │
+  │ 4. Return HTTP 200 OK `{ profile: updatedData }`       │
+  └────────────────────────────────────────────────────────┘ Push success string to ActivityLog
+  ├─ If (target.id === profile.id) ──► trigger `onProfileChange(updated)`
+  ├─ Update `selectedUser` state
+  └─ Trigger `fetchProfiles()` to refresh Live Data Grid
+
+-------------------------------------------------------------------------------
+LUỒNG 3: RESET ĐIỂM SỐ (RESET SCORES)
+[Admin Click "RESET ALL TO 0"]
+  │
+  ▼
+[adminResetScores(targetId)] ──► serverPost("admin-reset", { targetId })
+  │
+  ▼
+[POST /server/admin-reset]
+    --> 1. Check auth & requireAdmin (MFA/recent AAL2 verify)
+    --> 2. Call RPC admin_reset_stats_tx (Bảng `admin_operations` (actor_id, idempotency_key) khóa giao dịch nguyên tử)
+           - Tăng stats_generation
+           - Reset các cột điểm số/XP
+           - Insert admin_audit
+           - Insert outbox event
+           - Commit
+    <-- 3. Return `{ profile: updatedData }`
+  │
+  ▼
+[Client UI] ──► Update log, update `selectedUser`, refresh leaderboard
+
+-------------------------------------------------------------------------------
+LUỒNG 4: XÓA NGƯỜI DÙNG (DELETE USER - ACCOUNT DELETION JOURNAL)
+[Admin Click "DELETE ACCOUNT"] ──► Set confirmDelete = true (Step 1)
+  │
+  ▼
+[Admin Click "XÓA" Confirmation] (Step 2)
+  │
+  ▼
+[adminDeleteUser(targetId)] ──► serverPost("account-deletions", { targetId })
+  │
+  ▼
+[POST /server/account-deletions]
+  ├─ Check auth & requireAdmin (MFA / Delete Capability)
+  ├─ Guard Check: `targetId !== user.id` (Prevent self-deletion here)
+  ├─ Insert into `account_deletion_operations` (state = `requested`)
+  └─ Return `{ operationId: "...", state: "requested" }` (HTTP 202 Accepted)
+  │
+  ▼
+[Server Orchestrator - Async Worker]
+  ├─ state: sessions_revoked
+  ├─ state: storage_deleted
+  ├─ state: database_cleaned
+  ├─ state: auth_deleted
+  └─ state: completed
+  │
+  ▼
+[Client UI]
+  ▪ Set `selectedUser = null`
+  ▪ Reset confirm state
+  ▪ `fetchProfiles()` (Refresh table)
+
+
+6. BẢO MẬT & VALIDATION (SECURITY & VALIDATION)
+-------------------------------------------------------------------------------
+1. Phân quyền Phòng thủ Đa tầng (Multi-Layer Defense in Depth):
+   - Tầng UI Client: Kiểm tra `profile.role === "admin"`. Nếu không phải admin, 
+     hệ thống chặn không render panel mà hiển thị giao diện `<AccessDenied />`.
+   - Tầng Client SDK: Mọi hàm tác vụ trong `admin-panel.tsx` đều có guard clause 
+     `if (!isAdmin || busy) return;`.
+   - Tầng Server Authentication: Endpoint gọi `authenticatedUser(c)` để xác thực 
+     JWT bearer token từ header request.
+   - Tầng Server Authorization: Endpoint gọi `requireAdmin(c)` để truy vấn 
+   - Tầng Server Authorization: Endpoint gọi `requireAdmin(c, "capability")` để truy vấn 
+     bảng `profiles` kiểm tra cột `role === 'admin'`, kiểm tra mảng `admin_capabilities` (read, grant, delete, reset), và đồng thời kiểm tra token 
+     JWT xem `aal === 'aal2'` (MFA) cộng với thời gian xác thực MFA dưới 5 phút. Nếu vi phạm, lập tức từ chối bằng mã lỗi 
+     HTTP 403 Forbidden.
+
+2. Sử dụng Service Role (Admin Client):
+   Server Edge Function dùng `adminClient` (khởi tạo với `SUPABASE_SERVICE_ROLE_KEY`) 
+   để có quyền tối cao bypass RLS khi thực hiện các tác vụ quản trị hệ thống và 
+   thao tác với Supabase Auth Admin SDK.
+
+3. Kẹp biên Dữ liệu & Chống ô nhiễm (Input Sanitation & Bounds Enforcement):
+   - Hàm `parseGrantField()` loại bỏ khoảng trắng, kiểm tra `Number.isFinite()`, 
+     chỉ chấp nhận giá trị số hợp lệ.
+   - Kẹp biên 5 trục chỉ số trong khoảng `[0, 1000]`.
+   - RPC sẽ lo phần giới hạn an toàn của XP delta và tổng XP. Mọi giá trị delta vô lý đều bị từ chối ở tầng database.
+
+4. Chống Tự Xóa Tài khoản Không An Toàn:
+   Server kiểm tra `if (targetId === user.id)` trong route `admin-delete-user` 
+   để ngăn Admin dùng nhầm route xóa người dùng khác nhằm tự xóa chính mình, bắt 
+   buộc phải dùng quy trình `delete-account` cá nhân chuẩn để dọn dẹp session.
+
+5. Audit Logging (Ghi vết kiểm toán):
+   Các thao tác can thiệp dữ liệu như `admin.grant` và `admin.reset` được ghi log 
+   server bất biến thông qua bảng `admin_audit` (ADR-0006) với thông tin chi tiết: 
+   actor (ID của Admin thực hiện), target_id, action, details (axes, xp) và 
+   timestamp. Bảng này lưu trữ 365 ngày để phục vụ điều tra.
+
+

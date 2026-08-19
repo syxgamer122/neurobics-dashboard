@@ -13,3 +13,5 @@
 *.woff2 binary
 *.ttf binary
 *.otf binary
+*.md text eol=lf working-tree-encoding=UTF-8
+*.txt text eol=lf working-tree-encoding=UTF-8

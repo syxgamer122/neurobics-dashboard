@@ -2,6 +2,7 @@
  * Player search, friend requests and the friends-only leaderboard.
  */
 import { getSupabase, currentUserId } from "./internal";
+import { captureEvent } from "../observability";
 
 export type PlayerSearchResult = {
   id: string;
@@ -20,7 +21,16 @@ export async function searchPlayers(
     p_query: query.trim(),
     p_limit: 10,
   });
-  if (error) throw new Error(`Search players failed: ${error.message}`);
+  if (error) {
+    if (error.message.includes("rate_limit")) {
+      captureEvent({
+        event: "search.rate_limited",
+        level: "warn",
+        message: "Search rate limit hit",
+      });
+    }
+    throw new Error(`Search players failed: ${error.message}`);
+  }
 
   return (data ?? []).map((row: Record<string, unknown>) => ({
     id: String(row.id ?? ""),

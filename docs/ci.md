@@ -17,16 +17,66 @@ Mọi pull request và mọi push vào `main` đều chạy cùng bộ kiểm tr
 4. **Format check** — `pnpm run format:check`
    - Chặn file chưa đúng Prettier.
 5. **Static scan** — `pnpm run scan`
-   - Kiểm tra i18n, hằng số, localStorage và các quy tắc riêng của repo.
+   - Kiểm tra i18n, hằng số, IndexedDB và các quy tắc riêng của repo.
 6. **Migration lint** — `pnpm run db:lint`
    - Kiểm tra tên, thứ tự và lệnh SQL phá huỷ/rủi ro.
-7. **Unit tests + coverage** — `pnpm run test:coverage`
+
+## KIỂM THỬ HỆ THỐNG (SYSTEM TESTING PIPELINE)
+Mọi Pull Request (PR) đều phải đi qua hệ thống CI với các bước kiểm tra (Jobs) nghiêm ngặt sau. Production deployment yêu cầu GitHub Environment Protection (phê duyệt bởi người). Dùng bảng ma trận (nhánh -> môi trường -> approval) để quản lý.
+
+### 1. Kiểm tra Mã nguồn & Quy chuẩn (Static Analysis & Linting)
+- `lint:eslint`: Quét toàn bộ TypeScript/React bằng ESLint.
+- `lint:prettier`: Đảm bảo quy chuẩn format code đồng nhất.
+- `type-check`: Chạy trình biên dịch TypeScript (tsc) bắt các lỗi kiểu dữ liệu nghiêm ngặt.
+- `scan:docs`: Kích hoạt script `tests/scan-docs.mjs` để quét tài liệu, phát hiện lỗi mã hóa, mojibake, kiểm tra hợp đồng drift và file name.
+
+### 1.2 Unit Tests & Component Tests
+- `test:unit`: Chạy Vitest cho toàn bộ logic chia sẻ (shared logic), state machines, Zod schemas và helper functions. Đảm bảo coverage > 80%.
+
+### 1.3 System Integration & Security Tests (Bắt buộc required checks trên nhánh main)
+Các test này phải nằm trong Branch Protection Rules, không được phép continue-on-error. Kết quả pass/fail, commit SHA, artifact checksums phải được lưu lại trong `implementation-report.md` (chỉ checkmark là không đủ).
+- `test:round-concurrency`: Gửi 100 request đồng thời cùng 1 ticket.
+- `test:offline-isolation`: Bắn 1.000 ván offline practice.
+- `test:guest-upgrade`: Guest upgrade không promote trước khi revoke.
+- `test:admin-step-up`: JWT hợp lệ nhưng không có recent TOTP sẽ bị từ chối.
+- `test:account-deletion-resume`: Deletion fail giữa bước Auth và DB có thể resume.
+- `test:rls-negative`: Negative testing các table.
+- `test:migration-upgrade-snapshot`: Migration chạy từ clean DB và production snapshot.
+- `test:scoring-fuzz`: Fuzz mọi scorer [0,1000], finite.
+- `test:scoring-ceiling`: Test attainability audit. Với mỗi game, chạy optimizer/telemetry hoàn hảo tổng hợp -> in ra maxHeadline, maxAxis[]. Assert mọi threshold trong catalog thành tựu và required checks là khả thi.
+- `test:offline-idempotency`: Gửi lại cùng batch 3 lần, assert practice_sessions và cheat_flags không thay đổi.
+- `test:a11y`: Bắt buộc.
+- `test:age-gate`: Bắt buộc. Chạy assert cả 3 tầng (UI, API, DB) đều từ chối age < 16 đồng nhất.
+- `test:version-pinning`: Ticket cũ giữ nguyên kết quả v1 dù đã có scorer v2, override không ảnh hưởng ticket đã phát.
+- `test:ticket-claim-ownership`: Một user không thể claim ticket của user khác.
+- `test:active-ticket-limit`: Giới hạn 3 active ticket sống sót tốt dưới concurrency (active_slot).
+- `test:security-definer-permissions`: Kiểm toán tất cả `SECURITY DEFINER` (avatar, birth year).
+- `test:admin-idempotency`: Request admin (như retry XP) không cộng dồn hai lần.
+- `test:guest-upgrade-replay`: Đổi role RPC an toàn trước Replay Attack.
+- `test:old-token-after-upgrade`: Cấm dùng token Guest cũ truy cập endpoint user.
+- `test:deletion-journal-resume`: Self-delete và admin-delete resume từ Journal.
+- `test:friendship-concurrency`: Cấm tạo A->B và B->A thành hai hàng đồng thời (Friendship Race).
+- `test:observability-body-limit`: Middleware từ chối body vượt quota.
+- `test:observability-sink-outage`: Sink hỏng không làm fail/chậm HTTP request chính.
+- `test:retention-contract`: Hợp đồng xoá dữ liệu guest/cron xoá đúng số ngày.
+- `test:export-manifest`: Data Export chứa đủ manifest như cam kết.
+- `test:rating-concurrency`: Thử nghiệm concurrency khi tính Rolling Rating (nhiều ván submit cùng lúc).
+
+3. **Migration apply test (db:migrate:smoke)** — `supabase db start`
+   - Khởi chạy workflow trên nhánh main (bắt buộc duyệt tay qua GitHub Environment Protection Rule trước khi chạm production). Khởi tạo DB ảo cục bộ và áp dụng toàn bộ schema migration từ đầu. Đảm bảo migration không bị lỗi cú pháp thực thi.
+4. **Ledger invariants** — `pnpm run db:invariants`
+   - Đổ seed data giả và chạy bài test invariant đảm bảo ledger XP luôn khớp.
+9. **Unit tests + coverage** — `pnpm run test:coverage`
    - Chạy Vitest và áp ngưỡng coverage trong `vitest.config.ts`.
-8. **Simulation** — `pnpm run test:sim`
+10. **Simulation** — `pnpm run test:sim`
    - Chạy `sim-client`, `sim-games`, `sim-audit` trên logic thật.
-9. **Build** — `pnpm run build:only`
+11. **Build** — `pnpm run build:only`
    - Bắt lỗi bundle mà typecheck không thấy.
-10. **Coverage artifact**
+12. **Bundle Budget & Security Audit** — `pnpm run check:bundle` & `pnpm run security:audit`
+   - Bắt dung lượng JS phình to (>700KB) và quét lỗ hổng bảo mật gói npm.
+13. **E2E Smoke Test (e2e:smoke)** — `playwright test`
+   - Chạy 3 luồng chính: Auth, Play Round, Offline Enqueue.
+14. **Coverage artifact**
    - Upload thư mục `coverage` và giữ 14 ngày, kể cả khi một bước trước đó lỗi.
 
 ### Job `edge-functions`
@@ -43,20 +93,24 @@ CI cài dependencies trước khi chạy Deno để Deno 2 đọc các import `n
 
 ## Chạy cùng bộ kiểm tra ở máy
 
-```bash
-pnpm run check
-pnpm run build
-```
+Lệnh `pnpm run check` chỉ là tập hợp con (subset) chạy cực nhanh bao gồm: typecheck, lint, Prettier, static scan, migration lint, coverage và simulation.
 
-`pnpm run check` hiện bao gồm typecheck, lint, Prettier, static scan, migration lint, coverage và simulation. `pnpm run build` typecheck lại rồi tạo bundle production.
-
-Trước khi commit nên chạy:
+Để chạy đầy đủ bộ kiểm tra nội bộ gần sát với CI nhất trước khi tạo Pull Request, bạn cần chạy:
 
 ```bash
 pnpm run format
 pnpm run check
+supabase db start
+pnpm run check:bundle
+pnpm run security:audit
+pnpm dlx playwright test
 pnpm run build
 ```
+
+**Lưu ý khi cấu hình Require status checks to pass trên GitHub:**
+Đảm bảo bạn nhập đúng tên job xuất hiện trên Actions UI:
+- `quality`
+- `edge-functions`
 
 ## CI không cần secret production
 
@@ -106,5 +160,20 @@ Không bỏ qua. Mở log `deno check` và sửa lỗi type/import. Các import 
 
 GitHub → Settings → Branches/Rulesets → bảo vệ `main` → bật **Require status checks to pass** và chọn:
 
-- `Typecheck / scan / test / build`
-- `Edge Function typecheck`
+- `quality`
+- `edge-functions`
+
+## Ledger Invariants
+
+To ensure the XP ledger remains accurate, the following invariant must hold:
+```sql
+SELECT p.id
+FROM public.profiles p
+LEFT JOIN LATERAL (
+  SELECT coalesce(sum(e.xp_awarded), 0) AS ledger_xp
+  FROM public.xp_events e
+  WHERE e.user_id = p.id
+  AND e.stats_generation = p.stats_generation
+) x ON true
+WHERE p.total_xp IS DISTINCT FROM x.ledger_xp;
+```

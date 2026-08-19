@@ -37,6 +37,9 @@ export function SnakeGame({
   const levelRef = useRef(level);
   levelRef.current = level;
 
+  const tickRef = useRef<() => void>();
+  const drawPausedRef = useRef<() => void>();
+
   const state = useRef({
     CELL: 20,
     COLS: 20,
@@ -360,8 +363,8 @@ export function SnakeGame({
     const handleResize = () => {
       setCanvasSize();
       if (gameStateRef.current !== "playing") {
-        if (gameStateRef.current === "paused") {
-          loop();
+        if (gameStateRef.current === "paused" && drawPausedRef.current) {
+          drawPausedRef.current();
         } else {
           draw();
         }
@@ -369,7 +372,6 @@ export function SnakeGame({
     };
     window.addEventListener("resize", handleResize);
 
-    let timeoutId: number;
     function update() {
       const s = state.current;
       if (s.dirQueue.length > 0) {
@@ -432,41 +434,54 @@ export function SnakeGame({
       }
     }
 
-    function loop() {
-      if (gameStateRef.current !== "playing") {
-        if (gameStateRef.current === "paused") {
-          draw();
-          ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
-          ctx.fillRect(0, 0, state.current.SIZE, state.current.SIZE);
-          ctx.fillStyle = "#10b981";
-          ctx.font = "bold 24px monospace";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(
-            "PAUSED",
-            state.current.SIZE / 2,
-            state.current.SIZE / 2,
-          );
-        }
-        return;
-      }
-
+    tickRef.current = () => {
       update();
       draw();
-      const delay = Math.max(70, 150 - levelRef.current * 12);
-      timeoutId = window.setTimeout(loop, delay);
-    }
+    };
 
-    loop();
+    drawPausedRef.current = () => {
+      draw();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+      ctx.fillRect(0, 0, state.current.SIZE, state.current.SIZE);
+      ctx.fillStyle = "#10b981";
+      ctx.font = "bold 24px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("PAUSED", state.current.SIZE / 2, state.current.SIZE / 2);
+    };
+
+    if (gameStateRef.current === "paused") drawPausedRef.current();
 
     return () => {
-      clearTimeout(timeoutId);
       canvas.removeEventListener("touchstart", handleTouchStart);
       canvas.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("resize", handleResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onGameOver]);
+
+  useEffect(() => {
+    if (gameState !== "playing") {
+      if (gameState === "paused" && drawPausedRef.current) {
+        drawPausedRef.current();
+      }
+      return;
+    }
+
+    let timeoutId: number;
+
+    const tick = () => {
+      if (tickRef.current) tickRef.current();
+      const delay = Math.max(70, 150 - levelRef.current * 12);
+      timeoutId = window.setTimeout(tick, delay);
+    };
+
+    tick();
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [gameState]);
 
   return (
     <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">

@@ -269,6 +269,11 @@ export const en: typeof vi = {
   settings_delete_confirm_err: "Confirmation username does not match.",
   settings_delete_btn: "DELETE ACCOUNT",
   settings_delete_ok: "Account deleted.",
+  auth_email: "Email",
+  auth_password: "Password",
+  settings_upgrade_btn: "Upgrade",
+  settings_upgrade_guest: "Upgrade Guest Account",
+  settings_upgrade_ok: "Account upgraded successfully!",
   // Stroop Test
   stroop_tag: "INHIBITION TRAINING",
   stroop_desc:

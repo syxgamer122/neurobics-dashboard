@@ -54,6 +54,7 @@ const REDACTIONS: Array<[RegExp, string]> = [
   ],
   [/[\w.+-]+@[\w-]+\.[\w.-]{2,}/g, "[email]"],
   [/\b\d{9,}\b/g, "[num]"],
+  [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "[uuid]"],
 ];
 
 const UUID_RE =
@@ -95,7 +96,16 @@ function scrubContext(value: unknown): Record<string, unknown> {
     const safeKey = key.slice(0, 40);
     if (typeof raw === "number" && Number.isFinite(raw)) out[safeKey] = raw;
     else if (typeof raw === "boolean" || raw === null) out[safeKey] = raw;
-    else out[safeKey] = scrubText(raw);
+    else if (
+      safeKey === "request_id" ||
+      safeKey === "session_id" ||
+      safeKey === "round_id" ||
+      safeKey === "client_round_id" ||
+      safeKey === "trace_id"
+    ) {
+      // Whitelist these keys to prevent UUID redaction
+      out[safeKey] = typeof raw === "string" ? raw : String(raw);
+    } else out[safeKey] = scrubText(raw);
   }
   return out;
 }
@@ -163,11 +173,20 @@ export function sanitizeClientEvents(
 // ─── Sink (index.ts nap vao) ──────────────────────────────────────────────
 
 export type EventSink = (rows: ObservabilityRow[]) => void;
+export type MetricSink = (
+  path: string,
+  status: number,
+  latency: number,
+) => void;
 
 let sink: EventSink | null = null;
+let metricSink: MetricSink | null = null;
 
 export function setEventSink(next: EventSink | null): void {
   sink = next;
+}
+export function setMetricSink(next: MetricSink | null): void {
+  metricSink = next;
 }
 
 export function persistEvents(rows: ObservabilityRow[]): void {
@@ -177,6 +196,17 @@ export function persistEvents(rows: ObservabilityRow[]): void {
   } catch {
     // Ghi log khong bao gio duoc lam vo request.
   }
+}
+
+export function recordHttpMetric(
+  path: string,
+  status: number,
+  latency: number,
+): void {
+  if (!metricSink) return;
+  try {
+    metricSink(path, status, latency);
+  } catch {}
 }
 
 // ─── Request id + log mot dong JSON ─────────────────────────────────────
@@ -232,11 +262,16 @@ export function logRequest(entry: RequestLog): void {
     requestId: entry.requestId,
     method: entry.method,
     path: entry.path,
-    status: entry.status,
-    durationMs: Math.round(entry.durationMs),
+    status_code: entry.status,
+    duration_ms: Math.round(entry.durationMs),
   });
 
+  // Ghi nhan metric de theo doi SLO (tong hop theo phut tren Postgres)
+  recordHttpMetric(entry.path, entry.status, Math.round(entry.durationMs));
+
   // Chi luu ben vung nhung gi dang xem lai: loi server va 4xx bat thuong.
+  // GIO DA CO metrics minute, khong can luu HTTP 200 submit-round nua
+  // (tranh lam phinh bang observability_events chi de lay mau so).
   if (entry.status >= 500 || entry.status === 429 || entry.status === 422) {
     persistEvents([
       {
@@ -293,8 +328,8 @@ export function logServerEvent(input: ServerEventInput): void {
     route,
     game: input.game ?? null,
     message,
-    durationMs: input.durationMs ?? null,
-    status: input.statusCode ?? null,
+    duration_ms: input.durationMs ?? null,
+    status_code: input.statusCode ?? null,
     ...(input.context ?? {}),
   });
 

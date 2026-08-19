@@ -3,7 +3,7 @@ import { Brain, Play, Target } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { NBackTelemetry } from "../lib/scoring";
+import type { NBackTelemetry } from "../lib/provisional-score";
 
 // ─── N-Back ───────────────────────────────────────────────────────────────
 // Một ô sáng lên trong lưới 3×3 mỗi lượt. Người chơi bấm KHỚP khi ô hiện tại

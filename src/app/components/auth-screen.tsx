@@ -11,27 +11,21 @@ import {
 import {
   handleSignUp,
   handleLogin,
+  handleGuestSignUp,
   fetchProfile,
-  resetPasswordWithRecoveryCode,
   USERNAME_RE,
   type Profile,
 } from "../lib/api";
 import { useLang } from "../lib/i18n";
 import { TurnstileWidget } from "./turnstile-widget";
 import { logError } from "../lib/logger";
-import { createGuestProfile } from "../lib/guest";
 
 export function AuthScreen({
   onAuthed,
 }: {
   onAuthed: (profile: Profile | null) => void;
 }) {
-  const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
-  const [recoveryCode, setRecoveryCode] = useState("");
-  const [issuedRecoveryCode, setIssuedRecoveryCode] = useState<string | null>(
-    null,
-  );
-  const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<"login" | "signup" | "guest">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,15 +47,12 @@ export function AuthScreen({
     setError(null);
     setUsernameError(false);
 
-    if (!username.trim() || !password) {
+    if (mode !== "guest" && (!username.trim() || !password)) {
       setError("Enter a username and password.");
       return;
     }
 
-    if (
-      (mode === "signup" || mode === "recover") &&
-      !USERNAME_RE.test(username.trim())
-    ) {
+    if (mode === "signup" && !USERNAME_RE.test(username.trim())) {
       setError(
         t.username_invalid ??
           "Username must be 3–20 characters: letters, numbers, _ . - only.",
@@ -70,54 +61,31 @@ export function AuthScreen({
       return;
     }
 
-    if ((mode === "signup" || mode === "recover") && password.length < 8) {
+    if (mode === "signup" && password.length < 8) {
       setError(
         t.password_min_length ?? "Password must be at least 8 characters.",
       );
       return;
     }
 
-    if (mode === "recover" && !recoveryCode.trim()) {
-      setError(t.recovery_code_required ?? "Enter your recovery code.");
-      return;
-    }
-
-    if ((mode === "signup" || mode === "recover") && !captchaToken) {
+    if ((mode === "signup" || mode === "guest") && !captchaToken) {
       setError("Please complete the human verification.");
       return;
     }
 
     setBusy(true);
     try {
-      if (mode === "recover") {
-        await resetPasswordWithRecoveryCode(
-          username.trim(),
-          recoveryCode.trim(),
-          password,
-          captchaToken,
-        );
-        setMode("login");
-        setPassword("");
-        setRecoveryCode("");
-        setUsernameError(false);
-        setSuccess(false);
-        setError(
-          "✓ " +
-            (t.recovery_success ?? "Password updated. You can sign in now."),
-        );
-        setCaptchaToken("");
-        setCaptchaResetKey((k) => k + 1);
-        return;
-      }
       if (mode === "signup") {
-        const { profile, recoveryCode: code } = await handleSignUp(
+        const { profile } = await handleSignUp(
           username.trim(),
           password,
           captchaToken,
         );
-        if (code) setIssuedRecoveryCode(code);
         setSuccess(true);
         setTimeout(() => onAuthed(profile), 1200);
+      } else if (mode === "guest") {
+        const { profile } = await handleGuestSignUp(captchaToken);
+        onAuthed(profile);
       } else {
         // 1. Authenticate (username -> username@mindgem.local under the hood).
         await handleLogin(username.trim(), password);
@@ -141,24 +109,13 @@ export function AuthScreen({
         setUsernameError(true);
       }
       setError(msg);
-      if (mode === "signup") {
+      if (mode === "signup" || mode === "guest") {
         setCaptchaToken("");
         setCaptchaResetKey((key) => key + 1);
       }
     } finally {
       setBusy(false);
     }
-  };
-
-  const switchMode = () => {
-    setMode((m) => (m === "login" ? "signup" : "login"));
-    setRecoveryCode("");
-    setIssuedRecoveryCode(null);
-    setError(null);
-    setUsernameError(false);
-    setSuccess(false);
-    setCaptchaToken("");
-    setCaptchaResetKey((key) => key + 1);
   };
 
   return (
@@ -261,97 +218,104 @@ export function AuthScreen({
         )}
 
         <form onSubmit={submit} className="space-y-3.5">
-          {/* Username field */}
-          <div
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-300"
-            style={{
-              background: usernameError
-                ? "rgba(var(--neuro-red-rgb),0.08)"
-                : "rgba(0,0,0,0.3)",
-              border: usernameError
-                ? "1px solid rgba(var(--neuro-red-rgb),0.6)"
-                : "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
-              boxShadow: usernameError
-                ? "0 0 16px rgba(var(--neuro-red-rgb),0.25), inset 0 0 8px rgba(var(--neuro-red-rgb),0.05)"
-                : "none",
-            }}
-          >
-            <span
-              style={{
-                color: usernameError ? "var(--neuro-red)" : "var(--slate-500)",
-              }}
-            >
-              <User size={15} />
-            </span>
-            <input
-              type="text"
-              placeholder={t.username_label}
-              value={username}
-              onChange={(e) => handleUsernameChange(e.target.value)}
-              autoComplete="username"
-              className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
-              style={{
-                color: usernameError ? "var(--neuro-red)" : "white",
-              }}
-            />
-            {usernameError && (
-              <AlertTriangle
-                size={14}
-                className="text-red-400 shrink-0"
+          {mode !== "guest" && (
+            <>
+              {/* Username field */}
+              <div
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-300"
                 style={{
-                  filter: "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
+                  background: usernameError
+                    ? "rgba(var(--neuro-red-rgb),0.08)"
+                    : "rgba(0,0,0,0.3)",
+                  border: usernameError
+                    ? "1px solid rgba(var(--neuro-red-rgb),0.6)"
+                    : "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+                  boxShadow: usernameError
+                    ? "0 0 16px rgba(var(--neuro-red-rgb),0.25), inset 0 0 8px rgba(var(--neuro-red-rgb),0.05)"
+                    : "none",
                 }}
-              />
-            )}
-          </div>
-
-          {/* Username error block */}
-          {usernameError && (
-            <div
-              className="rounded-lg px-3 py-2.5 space-y-1"
-              style={{
-                background: "rgba(var(--neuro-red-rgb),0.06)",
-                border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
-                boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.1)",
-              }}
-            >
-              <div className="flex items-center gap-1.5">
+              >
                 <span
-                  className="text-xs font-bold tracking-widest font-mono"
-                  style={{ color: "var(--neuro-red)" }}
+                  style={{
+                    color: usernameError
+                      ? "var(--neuro-red)"
+                      : "var(--slate-500)",
+                  }}
                 >
-                  ✕ DB_CONSTRAINT_VIOLATION
+                  <User size={15} />
                 </span>
+                <input
+                  type="text"
+                  placeholder={t.username_label}
+                  value={username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  autoComplete="username"
+                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
+                  style={{
+                    color: usernameError ? "var(--neuro-red)" : "white",
+                  }}
+                />
+                {usernameError && (
+                  <AlertTriangle
+                    size={14}
+                    className="text-red-400 shrink-0"
+                    style={{
+                      filter:
+                        "drop-shadow(0 0 4px rgba(var(--neuro-red-rgb),0.8))",
+                    }}
+                  />
+                )}
               </div>
-              <div className="text-xs" style={{ color: "var(--red-300)" }}>
-                ERROR: Username already taken. Please choose another.
-              </div>
-              <div className="text-xs text-red-800">
-                UNIQUE constraint failed: profiles.username
-              </div>
-            </div>
-          )}
 
-          {/* Password field */}
-          <div
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
-            style={{
-              background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
-            }}
-          >
-            <span className="text-slate-500">
-              <Lock size={15} />
-            </span>
-            <input
-              type="password"
-              placeholder={t.password_label}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400"
-            />
-          </div>
+              {/* Username error block */}
+              {usernameError && (
+                <div
+                  className="rounded-lg px-3 py-2.5 space-y-1"
+                  style={{
+                    background: "rgba(var(--neuro-red-rgb),0.06)",
+                    border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
+                    boxShadow: "0 0 12px rgba(var(--neuro-red-rgb),0.1)",
+                  }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="text-xs font-bold tracking-widest font-mono"
+                      style={{ color: "var(--neuro-red)" }}
+                    >
+                      ✕ DB_CONSTRAINT_VIOLATION
+                    </span>
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--red-300)" }}>
+                    ERROR: Username already taken. Please choose another.
+                  </div>
+                  <div className="text-xs text-red-800">
+                    UNIQUE constraint failed: profiles.username
+                  </div>
+                </div>
+              )}
+
+              {/* Password field */}
+              <div
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+                style={{
+                  background: "rgba(0,0,0,0.3)",
+                  border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+                }}
+              >
+                <span className="text-slate-500">
+                  <Lock size={15} />
+                </span>
+                <input
+                  type="password"
+                  placeholder={t.password_label}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400"
+                />
+              </div>
+            </>
+          )}
 
           {mode === "signup" && (
             <div
@@ -367,26 +331,7 @@ export function AuthScreen({
             </div>
           )}
 
-          {mode === "recover" && (
-            <div
-              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
-              style={{
-                background: "rgba(0,0,0,0.3)",
-                border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
-              }}
-            >
-              <input
-                type="text"
-                placeholder={t.recovery_code_label ?? "Recovery code"}
-                value={recoveryCode}
-                onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
-                autoComplete="one-time-code"
-                className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400 tracking-widest font-mono"
-              />
-            </div>
-          )}
-
-          {(mode === "signup" || mode === "recover") && (
+          {(mode === "signup" || mode === "guest") && (
             <TurnstileWidget
               onToken={setCaptchaToken}
               resetKey={captchaResetKey}
@@ -412,7 +357,7 @@ export function AuthScreen({
             disabled={
               busy ||
               success ||
-              ((mode === "signup" || mode === "recover") && !captchaToken)
+              ((mode === "signup" || mode === "guest") && !captchaToken)
             }
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
             style={{
@@ -428,11 +373,9 @@ export function AuthScreen({
             ) : (
               <ArrowRight size={15} />
             )}
-            {mode === "login"
-              ? t.sign_in.toUpperCase()
-              : mode === "recover"
-                ? (t.recover_submit ?? "RESET PASSWORD").toUpperCase()
-                : t.sign_up.toUpperCase()}
+            {mode === "login" && t.sign_in.toUpperCase()}
+            {mode === "signup" && t.sign_up.toUpperCase()}
+            {mode === "guest" && t.guest_play.toUpperCase()}
           </button>
         </form>
 
@@ -442,7 +385,9 @@ export function AuthScreen({
               type="button"
               disabled={busy || success}
               onClick={() => {
-                onAuthed(createGuestProfile(t.guest_username));
+                setMode("guest");
+                setError(null);
+                setUsernameError(false);
               }}
               className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wider transition-all duration-200 disabled:opacity-60"
               style={{
@@ -460,92 +405,29 @@ export function AuthScreen({
         )}
 
         <div className="text-center mt-5 text-xs text-slate-500 space-y-2">
-          {mode !== "recover" && (
+          {mode !== "login" && (
             <div>
-              {mode === "login" ? t.no_account : t.have_account}{" "}
+              {t.have_account}{" "}
               <button
-                onClick={switchMode}
+                onClick={() => setMode("login")}
                 className="text-neuro-cyan hover:underline"
               >
-                {mode === "login" ? t.sign_up : t.sign_in}
+                {t.sign_in}
               </button>
             </div>
           )}
           {mode === "login" && (
             <div>
+              {t.no_account}{" "}
               <button
-                onClick={() => {
-                  setMode("recover");
-                  setError("");
-                  setSuccess(false);
-                  setCaptchaToken("");
-                  setCaptchaResetKey((k) => k + 1);
-                }}
-                className="text-slate-400 hover:text-neuro-cyan hover:underline"
-              >
-                {t.forgot_password ?? "Forgot password?"}
-              </button>
-            </div>
-          )}
-          {mode === "recover" && (
-            <div>
-              <button
-                onClick={() => {
-                  setMode("login");
-                  setError("");
-                  setRecoveryCode("");
-                  setCaptchaToken("");
-                  setCaptchaResetKey((k) => k + 1);
-                }}
+                onClick={() => setMode("signup")}
                 className="text-neuro-cyan hover:underline"
               >
-                {t.back_to_sign_in ?? "Back to sign in"}
+                {t.sign_up}
               </button>
             </div>
           )}
         </div>
-
-        {issuedRecoveryCode && (
-          <div
-            className="mt-4 p-3 rounded-xl text-xs space-y-2"
-            style={{
-              background: "rgba(var(--neuro-green-rgb),0.1)",
-              border: "1px solid rgba(var(--neuro-green-rgb),0.35)",
-            }}
-          >
-            <div className="text-emerald-300 font-semibold">
-              {t.recovery_code_title ?? "Save your recovery code"}
-            </div>
-            <div className="text-foreground/60 leading-relaxed">
-              {t.recovery_code_body ??
-                "This is the only way to reset your password. It will not be shown again."}
-            </div>
-            <div className="text-lg tracking-[0.2em] text-emerald-200 text-center py-2 font-mono">
-              {issuedRecoveryCode}
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(issuedRecoveryCode);
-                  setCopied(true);
-                } catch {
-                  setCopied(false);
-                }
-              }}
-              className="w-full py-2 rounded-lg text-xs"
-              style={{
-                background: "rgba(var(--neuro-green-rgb),0.15)",
-                border: "1px solid rgba(var(--neuro-green-rgb),0.4)",
-                color: "#6EE7B7",
-              }}
-            >
-              {copied
-                ? (t.copied ?? "Copied")
-                : (t.copy_recovery_code ?? "Copy code")}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

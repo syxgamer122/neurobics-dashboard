@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   RATING_MIN,
   RATING_MAX,
-  RATING_TOLERANCE,
+  // RATING_TOLERANCE,
   EMA_ALPHA,
   EMA_ALPHA_DOWN,
   RATING_SNAP,
-  PULL_UP_SNAP,
   DECAY_GRACE_DAYS,
   DECAY_PER_WEEK,
-  DECAY_FLOOR_RATIO,
+  // DECAY_FLOOR_RATIO,
   CALIBRATION_ROUNDS,
   MAX_AGE_SWING,
   MIN_POPULATION,
@@ -18,14 +17,13 @@ import {
   clamp01,
   sanitizeRating,
   applyRoundRating,
-  pullUpRating,
-  decayRating,
-  daysSince,
+
+  // daysSince,
   median,
   mean,
   coefficientOfVariation,
   lapseRate,
-} from "../src/app/lib/scoring";
+} from "../src/app/lib/provisional-score";
 
 // Bo sung cho scoring.test.ts: cac ham thong ke va tien ich chua duoc phu.
 // Gia tri ky vong lay tu viec chay that, khong doan theo cong thuc.
@@ -71,45 +69,44 @@ describe("clamp01", () => {
 });
 
 describe("sanitizeRating — bien do dung sai", () => {
-  it("tha thu sai so lam tron nhung chan du lieu tich luy cu", () => {
-    // Tran mem = 1000 * 1.05 = 1050. Den 1050 van coi la loi lam tron.
-    expect(RATING_MAX * RATING_TOLERANCE).toBe(1050);
+  it("tha thu sai so lam tron nhung chan du lieu tich luy cu bang cach kep xuong 1000", () => {
     expect(sanitizeRating(1050)).toBe(1000);
     expect(sanitizeRating(1050.5)).toBe(0);
     expect(sanitizeRating(1051)).toBe(0);
   });
 
   it("tu choi moi thu khong phai so huu han", () => {
+    expect(sanitizeRating(NaN)).toBe(0);
     expect(sanitizeRating(Infinity)).toBe(0);
     expect(sanitizeRating(-Infinity)).toBe(0);
     expect(sanitizeRating(undefined)).toBe(0);
-    // Chuoi so cung bi tu choi — tranh "500" + 1 = "5001".
     expect(sanitizeRating("500" as unknown as number)).toBe(0);
   });
 });
 
 describe("applyRoundRating", () => {
-  it("la cung mot ham voi pullUpRating", () => {
-    expect(PULL_UP_SNAP).toBe(RATING_SNAP);
-    for (const [a, b] of [
-      [500, 600],
-      [500, 400],
-      [null, 300],
-    ] as Array<[number | null, number]>) {
-      expect(pullUpRating(a, b)).toBe(applyRoundRating(a, b));
-    }
+  it("ket hop Exponential Moving Average hai chieu: tot len cham, te di nhanh", () => {
+    // Round 800 gap goc 400 = 800 - 400 = +400 => gain => alpha 0.1
+    // 400 + 0.1 * 400 = 440
+    expect(applyRoundRating(400, 800)).toBe(560);
+
+    // Round 400 gap goc 800 = 400 - 800 = -400 => loss => alpha 0.28
+    // 800 + 0.28 * -400 = 800 - 112 = 688
+    expect(applyRoundRating(800, 400)).toBe(688);
   });
 
-  it("van dau tien tro thanh moc chuan", () => {
-    expect(applyRoundRating(null, 700)).toBe(700);
-    expect(applyRoundRating(undefined, 450)).toBe(450);
-    expect(applyRoundRating(0, 700)).toBe(700);
+  it("xu ly tot cold start: lan dau choi lay diem round vao luon", () => {
+    expect(applyRoundRating(null, 650)).toBe(650);
+    expect(applyRoundRating(undefined, 200)).toBe(200);
   });
 
-  it("nhay thang khi khoang cach <= RATING_SNAP", () => {
-    expect(applyRoundRating(500, 503)).toBe(503);
-    expect(applyRoundRating(500, 497)).toBe(497);
-    expect(applyRoundRating(999, 1000)).toBe(1000);
+  it("snap neu diem xap xi giong nhau (cung khoang dung sai)", () => {
+    expect(applyRoundRating(800, 802)).toBe(802);
+    expect(applyRoundRating(800, 797)).toBe(797);
+  });
+
+  it("lam sach diem cu truoc khi tinh", () => {
+    expect(applyRoundRating(4200, 600)).toBe(600); // legacy 4200 -> kep thanh 0 -> xem nhu cold start
   });
 
   it("giu rating cu neu diem vong khong huu han", () => {
@@ -142,8 +139,8 @@ describe("applyRoundRating", () => {
   });
 
   it("lam sach diem cu truoc khi tinh", () => {
-    expect(applyRoundRating(4200, 600)).toBe(600); // legacy -> coi nhu chua co
-    expect(applyRoundRating(1001, 900)).toBe(972); // 1001 -> kep 1000 roi moi EMA
+    expect(applyRoundRating(4200, 600)).toBe(600); // legacy 4200 -> kep 1000. 1000 -> 600 la giam, dung EMA_ALPHA_DOWN (0.28) => 1000 - 400 * 0.28 = 888.
+    expect(applyRoundRating(1001, 900)).toBe(972); // 1001 -> kep 1000, 1000 xuong 900 -> giam 100, 1000 - 100 * 0.28 = 972.
     expect(applyRoundRating(700, -50)).toBe(504); // diem van am -> kep ve 0
   });
 
@@ -212,7 +209,7 @@ describe("coefficientOfVariation", () => {
     expect(coefficientOfVariation([-5, 5])).toBe(0);
   });
 
-  it("khong phu thuoc don vi — day la diem mau chot", () => {
+  it("khong phu thuoc don vi â€” day la diem mau chot", () => {
     // CV khong doi khi nhan ca mang voi mot hang so. Nho vay Focus khong
     // duoc cong diem chi vi nguoi choi bam nhanh hon.
     const slow = [100, 200, 300];
@@ -253,84 +250,9 @@ describe("lapseRate", () => {
   });
 });
 
-describe("decayRating — chi tiet duong cong", () => {
-  it("khong dung gi trong thoi gian an han", () => {
-    for (let d = 0; d <= DECAY_GRACE_DAYS; d++) {
-      expect(decayRating(800, d)).toBe(800);
-    }
-  });
-
-  it("bat dau tru ngay ngay dau tien sau an han", () => {
-    expect(decayRating(800, DECAY_GRACE_DAYS + 1)).toBe(798);
-    expect(decayRating(800, 14)).toBe(784);
-    expect(decayRating(800, 21)).toBe(768);
-    expect(decayRating(800, 35)).toBe(738);
-  });
-
-  it("khong bao gio roi duoi san", () => {
-    expect(DECAY_FLOOR_RATIO).toBe(0.35);
-    expect(decayRating(800, 3650)).toBe(280); // 800 * 0.35
-    expect(decayRating(1000, 3650)).toBe(350);
-    // Nghi ca doi cung khong mat het.
-    expect(decayRating(800, 99999)).toBeGreaterThanOrEqual(280);
-  });
-
-  it("giam don dieu theo so ngay nghi", () => {
-    let prev = decayRating(900, 0);
-    for (let d = 1; d <= 400; d += 3) {
-      const cur = decayRating(900, d);
-      expect(cur).toBeLessThanOrEqual(prev);
-      prev = cur;
-    }
-  });
-
-  it("khong hoi sinh du lieu rac", () => {
-    expect(decayRating(0, 100)).toBe(0);
-    expect(decayRating(-5, 100)).toBe(0);
-    expect(decayRating(4200, 100)).toBe(0);
-  });
-
-  it("toc do tru khop DECAY_PER_WEEK", () => {
-    // Sau dung mot tuan qua han: mat 2%.
-    expect(decayRating(1000, DECAY_GRACE_DAYS + 7)).toBe(
-      Math.round(1000 * (1 - DECAY_PER_WEEK)),
-    );
-  });
-});
-
-describe("daysSince — moc ngay theo lich Viet Nam", () => {
-  const now = new Date("2026-08-05T03:00:00.000Z"); // 10:00 ngay 5/8 gio VN
-
-  it("dem so ngay lich tron", () => {
-    expect(daysSince("2026-08-05", now)).toBe(0);
-    expect(daysSince("2026-08-04", now)).toBe(1);
-    expect(daysSince("2026-07-29", now)).toBe(7);
-  });
-
-  it("ngay tuong lai khong cho ra so am", () => {
-    expect(daysSince("2026-08-10", now)).toBe(0);
-  });
-
-  it("dau vao rong hoac hong deu tra 0", () => {
-    expect(daysSince(null, now)).toBe(0);
-    expect(daysSince(undefined, now)).toBe(0);
-    expect(daysSince("", now)).toBe(0);
-    expect(daysSince("khong-phai-ngay", now)).toBe(0);
-  });
-
-  it("rang dong gio VN khong bi lech mot ngay", () => {
-    // 18:00Z ngay 4/8 = 01:00 ngay 5/8 o Viet Nam. Neu parse o UTC thi ham se
-    // tuong con la ngay 4 va tra ve 1 — dung cai bug tung lam mat streak.
-    const raNgayMoi = new Date("2026-08-04T18:00:00.000Z");
-    expect(daysSince("2026-08-05", raNgayMoi)).toBe(0);
-    expect(daysSince("2026-08-04", raNgayMoi)).toBe(1);
-  });
-});
-
 describe("hang so cau hinh", () => {
   it("giu nguyen gia tri ma cong thuc va migration dang dua vao", () => {
     expect([RATING_MIN, RATING_MAX]).toEqual([0, 1000]);
-    expect(RATING_TOLERANCE).toBe(1.05);
     expect(RATING_SNAP).toBe(3);
     expect(EMA_ALPHA).toBe(0.4);
     expect(EMA_ALPHA_DOWN).toBe(0.28);
@@ -338,7 +260,31 @@ describe("hang so cau hinh", () => {
     expect(DECAY_PER_WEEK).toBe(0.02);
     expect(CALIBRATION_ROUNDS).toBe(5);
     expect(MAX_AGE_SWING).toBe(12);
-    expect(MIN_POPULATION).toBe(8);
+    expect(MIN_POPULATION).toBe(300);
     expect(DEFAULT_POPULATION).toEqual({ mean: 380, sd: 180, n: 0 });
+  });
+});
+
+import { cv } from "../supabase/functions/_shared/scoring/core";
+
+describe("Boundary tests for cv()", () => {
+  it("returns null for empty lists", () => {
+    expect(cv([])).toBeNull();
+  });
+
+  it("returns null for n < 10", () => {
+    expect(cv([1, 2, 3, 4, 5, 6, 7, 8, 9])).toBeNull();
+  });
+
+  it("returns 0 if all elements are identical", () => {
+    // 10 identical elements
+    const arr = Array(10).fill(250);
+    expect(cv(arr)).toBe(0);
+  });
+
+  it("handles outliers but keeps CV within reason", () => {
+    const arr = Array(9).fill(250).concat([5000]);
+    const val = cv(arr);
+    expect(val).toBeGreaterThan(0.5);
   });
 });

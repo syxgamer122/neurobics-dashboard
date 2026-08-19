@@ -6,74 +6,70 @@ import {
   XP_MAX,
 } from "../config.ts";
 import { authenticatedUser, requireAdmin } from "../security.ts";
+import { logServerEvent, requestIdFor } from "../../_shared/observability.ts";
+import { AXIS_COLUMNS } from "../../_shared/axes.ts";
 
 export function registerAdminRoutes(app: Hono): void {
+  app.get("/server/admin-list-profiles", async (c) => {
+    try {
+      const user = await requireAdmin(c, "list_profiles");
+
+      const { data, error } = await adminClient
+        .from("profiles_decayed")
+        .select(PROFILE_COLS)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return c.json({ profiles: data });
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : String(err) },
+        400,
+      );
+    }
+  });
+
   app.post("/server/admin-grant", async (c) => {
     try {
-      const user = await authenticatedUser(c);
-      await requireAdmin(user.id);
-      const { targetId, axes = {}, xp, mode = "add" } = await c.req.json();
+      const user = await requireAdmin(c, "grant");
+      const {
+        targetId,
+        axes = {},
+        xp,
+        mode = "add",
+        reason = "Admin manual grant",
+      } = await c.req.json();
       if (!targetId || !["add", "set"].includes(mode))
         return c.json({ error: "Invalid admin grant" }, 400);
-      const { data: target, error: readError } = await adminClient
-        .from("profiles")
-        .select(PROFILE_COLS)
-        .eq("id", targetId)
-        .single();
-      if (readError || !target)
-        throw readError ?? new Error("Target not found");
-      // supabase-js tra ve union co GenericStringError -> ep ve record de doc cot dong.
-      const targetRow = target as unknown as Record<string, unknown>;
-      // Khop src/app/lib/axes.ts
-      const columns: Record<string, string> = {
-        logic: "algebraic_logic_score",
-        memory: "memory_score",
-        speed: "speed_score",
-        focus: "focus_score",
-        spatial: "cfop_spatial_record",
-      };
-      const patch: Record<string, number> = {};
-      for (const [key, column] of Object.entries(columns)) {
-        if (axes[key] === undefined || !Number.isFinite(Number(axes[key])))
-          continue;
-        const amount = Number(axes[key]),
-          current = Number(targetRow[column] ?? 0),
-          next = mode === "set" ? amount : current + amount;
-        patch[column] = Math.max(0, Math.min(1000, Math.round(next)));
-      }
-      if (xp !== undefined && Number.isFinite(Number(xp))) {
-        const next =
-          mode === "set"
-            ? Number(xp)
-            : Number(targetRow.total_xp ?? 0) + Number(xp);
-        // Chan tren bat buoc: mot lan go nham so 0 tung day total_xp len 1e14,
-        // keo level nhay len 1.414.214 va lam hong ca bang xep hang. XP_MAX ung
-        // voi level ~2000, du cho moi muc choi that ma van khong tran float8.
-        patch.total_xp = Math.max(0, Math.min(XP_MAX, Math.round(next)));
-      }
-      if (!Object.keys(patch).length)
-        return c.json({ error: "Nothing to update" }, 400);
-      const { data, error } = await adminClient
-        .from("profiles")
-        .update(patch)
-        .eq("id", targetId)
-        .select(PROFILE_COLS)
-        .single();
+
+      const reqId = requestIdFor(c.req.raw) || "";
+
+      // Call the atomic RPC to lock, update profiles, record xp_events, and write admin_audit
+      const { data, error } = await adminClient.rpc("admin_grant", {
+        p_target_id: targetId,
+        p_xp_amount:
+          xp !== undefined && Number.isFinite(Number(xp))
+            ? Math.round(Number(xp))
+            : null,
+        p_xp_mode: mode,
+        p_axes: Object.keys(axes).length > 0 ? axes : null,
+        p_axes_mode: mode,
+        p_reason: reason,
+        p_admin_id: user.id,
+        p_request_id: reqId,
+      });
+
       if (error) throw error;
-      // Cong XP bang quyen admin thi phai danh gia lai badge NGAY. Truoc day
-      // badge chi duoc dong bo khi nguoi dung TU MO bang thanh tuu, nen tai
-      // khoan duoc admin keo len level 7 van trong tron badge cho den luc do.
-      // Loi dong bo KHONG duoc lam that bai ca lenh grant: XP da ghi xong roi,
-      // va badge se tu dong bo lai o lan mo bang thanh tuu ke tiep.
-      if (patch.total_xp !== undefined) {
-        const { error: syncError } = await adminClient.rpc(
-          "sync_achievements_for",
-          { p_user: targetId },
-        );
-        if (syncError)
-          console.log(`Admin grant badge sync failed: ${syncError.message}`);
-      }
-      return c.json({ profile: data });
+
+      const { data: updated, error: refreshError } = await adminClient
+        .from("profiles_decayed")
+        .select(PROFILE_COLS)
+        .eq("id", targetId)
+        .single();
+      if (refreshError || !updated)
+        throw refreshError ?? new Error("Target disappeared");
+      return c.json({ profile: updated, patch: data.patch });
     } catch (err) {
       return c.json(
         { error: err instanceof Error ? err.message : String(err) },
@@ -84,28 +80,29 @@ export function registerAdminRoutes(app: Hono): void {
 
   app.post("/server/admin-reset", async (c) => {
     try {
-      const user = await authenticatedUser(c);
-      await requireAdmin(user.id);
-      const { targetId } = await c.req.json();
+      const user = await requireAdmin(c, "reset");
+      const { targetId, reason = "Admin manual reset" } = await c.req.json();
       if (!targetId) return c.json({ error: "targetId required" }, 400);
-      const patch = {
-        algebraic_logic_score: 0,
-        memory_score: 0,
-        speed_score: 0,
-        focus_score: 0,
-        cfop_spatial_record: 0,
-        ...EMPTY_SESSION_PATCH,
-        total_xp: 0,
-        last_active_date: null,
-      };
-      const { data, error } = await adminClient
-        .from("profiles")
-        .update(patch)
-        .eq("id", targetId)
-        .select(PROFILE_COLS)
-        .single();
+
+      const reqId = requestIdFor(c.req.raw) || "";
+      const { error } = await adminClient.rpc("admin_reset_stats", {
+        p_target_id: targetId,
+        p_reason: reason,
+        p_admin_id: user.id,
+        p_request_id: reqId,
+      });
+
       if (error) throw error;
-      return c.json({ profile: data });
+
+      const { data: updated, error: refreshError } = await adminClient
+        .from("profiles_decayed")
+        .select(PROFILE_COLS)
+        .eq("id", targetId)
+        .single();
+
+      if (refreshError || !updated)
+        throw refreshError ?? new Error("Target disappeared");
+      return c.json({ profile: updated });
     } catch (err) {
       return c.json(
         { error: err instanceof Error ? err.message : String(err) },
@@ -117,8 +114,7 @@ export function registerAdminRoutes(app: Hono): void {
   // Admin xoa user tron (profile + auth + avatar).
   app.post("/server/admin-delete-user", async (c) => {
     try {
-      const user = await authenticatedUser(c);
-      await requireAdmin(user.id);
+      const user = await requireAdmin(c, "delete");
       const { targetId } = await c.req.json();
       if (!targetId) return c.json({ error: "targetId required" }, 400);
       if (targetId === user.id)
@@ -137,26 +133,47 @@ export function registerAdminRoutes(app: Hono): void {
             .remove(listed.map((f) => `${targetId}/${f.name}`));
         }
       } catch (storageErr) {
-        console.log(`admin-delete-user storage: ${storageErr}`);
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `admin-delete-user storage: ${storageErr}`,
+        });
       }
+
+      // Fetch profile to get username for the audit log
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("username")
+        .eq("id", targetId)
+        .single();
 
       // Xoa auth truoc; FK ON DELETE CASCADE don profile va cac bang con.
       const { error: authErr } =
         await adminClient.auth.admin.deleteUser(targetId);
       if (authErr) throw authErr;
+
+      // Ghi log SAU khi xoa thanh cong, vi constraint FK da duoc xoa
+      await adminClient.from("admin_audit").insert({
+        actor_id: user.id,
+        target_id: targetId,
+        action: "delete",
+        context: { target_username: profile?.username || "unknown" },
+        request_id: requestIdFor(c.req.raw),
+      });
+
       // Fallback cho DB cu chua co cascade. Service role nen idempotent.
-      await adminClient
-        .from("account_recovery")
-        .delete()
-        .eq("user_id", targetId);
+
       const { error: profileErr } = await adminClient
         .from("profiles")
         .delete()
         .eq("id", targetId);
       if (profileErr)
-        console.log(
-          `admin-delete-user profile fallback: ${profileErr.message}`,
-        );
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `admin-delete-user profile fallback: ${profileErr.message}`,
+        });
+
       return c.json({ ok: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

@@ -4,7 +4,7 @@ import { useLang } from "../lib/i18n";
 import { generateSudoku } from "../lib/sudoku-gen";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { SudokuTelemetry } from "../lib/scoring";
+import type { SudokuTelemetry } from "../lib/provisional-score";
 import { logError, logWarn } from "../lib/logger";
 
 export type Difficulty =

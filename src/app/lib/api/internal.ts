@@ -12,7 +12,7 @@ import {
   assertSupabaseConfig,
 } from "../supabase-config";
 import { SESSION_COLUMNS, type SessionColumn } from "../game-registry";
-import { sanitizeRating, decayRating, daysSince } from "../scoring";
+import { sanitizeRating } from "../provisional-score";
 
 // ─── Supabase client singleton ───────────────────────────────────────────────
 // Stashed on globalThis so that even if this module is evaluated more than once
@@ -43,6 +43,7 @@ export type Profile = {
   // The 5 cognitive axes are proficiency ratings in [0, 1000] (upward-only
   // moving averages), NOT cumulative point totals.
   cfop_spatial_record: number | null; // spatial proficiency rating
+  spatial_score: number; // Normalized fallback
   algebraic_logic_score: number; // logic proficiency rating
   memory_score: number; // memory proficiency rating
   speed_score: number; // speed proficiency rating
@@ -54,8 +55,8 @@ export type Profile = {
   birth_year: number | null;
   // Public avatar URL in the `avatars` storage bucket (nullable until uploaded).
   avatar_url: string | null;
-  // Server-controlled: 'user' | 'admin'. Never trust username for privilege.
-  role: "user" | "admin";
+  // Server-controlled: 'user' | 'admin' | 'guest'. Never trust username for privilege.
+  role: "user" | "admin" | "guest";
   created_at: string;
 } & Record<SessionColumn, number>;
 
@@ -106,6 +107,14 @@ export function describeError(err: unknown, context: string): string {
   return `${context}: ${IS_DEV ? String(err) : "Unexpected error"}`;
 }
 
+/** Check if an error is likely due to network/offline conditions. */
+export function isNetworkErrorLike(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /Failed to fetch|NetworkError|FetchError|Load failed|offline|network/i.test(
+    msg,
+  );
+}
+
 // Select all columns so the app keeps working before/after the ALTER TABLE
 // migration adds memory_score, speed_score, focus_score, last_active_date.
 export const PROFILE_COLS =
@@ -125,6 +134,7 @@ export function sanitizeProfile(p: Profile): Profile {
   const sessionCounts = Object.fromEntries(
     SESSION_COLUMNS.map((column) => [column, Number(p[column] ?? 0) || 0]),
   ) as Record<SessionColumn, number>;
+  const spatialScoreRaw = p.spatial_score ?? p.cfop_spatial_record ?? 0;
   return {
     ...p,
     ...sessionCounts,
@@ -133,33 +143,20 @@ export function sanitizeProfile(p: Profile): Profile {
     speed_score: sanitizeRating(p.speed_score),
     memory_score: sanitizeRating(p.memory_score),
     cfop_spatial_record: sanitizeRating(p.cfop_spatial_record),
+    spatial_score: sanitizeRating(spatialScoreRaw),
   };
 }
 
 /**
- * Sanitize AND apply inactivity decay. Used on every read path so the dashboard,
- * the leaderboard and the brain age all reflect current form rather than an
- * all-time peak. The decayed values are not written back here: the app feeds
- * them into pullUpRating as the new baseline, so the next completed round
- * persists the decay naturally without an extra round-trip.
+ * Sanitize profile values. Decay is no longer applied on the client.
  */
 export function hydrateProfile(p: Profile): Profile {
-  const clean = sanitizeProfile({
+  return sanitizeProfile({
     ...p,
     avatar_url: p.avatar_url ?? null,
     birth_year: p.birth_year ?? null,
-    role: p.role === "admin" ? "admin" : "user",
+    role: p.role,
   });
-  const idle = daysSince(clean.last_active_date);
-  if (idle === 0) return clean;
-  return {
-    ...clean,
-    algebraic_logic_score: decayRating(clean.algebraic_logic_score, idle),
-    focus_score: decayRating(clean.focus_score, idle),
-    speed_score: decayRating(clean.speed_score, idle),
-    memory_score: decayRating(clean.memory_score, idle),
-    cfop_spatial_record: decayRating(clean.cfop_spatial_record ?? 0, idle),
-  };
 }
 
 /**
@@ -195,12 +192,24 @@ export const AVATAR_MIME = new Set([
   "image/gif",
 ]);
 
-export async function serverPost<T>(
+export class ServerError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = "ServerError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export async function serverPost<T = void>(
   path: string,
   payload: unknown,
 ): Promise<T> {
   const token = await getAccessToken();
-  if (!token) throw new Error("Not authenticated.");
+  if (!token)
+    throw new ServerError("Not authenticated.", "unauthenticated", 401);
   const res = await fetch(`${BASE}/${path}`, {
     method: "POST",
     headers: {
@@ -209,10 +218,17 @@ export async function serverPost<T>(
     },
     body: JSON.stringify(payload),
   });
-  const body = await res
-    .json()
-    .catch(() => ({ error: "Invalid server response" }));
-  if (!res.ok) throw new Error(body.error ?? `${path} failed (${res.status})`);
+  const body = await res.json().catch(() => ({
+    error: "Invalid server response",
+    code: "invalid_response",
+  }));
+  if (!res.ok) {
+    throw new ServerError(
+      body.error ?? `${path} failed (${res.status})`,
+      body.code,
+      res.status,
+    );
+  }
   return body as T;
 }
 

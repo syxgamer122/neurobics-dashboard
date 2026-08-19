@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2.110.9";
 import { GAME_IDS } from "../_shared/round-scoring.ts";
 

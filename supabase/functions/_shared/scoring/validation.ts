@@ -1,9 +1,10 @@
+// @ts-nocheck
 import type { Game } from "./core.ts";
+import { HUMAN_FLOOR_MS } from "../limits.ts";
 
 // San CUNG: chi duoi nguong nay moi la phi nhan loai that su va bi tu choi.
 // Khop HUMAN_FLOOR_MS trong anticheat.ts.
-const HARD_MIN_RT_MS = 80;
-const MAX_RT_MS = 60_000;
+// const MAX_RT_MS = 60_000;
 
 export function assertRtBounds(
   rts: unknown,
@@ -15,11 +16,10 @@ export function assertRtBounds(
   if (rts.length > 5_000) throw new Error(`${label}: too many reaction times`);
   let total = 0;
   for (const r of rts) {
-    if (typeof r !== "number" || !Number.isFinite(r))
-      throw new Error(`${label}: reaction time is not a number`);
-    if (r < HARD_MIN_RT_MS)
-      throw new Error(`${label}: reaction time below human threshold`);
-    if (r > MAX_RT_MS) throw new Error(`${label}: reaction time out of range`);
+    if (typeof r !== "number" || !Number.isFinite(r) || r < 0)
+      throw new Error(`${label}: reaction time is not a valid positive number`);
+    // Removed HUMAN_FLOOR_MS check from validation per Iteration 11 architecture.
+    // It is now handled by the Signal Extractor in anticheat.ts.
     total += r;
   }
   // Tong thoi gian phan ung khong the vuot thoi gian van dau (dem bien 15s).

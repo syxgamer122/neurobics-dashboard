@@ -1,0 +1,1007 @@
+[
+  {
+    "id": "honest_normal_reaction",
+    "game": "reaction",
+    "elapsed": 5000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 5000,
+      "rts": [320, 280, 350, 290, 310, 270, 340, 300, 260, 330],
+      "falseStarts": 0
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_reaction",
+    "game": "reaction",
+    "elapsed": 3000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 3000,
+      "rts": [220, 240, 210, 230, 250],
+      "falseStarts": 0
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_noisy_reaction",
+    "game": "reaction",
+    "elapsed": 5000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 5000,
+      "rts": [450, 180, 600, 220, 800, 350, 190, 500, 280, 400],
+      "falseStarts": 1
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_fast_reaction",
+    "game": "reaction",
+    "elapsed": 3000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 3000,
+      "rts": [75, 240, 210, 230, 250],
+      "falseStarts": 0
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "borderline_metronomic_reaction",
+    "game": "reaction",
+    "elapsed": 5000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 5000,
+      "rts": [250, 251, 249, 250, 250],
+      "falseStarts": 0
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_reaction",
+    "game": "reaction",
+    "elapsed": 3000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 3000,
+      "rts": [70, 75, 60, 230, 250],
+      "falseStarts": 0
+    },
+    "expected_outcome": "hard_reject"
+  },
+  {
+    "id": "clear_cheater_reaction_metronomic_90ms",
+    "game": "reaction",
+    "elapsed": 5000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 5000,
+      "rts": [90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
+      "falseStarts": 0
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_schulte",
+    "game": "schulte",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "cells": 25,
+      "wrongClicks": 2,
+      "hitRts": [420, 511, 388, 604, 455, 372, 690, 501, 433, 588],
+      "modeLabel": "5x5"
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_schulte",
+    "game": "schulte",
+    "elapsed": 15000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 15000,
+      "cells": 25,
+      "wrongClicks": 0,
+      "hitRts": [250, 310, 280, 350, 290, 320, 270, 340, 300, 260],
+      "modeLabel": "5x5"
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "laggy_device_schulte",
+    "game": "schulte",
+    "elapsed": 12000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 12000,
+      "cells": 25,
+      "hitRts": [400, 500, 10, 900, 400],
+      "wrongClicks": 0,
+      "modeLabel": "5x5"
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_metronomic_schulte",
+    "game": "schulte",
+    "elapsed": 25000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 25000,
+      "cells": 25,
+      "wrongClicks": 0,
+      "hitRts": [400, 401, 399, 400, 400, 401, 399, 400],
+      "modeLabel": "5x5"
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_schulte_fast_taps",
+    "game": "schulte",
+    "elapsed": 5000,
+    "telemetry": {
+      "version": 1,
+      "cells": 25,
+      "hitRts": [10, 20, 15, 10, 30],
+      "wrongClicks": 0,
+      "modeLabel": "5x5"
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_stroop",
+    "game": "stroop",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "totalStimuli": 40,
+      "wrongClicks": 3,
+      "rts": [520, 680, 450, 590, 710, 480, 630, 550, 700, 500]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_stroop",
+    "game": "stroop",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "totalStimuli": 40,
+      "wrongClicks": 1,
+      "rts": [320, 380, 350, 400, 290, 370, 310, 360, 340, 390]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_metronomic_stroop",
+    "game": "stroop",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "totalStimuli": 40,
+      "wrongClicks": 0,
+      "rts": [400, 401, 399, 400, 400, 401, 399, 400]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_stroop",
+    "game": "stroop",
+    "elapsed": 20000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 20000,
+      "totalStimuli": 40,
+      "wrongClicks": 0,
+      "rts": [100, 105, 98, 102, 100, 103, 99, 101]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_sudoku",
+    "game": "sudoku",
+    "elapsed": 400000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 400000,
+      "difficulty": "Easy",
+      "mistakes": 1,
+      "placements": 45,
+      "moveRts": [1200, 1800, 1500, 2200, 1600, 1400, 1900, 1700, 2000, 1300],
+      "reEntries": 1,
+      "repeatMistakes": 0
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_sudoku",
+    "game": "sudoku",
+    "elapsed": 180000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 180000,
+      "difficulty": "Medium",
+      "mistakes": 0,
+      "placements": 48,
+      "moveRts": [600, 800, 700, 900, 750, 650, 850, 700, 800, 600],
+      "reEntries": 0,
+      "repeatMistakes": 0
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_fast_master_sudoku",
+    "game": "sudoku",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "difficulty": "Master",
+      "mistakes": 0,
+      "placements": 51,
+      "moveRts": [
+        500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
+        500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
+        500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
+        500, 500, 500, 500, 500, 500, 500, 500, 500
+      ],
+      "reEntries": 0,
+      "repeatMistakes": 0
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_sudoku",
+    "game": "sudoku",
+    "elapsed": 10000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 10000,
+      "difficulty": "Hard",
+      "mistakes": 0,
+      "placements": 50,
+      "moveRts": [50, 55, 48, 52, 50, 53, 49, 51, 50, 55],
+      "reEntries": 0,
+      "repeatMistakes": 0
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_memory",
+    "game": "memory",
+    "elapsed": 120000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 120000,
+      "maxLevel": 5,
+      "clearedLevels": 5,
+      "wrongClicks": 3
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_slow_memory",
+    "game": "memory",
+    "elapsed": 300000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 300000,
+      "maxLevel": 4,
+      "clearedLevels": 3,
+      "wrongClicks": 8
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_low_level_memory",
+    "game": "memory",
+    "elapsed": 15000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 15000,
+      "maxLevel": 2,
+      "clearedLevels": 2,
+      "wrongClicks": 1
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "clear_cheater_memory",
+    "game": "memory",
+    "elapsed": 1000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 1000,
+      "maxLevel": 9,
+      "clearedLevels": 9,
+      "wrongClicks": 0
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_nback",
+    "game": "nback",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "n": 2,
+      "trials": 30,
+      "hits": 10,
+      "misses": 2,
+      "falseAlarms": 1,
+      "rts": [450, 380, 520, 410, 490, 360, 550, 430, 470, 400, 510, 390]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_nback",
+    "game": "nback",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "n": 2,
+      "trials": 30,
+      "hits": 12,
+      "misses": 0,
+      "falseAlarms": 0,
+      "rts": [280, 320, 250, 310, 290, 340, 260, 300]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_metronomic_nback",
+    "game": "nback",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "n": 3,
+      "trials": 40,
+      "hits": 12,
+      "misses": 0,
+      "falseAlarms": 0,
+      "rts": [300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_nback",
+    "game": "nback",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "n": 3,
+      "trials": 40,
+      "hits": 15,
+      "misses": 0,
+      "falseAlarms": 0,
+      "rts": [
+        100, 105, 98, 102, 100, 103, 99, 101, 100, 105, 98, 102, 100, 103, 99
+      ]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_math",
+    "game": "math",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "difficulty": "medium",
+      "totalProblems": 30,
+      "correct": 25,
+      "wrong": 5,
+      "rts": [1800, 2200, 1500, 3000, 1700, 2500, 1600, 2800, 1900, 2100]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_math",
+    "game": "math",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "difficulty": "easy",
+      "totalProblems": 40,
+      "correct": 38,
+      "wrong": 2,
+      "rts": [800, 1000, 900, 1100, 850, 950, 1050, 900, 1000, 800]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_perfect_hard_math",
+    "game": "math",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "difficulty": "hard",
+      "totalProblems": 40,
+      "correct": 40,
+      "wrong": 0,
+      "rts": [
+        1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100,
+        1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100,
+        1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100,
+        1100, 1100, 1100, 1100
+      ]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_math",
+    "game": "math",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "difficulty": "hard",
+      "totalProblems": 40,
+      "correct": 40,
+      "wrong": 0,
+      "rts": [
+        120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+        120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+        120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120
+      ]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_gonogo",
+    "game": "gonogo",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "trials": 60,
+      "goTrials": 45,
+      "nogoTrials": 15,
+      "hits": 42,
+      "misses": 3,
+      "falseAlarms": 2,
+      "correctRejections": 13,
+      "rts": [380, 420, 350, 450, 390, 410, 370, 430, 360, 440, 380, 400]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_gonogo",
+    "game": "gonogo",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "trials": 60,
+      "goTrials": 45,
+      "nogoTrials": 15,
+      "hits": 44,
+      "misses": 1,
+      "falseAlarms": 1,
+      "correctRejections": 14,
+      "rts": [260, 300, 280, 320, 270, 310, 250, 290, 280, 300, 260, 290]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_perfect_gonogo",
+    "game": "gonogo",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "trials": 60,
+      "goTrials": 45,
+      "nogoTrials": 15,
+      "hits": 45,
+      "misses": 0,
+      "falseAlarms": 0,
+      "correctRejections": 15,
+      "rts": [
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200
+      ]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_gonogo",
+    "game": "gonogo",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "trials": 60,
+      "goTrials": 45,
+      "nogoTrials": 15,
+      "hits": 45,
+      "misses": 0,
+      "falseAlarms": 0,
+      "correctRejections": 15,
+      "rts": [100, 105, 98, 102, 100]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_mental",
+    "game": "mental",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "trials": 20,
+      "correct": 16,
+      "wrong": 4,
+      "angles": [
+        60, 120, 180, 240, 60, 120, 180, 240, 60, 120, 180, 240, 60, 120, 180,
+        240, 60, 120, 180, 240
+      ],
+      "mirrors": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false
+      ],
+      "correctFlags": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "rts": [
+        800, 1200, 950, 1100, 700, 1300, 850, 1050, 900, 1150, 750, 1250, 800,
+        1100, 950, 1000, 850, 1200, 900, 1050
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_mental",
+    "game": "mental",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "trials": 16,
+      "correct": 14,
+      "wrong": 2,
+      "rts": [
+        400, 550, 480, 620, 350, 500, 450, 580, 380, 530, 470, 600, 360, 510,
+        440, 570
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_perfect_fast_mental",
+    "game": "mental",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "trials": 20,
+      "correct": 20,
+      "wrong": 0,
+      "rts": [
+        400, 410, 420, 400, 410, 420, 400, 410, 420, 400, 410, 420, 400, 410,
+        420, 400, 410, 420, 400, 410
+      ]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_mental",
+    "game": "mental",
+    "elapsed": 10000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 10000,
+      "trials": 20,
+      "correct": 20,
+      "wrong": 0,
+      "angles": [
+        120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+        120, 120, 120, 120, 120, 120
+      ],
+      "mirrors": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "correctFlags": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "rts": [
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200
+      ]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_corsi",
+    "game": "corsi",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "span": 5,
+      "trials": 10,
+      "correctTrials": 7,
+      "taps": 30,
+      "wrongClicks": 3,
+      "rts": [350, 400, 320, 450, 380, 420, 340, 460, 370, 410, 350, 430]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_corsi",
+    "game": "corsi",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "span": 6,
+      "trials": 8,
+      "correctTrials": 6,
+      "taps": 25,
+      "wrongClicks": 1,
+      "rts": [250, 300, 280, 320, 260, 310, 270, 290]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_high_span_corsi",
+    "game": "corsi",
+    "elapsed": 20000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 20000,
+      "span": 8,
+      "trials": 8,
+      "correctTrials": 8,
+      "taps": 40,
+      "wrongClicks": 0,
+      "rts": [300, 310, 290, 300, 310, 290, 300, 310]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_corsi",
+    "game": "corsi",
+    "elapsed": 3000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 3000,
+      "span": 9,
+      "trials": 9,
+      "correctTrials": 9,
+      "taps": 45,
+      "wrongClicks": 0,
+      "rts": [
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+        100, 100, 100
+      ]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_trail",
+    "game": "trail",
+    "elapsed": 45000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 45000,
+      "nodes": 24,
+      "mode": "A",
+      "wrongClicks": 2,
+      "rts": [
+        500, 700, 600, 800, 550, 750, 650, 700, 500, 800, 600, 750, 550, 700,
+        650, 800, 500, 750, 600, 700, 550, 800, 650
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_trail",
+    "game": "trail",
+    "elapsed": 25000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 25000,
+      "nodes": 24,
+      "mode": "B",
+      "wrongClicks": 0,
+      "rts": [
+        350, 400, 380, 420, 360, 410, 370, 430, 350, 400, 380, 420, 360, 410,
+        370, 430, 350, 400, 380, 420, 360, 410, 370
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_metronomic_trail",
+    "game": "trail",
+    "elapsed": 30000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 30000,
+      "nodes": 24,
+      "mode": "B",
+      "wrongClicks": 0,
+      "rts": [
+        400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400,
+        400, 400, 400, 400, 400, 400, 400, 400, 400
+      ]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "clear_cheater_trail",
+    "game": "trail",
+    "elapsed": 8000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 8000,
+      "nodes": 24,
+      "mode": "B",
+      "wrongClicks": 0,
+      "rts": [
+        100, 105, 98, 102, 100, 103, 99, 101, 100, 105, 98, 102, 100, 103, 99,
+        101, 100, 105, 98, 102, 100, 103, 99
+      ]
+    },
+    "expected_outcome": "hard_reject"
+  },
+
+  {
+    "id": "honest_normal_search",
+    "game": "search",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "score": 35,
+      "rts": [
+        1200, 1500, 1100, 1800, 1300, 1600, 1400, 1700, 1200, 1500, 1100, 1800,
+        1300, 1600, 1400, 1700, 1200, 1500, 1100, 1800
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "honest_fast_search",
+    "game": "search",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "score": 55,
+      "rts": [
+        600, 800, 700, 900, 650, 850, 750, 800, 700, 600, 800, 700, 900, 650,
+        850, 750, 800, 700, 600, 800
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "borderline_high_score_search",
+    "game": "search",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "score": 85,
+      "rts": [400, 500, 450, 550, 420, 480, 460, 520, 440, 510]
+    },
+    "expected_outcome": "soft_flag"
+  },
+  {
+    "id": "borderline_metronomic_search",
+    "game": "search",
+    "elapsed": 60000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 60000,
+      "score": 40,
+      "rts": [500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500]
+    },
+    "expected_outcome": "soft_flag"
+  },
+
+  {
+    "id": "empty_telemetry_schulte",
+    "game": "schulte",
+    "elapsed": 10000,
+    "telemetry": {},
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "empty_telemetry_reaction",
+    "game": "reaction",
+    "elapsed": 5000,
+    "telemetry": {},
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "empty_telemetry_memory",
+    "game": "memory",
+    "elapsed": 30000,
+    "telemetry": {},
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "empty_telemetry_gonogo",
+    "game": "gonogo",
+    "elapsed": 30000,
+    "telemetry": {},
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "null_telemetry_corsi",
+    "game": "corsi",
+    "elapsed": 30000,
+    "telemetry": null,
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "null_telemetry_search",
+    "game": "search",
+    "elapsed": 60000,
+    "telemetry": null,
+    "expected_outcome": "accept"
+  },
+
+  {
+    "id": "accessibility_slow_reaction",
+    "game": "reaction",
+    "elapsed": 15000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 15000,
+      "rts": [800, 1200, 900, 1500, 1100, 950, 1300, 1000, 1400, 850],
+      "falseStarts": 2
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "accessibility_slow_stroop",
+    "game": "stroop",
+    "elapsed": 90000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 90000,
+      "totalStimuli": 30,
+      "wrongClicks": 8,
+      "rts": [1500, 2000, 1800, 2500, 1700, 2200, 1600, 2400, 1900, 2100]
+    },
+    "expected_outcome": "accept"
+  },
+  {
+    "id": "accessibility_slow_trail",
+    "game": "trail",
+    "elapsed": 120000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 120000,
+      "nodes": 24,
+      "mode": "A",
+      "wrongClicks": 5,
+      "rts": [
+        2000, 3000, 2500, 3500, 2200, 2800, 2600, 3200, 2100, 2900, 2400, 3100,
+        2300, 2700, 2500, 3000, 2200, 2800, 2600, 3200, 2100, 2900, 2400
+      ]
+    },
+    "expected_outcome": "accept"
+  },
+
+  {
+    "id": "client_time_exceeds_server_schulte",
+    "game": "schulte",
+    "elapsed": 5000,
+    "telemetry": {
+      "version": 1,
+      "timeMs": 500000,
+      "cells": 25,
+      "wrongClicks": 0,
+      "hitRts": [420, 511, 388, 604, 455, 372, 690, 501, 433, 588],
+      "modeLabel": "5x5"
+    },
+    "expected_outcome": "soft_flag"
+  }
+]

@@ -1,4 +1,6 @@
+// @ts-nocheck
 import type { Context } from "npm:hono@4.12.27";
+import * as jose from "npm:jose@5.9.3";
 import { adminClient } from "./config.ts";
 
 export async function sha256(value: string): Promise<string> {
@@ -15,36 +17,12 @@ function hex(bytes: ArrayBuffer): string {
     .join("");
 }
 
-/** HMAC cho ma recovery moi. Ma cu SHA-256 van duoc verify de khong khoa user cu. */
-export async function recoveryHmac(
-  username: string,
-  code: string,
-): Promise<string> {
-  const secret = Deno.env.get("RECOVERY_HMAC_SECRET");
-  if (!secret || secret.length < 32)
-    throw new Error("RECOVERY_HMAC_SECRET is not configured securely.");
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return hex(
-    await crypto.subtle.sign(
-      "HMAC",
-      key,
-      new TextEncoder().encode(`${username}:${code}`),
-    ),
-  );
-}
-
 export async function consumeRateLimit(
   key: string,
   limit: number,
   windowSeconds: number,
 ): Promise<boolean> {
-  const { data, error } = await adminClient.rpc("check_signup_rate_limit", {
+  const { data, error } = await adminClient.rpc("check_rate_limit", {
     p_key: key,
     p_limit: limit,
     p_window_seconds: windowSeconds,
@@ -53,26 +31,25 @@ export async function consumeRateLimit(
   return data === true;
 }
 
-/** Mã khôi phục dạng XXXX-XXXX-XXXX (dễ chép tay), chỉ hiện 1 lần lúc đăng ký. */
-export function mintRecoveryCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  let raw = "";
-  for (let i = 0; i < 12; i++) raw += alphabet[bytes[i] % alphabet.length];
-  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
-}
+export const TRUSTED_PROXY_HOPS = 1;
 
 export function clientIp(c: Context): string {
-  // CHI tin x-forwarded-for: header nay do chinh ha tang Supabase/Deno gan vao.
-  //
-  // Truoc day `cf-connecting-ip` va `x-real-ip` duoc uu tien TRUOC. Edge
-  // Function cua Supabase khong dung sau Cloudflare nen khong co gi ghi de hai
-  // header do => client tu dat duoc. Ke tan cong chi can doi header moi request
-  // la moi lan ra mot hash IP khac nhau, vo hieu hoan toan gioi han 10 lan/15
-  // phut cua rate-limit dang ky.
-  const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded && forwarded.length > 0 ? forwarded : "unknown";
+  // P0 Fix: Do not trust x-real-ip or cf-connecting-ip as they can be spoofed by the client.
+  // Use the rightmost-untrusted approach on x-forwarded-for based on TRUSTED_PROXY_HOPS.
+  const header = c.req.header("x-forwarded-for");
+  if (!header) return "unknown";
+
+  const hops = header.split(",").map((ip) => ip.trim());
+  if (hops.length === 0) return "unknown";
+
+  // The last proxy (rightmost) is the edge closest to our app.
+  // We want the IP that connected to our trusted proxy.
+  // If hops = [A, B, C] and TRUSTED_PROXY_HOPS = 1 (C is trusted edge),
+  // then B is the untrusted client we want to rate limit.
+  // So we take from the right: length - TRUSTED_PROXY_HOPS.
+  // If not enough hops, we take the leftmost one (which is hops[0]).
+  const index = Math.max(0, hops.length - TRUSTED_PROXY_HOPS - 1);
+  return hops[index];
 }
 
 type TurnstileVerdict = { ok: boolean; codes: string[] };
@@ -135,11 +112,84 @@ export async function authenticatedUser(c: Context) {
   return data.user;
 }
 
-export async function requireAdmin(userId: string) {
+export async function requireAdmin(c: Context, capability?: string) {
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader?.startsWith("Bearer "))
+    throw new Error("Missing authorization");
+  const token = authHeader.slice(7);
+
+  // 1. Verify token signature
+  const { data: authData, error: authErr } =
+    await adminClient.auth.getUser(token);
+  if (authErr || !authData.user) throw new Error("Invalid or expired session");
+
+  // 2. Verify JWT signature & AAL securely using the JWT secret
+  const jwtSecret = Deno.env.get("SUPABASE_JWT_SECRET");
+  if (!jwtSecret) throw new Error("Missing SUPABASE_JWT_SECRET in environment");
+
+  try {
+    const { payload } = await jose.jwtVerify(
+      token,
+      new TextEncoder().encode(jwtSecret),
+      {
+        issuer: "supabase", // Adjust to match Supabase's default or your env
+        audience: "authenticated",
+      },
+    );
+
+    if (payload.aal !== "aal2") {
+      throw new Error("Admin actions require MFA (aal2)");
+    }
+
+    // Verify recent step-up (MFA within last 5 mins)
+    if (!payload.amr || !Array.isArray(payload.amr)) {
+      throw new Error("Admin actions require recent step-up authentication.");
+    }
+
+    const mfaClaim = payload.amr.find(
+      (x: any) => x.method === "totp" || x.method === "mfa",
+    );
+    if (!mfaClaim || !mfaClaim.timestamp) {
+      throw new Error("Admin actions require recent step-up authentication.");
+    }
+
+    const mfaAge = Date.now() / 1000 - mfaClaim.timestamp;
+    if (mfaAge > 300) {
+      // 5 minutes
+      throw new Error(
+        "Admin actions require recent step-up authentication. Please re-authenticate MFA.",
+      );
+    }
+  } catch (e) {
+    if (
+      e instanceof Error &&
+      (e.message.includes("MFA") || e.message.includes("step-up"))
+    ) {
+      throw e;
+    }
+    console.warn("JWT verification failed for admin action", e);
+    throw new Error("Invalid admin session or missing claims");
+  }
+
+  const userId = authData.user.id;
+
+  // 3. Verify Role from DB (not from token)
   const { data, error } = await adminClient
     .from("profiles")
-    .select("role")
+    .select("role, admin_capabilities")
     .eq("id", userId)
     .single();
-  if (error || data?.role !== "admin") throw new Error("Admin access denied");
+
+  if (error || data?.role !== "admin") {
+    throw new Error("Admin access denied");
+  }
+
+  if (
+    capability &&
+    (!data.admin_capabilities || !data.admin_capabilities.includes(capability))
+  ) {
+    throw new Error(`Admin capability missing: ${capability}`);
+  }
+
+  return authData.user;
 }

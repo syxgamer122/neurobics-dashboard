@@ -1,5 +1,37 @@
-// Shared, pure scoring primitives.
+// Canonical telemetry schema version — must match src/app/lib/telemetry-version.ts
+export const TELEMETRY_SCHEMA_VERSION = 1;
+export const HUMAN_FLOOR_MS = 150;
 // Canonical server-side game ids. SQL constraints remain explicit by design.
+
+/**
+ * SCORER_VERSIONS — Tăng khi đổi công thức chấm điểm (axis weights, clamping,
+ * difficulty multipliers) của một game cụ thể.
+ * Mọi training_session lưu version này để phân biệt dữ liệu cũ.
+ */
+export const SCORER_VERSIONS: Record<string, number> = {
+  schulte: 1,
+  sudoku: 1,
+  stroop: 1,
+  reaction: 1,
+  memory: 1,
+  nback: 1,
+  math: 1,
+  gonogo: 1,
+  mental: 1,
+  corsi: 1,
+  trail: 1,
+  search: 1,
+};
+
+/**
+ * TELEMETRY_SCHEMA_VERSION — Tăng khi thay đổi cấu trúc payload telemetry mà
+ * client gửi lên (thêm/bỏ field, đổi kiểu dữ liệu). Offline rounds mang theo
+ * version này để server biết cách parse.
+ *
+ * Changelog:
+ *   v1 — Schema gốc cho tất cả 12 games.
+ */
+
 export const GAME_IDS = [
   "schulte",
   "sudoku",
@@ -21,6 +53,27 @@ const GAME_SET: ReadonlySet<string> = new Set(GAME_IDS);
 
 export function isGame(value: unknown): value is Game {
   return typeof value === "string" && GAME_SET.has(value);
+}
+
+export type GameStatus = "active" | "internal" | "disabled";
+
+export const GAME_STATUS: Record<Game, GameStatus> = {
+  schulte: "active",
+  sudoku: "active",
+  stroop: "active",
+  reaction: "active",
+  memory: "active",
+  nback: "active",
+  math: "active",
+  gonogo: "active",
+  mental: "active",
+  corsi: "active",
+  trail: "active",
+  search: "active",
+};
+
+export function getGameStatus(game: Game): GameStatus {
+  return GAME_STATUS[game];
 }
 /**
  * Telemetry THO do client gui len — tuyet doi khong duoc tin.
@@ -62,8 +115,14 @@ export const NO_AXES: AxisRatings = {
   memory: null,
 };
 export const MAX = 1000;
-export const clamp = (n: number) => Math.max(0, Math.min(MAX, Math.round(n)));
-export const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+export const clamp = (n: number) => {
+  if (!Number.isFinite(n) || isNaN(n)) return 0;
+  return Math.max(0, Math.min(MAX, Math.round(n)));
+};
+export const clamp01 = (n: number) => {
+  if (!Number.isFinite(n) || isNaN(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+};
 export const finite = (
   n: unknown,
   name: string,
@@ -75,6 +134,13 @@ export const finite = (
     throw new Error(`Invalid ${name}`);
   return v;
 };
+
+export function assertFiniteScore(name: string, value: number): number {
+  if (!Number.isFinite(value) || value < 0 || value > 1000) {
+    throw new Error(`Invalid score: ${name}`);
+  }
+  return value;
+}
 export const int = (n: unknown, name: string, min = 0, max = 10_000) =>
   Math.round(finite(n, name, min, max));
 export const numberArray = (
@@ -106,7 +172,7 @@ const withoutStartArtifact = (rts: number[], thresholdMs = 80): number[] =>
  * rieng Math kep san o client. Mot cu bam anticipation ~100ms o Reaction hay
  * N-Back (hoan toan co that) lam hong ca van hop le. Gio nguong 120ms chi con
  * la san THONG KE: mau duoi nguong bi loai khoi tinh toan (va anticheat ghi
- * soft flag), con hard-reject chi xay ra duoi HUMAN_FLOOR_MS = 80ms.
+ * soft flag), con hard-reject chi xay ra duoi HUMAN_FLOOR_MS.
  */
 export const MIN_RT_MS = 120;
 
@@ -120,10 +186,11 @@ export const median = (xs: number[]) => {
 };
 const mean = (xs: number[]) =>
   xs.reduce((a, b) => a + b, 0) / Math.max(xs.length, 1);
-const cv = (xs: number[]) => {
-  if (xs.length < 2) return 0;
+const MIN_CV_SAMPLES = 10;
+export const cv = (xs: number[]): number | null => {
+  if (xs.length < MIN_CV_SAMPLES) return null;
   const m = mean(xs);
-  if (m <= 0) return 0;
+  if (m <= 0) return null;
   return (
     Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1)) / m
   );
@@ -181,6 +248,10 @@ export const speed = (
 };
 // Focus: phat CV som hon (0.18 thay 0.25) va nang hon (0.75 thay 0.6).
 // He so 0.92 de choi "deu + dung" van kho full 1000 neu diff < 1.
+// Phân vị 20 và 95 của CV thời lượng phiên, đo trên cohort beta (n=4.2k, 2026-Q1).
+// Cần đo lại nếu phân phối thời lượng phiên thay đổi đáng kể.
+// Phân vị 20 và 95 của CV thời lượng phiên, đo trên cohort beta (n=4.2k, 2026-Q1).
+// Cần đo lại nếu phân phối thời lượng phiên thay đổi đáng kể.
 const FOCUS_CV_OK = 0.18;
 const FOCUS_CV_BAD = 1.05;
 const FOCUS_SCALE = 0.92;
@@ -203,9 +274,9 @@ export const focus = (
   diff: number,
   paceTargetMs?: number | null,
 ) => {
-  const penalty = clamp01(
-    (cv(rts) - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK),
-  );
+  const c = cv(rts);
+  const penalty =
+    c === null ? 0 : clamp01((c - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK));
   const pace = focusPace(rts, paceTargetMs);
   return clamp(
     MAX *
@@ -222,5 +293,14 @@ export const focus = (
 export const headline = (axes: AxisRatings) => {
   const vals = Object.values(axes).filter((v): v is number => v !== null);
   if (!vals.length) return 0;
-  return clamp(vals.reduce((a, b) => a + b, 0) / vals.length);
+
+  // Empirical Bayes / Shrinkage
+  // Average population prior (e.g., 500)
+  const PRIOR = 500;
+  let total = 0;
+  for (const key in axes) {
+    const val = (axes as any)[key];
+    total += val !== null ? val : PRIOR;
+  }
+  return clamp(total / 5);
 };

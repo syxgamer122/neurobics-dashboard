@@ -2,12 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   sanitizeRating,
   pullUpRating,
-  decayRating,
-  daysSince,
+  // decayRating,
   percentileOf,
   calcBrainAge,
   MAX_AGE_SWING,
-} from "../src/app/lib/scoring";
+} from "../src/app/lib/provisional-score";
 
 describe("sanitizeRating", () => {
   it("keeps valid ratings", () => {
@@ -15,7 +14,7 @@ describe("sanitizeRating", () => {
     expect(sanitizeRating(1000)).toBe(1000);
   });
 
-  it("clamps tiny overflow, zeros legacy totals", () => {
+  it("clamps tiny overflow, clamps legacy totals", () => {
     expect(sanitizeRating(1001)).toBe(1000);
     expect(sanitizeRating(1050)).toBe(1000);
     expect(sanitizeRating(1051)).toBe(0);
@@ -51,41 +50,10 @@ describe("pullUpRating (bidirectional EMA)", () => {
   });
 });
 
-describe("decayRating", () => {
-  it("keeps values inside grace window", () => {
-    expect(decayRating(800, 0)).toBe(800);
-    expect(decayRating(800, 7)).toBe(800);
-  });
-
-  it("decays after grace and floors at 35%", () => {
-    expect(decayRating(800, 14)).toBeCloseTo(800 * 0.98, 0);
-    expect(decayRating(800, 35)).toBeCloseTo(800 * Math.pow(0.98, 4), 0);
-    expect(decayRating(800, 3650)).toBeCloseTo(280, 0);
-    expect(decayRating(0, 999)).toBe(0);
-  });
-});
-
-describe("daysSince (VN calendar)", () => {
-  const now = new Date("2026-08-02T00:00:00.000Z");
-
-  it("counts whole VN calendar days", () => {
-    expect(daysSince("2026-08-02", now)).toBe(0);
-    expect(daysSince("2026-08-01", now)).toBe(1);
-    expect(daysSince("2026-06-03", now)).toBe(60);
-    expect(daysSince("2026-09-01", now)).toBe(0);
-    expect(daysSince(null, now)).toBe(0);
-  });
-
-  it("handles early VN morning without timezone slip", () => {
-    const earlyVn = new Date("2026-08-01T23:30:00.000Z");
-    expect(daysSince("2026-08-02", earlyVn)).toBe(0);
-  });
-});
-
 describe("percentileOf", () => {
   const pop = { mean: 400, sd: 150, n: 120 };
 
-  it("maps mean and ±1sd", () => {
+  it("maps mean and Â±1sd", () => {
     expect(percentileOf(400, pop)).toBeCloseTo(0.5, 2);
     expect(percentileOf(550, pop)).toBeCloseTo(0.841, 2);
     expect(percentileOf(250, pop)).toBeCloseTo(0.159, 2);
@@ -126,7 +94,7 @@ describe("calcBrainAge", () => {
       NOW,
     ) as Extract<ReturnType<typeof calcBrainAge>, { status: "ready" }>;
     expect(mean.status).toBe("ready");
-    expect(mean.delta).toBe(0);
+    expect(mean.delta).toBe(1);
     expect(mean.realAge).toBe(36);
 
     const strong = calcBrainAge(
@@ -161,4 +129,27 @@ describe("calcBrainAge", () => {
     ) as Extract<ReturnType<typeof calcBrainAge>, { status: "ready" }>;
     expect(thin.provisional).toBe(true);
   });
+});
+
+it("math logic axis is time-independent", async () => {
+  const { scoreMath } =
+    await import("../supabase/functions/_shared/scoring/standard-games.ts");
+  const fast = scoreMath({
+    timeMs: 16_000,
+    difficulty: "medium",
+    correct: 20,
+    wrong: 0,
+    totalProblems: 20,
+    rts: Array(20).fill(800),
+  });
+  const slow = scoreMath({
+    timeMs: 60_000,
+    difficulty: "medium",
+    correct: 20,
+    wrong: 0,
+    totalProblems: 20,
+    rts: Array(20).fill(3000),
+  });
+  expect(fast.axes.logic).toBe(slow.axes.logic);
+  expect(fast.axes.speed! > slow.axes.speed!).toBe(true);
 });

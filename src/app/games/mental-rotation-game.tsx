@@ -3,7 +3,7 @@ import { Check, Play, RotateCcw, X } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { MentalRotationTelemetry } from "../lib/scoring";
+import type { MentalRotationTelemetry } from "../lib/provisional-score";
 import { logError } from "../lib/logger";
 
 // ─── Mental Rotation (2D) ───────────────────────────────────────────────────
@@ -341,6 +341,15 @@ export function MentalRotationGame({
     }
   }, []);
 
+  const resetGame = useCallback(() => {
+    clearFlashTimer();
+    setPhase("idle");
+    setFlash(null);
+    setIdx(0);
+    finishedRef.current = false;
+    lockRef.current = false;
+  }, [clearFlashTimer]);
+
   useEffect(() => () => clearFlashTimer(), [clearFlashTimer]);
 
   const finish = useCallback(async () => {
@@ -485,14 +494,7 @@ export function MentalRotationGame({
 
   useGameLifecycle({
     isActive: () => phase === "playing",
-    onLeave: () => {
-      // Could pause, but since mental rotation is sequence based without timer limit
-      // we can just let it sit, or we could reset. We will leave it as is to just pause clock.
-      // Wait, qStartRef is used. We should probably just let it reset or ignore.
-      // Resetting is safest for data purity.
-      clearFlashTimer();
-      setPhase("idle");
-    },
+    onLeave: resetGame,
   });
 
   return (

@@ -163,12 +163,14 @@ function GameChunkFallback() {
 export function PlayArena({
   selectedGame,
   t,
+  isAdmin,
   onSelect,
   beginPlay,
   makeGameHandler,
 }: {
   selectedGame: RoundGame | null;
   t: Translation;
+  isAdmin: boolean;
   onSelect: (game: RoundGame | null) => void;
   beginPlay: (game: RoundGame) => void;
   makeGameHandler: (game: RoundGame) => (telemetry: unknown) => Promise<void>;
@@ -249,7 +251,12 @@ export function PlayArena({
 
       {!selectedGame && tab === "cognitive" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto w-full page-enter">
-          {GAME_REGISTRY.map((game) => {
+          {GAME_REGISTRY.filter((game) => {
+            const status = game.status as string;
+            if (status === "disabled") return false;
+            if (status === "internal" && !isAdmin) return false;
+            return true;
+          }).map((game) => {
             const Icon = GAME_ICONS[game.icon];
             return (
               <GameTile

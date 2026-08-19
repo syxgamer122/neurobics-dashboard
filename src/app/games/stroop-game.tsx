@@ -4,7 +4,7 @@ import { useLang } from "../lib/i18n";
 import { shuffleArray } from "../lib/sudoku-gen";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { StroopTelemetry } from "../lib/scoring";
+import type { StroopTelemetry } from "../lib/provisional-score";
 import { logError } from "../lib/logger";
 
 // ─── Stroop Test ──────────────────────────────────────────────────────────────

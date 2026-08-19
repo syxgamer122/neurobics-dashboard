@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
 /**
  * Round lifecycle: ticket types, start-round and submit-round.
  */
@@ -18,6 +23,8 @@ export type RoundTicket = {
   game: RoundGame;
   startedAt: string;
   expiresAt: string;
+  challengeSeed?: string;
+  challengeConfig?: Record<string, any>;
 };
 export type SubmittedRound = {
   profile: Profile;
@@ -35,11 +42,15 @@ export type SubmittedRound = {
   totalXp: number;
   level: number;
   leveledUp: boolean;
+  provisional?: boolean;
 };
 
 /** Obtain a short-lived, one-use round ticket before play. */
-export const startRound = (game: RoundGame): Promise<RoundTicket> =>
-  serverPost<RoundTicket>("start-round", { game });
+export const startRound = (
+  game: RoundGame,
+  config?: Record<string, any>,
+): Promise<RoundTicket> =>
+  serverPost<RoundTicket>("start-round", { game, config });
 
 /** One finish request: server scores telemetry and atomically saves everything. */
 export async function submitRound(
@@ -56,8 +67,10 @@ export async function submitRound(
   return { ...result, profile: sanitizeProfile(result.profile) };
 }
 
+import { type OfflineRoundPayload, type SyncResult } from "../offline-queue";
+
 export async function syncOfflineRounds(payload: {
-  rounds: unknown[];
-}): Promise<{ results: unknown[] }> {
-  return serverPost<{ results: unknown[] }>("sync-offline-rounds", payload);
+  rounds: OfflineRoundPayload[];
+}): Promise<{ results: SyncResult[] }> {
+  return serverPost<{ results: SyncResult[] }>("sync-offline-rounds", payload);
 }

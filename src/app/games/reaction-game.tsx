@@ -3,7 +3,7 @@ import { Activity, CheckCircle, Clock, Loader2, RefreshCw } from "lucide-react";
 import { useLang } from "../lib/i18n";
 import { useGameLifecycle } from "../lib/use-game-lifecycle";
 import { usePress, type InputType } from "../lib/use-press";
-import type { ReactionTelemetry } from "../lib/scoring";
+import type { ReactionTelemetry } from "../lib/provisional-score";
 import { logError } from "../lib/logger";
 
 // ─── Reaction Time Game ─────────────────────────────────────────────────────
