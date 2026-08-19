@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 BEGIN;
 
 -- Add submitted_at to round_tickets if not exists to track exact consumption

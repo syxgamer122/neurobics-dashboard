@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 CREATE OR REPLACE FUNCTION public.get_population_stats(p_min_rounds integer default 5)
 RETURNS table(mean double precision, sd double precision, n bigint)
 LANGUAGE sql

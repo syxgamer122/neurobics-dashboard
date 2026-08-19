@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 BEGIN;
 
 -- 1. Create upgrade_operations table for the state machine

@@ -4,7 +4,7 @@ SET lock_timeout = '2s';
 -- 1. Add event_type to xp_events
 ALTER TABLE public.xp_events
   ADD COLUMN IF NOT EXISTS event_type text NOT NULL DEFAULT 'online_round'
-  CHECK (event_type IN ('online_round', 'offline_practice', 'quest', 'achievement', 'admin_grant'));
+  CHECK (event_type IN ('online_round', 'offline_practice', 'quest', 'achievement', 'admin_grant', 'round_award'));
 
 -- Update existing offline rounds
 UPDATE public.xp_events xe

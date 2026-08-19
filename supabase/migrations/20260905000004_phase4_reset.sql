@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- 1. Add excluded_from_stats to training_sessions
 ALTER TABLE public.training_sessions 
 ADD COLUMN IF NOT EXISTS excluded_from_stats boolean DEFAULT false;

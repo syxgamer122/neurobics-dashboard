@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 CREATE TABLE IF NOT EXISTS public.cheat_flag_review_queue (
   flag_id uuid PRIMARY KEY REFERENCES public.cheat_flags(id) ON DELETE CASCADE,
   sampled_at timestamptz NOT NULL DEFAULT now(),

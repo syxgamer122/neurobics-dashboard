@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- Iteration 13 Fixes
 
 -- 1. Modify cheat_flags table

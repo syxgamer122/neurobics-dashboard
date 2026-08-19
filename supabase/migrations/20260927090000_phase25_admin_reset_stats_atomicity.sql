@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 ﻿-- Phase 25: Admin Mutation Atomicity
 
 BEGIN;

@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 ﻿CREATE OR REPLACE FUNCTION public.histogram_p95(
   b100 bigint, b300 bigint, b500 bigint,
   b800 bigint, b2000 bigint, total bigint

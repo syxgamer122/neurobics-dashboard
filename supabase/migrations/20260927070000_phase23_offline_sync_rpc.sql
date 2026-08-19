@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 ﻿BEGIN;
 CREATE OR REPLACE FUNCTION public.submit_offline_round_tx(
   p_user_id uuid,

@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- 1. Profiles Column Privileges & Trigger (P0)
 -- Revoke all update access from authenticated
 REVOKE UPDATE ON public.profiles FROM authenticated;

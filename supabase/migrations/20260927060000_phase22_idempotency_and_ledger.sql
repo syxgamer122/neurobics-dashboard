@@ -1,3 +1,8 @@
+SET lock_timeout = '2s';
+ALTER TABLE public.xp_events 
+  ADD COLUMN IF NOT EXISTS event_type text DEFAULT 'round_award',
+  ADD COLUMN IF NOT EXISTS round_id uuid;
+
 BEGIN;
 
 -- 1. Idempotency (Offline sync constraints)

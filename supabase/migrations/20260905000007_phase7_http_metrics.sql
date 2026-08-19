@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- Tieu chuan hoa luu tru metric cap phut de tinh SLO nhanh chong
 CREATE TABLE public.http_metrics_minute (
   window_start timestamp with time zone NOT NULL,

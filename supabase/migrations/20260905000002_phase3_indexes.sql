@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- 1. Index on total_xp for fast global ranking (XP leaderboard)
 CREATE INDEX IF NOT EXISTS idx_profiles_total_xp_desc 
 ON public.profiles (total_xp DESC NULLS LAST);

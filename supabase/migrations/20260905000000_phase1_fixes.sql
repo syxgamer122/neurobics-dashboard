@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- 1. Create public_leaderboard view and restrict profiles SELECT RLS
 DROP VIEW IF EXISTS public.public_leaderboard;
 

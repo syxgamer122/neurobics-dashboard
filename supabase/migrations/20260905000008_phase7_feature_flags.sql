@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- Bang tinh nang (Feature Flags) ho tro rollout tu tu hoac tat mo game dong
 CREATE TABLE public.feature_flags (
   key text PRIMARY KEY,

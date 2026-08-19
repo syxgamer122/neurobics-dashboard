@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- 1. Update add_xp_secure to log to xp_events
 CREATE OR REPLACE FUNCTION public.add_xp_secure(p_user_id uuid, p_delta int)
 RETURNS int

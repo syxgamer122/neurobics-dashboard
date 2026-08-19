@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- Rename signup_rate_limits to a generic rate_limits table
 ALTER TABLE public.signup_rate_limits RENAME TO rate_limits;
 
