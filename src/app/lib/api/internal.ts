@@ -218,12 +218,10 @@ export async function serverPost<T = void>(
     },
     body: JSON.stringify(payload),
   });
-  const body = await res
-    .json()
-    .catch(() => ({
-      error: "Invalid server response",
-      code: "invalid_response",
-    }));
+  const body = await res.json().catch(() => ({
+    error: "Invalid server response",
+    code: "invalid_response",
+  }));
   if (!res.ok) {
     throw new ServerError(
       body.error ?? `${path} failed (${res.status})`,

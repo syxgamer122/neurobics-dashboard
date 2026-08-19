@@ -7,12 +7,10 @@ vi.mock("../supabase/functions/server/config", () => ({
       insert: vi.fn().mockResolvedValue({ error: null }),
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi
-        .fn()
-        .mockResolvedValue({
-          data: { is_guest: true, id: "guest-123" },
-          error: null,
-        }),
+      single: vi.fn().mockResolvedValue({
+        data: { is_guest: true, id: "guest-123" },
+        error: null,
+      }),
     }),
   },
   PROFILE_COLS: "id, role, username",

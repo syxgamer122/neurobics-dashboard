@@ -13,10 +13,7 @@ import {
   turnstileMessage,
   verifyTurnstile,
 } from "../security.ts";
-import {
-  logServerEvent,
-  requestIdFor,
-} from "../../_shared/observability.ts";
+import { logServerEvent, requestIdFor } from "../../_shared/observability.ts";
 
 export function registerAuthRoutes(app: Hono): void {
   // finalize guest upgrade
