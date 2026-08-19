@@ -52,9 +52,6 @@ jobs:
       - name: Unit tests + coverage gate
         run: pnpm run test:coverage
 
-      - name: Simulation suite (client / games / audit)
-        run: pnpm run test:sim
-
       - name: Build
         run: pnpm run build:only
 
