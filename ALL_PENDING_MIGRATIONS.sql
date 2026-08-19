@@ -1,18 +1,19 @@
 SET lock_timeout = '2s';
 -- ==============================================================================
 -- 20260930000000_normalize_pending_schema.sql
--- Consolidated & Normalized Canonical Schema for Pending Phases (Phases 12-43)
+-- Master Normalized & Consolidated Canonical Schema for Pending Phases
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
--- 1. EXTENSIONS & GENERAL PREFLIGHT
+-- 1. EXTENSIONS
 -- ------------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ------------------------------------------------------------------------------
 -- 2. AGE GATE & PROFILE COLUMNS NORMALIZATION
 -- ------------------------------------------------------------------------------
--- Age Gate Trigger: minimum age 13, only validates INSERT or when birth_year is updated
+-- Age Gate Trigger: minimum age 13, only validates on INSERT or when birth_year changes
 CREATE OR REPLACE FUNCTION public.check_min_age()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -35,7 +36,7 @@ CREATE TRIGGER trg_check_min_age
 BEFORE INSERT OR UPDATE OF birth_year ON public.profiles
 FOR EACH ROW EXECUTE FUNCTION public.check_min_age();
 
--- Add missing columns to profiles
+-- Add all canonical profile columns
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS level integer NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS rating_model_version integer NOT NULL DEFAULT 1,
@@ -51,7 +52,7 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS search_visible boolean NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS last_activity_at timestamptz;
 
--- Safe backfill
+-- Safe profile backfill
 UPDATE public.profiles
 SET 
   last_activity_at = COALESCE(last_activity_at, last_active_date::timestamptz, created_at, now()),
@@ -80,7 +81,7 @@ CREATE TABLE IF NOT EXISTS public.xp_events (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Defensive ALTER TABLE in case xp_events was created previously without new columns
+-- Ensure all columns exist on xp_events
 ALTER TABLE public.xp_events
   ADD COLUMN IF NOT EXISTS game text,
   ADD COLUMN IF NOT EXISTS round_score integer,
@@ -92,11 +93,25 @@ ALTER TABLE public.xp_events
   ADD COLUMN IF NOT EXISTS source_key text,
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
+-- Canonical xp_awarded sync
+UPDATE public.xp_events
+SET xp_awarded = xp_amount
+WHERE xp_awarded = 0 AND xp_amount <> 0;
+
+UPDATE public.xp_events
+SET xp_amount = xp_awarded
+WHERE xp_amount = 0 AND xp_awarded <> 0;
+
 ALTER TABLE public.xp_events ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_xp_events_user_created ON public.xp_events (user_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS xp_events_user_source_key_uq ON public.xp_events (user_id, source_key) WHERE source_key IS NOT NULL;
 
--- Trigger to automatically update total_xp and level when an xp_event is inserted
+-- Clean up duplicate legacy triggers on xp_events
+DROP TRIGGER IF EXISTS trg_xp_events_apply ON public.xp_events;
+DROP TRIGGER IF EXISTS trg_apply_xp_event ON public.xp_events;
+DROP FUNCTION IF EXISTS public.bump_total_xp();
+
+-- Canonical trigger to apply xp_event to profile
 CREATE OR REPLACE FUNCTION public.apply_xp_event_to_profile()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -104,22 +119,43 @@ SECURITY DEFINER
 SET search_path = public
 AS $body$
 DECLARE
-  v_delta integer;
+  v_delta integer := COALESCE(NEW.xp_awarded, NEW.xp_amount, 0);
+  v_new_total integer;
 BEGIN
-  v_delta := COALESCE(NEW.xp_amount, NEW.xp_awarded, 0);
-  IF v_delta <> 0 THEN
-    UPDATE public.profiles
-    SET 
-      total_xp = LEAST(200000000, GREATEST(0, COALESCE(total_xp, 0) + v_delta)),
-      level = GREATEST(1, FLOOR((-1 + SQRT(1 + GREATEST(COALESCE(total_xp, 0) + v_delta, 0)::numeric / 12.5)) / 2)::integer + 1),
-      last_activity_at = now()
-    WHERE id = NEW.user_id;
+  IF v_delta = 0 THEN
+    RETURN NEW;
   END IF;
+
+  SELECT LEAST(200000000, GREATEST(0, COALESCE(p.total_xp, 0) + v_delta))::integer
+  INTO v_new_total
+  FROM public.profiles AS p
+  WHERE p.id = NEW.user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Profile not found for XP event' USING ERRCODE = '23503';
+  END IF;
+
+  -- Bypass manual xp guard
+  PERFORM set_config('gamification.is_xp_trigger', 'true', true);
+
+  UPDATE public.profiles
+  SET
+    total_xp = v_new_total,
+    level = GREATEST(1, FLOOR((-1 + SQRT(1 + v_new_total::numeric / 12.5)) / 2)::integer + 1),
+    last_activity_at = now()
+  WHERE id = NEW.user_id;
+
+  PERFORM set_config('gamification.is_xp_trigger', 'false', true);
+
   RETURN NEW;
 END;
 $body$;
 
-DROP TRIGGER IF EXISTS trg_apply_xp_event ON public.xp_events;
+REVOKE ALL ON FUNCTION public.apply_xp_event_to_profile() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.apply_xp_event_to_profile() FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_xp_event_to_profile() TO service_role;
+
 CREATE TRIGGER trg_apply_xp_event
 AFTER INSERT ON public.xp_events
 FOR EACH ROW EXECUTE FUNCTION public.apply_xp_event_to_profile();
@@ -129,7 +165,7 @@ FOR EACH ROW EXECUTE FUNCTION public.apply_xp_event_to_profile();
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.ticket_pool (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  game text NOT NULL,
+  game text,
   status text NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'claimed', 'expired')),
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -139,15 +175,21 @@ ALTER TABLE public.ticket_pool
   ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'available',
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.ticket_pool ENABLE ROW LEVEL SECURITY;
-CREATE INDEX IF NOT EXISTS idx_ticket_pool_available ON public.ticket_pool (game, status, created_at) WHERE status = 'available';
+CREATE INDEX IF NOT EXISTS idx_ticket_pool_available ON public.ticket_pool (status, created_at) WHERE status = 'available';
 
 ALTER TABLE public.round_tickets
+  ADD COLUMN IF NOT EXISTS client_round_id uuid,
   ADD COLUMN IF NOT EXISTS challenge_seed text,
   ADD COLUMN IF NOT EXISTS challenge_config jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS config_version integer NOT NULL DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'issued' CHECK (state IN ('issued', 'processing', 'accepted', 'rejected', 'expired')),
+  ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'issued',
   ADD COLUMN IF NOT EXISTS processing_token uuid,
   ADD COLUMN IF NOT EXISTS processing_started_at timestamptz;
+
+-- Update state constraint safely
+ALTER TABLE public.round_tickets DROP CONSTRAINT IF EXISTS round_tickets_state_check;
+ALTER TABLE public.round_tickets ADD CONSTRAINT round_tickets_state_check 
+  CHECK (state IN ('issued', 'processing', 'accepted', 'rejected', 'expired'));
 
 CREATE UNIQUE INDEX IF NOT EXISTS round_tickets_user_client_round_idx
   ON public.round_tickets (user_id, client_round_id) WHERE client_round_id IS NOT NULL;
@@ -174,20 +216,21 @@ CREATE TABLE IF NOT EXISTS public.practice_sessions (
 );
 ALTER TABLE public.practice_sessions ENABLE ROW LEVEL SECURITY;
 
+-- Block direct client mutation
+DROP POLICY IF EXISTS "practice_sessions_insert_own" ON public.practice_sessions;
 DROP POLICY IF EXISTS "practice_sessions_select_own" ON public.practice_sessions;
+
 CREATE POLICY "practice_sessions_select_own" ON public.practice_sessions
   FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "practice_sessions_insert_own" ON public.practice_sessions;
-CREATE POLICY "practice_sessions_insert_own" ON public.practice_sessions
-  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+REVOKE INSERT, UPDATE, DELETE ON public.practice_sessions FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.practice_sessions TO authenticated, service_role;
 
--- RPC for submitting offline practice round
+-- Server-Authoritative Offline Practice RPC
 CREATE OR REPLACE FUNCTION public.submit_offline_practice_tx(
   p_client_round_id uuid,
   p_game text,
   p_round_score integer,
-  p_practice_xp integer,
   p_time_ms integer,
   p_speed integer DEFAULT NULL,
   p_focus integer DEFAULT NULL,
@@ -203,29 +246,61 @@ SET search_path = public
 AS $body$
 DECLARE
   v_user_id uuid := auth.uid();
+  v_today_xp integer := 0;
+  v_awarded_xp integer := 0;
   v_rec record;
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
   END IF;
 
+  -- Validate game & score boundaries
+  IF p_game NOT IN ('schulte', 'sudoku', 'stroop', 'reaction', 'memory', 'nback', 'math', 'gonogo', 'mental', 'corsi', 'trail', 'search') THEN
+    RAISE EXCEPTION 'Invalid game: %', p_game USING ERRCODE = '22023';
+  END IF;
+
+  IF p_round_score < 0 OR p_round_score > 1000 THEN
+    RAISE EXCEPTION 'Invalid round score' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_time_ms < 0 OR p_time_ms > 7200000 THEN
+    RAISE EXCEPTION 'Invalid time_ms' USING ERRCODE = '22023';
+  END IF;
+
+  -- Check if duplicate
+  IF EXISTS (SELECT 1 FROM public.practice_sessions WHERE user_id = v_user_id AND client_round_id = p_client_round_id) THEN
+    RETURN jsonb_build_object('ok', true, 'status', 'duplicate', 'client_round_id', p_client_round_id);
+  END IF;
+
+  -- Server computes practice XP (max 2 XP per round, capped at 30 XP/day)
+  SELECT COALESCE(SUM(practice_xp_awarded), 0) INTO v_today_xp
+  FROM public.practice_sessions
+  WHERE user_id = v_user_id
+    AND recorded_at >= date_trunc('day', now());
+
+  v_awarded_xp := LEAST(2, GREATEST(0, 30 - v_today_xp));
+
   INSERT INTO public.practice_sessions (
     user_id, client_round_id, game, round_score, practice_xp_awarded, time_ms,
     speed_score, focus_score, spatial_score, logic_score, memory_score, occurred_at
   )
   VALUES (
-    v_user_id, p_client_round_id, p_game, p_round_score, LEAST(30, GREATEST(0, COALESCE(p_practice_xp, 0))),
+    v_user_id, p_client_round_id, p_game, p_round_score, v_awarded_xp,
     p_time_ms, p_speed, p_focus, p_spatial, p_logic, p_memory, COALESCE(p_occurred_at, now())
   )
   ON CONFLICT (user_id, client_round_id) DO NOTHING
   RETURNING * INTO v_rec;
 
-  RETURN jsonb_build_object('ok', true, 'client_round_id', p_client_round_id);
+  IF v_rec.id IS NULL THEN
+    RETURN jsonb_build_object('ok', true, 'status', 'duplicate', 'client_round_id', p_client_round_id);
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'status', 'saved', 'client_round_id', p_client_round_id, 'practice_xp_awarded', v_awarded_xp);
 END;
 $body$;
 
-REVOKE EXECUTE ON FUNCTION public.submit_offline_practice_tx FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.submit_offline_practice_tx TO authenticated;
+REVOKE ALL ON FUNCTION public.submit_offline_practice_tx(uuid, text, integer, integer, integer, integer, integer, integer, integer, timestamptz) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.submit_offline_practice_tx(uuid, text, integer, integer, integer, integer, integer, integer, integer, timestamptz) TO authenticated, service_role;
 
 -- ------------------------------------------------------------------------------
 -- 6. ANTI-CHEAT & CHEAT FLAGS (signal_class)
@@ -235,19 +310,29 @@ CREATE TABLE IF NOT EXISTS public.cheat_flags (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   game text,
   reason text NOT NULL,
-  signal_class text NOT NULL CHECK (signal_class IN ('statistical', 'physical', 'soft', 'hard')),
+  signal_class text NOT NULL DEFAULT 'statistical',
   details jsonb NOT NULL DEFAULT '{}'::jsonb,
   round_id uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.cheat_flags
-  ADD COLUMN IF NOT EXISTS game text,
-  ADD COLUMN IF NOT EXISTS reason text,
-  ADD COLUMN IF NOT EXISTS signal_class text DEFAULT 'statistical',
-  ADD COLUMN IF NOT EXISTS details jsonb DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS round_id uuid,
-  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+-- Migrate severity to signal_class
+ALTER TABLE public.cheat_flags ADD COLUMN IF NOT EXISTS signal_class text;
+
+UPDATE public.cheat_flags
+SET signal_class = CASE severity
+  WHEN 'hard' THEN 'physical'
+  WHEN 'soft' THEN 'statistical'
+  ELSE 'statistical'
+END
+WHERE signal_class IS NULL;
+
+ALTER TABLE public.cheat_flags DROP CONSTRAINT IF EXISTS cheat_flags_severity_check;
+ALTER TABLE public.cheat_flags ALTER COLUMN severity DROP NOT NULL;
+ALTER TABLE public.cheat_flags ALTER COLUMN signal_class SET NOT NULL;
+ALTER TABLE public.cheat_flags DROP CONSTRAINT IF EXISTS cheat_flags_signal_class_check;
+ALTER TABLE public.cheat_flags ADD CONSTRAINT cheat_flags_signal_class_check CHECK (signal_class IN ('statistical', 'physical'));
+
 ALTER TABLE public.cheat_flags ENABLE ROW LEVEL SECURITY;
 
 DROP FUNCTION IF EXISTS public.record_cheat_flag(uuid, text, text, text, jsonb, uuid);
@@ -266,15 +351,26 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $body$
+DECLARE
+  v_signal text;
 BEGIN
-  IF p_signal_class NOT IN ('statistical', 'physical', 'soft', 'hard') THEN
-    RAISE EXCEPTION 'Invalid signal_class';
+  v_signal := CASE p_signal_class
+    WHEN 'soft' THEN 'statistical'
+    WHEN 'hard' THEN 'physical'
+    ELSE p_signal_class
+  END;
+
+  IF v_signal NOT IN ('statistical', 'physical') THEN
+    RAISE EXCEPTION 'Invalid signal_class: %', p_signal_class USING ERRCODE = '22023';
   END IF;
 
   INSERT INTO public.cheat_flags (user_id, game, reason, signal_class, details, round_id)
-  VALUES (p_user_id, NULLIF(p_game, ''), p_reason, p_signal_class, COALESCE(p_details, '{}'::jsonb), p_round_id);
+  VALUES (p_user_id, NULLIF(p_game, ''), p_reason, v_signal, COALESCE(p_details, '{}'::jsonb), p_round_id);
 END;
 $body$;
+
+REVOKE ALL ON FUNCTION public.record_cheat_flag(uuid, text, text, text, jsonb, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_cheat_flag(uuid, text, text, text, jsonb, uuid) TO service_role;
 
 -- ------------------------------------------------------------------------------
 -- 7. GUEST UPGRADE STATE MACHINE (ADR-0009)
@@ -290,9 +386,26 @@ CREATE TABLE IF NOT EXISTS public.upgrade_operations (
   completed_at timestamptz
 );
 ALTER TABLE public.upgrade_operations ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_upgrade_operations_guest ON public.upgrade_operations (guest_user_id, state);
 
 -- ------------------------------------------------------------------------------
--- 8. ADMIN AUDIT & ADMIN RPCS (Append-Only)
+-- 8. MANUAL REVIEWS (Anti-cheat compensation)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.manual_reviews (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  flag_id uuid REFERENCES public.cheat_flags(id),
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  compensation_xp integer NOT NULL DEFAULT 0,
+  reviewer_id uuid REFERENCES auth.users(id),
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_at timestamptz
+);
+ALTER TABLE public.manual_reviews ENABLE ROW LEVEL SECURITY;
+
+-- ------------------------------------------------------------------------------
+-- 9. ADMIN AUDIT & ADMIN RPCS (Append-Only)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.admin_audit (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -314,7 +427,7 @@ ALTER TABLE public.admin_audit
 ALTER TABLE public.admin_audit ENABLE ROW LEVEL SECURITY;
 REVOKE UPDATE, DELETE ON public.admin_audit FROM authenticated, anon, service_role;
 
--- Canonical admin grant transaction (records to xp_events + admin_audit)
+-- Canonical admin grant transaction (records to xp_events via ledger + admin_audit)
 CREATE OR REPLACE FUNCTION public.admin_grant_tx(
   p_actor_id uuid,
   p_target_id uuid,
@@ -337,14 +450,18 @@ BEGIN
   END IF;
 
   SELECT COALESCE(total_xp, 0) INTO v_current_xp FROM public.profiles WHERE id = p_target_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Target profile not found' USING ERRCODE = 'P0002';
+  END IF;
 
   IF p_patch ? 'total_xp' THEN
     v_xp_delta := (p_patch->>'total_xp')::integer - v_current_xp;
   END IF;
 
   IF v_xp_delta <> 0 THEN
-    INSERT INTO public.xp_events (user_id, game, round_score, xp_amount, xp_awarded, event_type, source)
-    VALUES (p_target_id, 'admin_grant', 0, v_xp_delta, v_xp_delta, 'admin_grant', 'admin');
+    INSERT INTO public.xp_events (user_id, game, round_score, xp_amount, xp_awarded, event_type, source, source_key)
+    VALUES (p_target_id, 'admin_grant', 0, v_xp_delta, v_xp_delta, 'admin_grant', 'admin', 'admin_grant:' || p_request_id)
+    ON CONFLICT (user_id, source_key) DO NOTHING;
   END IF;
 
   UPDATE public.profiles
@@ -365,7 +482,14 @@ BEGIN
 END;
 $body$;
 
--- Canonical admin reset transaction (pushes stats_epoch, resets ratings, logs audit)
+REVOKE ALL ON FUNCTION public.admin_grant_tx(uuid, uuid, jsonb, jsonb, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_grant_tx(uuid, uuid, jsonb, jsonb, text) TO service_role;
+
+-- Drop legacy reset overloads
+DROP FUNCTION IF EXISTS public.admin_reset_stats(uuid);
+DROP FUNCTION IF EXISTS public.admin_reset_profile(uuid, uuid, text, jsonb);
+
+-- Canonical admin reset transaction (pushes stats_epoch, resets ratings, resets XP via negative ledger)
 CREATE OR REPLACE FUNCTION public.admin_reset_stats(
   p_actor uuid,
   p_target uuid,
@@ -378,15 +502,35 @@ SET search_path = public
 AS $body$
 DECLARE
   v_new_profile record;
+  v_old_xp integer;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = p_actor AND is_admin()) THEN
     RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
   END IF;
 
+  SELECT COALESCE(total_xp, 0) INTO v_old_xp
+  FROM public.profiles
+  WHERE id = p_target
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Target profile not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Reset XP via ledger event
+  IF v_old_xp <> 0 THEN
+    INSERT INTO public.xp_events (
+      user_id, game, round_score, xp_amount, xp_awarded, event_type, source, source_key
+    )
+    VALUES (
+      p_target, 'admin_reset', 0, -v_old_xp, -v_old_xp, 'admin_reset', 'admin', 'admin_reset:' || p_request_id
+    )
+    ON CONFLICT (user_id, source_key) DO NOTHING;
+  END IF;
+
+  -- Reset ratings, streak, sessions, stats_epoch (XP is handled by ledger trigger)
   UPDATE public.profiles
   SET
-    total_xp = 0,
-    level = 1,
     stats_epoch = now(),
     algebraic_logic_score = 0,
     memory_score = 0,
@@ -418,9 +562,6 @@ BEGIN
   DELETE FROM public.user_achievements WHERE user_id = p_target;
   DELETE FROM public.user_quests WHERE user_id = p_target;
 
-  INSERT INTO public.xp_events (user_id, game, round_score, xp_amount, xp_awarded, event_type, source)
-  VALUES (p_target, 'admin_reset', 0, 0, 0, 'admin_reset', 'admin');
-
   INSERT INTO public.admin_audit (actor_id, target_id, action, context, request_id)
   VALUES (p_actor, p_target, 'reset_stats', '{}'::jsonb, p_request_id);
 
@@ -428,10 +569,15 @@ BEGIN
 END;
 $body$;
 
+REVOKE ALL ON FUNCTION public.admin_reset_stats(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_reset_stats(uuid, uuid, text) TO service_role;
+
 -- ------------------------------------------------------------------------------
--- 9. CANONICAL VIEWS (profiles_decayed, public_leaderboard, friend_leaderboard)
+-- 10. CANONICAL VIEWS & PERMISSIONS HARDENING
 -- ------------------------------------------------------------------------------
-DROP VIEW IF EXISTS public.profiles_decayed CASCADE;
+DROP VIEW IF EXISTS public.public_leaderboard;
+DROP VIEW IF EXISTS public.profiles_decayed;
+
 CREATE VIEW public.profiles_decayed AS
 SELECT 
   p.id, 
@@ -485,9 +631,11 @@ SELECT
   ) as cognitive_index
 FROM public.profiles p;
 
-GRANT SELECT ON public.profiles_decayed TO authenticated, service_role, anon;
+-- Protect profiles_decayed from public leakage
+REVOKE ALL ON public.profiles_decayed FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.profiles_decayed TO service_role;
 
-DROP VIEW IF EXISTS public.public_leaderboard;
+-- Public leaderboard view (only safe columns, excludes guests & flagged)
 CREATE VIEW public.public_leaderboard AS
 SELECT
   p.id,
@@ -502,9 +650,8 @@ WHERE COALESCE(p.flagged, false) = false AND p.role != 'guest';
 GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 
 -- ------------------------------------------------------------------------------
--- 10. CANONICAL SEARCH & POPULATION STATS RPCS
+-- 11. CANONICAL SEARCH & POPULATION STATS RPCS
 -- ------------------------------------------------------------------------------
--- Clean up stale function overloads
 DROP FUNCTION IF EXISTS public.get_population_stats(integer);
 DROP FUNCTION IF EXISTS public.get_population_stats(integer, integer);
 
@@ -522,13 +669,21 @@ AS $body$
     COALESCE(stddev_pop(cognitive_index), 100)::double precision as sd,
     count(*)::bigint as n
   FROM public.profiles_decayed
-  WHERE (schulte_sessions + sudoku_sessions + stroop_sessions + reaction_sessions + memory_sessions + nback_sessions + math_sessions + gonogo_sessions + mental_sessions + corsi_sessions + trail_sessions + search_sessions) >= p_min_rounds
+  WHERE COALESCE(flagged, false) = false
+    AND role <> 'guest'
+    AND (
+      COALESCE(schulte_sessions, 0) + COALESCE(sudoku_sessions, 0) + COALESCE(stroop_sessions, 0) +
+      COALESCE(reaction_sessions, 0) + COALESCE(memory_sessions, 0) + COALESCE(nback_sessions, 0) +
+      COALESCE(math_sessions, 0) + COALESCE(gonogo_sessions, 0) + COALESCE(mental_sessions, 0) +
+      COALESCE(corsi_sessions, 0) + COALESCE(trail_sessions, 0) + COALESCE(search_sessions, 0)
+    ) >= GREATEST(COALESCE(p_min_rounds, 5), 0)
     AND rating_model_version = p_rating_model_version;
 $body$;
 
-GRANT EXECUTE ON FUNCTION public.get_population_stats(integer, integer) TO authenticated, anon;
+REVOKE ALL ON FUNCTION public.get_population_stats(integer, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_population_stats(integer, integer) TO authenticated, anon, service_role;
 
--- Explicit DROP FUNCTION before recreate to allow changes in RETURNS TABLE signature
+-- Canonical search_players RPC
 DROP FUNCTION IF EXISTS public.search_players(text, integer);
 DROP FUNCTION IF EXISTS public.search_players(text);
 
@@ -547,7 +702,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = public
 AS $body$
   SELECT
     d.id::uuid,
@@ -557,28 +712,23 @@ AS $body$
     COALESCE(d.level, 1)::integer,
     COALESCE(d.cognitive_index, 0)::integer
   FROM public.profiles_decayed AS d
-  JOIN public.profiles AS p
-    ON p.id = d.id
+  JOIN public.profiles AS p ON p.id = d.id
   WHERE auth.uid() IS NOT NULL
     AND d.id <> auth.uid()
     AND p.search_visible = true
+    AND COALESCE(d.flagged, false) = false
+    AND d.role <> 'guest'
     AND length(trim(COALESCE(p_query, ''))) >= 2
-    AND d.username ILIKE (
-      '%' || trim(p_query) || '%'
-    )
+    AND d.username ILIKE ('%' || trim(p_query) || '%')
   ORDER BY d.total_xp DESC NULLS LAST
-  LIMIT GREATEST(
-    1,
-    LEAST(COALESCE(p_limit, 20), 50)
-  );
+  LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 20), 50));
 $body$;
 
-REVOKE ALL ON FUNCTION public.search_players(text, integer) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.search_players(text, integer) FROM anon;
+REVOKE ALL ON FUNCTION public.search_players(text, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated, service_role;
 
 -- ------------------------------------------------------------------------------
--- 11. CRON JOBS & OBSERVABILITY (Safely wrapped)
+-- 12. CRON JOBS (Safe Deficit-Based Pool Filling)
 -- ------------------------------------------------------------------------------
 DO $do$
 BEGIN
@@ -586,8 +736,18 @@ BEGIN
     PERFORM cron.unschedule('top_up_ticket_pool');
     PERFORM cron.schedule(
       'top_up_ticket_pool',
-      '*/10 * * * *',
-      $job$INSERT INTO public.ticket_pool (game, status) SELECT 'schulte', 'available' WHERE (SELECT count(*) FROM public.ticket_pool WHERE status = 'available') < 500;$job$
+      '* * * * *',
+      $job$
+        WITH pool AS (
+          SELECT GREATEST(0, 500 - count(*))::integer AS missing
+          FROM public.ticket_pool
+          WHERE status = 'available'
+        )
+        INSERT INTO public.ticket_pool (id, status, created_at)
+        SELECT gen_random_uuid(), 'available', now()
+        FROM pool
+        CROSS JOIN LATERAL generate_series(1, pool.missing);
+      $job$
     );
   END IF;
 END;
