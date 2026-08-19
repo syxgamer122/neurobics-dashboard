@@ -1,3 +1,5 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS rating_model_version integer NOT NULL DEFAULT 1;
+
 -- ==============================================================================
 -- 20260925000000_phase13_ai_audit_part2.sql
 -- ==============================================================================
@@ -81,7 +83,7 @@ BEGIN
       WHERE e.created_at >= coalesce(p2.stats_epoch, '1970-01-01'::timestamptz)
       GROUP BY 1
     ) x ON x.user_id = p.id 
-    WHERE coalesce(p.total_xp, 0) <> coalesce(x.s, 0);
+    WHERE coalesce(p.total_xp, p.level, 0) <> coalesce(x.s, 0);
 
     IF v_mismatches > 0 THEN
       PERFORM public.trigger_alert('xp_ledger_mismatch', 'P1', format('Found %s users with mismatched XP!', v_mismatches));

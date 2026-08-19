@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- migration
 ALTER TABLE training_sessions
   ADD COLUMN IF NOT EXISTS needs_rescore boolean NOT NULL DEFAULT false;

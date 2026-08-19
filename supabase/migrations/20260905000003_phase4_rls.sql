@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- 1. Ensure strictly restricted RLS on profiles
 -- Even if Phase 1 tried to fix this, we're ensuring there are NO leaky SELECT policies.
 DROP POLICY IF EXISTS "Profiles are viewable by authenticated users" ON public.profiles;

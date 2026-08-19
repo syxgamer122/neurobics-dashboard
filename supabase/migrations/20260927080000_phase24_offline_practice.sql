@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 ﻿-- Phase 24: Offline Practice
 
 BEGIN;

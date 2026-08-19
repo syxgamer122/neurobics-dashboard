@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- Migration: Iteration 11 Contract Drifts
 -- Phase 40
 
@@ -16,7 +17,7 @@ REVOKE UPDATE (username, birth_year, avatar_url) ON TABLE public.profiles FROM a
 GRANT UPDATE (username, birth_date, avatar_url) ON TABLE public.profiles TO authenticated;
 
 -- Drop old column (optional, can be done later, but we drop it now)
-ALTER TABLE public.profiles DROP COLUMN IF EXISTS birth_year;
+-- Keep birth_year for backward compatibility during expand-contract phase
 
 -- 2. Round Tickets: Version Pinning and State
 ALTER TABLE public.round_tickets

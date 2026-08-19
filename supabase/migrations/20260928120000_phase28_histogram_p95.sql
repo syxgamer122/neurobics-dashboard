@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- Migration: phase28_histogram_p95
 -- Description: Create shared function for p95 calculation
 

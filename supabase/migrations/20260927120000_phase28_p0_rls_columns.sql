@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 BEGIN;
 
 -- 1. Revoke global UPDATE on profiles from anon and authenticated

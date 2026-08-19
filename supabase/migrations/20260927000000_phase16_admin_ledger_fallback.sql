@@ -308,11 +308,14 @@ $$;
 
 -- We already have the cron job schedule, just make sure we update it to every minute instead of 5 minutes.
 -- Because pg_cron extensions might not be active in local migrations, we wrap it in a DO block.
-DO $$
+DO $do$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.unschedule('top_up_ticket_pool');
-    PERFORM cron.schedule('top_up_ticket_pool', '* * * * *', $$SELECT public.top_up_ticket_pool()$$);
+    PERFORM cron.schedule(
+      'top_up_ticket_pool',
+      '* * * * *',
+      $job$SELECT public.top_up_ticket_pool()$job$
+    );
   END IF;
 END;
-$$;
+$do$;

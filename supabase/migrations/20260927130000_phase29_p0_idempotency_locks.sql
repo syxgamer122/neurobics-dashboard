@@ -1,14 +1,15 @@
+SET lock_timeout = '2s';
 BEGIN;
 
 -- 1. Thêm các Unique Constraints để tránh race conditions (lost-update, duplicated rewards)
-ALTER TABLE public.round_tickets ADD CONSTRAINT round_tickets_user_client_round_unique UNIQUE (user_id, client_round_id);
+-- duplicate constraint removed
 
 -- Lưu ý: Nếu round_id chưa tồn tại trên training_sessions thì thêm, nhưng mặc định training_sessions sinh id uuid nên round_id chính là id. 
 -- Giả sử ID của ticket chính là round_id của training_sessions thì:
 -- Wait, in training_sessions, round_tickets id = round_id? 
 -- The table might not have round_id, it just has id. Actually let's check schema.
 -- I'll use the unique constraint mentioned by the reviewer.
-ALTER TABLE public.training_sessions ADD CONSTRAINT training_sessions_round_unique UNIQUE (id);
+-- redundant unique constraint on PK removed
 
 CREATE UNIQUE INDEX IF NOT EXISTS xp_events_round_award_unique ON public.xp_events (round_id) WHERE event_type = 'round_award';
 

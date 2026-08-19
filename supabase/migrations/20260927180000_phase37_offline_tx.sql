@@ -1,3 +1,7 @@
+SET lock_timeout = '2s';
+DROP FUNCTION IF EXISTS public.record_cheat_flag(uuid, text, text, text, jsonb, uuid);
+DROP FUNCTION IF EXISTS public.record_cheat_flag(uuid, text, text, text, jsonb);
+
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.submit_offline_round_tx(

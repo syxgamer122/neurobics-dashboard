@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 ﻿BEGIN;
 REVOKE UPDATE ON TABLE public.profiles FROM authenticated, anon;
 

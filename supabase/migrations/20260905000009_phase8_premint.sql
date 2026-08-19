@@ -1,3 +1,4 @@
+SET lock_timeout = '2s';
 -- ADR-0008: Pre-mint Ticket Pool
 -- Bang luu tru ticket duoc sinh san (bang pg_cron hoac schedule ben ngoai) de giam
 -- do tre khi user goi API start-round.
