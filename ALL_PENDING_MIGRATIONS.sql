@@ -69,15 +69,27 @@ CREATE TABLE IF NOT EXISTS public.xp_events (
   xp_amount integer NOT NULL DEFAULT 0,
   xp_awarded integer NOT NULL DEFAULT 0,
   source text,
-  event_type text NOT NULL DEFAULT 'round_award' CHECK (event_type IN ('round_award', 'admin_grant', 'quest_reward', 'achievement_unlock', 'admin_reset')),
+  event_type text NOT NULL DEFAULT 'round_award',
   round_id uuid,
   source_key text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Defensive ALTER TABLE in case xp_events was created previously without new columns
+ALTER TABLE public.xp_events
+  ADD COLUMN IF NOT EXISTS game text,
+  ADD COLUMN IF NOT EXISTS round_score integer,
+  ADD COLUMN IF NOT EXISTS xp_amount integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS xp_awarded integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS source text,
+  ADD COLUMN IF NOT EXISTS event_type text NOT NULL DEFAULT 'round_award',
+  ADD COLUMN IF NOT EXISTS round_id uuid,
+  ADD COLUMN IF NOT EXISTS source_key text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
 ALTER TABLE public.xp_events ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_xp_events_user_created ON public.xp_events (user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_xp_events_source_key ON public.xp_events (user_id, source_key) WHERE source_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS xp_events_user_source_key_uq ON public.xp_events (user_id, source_key) WHERE source_key IS NOT NULL;
 
 -- Trigger to automatically update total_xp and level when an xp_event is inserted
 CREATE OR REPLACE FUNCTION public.apply_xp_event_to_profile()
@@ -116,6 +128,11 @@ CREATE TABLE IF NOT EXISTS public.ticket_pool (
   status text NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'claimed', 'expired')),
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.ticket_pool
+  ADD COLUMN IF NOT EXISTS game text,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'available',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.ticket_pool ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_ticket_pool_available ON public.ticket_pool (game, status, created_at) WHERE status = 'available';
 
@@ -218,6 +235,14 @@ CREATE TABLE IF NOT EXISTS public.cheat_flags (
   round_id uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.cheat_flags
+  ADD COLUMN IF NOT EXISTS game text,
+  ADD COLUMN IF NOT EXISTS reason text,
+  ADD COLUMN IF NOT EXISTS signal_class text DEFAULT 'statistical',
+  ADD COLUMN IF NOT EXISTS details jsonb DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS round_id uuid,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 ALTER TABLE public.cheat_flags ENABLE ROW LEVEL SECURITY;
 
 DROP FUNCTION IF EXISTS public.record_cheat_flag(uuid, text, text, text, jsonb, uuid);
@@ -273,6 +298,14 @@ CREATE TABLE IF NOT EXISTS public.admin_audit (
   request_id text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.admin_audit
+  ADD COLUMN IF NOT EXISTS actor_id uuid,
+  ADD COLUMN IF NOT EXISTS target_id uuid,
+  ADD COLUMN IF NOT EXISTS action text,
+  ADD COLUMN IF NOT EXISTS context jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS request_id text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.admin_audit ENABLE ROW LEVEL SECURITY;
 REVOKE UPDATE, DELETE ON public.admin_audit FROM authenticated, anon, service_role;
 
