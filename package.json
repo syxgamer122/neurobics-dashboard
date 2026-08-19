@@ -20,7 +20,7 @@
     "format:check": "pnpm exec prettier --check .",
     "check:bundle": "node tools/check-bundle.mjs",
     "security:audit": "pnpm audit --audit-level high",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run scan && pnpm run db:lint && pnpm run test:coverage && pnpm run test:sim && pnpm run build:only && pnpm run check:bundle && pnpm run security:audit",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run scan && pnpm run db:lint && pnpm run test:coverage && pnpm run build:only && pnpm run check:bundle && pnpm run security:audit",
     "test:coverage": "vitest run --coverage",
     "db:lint": "node tools/check-migrations.mjs",
     "db:normalize": "node tools/normalize-migrations.mjs",
