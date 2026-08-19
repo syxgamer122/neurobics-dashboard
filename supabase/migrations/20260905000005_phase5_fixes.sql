@@ -3,7 +3,7 @@
 REVOKE UPDATE ON public.profiles FROM authenticated;
 
 -- Grant update only on specific non-authoritative columns
-GRANT UPDATE (username, avatar_url, birth_year, lang) ON public.profiles TO authenticated;
+GRANT UPDATE (username, avatar_url, birth_year) ON public.profiles TO authenticated;
 
 -- Trigger to ensure score columns cannot be updated except by service_role
 CREATE OR REPLACE FUNCTION public.guard_profile_scores()

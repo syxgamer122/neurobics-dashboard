@@ -25,7 +25,7 @@ ALTER TABLE public.xp_events ADD COLUMN IF NOT EXISTS stats_generation bigint NO
 -- 3. COLUMN-LEVEL RLS
 -- ==============================================================================
 REVOKE UPDATE ON TABLE public.profiles FROM anon, authenticated;
-GRANT UPDATE (username, birth_year, avatar_url, locale) ON TABLE public.profiles TO authenticated;
+GRANT UPDATE (username, birth_year, avatar_url) ON TABLE public.profiles TO authenticated;
 
 -- ==============================================================================
 -- 4. GUEST UPGRADE STATE MACHINE FIXES
