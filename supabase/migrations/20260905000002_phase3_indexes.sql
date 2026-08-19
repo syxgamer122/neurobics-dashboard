@@ -13,7 +13,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_speed_score_desc ON public.profiles (spe
 CREATE INDEX IF NOT EXISTS idx_profiles_focus_score_desc ON public.profiles (focus_score DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_profiles_logic_score_desc ON public.profiles (algebraic_logic_score DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_profiles_memory_score_desc ON public.profiles (memory_score DESC NULLS LAST);
-CREATE INDEX IF NOT EXISTS idx_profiles_spatial_score_desc ON public.profiles (spatial_score DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_profiles_cfop_spatial_record_desc ON public.profiles (cfop_spatial_record DESC NULLS LAST);
 
 -- 4. Index on last_active_date to quickly filter active vs inactive users for decay calculations
 CREATE INDEX IF NOT EXISTS idx_profiles_last_active_date 

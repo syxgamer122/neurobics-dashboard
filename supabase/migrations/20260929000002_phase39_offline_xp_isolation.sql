@@ -157,7 +157,7 @@ BEGIN
   
   v_base_speed := public.effective_rating(v_profile.speed_score, v_profile.peak_rating_speed, v_idle);
   v_base_focus := public.effective_rating(v_profile.focus_score, v_profile.peak_rating_focus, v_idle);
-  v_base_spatial := public.effective_rating(v_profile.spatial_score, v_profile.peak_rating_spatial, v_idle);
+  v_base_spatial := public.effective_rating(v_profile.cfop_spatial_record, v_profile.peak_rating_spatial, v_idle);
   v_base_logic := public.effective_rating(v_profile.algebraic_logic_score, v_profile.peak_rating_logic, v_idle);
   v_base_memory := public.effective_rating(v_profile.memory_score, v_profile.peak_rating_memory, v_idle);
 
@@ -170,7 +170,7 @@ BEGIN
   ELSE
     v_speed := coalesce(v_profile.speed_score, 0);
     v_focus := coalesce(v_profile.focus_score, 0);
-    v_spatial := coalesce(v_profile.spatial_score, 0);
+    v_spatial := coalesce(v_profile.cfop_spatial_record, 0);
     v_logic := coalesce(v_profile.algebraic_logic_score, 0);
     v_memory := coalesce(v_profile.memory_score, 0);
   END IF;
@@ -196,7 +196,6 @@ BEGIN
     synapse_streak = v_streak,
     speed_score = v_speed,
     focus_score = v_focus,
-    spatial_score = v_spatial,
     algebraic_logic_score = v_logic,
     memory_score = v_memory,
     schulte_sessions = schulte_sessions + CASE WHEN p_game = 'schulte' THEN 1 ELSE 0 END,

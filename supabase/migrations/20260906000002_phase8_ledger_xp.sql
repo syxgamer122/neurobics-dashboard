@@ -43,7 +43,6 @@ BEGIN
     focus_score = COALESCE((p_patch->>'focus_score')::int, focus_score),
     speed_score = COALESCE((p_patch->>'speed_score')::int, speed_score),
     memory_score = COALESCE((p_patch->>'memory_score')::int, memory_score),
-    spatial_score = COALESCE((p_patch->>'spatial_score')::int, spatial_score),
     algebraic_logic_score = COALESCE((p_patch->>'algebraic_logic_score')::int, algebraic_logic_score),
     cfop_spatial_record = COALESCE((p_patch->>'cfop_spatial_record')::int, cfop_spatial_record)
   WHERE id = p_target_id

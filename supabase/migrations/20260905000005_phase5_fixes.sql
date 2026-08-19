@@ -18,9 +18,9 @@ BEGIN
   END IF;
 
   -- Check if any score columns are being modified
-  IF (NEW.total_xp, NEW.focus_score, NEW.speed_score, NEW.memory_score, NEW.spatial_score, NEW.algebraic_logic_score, NEW.cfop_spatial_record)
+  IF (NEW.total_xp, NEW.focus_score, NEW.speed_score, NEW.memory_score, NEW.cfop_spatial_record, NEW.algebraic_logic_score, NEW.cfop_spatial_record)
       IS DISTINCT FROM
-     (OLD.total_xp, OLD.focus_score, OLD.speed_score, OLD.memory_score, OLD.spatial_score, OLD.algebraic_logic_score, OLD.cfop_spatial_record)
+     (OLD.total_xp, OLD.focus_score, OLD.speed_score, OLD.memory_score, OLD.cfop_spatial_record, OLD.algebraic_logic_score, OLD.cfop_spatial_record)
   THEN
     RAISE EXCEPTION 'Score columns are server-authoritative and cannot be directly updated.';
   END IF;
@@ -85,7 +85,6 @@ BEGIN
     focus_score = COALESCE((p_patch->>'focus_score')::int, focus_score),
     speed_score = COALESCE((p_patch->>'speed_score')::int, speed_score),
     memory_score = COALESCE((p_patch->>'memory_score')::int, memory_score),
-    spatial_score = COALESCE((p_patch->>'spatial_score')::int, spatial_score),
     algebraic_logic_score = COALESCE((p_patch->>'algebraic_logic_score')::int, algebraic_logic_score),
     cfop_spatial_record = COALESCE((p_patch->>'cfop_spatial_record')::int, cfop_spatial_record)
   WHERE id = p_target_id

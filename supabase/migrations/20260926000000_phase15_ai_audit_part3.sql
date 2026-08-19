@@ -29,7 +29,7 @@ SELECT
   p.total_xp,
   p.level,
   LEAST(
-    ROUND((COALESCE(p.speed_score, 0) + COALESCE(p.focus_score, 0) + COALESCE(p.algebraic_logic_score, 0) + COALESCE(p.memory_score, 0) + COALESCE(p.spatial_score, 0)) / 5.0)::integer,
+    ROUND((COALESCE(p.speed_score, 0) + COALESCE(p.focus_score, 0) + COALESCE(p.algebraic_logic_score, 0) + COALESCE(p.memory_score, 0) + COALESCE(p.cfop_spatial_record, 0)) / 5.0)::integer,
     (COALESCE(p.schulte_sessions, 0) + COALESCE(p.sudoku_sessions, 0) + COALESCE(p.stroop_sessions, 0) + COALESCE(p.reaction_sessions, 0) + COALESCE(p.memory_sessions, 0) + COALESCE(p.nback_sessions, 0) + COALESCE(p.math_sessions, 0) + COALESCE(p.gonogo_sessions, 0) + COALESCE(p.mental_sessions, 0) + COALESCE(p.corsi_sessions, 0) + COALESCE(p.trail_sessions, 0) + COALESCE(p.search_sessions, 0)) * 25
   ) as cognitive_index
 FROM public.profiles_decayed p

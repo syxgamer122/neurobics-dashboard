@@ -21,7 +21,6 @@ BEGIN
     memory_score = 0,
     speed_score = 0,
     focus_score = 0,
-    spatial_score = 0,
     schulte_sessions = 0,
     sudoku_sessions = 0,
     stroop_sessions = 0,
