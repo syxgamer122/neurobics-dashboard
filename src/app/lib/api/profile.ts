@@ -52,7 +52,9 @@ export async function saveBirthDate(birthDate: string): Promise<Profile> {
 
   const updated = await fetchProfile();
   if (!updated) {
-    throw new Error("Save birth date succeeded, but profile could not be reloaded.");
+    throw new Error(
+      "Save birth date succeeded, but profile could not be reloaded.",
+    );
   }
   return updated;
 }
@@ -184,7 +186,10 @@ export async function uploadAvatar(file: File): Promise<Profile> {
   }
 
   const updated = await fetchProfile();
-  if (!updated) throw new Error("Save avatar succeeded, but profile could not be reloaded.");
+  if (!updated)
+    throw new Error(
+      "Save avatar succeeded, but profile could not be reloaded.",
+    );
   return updated;
 }
 
@@ -209,6 +214,9 @@ export async function removeAvatar(): Promise<Profile> {
   }
 
   const updated = await fetchProfile();
-  if (!updated) throw new Error("Remove avatar succeeded, but profile could not be reloaded.");
+  if (!updated)
+    throw new Error(
+      "Remove avatar succeeded, but profile could not be reloaded.",
+    );
   return updated;
 }

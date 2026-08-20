@@ -235,17 +235,17 @@ export function registerAuthRoutes(app: Hono): void {
 
         // Cryptographically secure 32-character hex recovery code
         const bytes = crypto.getRandomValues(new Uint8Array(16));
-        recoveryCode = Array.from(bytes, (b) =>
-          b.toString(16).padStart(2, "0"),
-        )
+        recoveryCode = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
           .join("")
           .toUpperCase();
 
         const codeHash = await sha256(recoveryCode);
-        const { error: recoveryErr } = await adminClient.from("account_recovery").insert({
-          user_id: data.user.id,
-          code_hash: codeHash,
-        });
+        const { error: recoveryErr } = await adminClient
+          .from("account_recovery")
+          .insert({
+            user_id: data.user.id,
+            code_hash: codeHash,
+          });
 
         if (recoveryErr) {
           logServerEvent({
