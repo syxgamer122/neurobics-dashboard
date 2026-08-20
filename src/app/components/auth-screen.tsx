@@ -94,7 +94,7 @@ export function AuthScreen({
         const profile = await fetchProfile();
         if (!profile) {
           throw new Error(
-            "Signed in, but no neural profile was found for this account. It may predate the new database — please sign up again.",
+            "Signed in, but no profile was found or initialized for this account. Please try signing in again.",
           );
         }
         onAuthed(profile);
@@ -310,7 +310,9 @@ export function AuthScreen({
                   placeholder={t.password_label}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  autoComplete={
+                    mode === "signup" ? "new-password" : "current-password"
+                  }
                   className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400"
                 />
               </div>

@@ -585,6 +585,7 @@ SELECT
   p.avatar_url, 
   p.role, 
   p.birth_year, 
+  p.birth_date,
   p.total_xp, 
   p.level, 
   p.last_active_date,
@@ -650,7 +651,134 @@ WHERE COALESCE(p.flagged, false) = false AND p.role != 'guest';
 GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 
 -- ------------------------------------------------------------------------------
--- 11. CANONICAL SEARCH & POPULATION STATS RPCS
+-- 11. CANONICAL AUTH & PROFILE RPCS
+-- ------------------------------------------------------------------------------
+-- 1) get_my_profile: Securely returns the caller's own full decayed profile
+DROP FUNCTION IF EXISTS public.get_my_profile();
+CREATE OR REPLACE FUNCTION public.get_my_profile()
+RETURNS SETOF public.profiles_decayed
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+  SELECT d.*
+  FROM public.profiles_decayed AS d
+  WHERE auth.uid() IS NOT NULL
+    AND d.id = auth.uid()
+  LIMIT 1;
+$body$;
+
+REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
+
+-- 2) ensure_my_profile: Idempotent profile creator if missing for active user
+DROP FUNCTION IF EXISTS public.ensure_my_profile();
+CREATE OR REPLACE FUNCTION public.ensure_my_profile()
+RETURNS SETOF public.profiles_decayed
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_user record;
+  v_uname text;
+  v_role text := 'user';
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
+    SELECT * INTO v_user FROM auth.users WHERE id = v_uid;
+    v_uname := COALESCE(
+      v_user.raw_user_meta_data->>'username',
+      split_part(v_user.email, '@', 1),
+      'user-' || substr(v_uid::text, 1, 8)
+    );
+    IF (v_user.raw_app_meta_data->>'initial_role') = 'guest' OR v_uname LIKE 'guest-%' THEN
+      v_role := 'guest';
+    END IF;
+
+    INSERT INTO public.profiles (id, username, role, level, total_xp, created_at, last_activity_at)
+    VALUES (v_uid, lower(v_uname), v_role, 1, 0, now(), now())
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+
+  RETURN QUERY
+  SELECT d.* FROM public.profiles_decayed AS d
+  WHERE d.id = v_uid
+  LIMIT 1;
+END;
+$body$;
+
+REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
+
+-- 3) set_my_birth_date: Secure mutation with 13+ age validation
+DROP FUNCTION IF EXISTS public.set_my_birth_date(date);
+CREATE OR REPLACE FUNCTION public.set_my_birth_date(p_birth_date date)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_birth_date < date '1900-01-01' OR p_birth_date > (CURRENT_DATE - interval '13 years')::date THEN
+    RAISE EXCEPTION 'Invalid birth date: user must be at least 13 years old' USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.profiles
+  SET 
+    birth_date = p_birth_date,
+    birth_year = EXTRACT(YEAR FROM p_birth_date)::integer,
+    last_activity_at = now()
+  WHERE id = auth.uid();
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Profile not found' USING ERRCODE = 'P0002';
+  END IF;
+END;
+$body$;
+
+REVOKE ALL ON FUNCTION public.set_my_birth_date(date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_my_birth_date(date) TO authenticated, service_role;
+
+-- 4) set_my_avatar: Secure mutation of avatar URL
+DROP FUNCTION IF EXISTS public.set_my_avatar(text);
+CREATE OR REPLACE FUNCTION public.set_my_avatar(p_avatar_url text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.profiles
+  SET 
+    avatar_url = p_avatar_url,
+    last_activity_at = now()
+  WHERE id = auth.uid();
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Profile not found' USING ERRCODE = 'P0002';
+  END IF;
+END;
+$body$;
+
+REVOKE ALL ON FUNCTION public.set_my_avatar(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_my_avatar(text) TO authenticated, service_role;
+
+-- ------------------------------------------------------------------------------
+-- 12. CANONICAL SEARCH & POPULATION STATS RPCS
 -- ------------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public.get_population_stats(integer);
 DROP FUNCTION IF EXISTS public.get_population_stats(integer, integer);
@@ -728,7 +856,7 @@ REVOKE ALL ON FUNCTION public.search_players(text, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated, service_role;
 
 -- ------------------------------------------------------------------------------
--- 12. CRON JOBS (Safe Deficit-Based Pool Filling)
+-- 13. CRON JOBS (Safe Deficit-Based Pool Filling)
 -- ------------------------------------------------------------------------------
 DO $do$
 BEGIN
