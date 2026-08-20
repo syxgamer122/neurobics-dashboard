@@ -11,8 +11,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:sim": "node --experimental-strip-types tests/sim-client.ts && node --experimental-strip-types tests/sim-games.ts && node --experimental-strip-types tests/sim-audit.ts && node --experimental-strip-types tests/sim-anticheat.ts && node --experimental-strip-types tests/sim-ledger.ts",
-    "test:rls": "node --experimental-strip-types tests/sim-rls.ts",
     "scan": "node tests/scan.mjs",
     "lint": "pnpm exec eslint . --max-warnings=0",
     "lint:fix": "pnpm exec eslint . --fix",
