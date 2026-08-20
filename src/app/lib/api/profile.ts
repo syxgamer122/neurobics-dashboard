@@ -5,8 +5,6 @@
 import {
   getSupabase,
   describeError,
-  PROFILE_COLS,
-  sanitizeProfile,
   hydrateProfile,
   currentUserId,
   serverPost,
