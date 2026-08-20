@@ -197,9 +197,7 @@ export function useAppState(t: Translation) {
   };
 
   const onLogout = async () => {
-    if (!isGuestProfile(profileState)) {
-      await handleLogout();
-    }
+    await handleLogout();
     setProfile(null);
     setAdminPanelOpen(false);
     setSelectedGame(null);
@@ -208,7 +206,8 @@ export function useAppState(t: Translation) {
     setOnboardingDismissed(false);
   };
 
-  const exitGuestToAuth = () => {
+  const exitGuestToAuth = async () => {
+    await handleLogout();
     setProfile(null);
     setSelectedGame(null);
     setActivePage("dashboard");

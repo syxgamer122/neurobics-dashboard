@@ -49,14 +49,19 @@ export type Profile = {
   speed_score: number; // speed proficiency rating
   focus_score: number; // focus proficiency rating
   total_xp: number; // cumulative XP (drives Level)
+  level?: number;
+  cognitive_index?: number;
   last_active_date: string | null; // YYYY-MM-DD (VN calendar day)
   // Anchors "brain age" to a real age. Nullable: pre-existing accounts never
   // supplied it, and the UI asks for it rather than inventing a number.
   birth_year: number | null;
+  birth_date?: string | null;
   // Public avatar URL in the `avatars` storage bucket (nullable until uploaded).
   avatar_url: string | null;
   // Server-controlled: 'user' | 'admin' | 'guest'. Never trust username for privilege.
   role: "user" | "admin" | "guest";
+  search_visible?: boolean;
+  flagged?: boolean;
   created_at: string;
 } & Record<SessionColumn, number>;
 

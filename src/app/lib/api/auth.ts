@@ -36,9 +36,18 @@ export const AUTH_EMAIL_DOMAIN = "mindgem.local";
 export const LEGACY_AUTH_EMAIL_DOMAINS = ["neurobics.local"] as const;
 
 function authEmailCandidates(username: string): string[] {
-  const name = assertValidUsername(username);
+  const name = username.trim().toLowerCase();
   return [AUTH_EMAIL_DOMAIN, ...LEGACY_AUTH_EMAIL_DOMAINS].map(
     (d) => `${name}@${d}`,
+  );
+}
+
+function isInvalidCredentials(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  return (
+    error?.code === "invalid_credentials" ||
+    /invalid login credentials/i.test(error?.message ?? "")
   );
 }
 
@@ -110,7 +119,9 @@ export async function handleLogin(
   password: string,
 ): Promise<string> {
   const supabase = getSupabase();
-  const emails = authEmailCandidates(username);
+  const trimmed = username.trim();
+  if (!trimmed) throw new Error("Username is required.");
+  const emails = authEmailCandidates(trimmed);
   let data:
     | Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"]
     | null = null;
@@ -123,6 +134,10 @@ export async function handleLogin(
     data = res.data;
     error = res.error;
     if (!error && res.data.session) break;
+    // If it's a network error or rate limit, fail fast instead of hammering fallback domains
+    if (error && !isInvalidCredentials(error)) {
+      break;
+    }
   }
 
   if (error || !data?.session) {
@@ -133,11 +148,9 @@ export async function handleLogin(
       emails.join(", "),
       ")",
     );
-    // Supabase returns the same generic message whether the account doesn't
-    // exist or the password is wrong — make it actionable.
-    if (error?.message?.toLowerCase().includes("invalid login credentials")) {
+    if (isInvalidCredentials(error)) {
       throw new Error(
-        `No account matched "${username.trim()}" / that password. If you haven't registered on this database yet, switch to Sign up to create it.`,
+        `No account matched "${trimmed}" with that password. If you haven't registered on this database yet, switch to Sign up to create it.`,
       );
     }
     throw new Error(error?.message ?? "Invalid username or password.");

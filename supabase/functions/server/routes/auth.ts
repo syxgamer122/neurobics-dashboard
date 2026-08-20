@@ -193,8 +193,9 @@ export function registerAuthRoutes(app: Hono): void {
 
       const { data, error } = await adminClient.auth.admin.createUser({
         email,
-        password,
-        user_metadata: { username },
+        password: pw,
+        user_metadata: { username: normalized },
+        app_metadata: { initial_role: isGuest ? "guest" : "user" },
         // Automatically confirm the user's email since an email server hasn't been configured.
         email_confirm: true,
       });
@@ -217,22 +218,44 @@ export function registerAuthRoutes(app: Hono): void {
       // Update role to guest if applicable. This ensures profiles gets the correct role.
       let recoveryCode: string | undefined = undefined;
       if (isGuest && data.user) {
-        await adminClient
+        const { error: roleErr } = await adminClient
           .from("profiles")
           .update({ role: "guest" })
           .eq("id", data.user.id);
 
-        // Generate 12-char alphanumeric recovery code
-        recoveryCode = Array.from({ length: 12 }, () =>
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".charAt(
-            Math.floor(Math.random() * 36),
-          ),
-        ).join("");
+        if (roleErr) {
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `Signup error: failed to update guest role: ${roleErr.message}`,
+          });
+          await adminClient.auth.admin.deleteUser(data.user.id);
+          return c.json({ error: "Signup could not be completed." }, 500);
+        }
+
+        // Cryptographically secure 32-character hex recovery code
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        recoveryCode = Array.from(bytes, (b) =>
+          b.toString(16).padStart(2, "0"),
+        )
+          .join("")
+          .toUpperCase();
+
         const codeHash = await sha256(recoveryCode);
-        await adminClient.from("account_recovery").insert({
+        const { error: recoveryErr } = await adminClient.from("account_recovery").insert({
           user_id: data.user.id,
           code_hash: codeHash,
         });
+
+        if (recoveryErr) {
+          logServerEvent({
+            event: "server.log",
+            level: "error",
+            message: `Signup error: failed to insert guest recovery: ${recoveryErr.message}`,
+          });
+          await adminClient.auth.admin.deleteUser(data.user.id);
+          return c.json({ error: "Signup could not be completed." }, 500);
+        }
       }
       // transaction — read it back to return to the client.
       const { data: profile, error: profileErr } = await adminClient
@@ -279,11 +302,15 @@ export function registerAuthRoutes(app: Hono): void {
         return c.json({ error: "Invalid recovery code" }, 400);
       }
 
-      const codeHash = await sha256(recoveryCode);
+      const codeHash = await sha256(recoveryCode.trim().toUpperCase());
+      const nowIso = new Date().toISOString();
       const { data: recovery, error: lookupErr } = await adminClient
         .from("account_recovery")
-        .select("user_id")
+        .update({ consumed_at: nowIso })
         .eq("code_hash", codeHash)
+        .is("consumed_at", null)
+        .gt("expires_at", nowIso)
+        .select("user_id")
         .maybeSingle();
 
       if (lookupErr || !recovery) {

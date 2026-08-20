@@ -17,13 +17,8 @@ import {
 import { logError } from "../logger";
 
 export async function fetchProfile(): Promise<Profile | null> {
-  const userId = await currentUserId();
-  if (!userId) return null;
-
   const { data, error } = await getSupabase()
-    .from("profiles_decayed")
-    .select(PROFILE_COLS)
-    .eq("id", userId)
+    .rpc("get_my_profile")
     .maybeSingle();
 
   if (error) {
@@ -31,18 +26,25 @@ export async function fetchProfile(): Promise<Profile | null> {
     logError(msg);
     throw new Error(msg);
   }
+
+  if (!data) {
+    // Attempt idempotent profile repair if session is active but profile was missing
+    const { data: repaired, error: repairError } = await getSupabase()
+      .rpc("ensure_my_profile")
+      .maybeSingle();
+    if (!repairError && repaired) {
+      return hydrateProfile(repaired as Profile);
+    }
+  }
+
   return data ? hydrateProfile(data as Profile) : null;
 }
 
 /** Persists the user's birth date, which anchors the brain-age calculation. */
 export async function saveBirthDate(birthDate: string): Promise<Profile> {
-  const userId = await currentUserId();
-  if (!userId) throw new Error("Save birth date failed: not authenticated.");
-
-  const { error } = await getSupabase()
-    .from("profiles")
-    .update({ birth_date: birthDate })
-    .eq("id", userId);
+  const { error } = await getSupabase().rpc("set_my_birth_date", {
+    p_birth_date: birthDate,
+  });
 
   if (error) {
     const msg = describeError(error, "Save birth date failed");
@@ -50,15 +52,11 @@ export async function saveBirthDate(birthDate: string): Promise<Profile> {
     throw new Error(msg);
   }
 
-  // Refetch profile to get the updated state (along with any triggers)
-  const { data: updated, error: refetchError } = await getSupabase()
-    .from("profiles")
-    .select(PROFILE_COLS)
-    .eq("id", userId)
-    .single();
-
-  if (refetchError) throw refetchError;
-  return sanitizeProfile(updated as Profile);
+  const updated = await fetchProfile();
+  if (!updated) {
+    throw new Error("Save birth date succeeded, but profile could not be reloaded.");
+  }
+  return updated;
 }
 
 /**
@@ -187,13 +185,9 @@ export async function uploadAvatar(file: File): Promise<Profile> {
     throw new Error(describeError(error, "Save avatar URL failed"));
   }
 
-  const { data: updated, error: refetchError } = await getSupabase()
-    .from("profiles")
-    .select(PROFILE_COLS)
-    .eq("id", userId)
-    .single();
-  if (refetchError) throw refetchError;
-  return hydrateProfile(updated as Profile);
+  const updated = await fetchProfile();
+  if (!updated) throw new Error("Save avatar succeeded, but profile could not be reloaded.");
+  return updated;
 }
 
 /** Remove avatar file(s) for the current user and clear avatar_url. */
@@ -216,11 +210,7 @@ export async function removeAvatar(): Promise<Profile> {
     throw new Error(describeError(error, "Clear avatar URL failed"));
   }
 
-  const { data: updated, error: refetchError } = await getSupabase()
-    .from("profiles")
-    .select(PROFILE_COLS)
-    .eq("id", userId)
-    .single();
-  if (refetchError) throw refetchError;
-  return hydrateProfile(updated as Profile);
+  const updated = await fetchProfile();
+  if (!updated) throw new Error("Remove avatar succeeded, but profile could not be reloaded.");
+  return updated;
 }
