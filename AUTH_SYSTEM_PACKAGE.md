@@ -17,85 +17,161 @@ Failed to load resource: .../rest/v1/rpc/get_my_profile:1 the server responded w
    - Mã nguồn frontend gọi RPC `get_my_profile()`.
    - Tuy nhiên trên Remote Supabase Database của dự án, câu lệnh `CREATE FUNCTION public.get_my_profile()` **chưa được thực thi / apply**.
    - Do đó PostgREST trả về HTTP 404 (`PGRST202`).
-2. **Khắc phục ở 2 tầng**:
-   - **Tầng Frontend (Zero-Downtime Fallback)**: Trong `src/app/lib/api/profile.ts`, `fetchProfile()` được trang bị cơ chế Fallback đa tầng:
-     - Thử 1: Gọi RPC `get_my_profile()`.
-     - Nếu gặp `PGRST202` (RPC chưa có trên DB) -> Tự động fallback sang đọc view `profiles_decayed`.
-     - Nếu view cũng chưa có -> Tự động fallback sang đọc trực tiếp bảng `profiles`.
-     - Đảm bảo app **luôn đăng nhập thành công** bất kể Database đang ở phiên bản migration nào!
-   - **Tầng Database (Canonical RPC)**: Chạy script SQL tạo RPC và reload schema cache trên Supabase Dashboard.
+2. **Nguyên nhân Master Migration bị chậm / nghẽn**:
+   - Master migration `20260930000000_normalize_pending_schema.sql` chứa rất nhiều bảng (XP ledger, anti-cheat, tickets, cron, views...). Nếu 1 statement bất kỳ gặp trục trặc, toàn bộ giao dịch bị rollback dẫn đến `get_my_profile()` không được tạo.
+3. **Giải pháp kiến trúc dứt điểm**:
+   - **Tách riêng migration Bootstrap Auth**: Tạo file `supabase/migrations/20260929990000_auth_profile_bootstrap.sql` chạy trước độc lập. Hai hàm `get_my_profile()` và `ensure_my_profile()` trả về `SETOF public.profiles` độc lập 100%, không phụ thuộc vào bất kỳ view hay extension phức tạp nào.
+   - **Chuẩn hóa `fetchProfile()` trên Frontend**: Gọi `get_my_profile()`, nếu thiếu profile row (tài khoản mồ côi) tự động gọi `ensure_my_profile()` để tự sửa chữa.
 
 ---
 
-## 2. HƯỚNG DẪN CHẠY SQL TRỰC TIẾP TRÊN SUPABASE (NẾU CẦN APPLY REMOTE NGAY)
+## 2. HƯỚNG DẪN KIỂM TRA & CHẠY SQL TRỰC TIẾP TRÊN SUPABASE DASHBOARD
 
+### Bước 1: Chạy SQL tạo 2 RPC cốt lõi trong Supabase SQL Editor
 Mở **Supabase Dashboard -> SQL Editor** của dự án và chạy đoạn SQL sau:
 
 ```sql
--- 1. Tạo function get_my_profile (bảo mật, chỉ đọc hồ sơ chính mình)
+BEGIN;
+
+-- 1. get_my_profile: không phụ thuộc profiles_decayed
+DROP FUNCTION IF EXISTS public.get_my_profile();
+
 CREATE OR REPLACE FUNCTION public.get_my_profile()
-RETURNS SETOF public.profiles_decayed
+RETURNS SETOF public.profiles
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $body$
-  SELECT d.*
-  FROM public.profiles_decayed AS d
+  SELECT p.*
+  FROM public.profiles AS p
   WHERE auth.uid() IS NOT NULL
-    AND d.id = auth.uid()
+    AND p.id = auth.uid()
   LIMIT 1;
 $body$;
 
-REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
 
--- 2. Tạo function ensure_my_profile (tự động khởi tạo profile nếu tài khoản bị thiếu)
+-- 2. ensure_my_profile: tự động sửa chữa tài khoản Auth bị thiếu profile
+DROP FUNCTION IF EXISTS public.ensure_my_profile();
+
 CREATE OR REPLACE FUNCTION public.ensure_my_profile()
-RETURNS SETOF public.profiles_decayed
+RETURNS SETOF public.profiles
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $body$
 DECLARE
   v_uid uuid := auth.uid();
-  v_user record;
-  v_uname text;
+  v_email text;
+  v_user_metadata jsonb;
+  v_app_metadata jsonb;
+  v_username text;
   v_role text := 'user';
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
-    SELECT * INTO v_user FROM auth.users WHERE id = v_uid;
-    v_uname := COALESCE(
-      v_user.raw_user_meta_data->>'username',
-      split_part(v_user.email, '@', 1),
-      'user-' || substr(v_uid::text, 1, 8)
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = v_uid
+  ) THEN
+    SELECT
+      u.email,
+      COALESCE(u.raw_user_meta_data, '{}'::jsonb),
+      COALESCE(u.raw_app_meta_data, '{}'::jsonb)
+    INTO
+      v_email,
+      v_user_metadata,
+      v_app_metadata
+    FROM auth.users AS u
+    WHERE u.id = v_uid;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Authenticated user not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    -- Ưu tiên phần trước @ của email Auth vì đây là username canonical.
+    v_username := lower(
+      COALESCE(
+        NULLIF(split_part(v_email, '@', 1), ''),
+        NULLIF(btrim(v_user_metadata ->> 'username'), ''),
+        'user-' || substr(replace(v_uid::text, '-', ''), 1, 8)
+      )
     );
-    IF (v_user.raw_app_meta_data->>'initial_role') = 'guest' OR v_uname LIKE 'guest-%' THEN
+
+    v_username := regexp_replace(
+      v_username,
+      '[^a-z0-9_.-]+',
+      '-',
+      'g'
+    );
+
+    v_username := left(btrim(v_username, '-.'), 20);
+
+    IF length(v_username) < 3 THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    -- Không cho orphan chiếm username đang được dùng.
+    IF EXISTS (
+      SELECT 1
+      FROM public.profiles AS p
+      WHERE lower(p.username) = lower(v_username)
+        AND p.id <> v_uid
+    ) THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    IF (v_app_metadata ->> 'initial_role') = 'guest' OR v_username LIKE 'guest-%' THEN
       v_role := 'guest';
     END IF;
 
-    INSERT INTO public.profiles (id, username, role, level, total_xp, created_at, last_activity_at)
-    VALUES (v_uid, lower(v_uname), v_role, 1, 0, now(), now())
+    INSERT INTO public.profiles (
+      id,
+      username,
+      role
+    )
+    VALUES (
+      v_uid,
+      v_username,
+      v_role
+    )
     ON CONFLICT (id) DO NOTHING;
   END IF;
 
   RETURN QUERY
-  SELECT d.* FROM public.profiles_decayed AS d
-  WHERE d.id = v_uid
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE p.id = v_uid
   LIMIT 1;
 END;
 $body$;
 
-REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
 
--- 3. Reload Schema Cache của PostgREST
 NOTIFY pgrst, 'reload schema';
+
+COMMIT;
 ```
+
+### Bước 2: Truy vấn kiểm tra Remote Database
+Chạy câu lệnh kiểm tra sau trên SQL Editor:
+```sql
+SELECT
+  to_regclass('public.profiles') AS profiles_table,
+  to_regprocedure('public.get_my_profile()') AS get_my_profile_rpc,
+  to_regprocedure('public.ensure_my_profile()') AS ensure_my_profile_rpc;
+
+SELECT
+  has_function_privilege('authenticated', 'public.get_my_profile()', 'EXECUTE') AS can_get_profile,
+  has_function_privilege('authenticated', 'public.ensure_my_profile()', 'EXECUTE') AS can_ensure_profile;
+```
+Kết quả phải trả về `get_my_profile()`, `ensure_my_profile()` và cả 2 quyền đều là `true`.
 
 ---
 
@@ -744,7 +820,7 @@ export async function handleUpgradeGuest(
 
 ---
 
-### 📄 src/app/lib/api/profile.ts (Frontend Profile API Client (fetchProfile with Fallback))
+### 📄 src/app/lib/api/profile.ts (Frontend Profile API Client (fetchProfile))
 
 ```typescript
 /**
@@ -757,113 +833,49 @@ import {
   hydrateProfile,
   currentUserId,
   serverPost,
-  PROFILE_COLS,
   AVATAR_MAX_BYTES,
   AVATAR_MIME,
   type Profile,
 } from "./internal";
 import { logError } from "../logger";
 
-function isSchemaCacheMissing(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const e = error as { code?: string; message?: string; details?: string };
-  return (
-    e.code === "PGRST202" ||
-    /schema cache|could not find the function|function .* does not exist/i.test(
-      e.message ?? "",
-    )
-  );
-}
-
 export async function fetchProfile(): Promise<Profile | null> {
-  const supabase = getSupabase();
+  const sup = getSupabase();
 
-  // 1. First attempt: canonical secure RPC get_my_profile()
-  const { data, error } = await supabase
-    .rpc("get_my_profile")
-    .maybeSingle();
+  const primary = await sup.rpc("get_my_profile").maybeSingle();
 
-  if (!error && data) {
-    return hydrateProfile(data as Profile);
-  }
-
-  // If RPC is missing from remote schema cache (migration not applied yet)
-  if (error && isSchemaCacheMissing(error)) {
-    const userId = await currentUserId();
-    if (!userId) return null;
-
-    // Fallback 1: read from profiles_decayed view
-    const viewRes = await supabase
-      .from("profiles_decayed")
-      .select(PROFILE_COLS)
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!viewRes.error && viewRes.data) {
-      return hydrateProfile(viewRes.data as Profile);
-    }
-
-    // Fallback 2: read from profiles table directly
-    const tableRes = await supabase
-      .from("profiles")
-      .select(PROFILE_COLS)
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!tableRes.error && tableRes.data) {
-      return hydrateProfile(tableRes.data as Profile);
-    }
-
-    if (tableRes.error) {
-      const msg = describeError(tableRes.error, "Fetch profile fallback failed");
-      logError(msg);
-      throw new Error(msg);
-    }
-  }
-
-  if (error && !isSchemaCacheMissing(error)) {
-    const msg = describeError(error, "Fetch profile failed");
+  if (primary.error) {
+    const msg = describeError(primary.error, "Profile service unavailable");
     logError(msg);
     throw new Error(msg);
   }
 
-  if (!data) {
-    // Attempt idempotent profile repair if session is active but profile was missing
-    const { data: repaired, error: repairError } = await supabase
-      .rpc("ensure_my_profile")
-      .maybeSingle();
-    if (!repairError && repaired) {
-      return hydrateProfile(repaired as Profile);
-    }
+  if (primary.data) {
+    return hydrateProfile(primary.data as Profile);
   }
 
-  return data ? hydrateProfile(data as Profile) : null;
+  // Auth User tồn tại nhưng bị thiếu row profile (orphan repair).
+  const repaired = await sup.rpc("ensure_my_profile").maybeSingle();
+
+  if (repaired.error) {
+    const msg = describeError(repaired.error, "Profile initialization failed");
+    logError(msg);
+    throw new Error(msg);
+  }
+
+  return repaired.data ? hydrateProfile(repaired.data as Profile) : null;
 }
 
 /** Persists the user's birth date, which anchors the brain-age calculation. */
 export async function saveBirthDate(birthDate: string): Promise<Profile> {
-  const supabase = getSupabase();
-  const { error } = await supabase.rpc("set_my_birth_date", {
+  const { error } = await getSupabase().rpc("set_my_birth_date", {
     p_birth_date: birthDate,
   });
 
   if (error) {
-    if (isSchemaCacheMissing(error)) {
-      const userId = await currentUserId();
-      if (!userId) throw new Error("Save birth date failed: not authenticated.");
-      const year = parseInt(birthDate.slice(0, 4), 10);
-      const { error: directErr } = await supabase
-        .from("profiles")
-        .update({ birth_date: birthDate, birth_year: year })
-        .eq("id", userId);
-      if (directErr) {
-        throw new Error(describeError(directErr, "Save birth date failed"));
-      }
-    } else {
-      const msg = describeError(error, "Save birth date failed");
-      logError(msg);
-      throw new Error(msg);
-    }
+    const msg = describeError(error, "Save birth date failed");
+    logError(msg);
+    throw new Error(msg);
   }
 
   const updated = await fetchProfile();
@@ -893,7 +905,7 @@ export async function deleteActiveUserAccount(): Promise<void> {
       .filter((k) => k.startsWith("sb-"))
       .forEach((k) => globalThis.localStorage.removeItem(k));
   } catch {
-    /* localStorage may be unavailable â€” signOut already handled the session */
+    /* localStorage may be unavailable — signOut already handled the session */
   }
 }
 
@@ -998,17 +1010,7 @@ export async function uploadAvatar(file: File): Promise<Profile> {
     p_avatar_url: avatarUrl,
   });
   if (error) {
-    if (isSchemaCacheMissing(error)) {
-      const { error: directErr } = await getSupabase()
-        .from("profiles")
-        .update({ avatar_url: avatarUrl })
-        .eq("id", userId);
-      if (directErr) {
-        throw new Error(describeError(directErr, "Save avatar URL failed"));
-      }
-    } else {
-      throw new Error(describeError(error, "Save avatar URL failed"));
-    }
+    throw new Error(describeError(error, "Save avatar URL failed"));
   }
 
   const updated = await fetchProfile();
@@ -1036,17 +1038,7 @@ export async function removeAvatar(): Promise<Profile> {
     p_avatar_url: null,
   });
   if (error) {
-    if (isSchemaCacheMissing(error)) {
-      const { error: directErr } = await getSupabase()
-        .from("profiles")
-        .update({ avatar_url: null })
-        .eq("id", userId);
-      if (directErr) {
-        throw new Error(describeError(directErr, "Clear avatar URL failed"));
-      }
-    } else {
-      throw new Error(describeError(error, "Clear avatar URL failed"));
-    }
+    throw new Error(describeError(error, "Clear avatar URL failed"));
   }
 
   const updated = await fetchProfile();
@@ -2165,6 +2157,151 @@ export function registerAuthRoutes(app: Hono): void {
 
 ---
 
+### 📄 supabase/migrations/20260929990000_auth_profile_bootstrap.sql (Standalone Auth & Profile Bootstrap Migration)
+
+```sql
+﻿-- ==============================================================================
+-- 20260929990000_auth_profile_bootstrap.sql
+-- Standalone Auth & Profile Bootstrap RPCs (Zero Dependency on Views)
+-- ==============================================================================
+
+BEGIN;
+
+-- ============================================================
+-- 1. get_my_profile: không phụ thuộc profiles_decayed
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.get_my_profile();
+
+CREATE OR REPLACE FUNCTION public.get_my_profile()
+RETURNS SETOF public.profiles
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE auth.uid() IS NOT NULL
+    AND p.id = auth.uid()
+  LIMIT 1;
+$body$;
+
+REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
+
+-- ============================================================
+-- 2. ensure_my_profile: sửa tài khoản Auth bị thiếu
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.ensure_my_profile();
+
+CREATE OR REPLACE FUNCTION public.ensure_my_profile()
+RETURNS SETOF public.profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_email text;
+  v_user_metadata jsonb;
+  v_app_metadata jsonb;
+  v_username text;
+  v_role text := 'user';
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = v_uid
+  ) THEN
+    SELECT
+      u.email,
+      COALESCE(u.raw_user_meta_data, '{}'::jsonb),
+      COALESCE(u.raw_app_meta_data, '{}'::jsonb)
+    INTO
+      v_email,
+      v_user_metadata,
+      v_app_metadata
+    FROM auth.users AS u
+    WHERE u.id = v_uid;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Authenticated user not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    -- Ưu tiên phần trước @ của email Auth vì đây là username canonical.
+    v_username := lower(
+      COALESCE(
+        NULLIF(split_part(v_email, '@', 1), ''),
+        NULLIF(btrim(v_user_metadata ->> 'username'), ''),
+        'user-' || substr(replace(v_uid::text, '-', ''), 1, 8)
+      )
+    );
+
+    v_username := regexp_replace(
+      v_username,
+      '[^a-z0-9_.-]+',
+      '-',
+      'g'
+    );
+
+    v_username := left(btrim(v_username, '-.'), 20);
+
+    IF length(v_username) < 3 THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    -- Không cho orphan chiếm username đang được dùng.
+    IF EXISTS (
+      SELECT 1
+      FROM public.profiles AS p
+      WHERE lower(p.username) = lower(v_username)
+        AND p.id <> v_uid
+    ) THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    IF (v_app_metadata ->> 'initial_role') = 'guest' OR v_username LIKE 'guest-%' THEN
+      v_role := 'guest';
+    END IF;
+
+    INSERT INTO public.profiles (
+      id,
+      username,
+      role
+    )
+    VALUES (
+      v_uid,
+      v_username,
+      v_role
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+
+  RETURN QUERY
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE p.id = v_uid
+  LIMIT 1;
+END;
+$body$;
+
+REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+
+```
+
+---
+
 ### 📄 supabase/migrations/20260930000000_normalize_pending_schema.sql (Consolidated Master Migration)
 
 ```sql
@@ -2823,70 +2960,7 @@ GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 -- ------------------------------------------------------------------------------
 -- 11. CANONICAL AUTH & PROFILE RPCS
 -- ------------------------------------------------------------------------------
--- 1) get_my_profile: Securely returns the caller's own full decayed profile
-DROP FUNCTION IF EXISTS public.get_my_profile();
-CREATE OR REPLACE FUNCTION public.get_my_profile()
-RETURNS SETOF public.profiles_decayed
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $body$
-  SELECT d.*
-  FROM public.profiles_decayed AS d
-  WHERE auth.uid() IS NOT NULL
-    AND d.id = auth.uid()
-  LIMIT 1;
-$body$;
-
-REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
-
--- 2) ensure_my_profile: Idempotent profile creator if missing for active user
-DROP FUNCTION IF EXISTS public.ensure_my_profile();
-CREATE OR REPLACE FUNCTION public.ensure_my_profile()
-RETURNS SETOF public.profiles_decayed
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $body$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_user record;
-  v_uname text;
-  v_role text := 'user';
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
-    SELECT * INTO v_user FROM auth.users WHERE id = v_uid;
-    v_uname := COALESCE(
-      v_user.raw_user_meta_data->>'username',
-      split_part(v_user.email, '@', 1),
-      'user-' || substr(v_uid::text, 1, 8)
-    );
-    IF (v_user.raw_app_meta_data->>'initial_role') = 'guest' OR v_uname LIKE 'guest-%' THEN
-      v_role := 'guest';
-    END IF;
-
-    INSERT INTO public.profiles (id, username, role, level, total_xp, created_at, last_activity_at)
-    VALUES (v_uid, lower(v_uname), v_role, 1, 0, now(), now())
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
-
-  RETURN QUERY
-  SELECT d.* FROM public.profiles_decayed AS d
-  WHERE d.id = v_uid
-  LIMIT 1;
-END;
-$body$;
-
-REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
-
--- 3) set_my_birth_date: Secure mutation with 13+ age validation
+-- 1) set_my_birth_date: Secure mutation with 13+ age validation
 DROP FUNCTION IF EXISTS public.set_my_birth_date(date);
 CREATE OR REPLACE FUNCTION public.set_my_birth_date(p_birth_date date)
 RETURNS void
@@ -2919,7 +2993,7 @@ $body$;
 REVOKE ALL ON FUNCTION public.set_my_birth_date(date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_my_birth_date(date) TO authenticated, service_role;
 
--- 4) set_my_avatar: Secure mutation of avatar URL
+-- 2) set_my_avatar: Secure mutation of avatar URL
 DROP FUNCTION IF EXISTS public.set_my_avatar(text);
 CREATE OR REPLACE FUNCTION public.set_my_avatar(p_avatar_url text)
 RETURNS void
@@ -3029,9 +3103,16 @@ GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated,
 -- 13. CRON JOBS (Safe Deficit-Based Pool Filling)
 -- ------------------------------------------------------------------------------
 DO $do$
+DECLARE
+  v_job_id bigint;
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.unschedule('top_up_ticket_pool');
+    FOR v_job_id IN
+      SELECT jobid FROM cron.job WHERE jobname = 'top_up_ticket_pool'
+    LOOP
+      PERFORM cron.unschedule(v_job_id);
+    END LOOP;
+
     PERFORM cron.schedule(
       'top_up_ticket_pool',
       '* * * * *',
