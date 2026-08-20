@@ -8,18 +8,72 @@ import {
   hydrateProfile,
   currentUserId,
   serverPost,
+  PROFILE_COLS,
   AVATAR_MAX_BYTES,
   AVATAR_MIME,
   type Profile,
 } from "./internal";
 import { logError } from "../logger";
 
-export async function fetchProfile(): Promise<Profile | null> {
-  const { data, error } = await getSupabase()
-    .rpc("get_my_profile")
-    .maybeSingle();
+function isSchemaCacheMissing(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string; details?: string };
+  return (
+    e.code === "PGRST202" ||
+    /schema cache|could not find the function|function .* does not exist/i.test(
+      e.message ?? "",
+    )
+  );
+}
 
-  if (error) {
+export async function fetchProfile(): Promise<Profile | null> {
+  const supabase = getSupabase();
+
+  // 1. First attempt: canonical secure RPC get_my_profile()
+  const { data, error } = await supabase.rpc("get_my_profile").maybeSingle();
+
+  if (!error && data) {
+    return hydrateProfile(data as Profile);
+  }
+
+  // If RPC is missing from remote schema cache (migration not applied yet)
+  if (error && isSchemaCacheMissing(error)) {
+    const userId = await currentUserId();
+    if (!userId) return null;
+
+    // Fallback 1: read from profiles_decayed view
+    const viewRes = await supabase
+      .from("profiles_decayed")
+      .select(PROFILE_COLS)
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!viewRes.error && viewRes.data) {
+      return hydrateProfile(viewRes.data as Profile);
+    }
+
+    // Fallback 2: read from profiles table directly
+    const tableRes = await supabase
+      .from("profiles")
+      .select(PROFILE_COLS)
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!tableRes.error && tableRes.data) {
+      return hydrateProfile(tableRes.data as Profile);
+    }
+
+    if (tableRes.error) {
+      const msg = describeError(
+        tableRes.error,
+        "Fetch profile fallback failed",
+      );
+      logError(msg);
+      throw new Error(msg);
+    }
+  }
+
+  if (error && !isSchemaCacheMissing(error)) {
     const msg = describeError(error, "Fetch profile failed");
     logError(msg);
     throw new Error(msg);
@@ -27,7 +81,7 @@ export async function fetchProfile(): Promise<Profile | null> {
 
   if (!data) {
     // Attempt idempotent profile repair if session is active but profile was missing
-    const { data: repaired, error: repairError } = await getSupabase()
+    const { data: repaired, error: repairError } = await supabase
       .rpc("ensure_my_profile")
       .maybeSingle();
     if (!repairError && repaired) {
@@ -40,14 +94,29 @@ export async function fetchProfile(): Promise<Profile | null> {
 
 /** Persists the user's birth date, which anchors the brain-age calculation. */
 export async function saveBirthDate(birthDate: string): Promise<Profile> {
-  const { error } = await getSupabase().rpc("set_my_birth_date", {
+  const supabase = getSupabase();
+  const { error } = await supabase.rpc("set_my_birth_date", {
     p_birth_date: birthDate,
   });
 
   if (error) {
-    const msg = describeError(error, "Save birth date failed");
-    logError(msg);
-    throw new Error(msg);
+    if (isSchemaCacheMissing(error)) {
+      const userId = await currentUserId();
+      if (!userId)
+        throw new Error("Save birth date failed: not authenticated.");
+      const year = parseInt(birthDate.slice(0, 4), 10);
+      const { error: directErr } = await supabase
+        .from("profiles")
+        .update({ birth_date: birthDate, birth_year: year })
+        .eq("id", userId);
+      if (directErr) {
+        throw new Error(describeError(directErr, "Save birth date failed"));
+      }
+    } else {
+      const msg = describeError(error, "Save birth date failed");
+      logError(msg);
+      throw new Error(msg);
+    }
   }
 
   const updated = await fetchProfile();
@@ -182,7 +251,17 @@ export async function uploadAvatar(file: File): Promise<Profile> {
     p_avatar_url: avatarUrl,
   });
   if (error) {
-    throw new Error(describeError(error, "Save avatar URL failed"));
+    if (isSchemaCacheMissing(error)) {
+      const { error: directErr } = await getSupabase()
+        .from("profiles")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", userId);
+      if (directErr) {
+        throw new Error(describeError(directErr, "Save avatar URL failed"));
+      }
+    } else {
+      throw new Error(describeError(error, "Save avatar URL failed"));
+    }
   }
 
   const updated = await fetchProfile();
@@ -210,7 +289,17 @@ export async function removeAvatar(): Promise<Profile> {
     p_avatar_url: null,
   });
   if (error) {
-    throw new Error(describeError(error, "Clear avatar URL failed"));
+    if (isSchemaCacheMissing(error)) {
+      const { error: directErr } = await getSupabase()
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", userId);
+      if (directErr) {
+        throw new Error(describeError(directErr, "Clear avatar URL failed"));
+      }
+    } else {
+      throw new Error(describeError(error, "Clear avatar URL failed"));
+    }
   }
 
   const updated = await fetchProfile();
