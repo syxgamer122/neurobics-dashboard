@@ -99,19 +99,25 @@ export async function fetchDailyQuests(): Promise<DailyQuest[]> {
   }));
 }
 
+export type ClaimQuestResult = {
+  code: string;
+  xpAwarded: number;
+  totalXp: number;
+  alreadyClaimed: boolean;
+};
+
 /** Nhận thưởng một nhiệm vụ. Server tự kiểm tra đủ điều kiện và chưa nhận. */
-export async function claimQuest(
-  code: string,
-): Promise<{ code: string; xpAwarded: number; totalXp: number }> {
+export async function claimQuest(code: string): Promise<ClaimQuestResult> {
   const { data, error } = await getSupabase().rpc("claim_quest", {
     p_code: code,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(`Claim quest failed: ${error.message}`);
 
   const row = (data ?? {}) as Record<string, unknown>;
   return {
     code: String(row.code ?? code),
     xpAwarded: Number(row.xpAwarded ?? 0),
     totalXp: Number(row.totalXp ?? 0),
+    alreadyClaimed: Boolean(row.alreadyClaimed),
   };
 }

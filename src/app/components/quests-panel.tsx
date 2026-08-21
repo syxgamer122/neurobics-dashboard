@@ -170,10 +170,15 @@ export function QuestsPanel({
     setBusy(code);
     try {
       const res = await claimQuest(code);
-      toast.success(s.got(res.xpAwarded));
+      if (res.alreadyClaimed) {
+        toast.info(s.claimed);
+      } else {
+        toast.success(s.got(res.xpAwarded));
+      }
       await load();
       onClaimed?.();
     } catch (err) {
+      logError("Claim quest failed:", err);
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);
