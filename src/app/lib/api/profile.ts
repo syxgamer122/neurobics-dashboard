@@ -15,27 +15,30 @@ import {
 import { logError } from "../logger";
 
 export async function fetchProfile(): Promise<Profile | null> {
-  const { data, error } = await getSupabase()
-    .rpc("get_my_profile")
-    .maybeSingle();
+  const sup = getSupabase();
 
-  if (error) {
-    const msg = describeError(error, "Fetch profile failed");
+  const primary = await sup.rpc("get_my_profile").maybeSingle();
+
+  if (primary.error) {
+    const msg = describeError(primary.error, "Profile service unavailable");
     logError(msg);
     throw new Error(msg);
   }
 
-  if (!data) {
-    // Attempt idempotent profile repair if session is active but profile was missing
-    const { data: repaired, error: repairError } = await getSupabase()
-      .rpc("ensure_my_profile")
-      .maybeSingle();
-    if (!repairError && repaired) {
-      return hydrateProfile(repaired as Profile);
-    }
+  if (primary.data) {
+    return hydrateProfile(primary.data as Profile);
   }
 
-  return data ? hydrateProfile(data as Profile) : null;
+  // Auth User tồn tại nhưng bị thiếu row profile (orphan repair).
+  const repaired = await sup.rpc("ensure_my_profile").maybeSingle();
+
+  if (repaired.error) {
+    const msg = describeError(repaired.error, "Profile initialization failed");
+    logError(msg);
+    throw new Error(msg);
+  }
+
+  return repaired.data ? hydrateProfile(repaired.data as Profile) : null;
 }
 
 /** Persists the user's birth date, which anchors the brain-age calculation. */
@@ -77,7 +80,7 @@ export async function deleteActiveUserAccount(): Promise<void> {
       .filter((k) => k.startsWith("sb-"))
       .forEach((k) => globalThis.localStorage.removeItem(k));
   } catch {
-    /* localStorage may be unavailable â€” signOut already handled the session */
+    /* localStorage may be unavailable — signOut already handled the session */
   }
 }
 

@@ -653,70 +653,7 @@ GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 -- ------------------------------------------------------------------------------
 -- 11. CANONICAL AUTH & PROFILE RPCS
 -- ------------------------------------------------------------------------------
--- 1) get_my_profile: Securely returns the caller's own full decayed profile
-DROP FUNCTION IF EXISTS public.get_my_profile();
-CREATE OR REPLACE FUNCTION public.get_my_profile()
-RETURNS SETOF public.profiles_decayed
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $body$
-  SELECT d.*
-  FROM public.profiles_decayed AS d
-  WHERE auth.uid() IS NOT NULL
-    AND d.id = auth.uid()
-  LIMIT 1;
-$body$;
-
-REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
-
--- 2) ensure_my_profile: Idempotent profile creator if missing for active user
-DROP FUNCTION IF EXISTS public.ensure_my_profile();
-CREATE OR REPLACE FUNCTION public.ensure_my_profile()
-RETURNS SETOF public.profiles_decayed
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $body$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_user record;
-  v_uname text;
-  v_role text := 'user';
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
-    SELECT * INTO v_user FROM auth.users WHERE id = v_uid;
-    v_uname := COALESCE(
-      v_user.raw_user_meta_data->>'username',
-      split_part(v_user.email, '@', 1),
-      'user-' || substr(v_uid::text, 1, 8)
-    );
-    IF (v_user.raw_app_meta_data->>'initial_role') = 'guest' OR v_uname LIKE 'guest-%' THEN
-      v_role := 'guest';
-    END IF;
-
-    INSERT INTO public.profiles (id, username, role, level, total_xp, created_at, last_activity_at)
-    VALUES (v_uid, lower(v_uname), v_role, 1, 0, now(), now())
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
-
-  RETURN QUERY
-  SELECT d.* FROM public.profiles_decayed AS d
-  WHERE d.id = v_uid
-  LIMIT 1;
-END;
-$body$;
-
-REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
-
--- 3) set_my_birth_date: Secure mutation with 13+ age validation
+-- 1) set_my_birth_date: Secure mutation with 13+ age validation
 DROP FUNCTION IF EXISTS public.set_my_birth_date(date);
 CREATE OR REPLACE FUNCTION public.set_my_birth_date(p_birth_date date)
 RETURNS void
@@ -749,7 +686,7 @@ $body$;
 REVOKE ALL ON FUNCTION public.set_my_birth_date(date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_my_birth_date(date) TO authenticated, service_role;
 
--- 4) set_my_avatar: Secure mutation of avatar URL
+-- 2) set_my_avatar: Secure mutation of avatar URL
 DROP FUNCTION IF EXISTS public.set_my_avatar(text);
 CREATE OR REPLACE FUNCTION public.set_my_avatar(p_avatar_url text)
 RETURNS void
@@ -859,9 +796,16 @@ GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated,
 -- 13. CRON JOBS (Safe Deficit-Based Pool Filling)
 -- ------------------------------------------------------------------------------
 DO $do$
+DECLARE
+  v_job_id bigint;
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.unschedule('top_up_ticket_pool');
+    FOR v_job_id IN
+      SELECT jobid FROM cron.job WHERE jobname = 'top_up_ticket_pool'
+    LOOP
+      PERFORM cron.unschedule(v_job_id);
+    END LOOP;
+
     PERFORM cron.schedule(
       'top_up_ticket_pool',
       '* * * * *',

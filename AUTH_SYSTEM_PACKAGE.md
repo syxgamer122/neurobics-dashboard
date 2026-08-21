@@ -1,49 +1,181 @@
-# TỔNG HỢP HỆ THỐNG XÁC THỰC & ĐĂNG NHẬP (AUTH PACKAGE)
+# TỔNG HỢP TOÀN DIỆN HỆ THỐNG XÁC THỰC & ĐĂNG NHẬP (AUTH PACKAGE)
 
-Tài liệu và mã nguồn hoàn chỉnh dành cho AI / Kỹ sư phân tích và xử lý lỗi không đăng nhập được tài khoản.
-
----
-
-## 1. TỔNG QUAN KIẾN TRÚC & CƠ CHẾ ĐĂNG NHẬP (HOW AUTH WORKS)
-
-1. **Cơ chế Email Ảo (Spoofed / Fake Email Auth)**:
-   - Người dùng chỉ đăng ký bằng **Username** và **Password** (không cần nhập email thật).
-   - Hệ thống tự động ánh xạ: `username` -> `username@mindgem.local` (hoặc legacy `username@neurobics.local`).
-2. **Luồng Đăng Ký (`handleSignUp` / `/server/signup`)**:
-   - Client gọi Edge Function `POST /server/signup` kèm Captcha Token và Username/Password.
-   - Server dùng Supabase Service Role Key (`adminClient.auth.admin.createUser`) để tạo Auth User và tự động `email_confirm: true`.
-   - Trigger PostgreSQL `on_auth_user_created` tự động chèn bản ghi tương ứng vào bảng `public.profiles`.
-3. **Luồng Đăng Nhập (`handleLogin`)**:
-   - Client dùng `supabase.auth.signInWithPassword({ email: "${username}@mindgem.local", password })`.
-   - Nếu thất bại do `invalid_credentials`, client thử lại với domain legacy `${username}@neurobics.local`.
-4. **Luồng Nạp Hồ Sơ (`fetchProfile`)**:
-   - Ngay sau khi `signInWithPassword` thành công, client gọi `fetchProfile()`.
-   - Client gọi RPC an toàn: `supabase.rpc("get_my_profile").maybeSingle()`.
-   - Nếu profile chưa tồn tại (tài khoản mồ côi), client tự động gọi RPC `ensure_my_profile()` để tự khởi tạo idempotent.
+Gói tài liệu và mã nguồn hoàn chỉnh dành cho AI / Kỹ sư đánh giá, khắc phục lỗi đăng nhập và bảo mật tài khoản.
 
 ---
 
-## 2. NGUYÊN NHÂN GỐC RỄ & CÁC BẢN SỬA ĐÃ ÁP DỤNG
+## 1. NGUYÊN NHÂN GỐC RỄ LỖI ĐĂNG NHẬP (ROOT CAUSE ANALYSIS)
 
-1. **Sửa lỗi quyền truy cập Profile**:
-   - Đã tạo RPC `get_my_profile()` và `ensure_my_profile()` (SECURITY DEFINER, lọc `WHERE id = auth.uid()`, cấp quyền cho `authenticated, service_role`).
-   - `fetchProfile()` chuyển hoàn toàn sang dùng RPC, không đọc trực tiếp bảng/view `profiles_decayed`.
-2. **Sửa lỗi mật khẩu Guest**:
-   - Trong `/server/signup`, `createUser` đã truyền đúng biến `password: pw` thay vì `password` (undefined).
-   - `user_metadata` gán đúng `username: normalized`.
-   - Tạo mã khôi phục Guest bằng cryptographic RNG (`crypto.getRandomValues`).
-   - Có rollback xóa Auth User nếu bước khởi tạo role/recovery thất bại.
-3. **Sửa lỗi khôi phục tài khoản Guest (`/server/recover`)**:
-   - Tiêu thụ mã nguyên tử: `consumed_at = now()` và kiểm tra `expires_at`.
-4. **Sửa lỗi Logout Guest**:
-   - Cả `onLogout` và `exitGuestToAuth` đều gọi `await handleLogout()` để sign out sạch sẽ phiên Supabase Auth.
-5. **Chuẩn hóa trường Ngày sinh**:
-   - Bổ sung RPC `set_my_birth_date(date)` (xác thực 13+ tuổi) và `set_my_avatar(text)`.
-   - Đồng bộ trường `birth_date` vào `Profile` type, `profiles_decayed` và `PROFILE_COLS`.
+Theo ảnh lỗi thực tế từ Console trình duyệt trên môi trường production (`nguyenhuumanh.vercel.app`):
+```text
+Fetch profile failed: [PGRST202] Could not find the function public.get_my_profile without parameters in the schema cache
+Failed to load resource: .../rest/v1/rpc/get_my_profile:1 the server responded with a status of 404 ()
+```
+
+### Phân tích chi tiết:
+1. **Lệch pha giữa Frontend và Remote Database**:
+   - Mã nguồn frontend gọi RPC `get_my_profile()`.
+   - Tuy nhiên trên Remote Supabase Database của dự án, câu lệnh `CREATE FUNCTION public.get_my_profile()` **chưa được thực thi / apply**.
+   - Do đó PostgREST trả về HTTP 404 (`PGRST202`).
+2. **Nguyên nhân Master Migration bị chậm / nghẽn**:
+   - Master migration `20260930000000_normalize_pending_schema.sql` chứa rất nhiều bảng (XP ledger, anti-cheat, tickets, cron, views...). Nếu 1 statement bất kỳ gặp trục trặc, toàn bộ giao dịch bị rollback dẫn đến `get_my_profile()` không được tạo.
+3. **Giải pháp kiến trúc dứt điểm**:
+   - **Tách riêng migration Bootstrap Auth**: Tạo file `supabase/migrations/20260929990000_auth_profile_bootstrap.sql` chạy trước độc lập. Hai hàm `get_my_profile()` và `ensure_my_profile()` trả về `SETOF public.profiles` độc lập 100%, không phụ thuộc vào bất kỳ view hay extension phức tạp nào.
+   - **Chuẩn hóa `fetchProfile()` trên Frontend**: Gọi `get_my_profile()`, nếu thiếu profile row (tài khoản mồ côi) tự động gọi `ensure_my_profile()` để tự sửa chữa.
 
 ---
 
-## 3. MÃ NGUỒN CHI TIẾT CỦA CÁC FILE LIÊN QUAN
+## 2. HƯỚNG DẪN KIỂM TRA & CHẠY SQL TRỰC TIẾP TRÊN SUPABASE DASHBOARD
+
+### Bước 1: Chạy SQL tạo 2 RPC cốt lõi trong Supabase SQL Editor
+Mở **Supabase Dashboard -> SQL Editor** của dự án và chạy đoạn SQL sau:
+
+```sql
+BEGIN;
+
+-- 1. get_my_profile: không phụ thuộc profiles_decayed
+DROP FUNCTION IF EXISTS public.get_my_profile();
+
+CREATE OR REPLACE FUNCTION public.get_my_profile()
+RETURNS SETOF public.profiles
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE auth.uid() IS NOT NULL
+    AND p.id = auth.uid()
+  LIMIT 1;
+$body$;
+
+REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
+
+-- 2. ensure_my_profile: tự động sửa chữa tài khoản Auth bị thiếu profile
+DROP FUNCTION IF EXISTS public.ensure_my_profile();
+
+CREATE OR REPLACE FUNCTION public.ensure_my_profile()
+RETURNS SETOF public.profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_email text;
+  v_user_metadata jsonb;
+  v_app_metadata jsonb;
+  v_username text;
+  v_role text := 'user';
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = v_uid
+  ) THEN
+    SELECT
+      u.email,
+      COALESCE(u.raw_user_meta_data, '{}'::jsonb),
+      COALESCE(u.raw_app_meta_data, '{}'::jsonb)
+    INTO
+      v_email,
+      v_user_metadata,
+      v_app_metadata
+    FROM auth.users AS u
+    WHERE u.id = v_uid;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Authenticated user not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    -- Ưu tiên phần trước @ của email Auth vì đây là username canonical.
+    v_username := lower(
+      COALESCE(
+        NULLIF(split_part(v_email, '@', 1), ''),
+        NULLIF(btrim(v_user_metadata ->> 'username'), ''),
+        'user-' || substr(replace(v_uid::text, '-', ''), 1, 8)
+      )
+    );
+
+    v_username := regexp_replace(
+      v_username,
+      '[^a-z0-9_.-]+',
+      '-',
+      'g'
+    );
+
+    v_username := left(btrim(v_username, '-.'), 20);
+
+    IF length(v_username) < 3 THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    -- Không cho orphan chiếm username đang được dùng.
+    IF EXISTS (
+      SELECT 1
+      FROM public.profiles AS p
+      WHERE lower(p.username) = lower(v_username)
+        AND p.id <> v_uid
+    ) THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    IF (v_app_metadata ->> 'initial_role') = 'guest' OR v_username LIKE 'guest-%' THEN
+      v_role := 'guest';
+    END IF;
+
+    INSERT INTO public.profiles (
+      id,
+      username,
+      role
+    )
+    VALUES (
+      v_uid,
+      v_username,
+      v_role
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+
+  RETURN QUERY
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE p.id = v_uid
+  LIMIT 1;
+END;
+$body$;
+
+REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+```
+
+### Bước 2: Truy vấn kiểm tra Remote Database
+Chạy câu lệnh kiểm tra sau trên SQL Editor:
+```sql
+SELECT
+  to_regclass('public.profiles') AS profiles_table,
+  to_regprocedure('public.get_my_profile()') AS get_my_profile_rpc,
+  to_regprocedure('public.ensure_my_profile()') AS ensure_my_profile_rpc;
+
+SELECT
+  has_function_privilege('authenticated', 'public.get_my_profile()', 'EXECUTE') AS can_get_profile,
+  has_function_privilege('authenticated', 'public.ensure_my_profile()', 'EXECUTE') AS can_ensure_profile;
+```
+Kết quả phải trả về `get_my_profile()`, `ensure_my_profile()` và cả 2 quyền đều là `true`.
+
+---
+
+## 3. MÃ NGUỒN CHI TIẾT TẤT CẢ CÁC FILE LIÊN QUAN
 
 
 ### 📄 src/app/components/auth-screen.tsx (Frontend UI Component (Auth Screen))
@@ -698,8 +830,6 @@ export async function handleUpgradeGuest(
 import {
   getSupabase,
   describeError,
-  PROFILE_COLS,
-  sanitizeProfile,
   hydrateProfile,
   currentUserId,
   serverPost,
@@ -710,27 +840,30 @@ import {
 import { logError } from "../logger";
 
 export async function fetchProfile(): Promise<Profile | null> {
-  const { data, error } = await getSupabase()
-    .rpc("get_my_profile")
-    .maybeSingle();
+  const sup = getSupabase();
 
-  if (error) {
-    const msg = describeError(error, "Fetch profile failed");
+  const primary = await sup.rpc("get_my_profile").maybeSingle();
+
+  if (primary.error) {
+    const msg = describeError(primary.error, "Profile service unavailable");
     logError(msg);
     throw new Error(msg);
   }
 
-  if (!data) {
-    // Attempt idempotent profile repair if session is active but profile was missing
-    const { data: repaired, error: repairError } = await getSupabase()
-      .rpc("ensure_my_profile")
-      .maybeSingle();
-    if (!repairError && repaired) {
-      return hydrateProfile(repaired as Profile);
-    }
+  if (primary.data) {
+    return hydrateProfile(primary.data as Profile);
   }
 
-  return data ? hydrateProfile(data as Profile) : null;
+  // Auth User tồn tại nhưng bị thiếu row profile (orphan repair).
+  const repaired = await sup.rpc("ensure_my_profile").maybeSingle();
+
+  if (repaired.error) {
+    const msg = describeError(repaired.error, "Profile initialization failed");
+    logError(msg);
+    throw new Error(msg);
+  }
+
+  return repaired.data ? hydrateProfile(repaired.data as Profile) : null;
 }
 
 /** Persists the user's birth date, which anchors the brain-age calculation. */
@@ -747,7 +880,9 @@ export async function saveBirthDate(birthDate: string): Promise<Profile> {
 
   const updated = await fetchProfile();
   if (!updated) {
-    throw new Error("Save birth date succeeded, but profile could not be reloaded.");
+    throw new Error(
+      "Save birth date succeeded, but profile could not be reloaded.",
+    );
   }
   return updated;
 }
@@ -770,7 +905,7 @@ export async function deleteActiveUserAccount(): Promise<void> {
       .filter((k) => k.startsWith("sb-"))
       .forEach((k) => globalThis.localStorage.removeItem(k));
   } catch {
-    /* localStorage may be unavailable â€” signOut already handled the session */
+    /* localStorage may be unavailable — signOut already handled the session */
   }
 }
 
@@ -879,7 +1014,10 @@ export async function uploadAvatar(file: File): Promise<Profile> {
   }
 
   const updated = await fetchProfile();
-  if (!updated) throw new Error("Save avatar succeeded, but profile could not be reloaded.");
+  if (!updated)
+    throw new Error(
+      "Save avatar succeeded, but profile could not be reloaded.",
+    );
   return updated;
 }
 
@@ -904,7 +1042,10 @@ export async function removeAvatar(): Promise<Profile> {
   }
 
   const updated = await fetchProfile();
-  if (!updated) throw new Error("Remove avatar succeeded, but profile could not be reloaded.");
+  if (!updated)
+    throw new Error(
+      "Remove avatar succeeded, but profile could not be reloaded.",
+    );
   return updated;
 }
 
@@ -1748,17 +1889,17 @@ export function registerAuthRoutes(app: Hono): void {
 
         // Cryptographically secure 32-character hex recovery code
         const bytes = crypto.getRandomValues(new Uint8Array(16));
-        recoveryCode = Array.from(bytes, (b) =>
-          b.toString(16).padStart(2, "0"),
-        )
+        recoveryCode = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
           .join("")
           .toUpperCase();
 
         const codeHash = await sha256(recoveryCode);
-        const { error: recoveryErr } = await adminClient.from("account_recovery").insert({
-          user_id: data.user.id,
-          code_hash: codeHash,
-        });
+        const { error: recoveryErr } = await adminClient
+          .from("account_recovery")
+          .insert({
+            user_id: data.user.id,
+            code_hash: codeHash,
+          });
 
         if (recoveryErr) {
           logServerEvent({
@@ -2011,6 +2152,151 @@ export function registerAuthRoutes(app: Hono): void {
     }
   });
 }
+
+```
+
+---
+
+### 📄 supabase/migrations/20260929990000_auth_profile_bootstrap.sql (Standalone Auth & Profile Bootstrap Migration)
+
+```sql
+﻿-- ==============================================================================
+-- 20260929990000_auth_profile_bootstrap.sql
+-- Standalone Auth & Profile Bootstrap RPCs (Zero Dependency on Views)
+-- ==============================================================================
+
+BEGIN;
+
+-- ============================================================
+-- 1. get_my_profile: không phụ thuộc profiles_decayed
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.get_my_profile();
+
+CREATE OR REPLACE FUNCTION public.get_my_profile()
+RETURNS SETOF public.profiles
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE auth.uid() IS NOT NULL
+    AND p.id = auth.uid()
+  LIMIT 1;
+$body$;
+
+REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
+
+-- ============================================================
+-- 2. ensure_my_profile: sửa tài khoản Auth bị thiếu
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.ensure_my_profile();
+
+CREATE OR REPLACE FUNCTION public.ensure_my_profile()
+RETURNS SETOF public.profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $body$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_email text;
+  v_user_metadata jsonb;
+  v_app_metadata jsonb;
+  v_username text;
+  v_role text := 'user';
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = v_uid
+  ) THEN
+    SELECT
+      u.email,
+      COALESCE(u.raw_user_meta_data, '{}'::jsonb),
+      COALESCE(u.raw_app_meta_data, '{}'::jsonb)
+    INTO
+      v_email,
+      v_user_metadata,
+      v_app_metadata
+    FROM auth.users AS u
+    WHERE u.id = v_uid;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Authenticated user not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    -- Ưu tiên phần trước @ của email Auth vì đây là username canonical.
+    v_username := lower(
+      COALESCE(
+        NULLIF(split_part(v_email, '@', 1), ''),
+        NULLIF(btrim(v_user_metadata ->> 'username'), ''),
+        'user-' || substr(replace(v_uid::text, '-', ''), 1, 8)
+      )
+    );
+
+    v_username := regexp_replace(
+      v_username,
+      '[^a-z0-9_.-]+',
+      '-',
+      'g'
+    );
+
+    v_username := left(btrim(v_username, '-.'), 20);
+
+    IF length(v_username) < 3 THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    -- Không cho orphan chiếm username đang được dùng.
+    IF EXISTS (
+      SELECT 1
+      FROM public.profiles AS p
+      WHERE lower(p.username) = lower(v_username)
+        AND p.id <> v_uid
+    ) THEN
+      v_username := 'user-' || substr(replace(v_uid::text, '-', ''), 1, 8);
+    END IF;
+
+    IF (v_app_metadata ->> 'initial_role') = 'guest' OR v_username LIKE 'guest-%' THEN
+      v_role := 'guest';
+    END IF;
+
+    INSERT INTO public.profiles (
+      id,
+      username,
+      role
+    )
+    VALUES (
+      v_uid,
+      v_username,
+      v_role
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+
+  RETURN QUERY
+  SELECT p.*
+  FROM public.profiles AS p
+  WHERE p.id = v_uid
+  LIMIT 1;
+END;
+$body$;
+
+REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
 
 ```
 
@@ -2674,70 +2960,7 @@ GRANT SELECT ON public.public_leaderboard TO authenticated, anon;
 -- ------------------------------------------------------------------------------
 -- 11. CANONICAL AUTH & PROFILE RPCS
 -- ------------------------------------------------------------------------------
--- 1) get_my_profile: Securely returns the caller's own full decayed profile
-DROP FUNCTION IF EXISTS public.get_my_profile();
-CREATE OR REPLACE FUNCTION public.get_my_profile()
-RETURNS SETOF public.profiles_decayed
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $body$
-  SELECT d.*
-  FROM public.profiles_decayed AS d
-  WHERE auth.uid() IS NOT NULL
-    AND d.id = auth.uid()
-  LIMIT 1;
-$body$;
-
-REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
-
--- 2) ensure_my_profile: Idempotent profile creator if missing for active user
-DROP FUNCTION IF EXISTS public.ensure_my_profile();
-CREATE OR REPLACE FUNCTION public.ensure_my_profile()
-RETURNS SETOF public.profiles_decayed
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $body$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_user record;
-  v_uname text;
-  v_role text := 'user';
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'Unauthorized' USING ERRCODE = '42501';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
-    SELECT * INTO v_user FROM auth.users WHERE id = v_uid;
-    v_uname := COALESCE(
-      v_user.raw_user_meta_data->>'username',
-      split_part(v_user.email, '@', 1),
-      'user-' || substr(v_uid::text, 1, 8)
-    );
-    IF (v_user.raw_app_meta_data->>'initial_role') = 'guest' OR v_uname LIKE 'guest-%' THEN
-      v_role := 'guest';
-    END IF;
-
-    INSERT INTO public.profiles (id, username, role, level, total_xp, created_at, last_activity_at)
-    VALUES (v_uid, lower(v_uname), v_role, 1, 0, now(), now())
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
-
-  RETURN QUERY
-  SELECT d.* FROM public.profiles_decayed AS d
-  WHERE d.id = v_uid
-  LIMIT 1;
-END;
-$body$;
-
-REVOKE ALL ON FUNCTION public.ensure_my_profile() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.ensure_my_profile() TO authenticated, service_role;
-
--- 3) set_my_birth_date: Secure mutation with 13+ age validation
+-- 1) set_my_birth_date: Secure mutation with 13+ age validation
 DROP FUNCTION IF EXISTS public.set_my_birth_date(date);
 CREATE OR REPLACE FUNCTION public.set_my_birth_date(p_birth_date date)
 RETURNS void
@@ -2770,7 +2993,7 @@ $body$;
 REVOKE ALL ON FUNCTION public.set_my_birth_date(date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_my_birth_date(date) TO authenticated, service_role;
 
--- 4) set_my_avatar: Secure mutation of avatar URL
+-- 2) set_my_avatar: Secure mutation of avatar URL
 DROP FUNCTION IF EXISTS public.set_my_avatar(text);
 CREATE OR REPLACE FUNCTION public.set_my_avatar(p_avatar_url text)
 RETURNS void
@@ -2880,9 +3103,16 @@ GRANT EXECUTE ON FUNCTION public.search_players(text, integer) TO authenticated,
 -- 13. CRON JOBS (Safe Deficit-Based Pool Filling)
 -- ------------------------------------------------------------------------------
 DO $do$
+DECLARE
+  v_job_id bigint;
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.unschedule('top_up_ticket_pool');
+    FOR v_job_id IN
+      SELECT jobid FROM cron.job WHERE jobname = 'top_up_ticket_pool'
+    LOOP
+      PERFORM cron.unschedule(v_job_id);
+    END LOOP;
+
     PERFORM cron.schedule(
       'top_up_ticket_pool',
       '* * * * *',
@@ -2901,194 +3131,6 @@ BEGIN
   END IF;
 END;
 $do$;
-
-```
-
----
-
-### 📄 docs/adr/0001-fake-email-auth.md (Architecture Decision Record: Fake Email Auth)
-
-```markdown
-# ADR 0001: Fake Email Authentication (Guest Mode)
-
-## Status
-Superseded by [ADR 0007](0007-guest-server-side.md)
-
-## Context
-MindGem cần một cách để người dùng trải nghiệm ngay lập tức (Guest Mode) mà không cần đăng ký rườm rà. Tuy nhiên, hệ thống Supabase sử dụng Row Level Security (RLS) gắn liền với hàm `auth.uid()`, đòi hỏi mọi request sửa đổi dữ liệu (insert/update) phải thuộc về một User được xác thực bởi Supabase Auth.
-
-## Decision
-Chúng ta quyết định tạo ra một luồng "Fake Email" ẩn dưới màn hình "Guest Mode".
-Khi user bấm "Chơi ngay" (Guest), client sẽ tự động sinh ra một email ảo (ví dụ: `guest-uuid@neurobics.local`) và đăng ký nó với Supabase Auth bằng một mật khẩu ngẫu nhiên. Mật khẩu này được lưu trong LocalStorage.
-Về phía backend, hệ thống coi đây là một user hoàn toàn hợp lệ, nhưng trường `role` trong bảng `profiles` sẽ được đánh dấu là `guest`.
-
-## Consequences
-- **Điểm lợi**: Giữ nguyên kiến trúc RLS. Backend không cần viết thêm các ngoại lệ (bypass) bảo mật cho Guest. Khi Guest muốn nâng cấp thành tài khoản thật, chỉ cần Update Email và Password.
-- **Điểm bất lợi**: Gây "rác" database auth nếu Guest không quay lại. (Đã khắc phục bằng Data Retention Policy xóa guest bỏ hoang).
-
-```
-
----
-
-### 📄 docs/adr/0007-guest-server-side.md (Architecture Decision Record: Guest Mode Server Side)
-
-```markdown
-# ADR 0007: Guest Server-Side Provisioning
-
-**Status**: Accepted (Supersedes ADR 0001)
-
-## Context
-In ADR 0001, we implemented a client-side fake-email generator that stored a random password in IndexedDB. This "Guest Local" mode allowed users to play immediately without signing up, computing scores entirely in the browser. 
-
-However, this architecture caused several issues:
-1. **Security/Abuse**: The `/server/submit-round` endpoint had to conditionally bypass JWT validation for guest IDs, making it an open door for spoofing.
-2. **Duplicate Logic**: We had to maintain duplicate scoring algorithms in `src/app/lib/guest.ts` and `supabase/functions/server/routes/scoring.ts`.
-3. **Complexity**: Transitioning a "Guest Local" to a full account required migrating local data to the server, resolving conflicts, and replaying telemetry.
-
-## Decision
-We decided to adopt a **True Auth Server-Side Provisioning** model for guests:
-- Guests are now provisioned by calling `/server/signup` with an empty payload. 
-- The Edge Function generates a secure random UUID-based email and strong password.
-- The signup request is protected by Cloudflare Turnstile to prevent bot abuse.
-- The guest logs in through the standard Supabase Auth flow, receiving a standard JWT.
-- A `role` column in `profiles` is set to `'guest'`.
-- Guest plays are routed through the exact same `/server/submit-round` endpoint as authenticated users.
-
-## Consequences
-- **Positive**: Removed all client-side scoring logic (`guest.ts`). 
-- **Positive**: Closed the unauthenticated endpoint loophole; all requests now require a valid JWT.
-- **Positive**: Transitioning to a real account only requires an `UPDATE profiles SET role = 'user'` (plus changing the email/password via Supabase Auth), rather than migrating data.
-- **Negative**: Guests must be online to initiate their first session (to get the JWT). 
-
-```
-
----
-
-### 📄 docs/adr/0009-guest-account-upgrade.md (Architecture Decision Record: Guest Upgrade)
-
-```markdown
-# ADR-0009: Guest Account Upgrade Strategy
-
-## Trạng thái (Status)
-Accepted (2026-08-16)
-
-## Bối cảnh (Context)
-Người dùng Guest muốn giữ lại dữ liệu khi đổi thiết bị. Trước đây có tài liệu gợi ý chỉ cần gọi `supabase.auth.updateUser` từ client. Tuy nhiên, việc client tự cập nhật không thể thay đổi an toàn trường `role` trong bảng `profiles` (bởi quyền UPDATE trên profiles đã bị khóa). Ngoài ra, nếu cho phép tự do gọi `updateUser`, kẻ tấn công có thể lợi dụng để leo thang đặc quyền.
-
-## Giải pháp (State Machine)
-Sử dụng endpoint đặc quyền trên server: `/server/upgrade-account` kết hợp với hệ thống **State Machine** lưu trong bảng `upgrade_operations`.
-
-Quá trình thăng cấp diễn ra theo 5 bước (State Machine):
-1. **pending_verification**: Guest gọi API `/server/upgrade-account` với email thực. Hệ thống sinh một `upgrade_operations` cho user với trạng thái pending, rồi gọi Supabase Auth gửi OTP.
-2. **email_verified**: User nhập OTP thành công trên Supabase Auth.
-3. **credentials_bound**: Server thiết lập mật khẩu mới do người dùng cung cấp.
-4. **old_sessions_revoked**: Revoke toàn bộ JWT / session cũ của guest proxy để chống rò rỉ.
-Trigger email chỉ chuyển `pending_verification -> email_verified`.
-5. **completed**: Quá trình promote thực sự dùng duy nhất RPC `finalize_guest_upgrade_tx` (chỉ chạy sau khi `old_sessions_revoked` -> khóa upgrade_operation -> xác minh `target_email` & `expired/consumed` -> update `role = user` -> update operation = `completed` -> lưu `upgraded_at` -> commit).
-   Sau hoàn tất: Yêu cầu đăng nhập lại. Các endpoint nhạy cảm từ chối token có `iat < upgraded_at`. Email thay đổi KHÔNG BAO GIỜ tự động thăng cấp role. Việc thăng cấp chỉ diễn ra qua RPC `finalize_guest_upgrade_tx` có khóa `FOR UPDATE` và đối chiếu session.
-
-Yêu cầu CSDL:
-```sql
-CREATE UNIQUE INDEX one_live_upgrade_per_user ON public.upgrade_operations (user_id) 
-WHERE state IN ('pending_verification', 'email_verified', 'credentials_bound', 'old_sessions_revoked');
-```
-
-Các trạng thái lỗi của operation:
-- `expired`: Operation quá hạn.
-- `failed`: Lỗi hệ thống hoặc sai mật khẩu.
-- `cancelled`: Bị thay thế bằng operation mới.
-
-Mỗi transition cần kiểm tra:
-- Operation thuộc đúng user.
-- User hiện vẫn là guest.
-- Email mới khớp với `target_email` của operation.
-- Operation chưa hết hạn và chưa bị consumed.
-- Chỉ có tối đa một operation pending trên mỗi user (unique constraint).
-- Replay attack được xử lý bằng kết quả idempotent.
-
-## Hệ quả (Consequences)
-- Dữ liệu hoàn toàn được giữ nguyên và UUID của tài khoản không đổi.
-- Quy trình đảm bảo bảo mật cao, chống session hijacking.
-
-```
-
----
-
-### 📄 SIGNUP_SECURITY_SETUP.md (Signup Security Setup Guide)
-
-```markdown
-# Thiết lập bảo mật đăng ký Mindgem
-
-## 1. Tạo Cloudflare Turnstile
-
-1. Đăng nhập Cloudflare Dashboard.
-2. Mở **Turnstile** > **Add widget**.
-3. Thêm hostname production của Vercel và `localhost` để thử trên máy.
-4. Chọn **Managed** rồi tạo widget.
-5. Sao chép **Site Key** và **Secret Key**. Không đưa Secret Key vào GitHub/Vercel frontend.
-
-## 2. Cấu hình frontend trên Vercel
-
-Trong Vercel > Project > Settings > Environment Variables, thêm:
-
-```text
-VITE_TURNSTILE_SITE_KEY=<Site Key từ Cloudflare>
-```
-
-Áp dụng cho Production và Preview, sau đó redeploy.
-
-Để chạy local, tạo `.env.local` (file này đã bị Git bỏ qua):
-
-```text
-VITE_TURNSTILE_SITE_KEY=<Site Key từ Cloudflare>
-```
-
-## 3. Tạo rate limiter trong Supabase
-
-Mở Supabase > SQL Editor. Sao chép toàn bộ nội dung file:
-
-```text
-supabase/migrations/20260730_signup_security.sql
-```
-
-Dán vào query mới và bấm **Run**. Migration tạo bảng chỉ lưu SHA-256 của IP, bật RLS và tạo RPC nguyên tử giới hạn 5 lần/15 phút.
-
-## 4. Cài Secret Key cho Edge Function
-
-Không đặt Secret Key trong `.env` của Vercel. Secret này thuộc Supabase Edge Function.
-
-```powershell
-npx supabase login
-npx supabase link --project-ref pujzeomddvquxeacblvr
-npx supabase secrets set TURNSTILE_SECRET_KEY=YOUR_CLOUDFLARE_SECRET_KEY
-```
-
-## 5. Deploy Edge Function
-
-```powershell
-npx supabase functions deploy server
-```
-
-Chỉ push GitHub/Vercel là chưa đủ: `supabase/functions/server/index.tsx` phải được deploy lại lên Supabase.
-
-## 6. Build và deploy frontend
-
-```powershell
-npm run build
-git add .
-git commit -m "Protect signup with Turnstile and rate limiting"
-git push origin main
-```
-
-## 7. Kiểm thử
-
-1. Mở Sign up: widget Turnstile phải xuất hiện.
-2. Khi chưa xác minh, nút Sign up bị khóa.
-3. Xác minh rồi tạo một tài khoản thử.
-4. Gửi quá 5 lần trong 15 phút từ cùng IP: server phải trả HTTP 429.
-5. Trong Supabase Table Editor, `signup_rate_limits` chỉ chứa hash, không chứa IP thô.
-
-Turnstile token được server xác minh qua Siteverify; token hết hạn sau 5 phút và chỉ dùng một lần.
 
 ```
 
