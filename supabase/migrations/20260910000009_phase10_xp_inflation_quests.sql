@@ -205,7 +205,8 @@ BEGIN
   IF v_inserted IS NULL THEN RAISE EXCEPTION 'Quest already claimed'; END IF;
 
   INSERT INTO public.xp_events(user_id, game, round_score, xp_awarded, source_key)
-  VALUES (v_user, 'quest', 0, v_xp);
+  VALUES (v_user, 'quest', 0, v_xp, 'quest:' || p_code || ':' || v_period)
+  ON CONFLICT (user_id, source_key) DO NOTHING;
 
   UPDATE public.profiles
   SET total_xp = coalesce(total_xp, 0) + v_xp
