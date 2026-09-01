@@ -1,50 +1,95 @@
-import { TrendingUp } from "lucide-react";
-
+import { Brain, Sparkles, TrendingUp } from "lucide-react";
 import { useLang } from "../../lib/i18n";
 import { RATING_MAX } from "../../lib/provisional-score";
-import { GlassCard } from "../ui/glass-card";
-import { Label } from "../ui/label";
 
 /** Chi so nhan thuc tong hop (trung binh cac truc dang hoat dong). */
 export function CognitiveIndexCard({ index }: { index: number }) {
   const { t } = useLang();
+  const percentage = Math.min(
+    100,
+    Math.max(0, Math.round((index / RATING_MAX) * 100)),
+  );
 
   return (
-    <GlassCard accent="#00D4FF" className="p-6 flex-1">
-      <Label color="#00D4FF">{t.cognitive_index}</Label>
-      <div className="flex items-baseline gap-2 mt-3 mb-1">
-        <span
-          className="text-7xl font-bold text-foreground"
-          style={{
-            textShadow: "0 0 40px rgba(var(--neuro-cyan-rgb),0.55)",
-          }}
-        >
-          {index}
-        </span>
-        <span className="text-lg text-slate-500">/ {RATING_MAX}</span>
-      </div>
-      <div className="flex items-center gap-2 mb-4">
-        <TrendingUp size={13} className="text-emerald-400" />
-        <span className="text-sm text-emerald-400">{t.balanced_avg}</span>
-      </div>
+    <div
+      className="relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between overflow-hidden shadow-xl"
+      style={{
+        background:
+          "linear-gradient(145deg, rgba(13, 20, 48, 0.8), rgba(8, 14, 32, 0.7))",
+        border: "1px solid rgba(6, 182, 212, 0.2)",
+        backdropFilter: "blur(20px)",
+        boxShadow:
+          "0 12px 36px -8px rgba(0, 0, 0, 0.4), 0 0 24px -4px rgba(6, 182, 212, 0.12)",
+      }}
+    >
+      {/* Background ambient light */}
       <div
-        className="h-1.5 rounded-full overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.06)" }}
-      >
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${(index / RATING_MAX) * 100}%`,
-            background: "linear-gradient(90deg, #00D4FF, #A855F7)",
-            boxShadow: "0 0 14px rgba(var(--neuro-cyan-rgb),0.6)",
-            transition: "width 0.6s ease",
-          }}
-        />
+        className="absolute top-0 right-0 w-44 h-44 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%)",
+        }}
+      />
+
+      <div>
+        {/* Header Label */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
+              <Brain size={16} />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider font-mono text-cyan-400">
+              {t.cognitive_index}
+            </span>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1">
+            <Sparkles size={11} /> {percentage}% Max
+          </span>
+        </div>
+
+        {/* Big Score Display */}
+        <div className="flex items-baseline gap-2 mt-5 mb-2">
+          <span
+            className="text-6xl sm:text-7xl font-extrabold text-foreground tracking-tight font-mono"
+            style={{
+              textShadow: "0 0 30px rgba(6, 182, 212, 0.4)",
+            }}
+          >
+            {index}
+          </span>
+          <span className="text-sm font-semibold text-slate-400 font-mono">
+            / {RATING_MAX}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 mb-5">
+          <TrendingUp size={14} className="text-emerald-400" />
+          <span className="text-xs font-medium text-emerald-400">
+            {t.balanced_avg}
+          </span>
+        </div>
       </div>
-      <div className="flex justify-between mt-1.5">
-        <span className="text-xs text-slate-400">{t.apprentice}</span>
-        <span className="text-xs text-slate-400">{t.mastermind}</span>
+
+      {/* Progress Bar & Scale */}
+      <div>
+        <div className="h-2 rounded-full overflow-hidden bg-slate-800/80 p-0.5 border border-white/5">
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{
+              width: `${percentage}%`,
+              background: "linear-gradient(90deg, #06b6d4, #8b5cf6, #ec4899)",
+              boxShadow: "0 0 12px rgba(6, 182, 212, 0.5)",
+            }}
+          />
+        </div>
+        <div className="flex justify-between items-center mt-2 text-[11px] font-medium text-slate-400">
+          <span>{t.apprentice}</span>
+          <span className="text-slate-300 font-semibold font-mono">
+            {percentage}/100
+          </span>
+          <span>{t.mastermind}</span>
+        </div>
       </div>
-    </GlassCard>
+    </div>
   );
 }

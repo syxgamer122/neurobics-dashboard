@@ -178,108 +178,214 @@ export function PlayArena({
   makeGameHandler: (game: RoundGame) => (telemetry: unknown) => Promise<void>;
 }) {
   const [tab, setTab] = useState<"cognitive" | "arcade">("cognitive");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { isEnabled } = useFeatureFlags();
   const ActiveGame = selectedGame ? GAME_COMPONENTS[selectedGame] : null;
 
   const TABS = [
-    { id: "cognitive" as const, label: "Game Nhận Thức", icon: Brain },
-    { id: "arcade" as const, label: "Arcade", icon: Gamepad2 },
+    { id: "cognitive" as const, label: "LUYỆN TRÍ NÃO", icon: Brain },
+    { id: "arcade" as const, label: "GIẢI TRÍ ARCADE", icon: Gamepad2 },
   ];
+
+  const CATEGORIES = [
+    { id: "all", label: "Tất cả" },
+    { id: "memory", label: "Trí nhớ" },
+    { id: "logic", label: "Logic & Toán" },
+    { id: "speed", label: "Phản xạ & Tốc độ" },
+    { id: "spatial", label: "Không gian" },
+    { id: "focus", label: "Tập trung" },
+  ];
+
+  const filteredGames = GAME_REGISTRY.filter((game) => {
+    const status = game.status as string;
+    if (status === "disabled") return false;
+    if (status === "internal" && !isAdmin) return false;
+    if (!isEnabled(`game_${game.id}`) && !isAdmin) return false;
+
+    // Filter by search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchTitle = game.title.toLowerCase().includes(q);
+      const matchTag = (t[game.tagKey] ?? "").toLowerCase().includes(q);
+      const matchDesc = (t[game.descriptionKey] ?? "")
+        .toLowerCase()
+        .includes(q);
+      if (!matchTitle && !matchTag && !matchDesc) return false;
+    }
+
+    // Filter by category
+    if (selectedCategory !== "all") {
+      if (
+        selectedCategory === "memory" &&
+        !["corsi", "memory", "nback"].includes(game.id)
+      )
+        return false;
+      if (selectedCategory === "logic" && !["math", "sudoku"].includes(game.id))
+        return false;
+      if (
+        selectedCategory === "speed" &&
+        !["reaction", "stroop", "schulte", "trail", "search"].includes(game.id)
+      )
+        return false;
+      if (
+        selectedCategory === "spatial" &&
+        !["mental", "corsi", "memory"].includes(game.id)
+      )
+        return false;
+      if (
+        selectedCategory === "focus" &&
+        !["gonogo", "stroop", "search", "schulte"].includes(game.id)
+      )
+        return false;
+    }
+
+    return true;
+  });
 
   return (
     <>
-      {/* Tab switcher — chỉ hiện khi chưa chọn game nhận thức */}
+      {/* Header controls & tabs when no active game */}
       {!selectedGame && (
-        <div className="flex gap-2 max-w-4xl mx-auto w-full">
-          {TABS.map((tabItem) => {
-            const Icon = tabItem.icon;
-            const isActive = tab === tabItem.id;
-            return (
-              <button
-                key={tabItem.id}
-                type="button"
-                onClick={() => setTab(tabItem.id)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold tracking-widest transition-all duration-200"
-                style={{
-                  background: isActive
-                    ? "rgba(var(--neuro-cyan-rgb),0.15)"
-                    : "rgba(var(--neuro-panel-rgb),0.5)",
-                  border: isActive
-                    ? "1px solid rgba(var(--neuro-cyan-rgb),0.45)"
-                    : "1px solid rgba(var(--neuro-panel-rgb),0.6)",
-                  color: isActive ? "var(--neuro-cyan)" : "var(--neuro-muted)",
-                  boxShadow: isActive
-                    ? "0 0 16px rgba(var(--neuro-cyan-rgb),0.2)"
-                    : "none",
-                }}
-              >
-                <Icon size={13} />
-                {tabItem.label}
-              </button>
-            );
-          })}
+        <div className="max-w-5xl mx-auto w-full space-y-4">
+          {/* Main Top Bar: Mode Tabs + Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-2 rounded-2xl border border-white/5 backdrop-blur-md">
+            {/* Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/5">
+              {TABS.map((tabItem) => {
+                const Icon = tabItem.icon;
+                const isActive = tab === tabItem.id;
+                return (
+                  <button
+                    key={tabItem.id}
+                    type="button"
+                    onClick={() => setTab(tabItem.id)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold font-mono tracking-wider transition-all duration-200"
+                    style={{
+                      background: isActive
+                        ? "linear-gradient(135deg, rgba(var(--neuro-cyan-rgb), 0.25), rgba(var(--neuro-purple-rgb), 0.25))"
+                        : "transparent",
+                      border: isActive
+                        ? "1px solid rgba(var(--neuro-cyan-rgb), 0.4)"
+                        : "1px solid transparent",
+                      color: isActive ? "#ffffff" : "#94a3b8",
+                      boxShadow: isActive
+                        ? "0 0 16px rgba(var(--neuro-cyan-rgb), 0.2)"
+                        : "none",
+                    }}
+                  >
+                    <Icon
+                      size={14}
+                      className={isActive ? "text-cyan-400" : "text-slate-400"}
+                    />
+                    {tabItem.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Search */}
+            {tab === "cognitive" && (
+              <div className="relative flex-1 max-w-xs flex items-center bg-slate-950/50 rounded-xl px-3 py-2 border border-white/5">
+                <Search size={14} className="text-slate-500 mr-2 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm bài tập..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-xs text-foreground placeholder:text-slate-500 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Skill Filter Chips (Cognitive tab) */}
+          {tab === "cognitive" && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {CATEGORIES.map((cat) => {
+                const isCatActive = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium tracking-wide transition-all shrink-0 cursor-pointer"
+                    style={{
+                      background: isCatActive
+                        ? "linear-gradient(135deg, #06b6d4, #8b5cf6)"
+                        : "rgba(255,255,255,0.04)",
+                      color: isCatActive ? "#ffffff" : "#94a3b8",
+                      border: `1px solid ${isCatActive ? "transparent" : "rgba(255,255,255,0.08)"}`,
+                      boxShadow: isCatActive
+                        ? "0 4px 14px rgba(6, 182, 212, 0.3)"
+                        : "none",
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      <div
-        className="flex items-center gap-4 pt-1"
-        style={{ maxWidth: selectedGame ? undefined : undefined }}
-      >
-        <Zap
-          size={14}
-          className="text-neuro-cyan shrink-0"
-          style={{ filter: "drop-shadow(0 0 6px #00D4FF)" }}
-        />
-        <span className="text-xs text-foreground tracking-[0.25em] uppercase font-mono">
-          {t.arena}
-        </span>
-        <div
-          className="flex-1 h-px"
-          style={{
-            background:
-              "linear-gradient(90deg, rgba(var(--neuro-cyan-rgb),0.3), transparent)",
-          }}
-        />
-        {selectedGame && (
+      {/* Breadcrumb / Active Header */}
+      {selectedGame && (
+        <div className="flex items-center justify-between gap-4 max-w-5xl mx-auto w-full pt-1">
+          <div className="flex items-center gap-2.5">
+            <Zap
+              size={15}
+              className="text-cyan-400 shrink-0"
+              style={{ filter: "drop-shadow(0 0 6px #00D4FF)" }}
+            />
+            <span className="text-xs text-foreground font-bold tracking-[0.2em] uppercase font-mono">
+              {t.arena}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() => onSelect(null)}
-            className="flex items-center gap-1.5 text-xs transition-colors"
-            style={{ color: "#00D4FF" }}
+            className="flex items-center gap-1.5 text-xs font-bold font-mono transition-colors text-cyan-400 hover:text-cyan-300 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-cyan-500/20"
           >
             <ChevronRight size={12} className="rotate-180" /> {t.back_to_arena}
           </button>
-        )}
-      </div>
-
-      {!selectedGame && tab === "cognitive" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto w-full page-enter">
-          {GAME_REGISTRY.filter((game) => {
-            const status = game.status as string;
-            if (status === "disabled") return false;
-            if (status === "internal" && !isAdmin) return false;
-            if (!isEnabled(`game_${game.id}`) && !isAdmin) return false;
-            return true;
-          }).map((game) => {
-            const Icon = GAME_ICONS[game.icon];
-            return (
-              <GameTile
-                key={game.id}
-                accent={game.accent}
-                icon={<Icon size={22} />}
-                tag={t[game.tagKey]}
-                title={game.title}
-                desc={t[game.descriptionKey]}
-                playLabel={t.play_now}
-                onPlay={() => onSelect(game.id)}
-              />
-            );
-          })}
         </div>
       )}
 
+      {/* Cognitive Grid */}
+      {!selectedGame && tab === "cognitive" && (
+        <div className="max-w-5xl mx-auto w-full">
+          {filteredGames.length === 0 ? (
+            <div className="text-center py-16 text-slate-400 font-mono text-xs">
+              Không tìm thấy bài tập nào phù hợp từ khóa &quot;{searchQuery}
+              &quot;.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 page-enter">
+              {filteredGames.map((game) => {
+                const Icon = GAME_ICONS[game.icon];
+                return (
+                  <GameTile
+                    key={game.id}
+                    accent={game.accent}
+                    icon={<Icon size={22} />}
+                    tag={t[game.tagKey]}
+                    title={game.title}
+                    desc={t[game.descriptionKey]}
+                    playLabel={t.play_now}
+                    onPlay={() => onSelect(game.id)}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Arcade Tab */}
       {!selectedGame && tab === "arcade" && (
-        <div className="page-enter">
+        <div className="max-w-5xl mx-auto w-full page-enter">
           <ArcadePanel />
         </div>
       )}
