@@ -77,7 +77,7 @@ const flag = (
 
 function inspectShared(t: Telemetry, serverElapsedMs: number): CheatFlag[] {
   const out: CheatFlag[] = [];
-  const timeMs = Number(t?.timeMs);
+  const timeMs = Number(t?.timeMs ?? t?.totalTimeMs);
   if (Number.isFinite(timeMs) && timeMs - serverElapsedMs > 5000) {
     out.push(
       flag("Client time far exceeds server elapsed", "statistical", {
@@ -188,7 +188,7 @@ function inspectMemory(t: Telemetry): CheatFlag[] {
   // timeMs cua Memory la RECALL-ONLY (da tru pha memorize), nen nguong 1200ms
   // moi cap — dat tu thoi timeMs con la wall-clock ca van — la qua cao.
   // ~600ms cho moi cap la san hop ly cho rieng pha recall.
-  const taps = Number(t?.totalTaps);
+  const taps = Number(t?.totalTaps ?? t?.taps);
   const perTap = Number.isFinite(taps) && taps > 0 ? timeMs / taps : null;
   if (perTap !== null && perTap < 90)
     return [flag("Memory pace impossibly fast", "physical", { perTap })];
@@ -262,17 +262,18 @@ function inspectMath(t: Telemetry): CheatFlag[] {
   const out: CheatFlag[] = [];
   const med = median(rts);
   const correct = Number(t?.correct);
-  const total = Number(t?.totalProblems);
-  const difficulty = String(t?.difficulty ?? "");
+  const total = Number(t?.totalProblems ?? t?.total);
+  const difficulty = String(t?.difficulty ?? "").toLowerCase();
   if (med < 250)
     out.push(flag("Math median impossibly low", "physical", { med }));
   const c = cv(rts);
   if (c !== null && c < ROBOT_CV)
     out.push(flag("Math timing too metronomic", "statistical", { cv: c }));
   if (
-    difficulty === "physical" &&
+    difficulty === "hard" &&
     Number.isFinite(correct) &&
     Number.isFinite(total) &&
+    total > 0 &&
     correct === total &&
     med < 1200
   ) {
@@ -509,6 +510,10 @@ export function inspectRound(
   };
 }
 
+export function hasHardFlag(report: CheatReport): boolean {
+  return report.flags.some((f) => f.signal_class === "physical");
+}
+
 export function shouldReject(report: CheatReport): boolean {
   const physicals = report.flags.filter(
     (f) => f.signal_class === "physical",
@@ -520,6 +525,5 @@ export function shouldReject(report: CheatReport): boolean {
 }
 
 export function softFlags(report: CheatReport): CheatFlag[] {
-  // Return flags that are statistical if we didn't reject, or maybe all of them
   return report.flags.filter((f) => f.signal_class === "statistical");
 }

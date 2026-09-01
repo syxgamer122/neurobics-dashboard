@@ -157,6 +157,7 @@ begin
     mental_sessions   = mental_sessions   + case when p_game='mental'   then 1 else 0 end,
     corsi_sessions    = corsi_sessions    + case when p_game='corsi'    then 1 else 0 end,
     trail_sessions    = trail_sessions    + case when p_game='trail'    then 1 else 0 end,
+    search_sessions   = coalesce(search_sessions, 0) + case when p_game='search'   then 1 else 0 end,
     synapse_streak = v_streak,
     last_active_date = v_today,
     total_xp = v_old_xp + v_xp
@@ -208,6 +209,7 @@ as $$
         + coalesce(mental_sessions, 0)
         + coalesce(corsi_sessions, 0)
         + coalesce(trail_sessions, 0)
+        + coalesce(search_sessions, 0)
       ) >= greatest(1, p_min_rounds)
       and cognitive_index is not null
   )
@@ -284,6 +286,7 @@ as $$
         when 'q_play_mental_2'   then 'Play 2 Mental Rotation rounds'
         when 'q_play_corsi_2'    then 'Play 2 Corsi Block rounds'
         when 'q_play_trail_2'    then 'Play 2 Trail Making rounds'
+        when 'q_play_search_2'   then 'Play 2 Visual Search rounds'
         when 'w_rounds_25'       then 'Weekly: finish 25 rounds'
         when 'w_games_7'         then 'Weekly: play 7 different games'
         when 'w_score_800_5'     then 'Weekly: 5 rounds at 800+'
@@ -312,6 +315,7 @@ as $$
         when 'q_play_mental_2'   then 'Chơi Mental Rotation 2 ván'
         when 'q_play_corsi_2'    then 'Chơi Corsi Block 2 ván'
         when 'q_play_trail_2'    then 'Chơi Trail Making 2 ván'
+        when 'q_play_search_2'   then 'Chơi Visual Search 2 ván'
         when 'w_rounds_25'       then 'Tuần: hoàn thành 25 ván'
         when 'w_games_7'         then 'Tuần: chơi 7 trò khác nhau'
         when 'w_score_800_5'     then 'Tuần: 5 ván đạt 800+'
@@ -324,7 +328,7 @@ $$;
 revoke all on function public.quest_title(text, text) from public, anon;
 grant execute on function public.quest_title(text, text) to authenticated;
 
--- get_daily_quests: vòng xoay per-game từ 9 → 11 trò.
+-- get_daily_quests: vòng xoay per-game từ 9 → 12 trò.
 -- Kiểu trả về KHÔNG đổi so với 20260828 nên có thể create or replace.
 
 create or replace function public.get_daily_quests()
@@ -417,8 +421,8 @@ as $$
           'q_play_schulte_2','q_play_sudoku_2','q_play_stroop_2',
           'q_play_reaction_2','q_play_memory_2','q_play_nback_2',
           'q_play_math_2','q_play_gonogo_2','q_play_mental_2',
-          'q_play_corsi_2','q_play_trail_2'
-        ])[mod(seed.n, 11) + 1]
+          'q_play_corsi_2','q_play_trail_2','q_play_search_2'
+        ])[mod(seed.n, 12) + 1]
       end,
       case
         when mod(seed.n, 2) = 0 then daily_agg.games
@@ -427,8 +431,8 @@ as $$
           from daily d
           where d.game = (array[
             'schulte','sudoku','stroop','reaction','memory',
-            'nback','math','gonogo','mental','corsi','trail'
-          ])[mod(seed.n, 11) + 1]
+            'nback','math','gonogo','mental','corsi','trail','search'
+          ])[mod(seed.n, 12) + 1]
         )
       end,
       case
@@ -497,42 +501,42 @@ begin
   from information_schema.columns
   where table_schema = 'public'
     and table_name = 'profiles'
-    and column_name in ('corsi_sessions', 'trail_sessions');
-  if v_cols <> 2 then
-    raise exception 'Thieu cot dem van: mong doi 2, thay %', v_cols;
+    and column_name in ('corsi_sessions', 'trail_sessions', 'search_sessions');
+  if v_cols <> 3 then
+    raise exception 'Thieu cot dem van: mong doi 3, thay %', v_cols;
   end if;
 
-  select pg_get_constraintdef(oid) like '%corsi%' and pg_get_constraintdef(oid) like '%trail%'
+  select pg_get_constraintdef(oid) like '%search%'
     into v_ticket_ok
   from pg_constraint where conname = 'round_tickets_game_check';
-  select pg_get_constraintdef(oid) like '%corsi%' and pg_get_constraintdef(oid) like '%trail%'
+  select pg_get_constraintdef(oid) like '%search%'
     into v_session_ok
   from pg_constraint where conname = 'training_sessions_game_check';
-  select pg_get_constraintdef(oid) like '%corsi%' and pg_get_constraintdef(oid) like '%trail%'
+  select pg_get_constraintdef(oid) like '%search%'
     into v_xp_ok
   from pg_constraint where conname = 'xp_events_game_check';
 
   if not coalesce(v_ticket_ok, false) then
-    raise exception 'round_tickets_game_check chua nhan corsi/trail';
+    raise exception 'round_tickets_game_check chua nhan search';
   end if;
   if not coalesce(v_session_ok, false) then
-    raise exception 'training_sessions_game_check chua nhan corsi/trail';
+    raise exception 'training_sessions_game_check chua nhan search';
   end if;
   if not coalesce(v_xp_ok, false) then
-    raise exception 'xp_events_game_check chua nhan corsi/trail';
+    raise exception 'xp_events_game_check chua nhan search';
   end if;
 
-  select public.quest_xp('q_play_corsi_2') into v_quest_xp;
+  select public.quest_xp('q_play_search_2') into v_quest_xp;
   if coalesce(v_quest_xp, 0) <> 35 then
-    raise exception 'quest_xp(q_play_corsi_2) sai: %', v_quest_xp;
+    raise exception 'quest_xp(q_play_search_2) sai: %', v_quest_xp;
   end if;
 
-  select public.quest_title('q_play_trail_2', 'vi') into v_title;
-  if v_title is null or v_title like 'Play%' or v_title = 'Play Trail 2' then
-    raise exception 'quest_title(q_play_trail_2) chua co ban dich: %', v_title;
+  select public.quest_title('q_play_search_2', 'vi') into v_title;
+  if v_title is null or v_title like 'Play%' or v_title = 'Play Search 2' then
+    raise exception 'quest_title(q_play_search_2) chua co ban dich: %', v_title;
   end if;
 
-  raise notice 'OK: corsi/trail da vao du 3 rang buoc, 2 cot dem van, quest_xp va quest_title';
+  raise notice 'OK: search da vao du 3 rang buoc, cot dem van, quest_xp va quest_title';
 end;
 $$;
 

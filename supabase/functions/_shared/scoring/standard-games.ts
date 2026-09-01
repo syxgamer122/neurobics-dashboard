@@ -219,9 +219,12 @@ export function scoreSudoku(t: Telemetry): ScoredRound {
           )
         : null,
     logic: failed ? clamp(logic * 0.35) : logic,
-    memory: failed
-      ? clamp(MAX * diff * retention * 0.5)
-      : clamp(MAX * diff * retention),
+    memory:
+      placements > 0
+        ? failed
+          ? clamp(MAX * diff * retention * 0.5 * completion)
+          : clamp(MAX * diff * retention * completion)
+        : 0,
   };
   return {
     axes,
@@ -346,7 +349,12 @@ export function scoreMath(t: Telemetry): ScoredRound {
   const timeMs = finite(t?.timeMs, "timeMs", 3_000, 7_200_000);
   const difficulty = String(t?.difficulty ?? "medium");
   if (!(difficulty in MATH_DIFF)) throw new Error("Invalid math difficulty");
-  const totalProblems = int(t?.totalProblems, "totalProblems", 5, 100);
+  const totalProblems = int(
+    t?.totalProblems ?? t?.total,
+    "totalProblems",
+    5,
+    100,
+  );
   const correct = int(t?.correct, "correct", 0, 100);
   const wrong = int(t?.wrong, "wrong", 0, 100);
   const rts = numberArray(t?.rts, "rts", 0, 200);
@@ -365,9 +373,11 @@ export function scoreMath(t: Telemetry): ScoredRound {
     ...NO_AXES,
     logic: clamp(MAX * diff * accuracy),
     speed:
-      clean.length >= 3
+      accuracy > 0 && clean.length >= 3
         ? clamp(speed(clean, target, diff) * (0.55 + 0.45 * accuracy))
-        : null,
+        : accuracy === 0
+          ? 0
+          : null,
   };
   return {
     axes,

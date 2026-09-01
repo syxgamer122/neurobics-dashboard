@@ -9,7 +9,9 @@ import {
   type Profile,
   getAccessToken,
 } from "./internal";
+import { fetchProfile } from "./profile";
 import { logError } from "../logger";
+
 // Signup/login goi thang REST nen van can anon key o day.
 import { SUPABASE_ANON_KEY } from "../supabase-config";
 
@@ -171,13 +173,18 @@ export async function handleUpgradeGuest(
 ): Promise<{ profile: Profile }> {
   const token = await getAccessToken();
   if (!token) throw new Error("Not logged in");
-  const res = await fetch(`${BASE}/upgrade-guest`, {
+  const res = await fetch(`${BASE}/upgrade-account`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ username, email, password, isAdult }),
+    body: JSON.stringify({
+      newUsername: username,
+      newPassword: password,
+      newEmail: email ? email.trim() : undefined,
+      isAdult,
+    }),
   });
   const body = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
@@ -186,5 +193,7 @@ export async function handleUpgradeGuest(
   }
   // Re-login with new credentials to update auth session
   await handleLogin(username, password);
-  return { profile: sanitizeProfile(body.profile as Profile) };
+  const updated = await fetchProfile();
+  if (!updated) throw new Error("Could not load upgraded profile.");
+  return { profile: sanitizeProfile(updated) };
 }

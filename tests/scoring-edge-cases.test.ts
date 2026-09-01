@@ -117,3 +117,222 @@ describe("snap + EMA — don dieu tren toan mien diem", () => {
     }
   });
 });
+
+describe("Milestone 1 — Scoring Engines Edge Cases & Boundary Handling", () => {
+  it("zero-performance rounds return non-negative integer headline without NaN or throwing", async () => {
+    const {
+      scoreSchulte,
+      scoreSudoku,
+      scoreStroop,
+      scoreReaction,
+      scoreMemory,
+      scoreMath,
+    } = await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const {
+      scoreNBack,
+      scoreGoNoGo,
+      scoreMentalRotation,
+      scoreCorsi,
+      scoreTrail,
+      scoreSearch,
+    } = await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+
+    const schulteZero = scoreSchulte({
+      timeMs: 10_000,
+      cells: 25,
+      wrongClicks: 3,
+      hitRts: [],
+      failed: true,
+      modeLabel: "5x5",
+    });
+    expect(schulteZero.headline).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(schulteZero.headline)).toBe(true);
+
+    const sudokuZero = scoreSudoku({
+      timeMs: 10_000,
+      difficulty: "Easy",
+      mistakes: 3,
+      placements: 0,
+      moveRts: [],
+      reEntries: 0,
+      repeatMistakes: 0,
+      failed: true,
+    });
+    expect(sudokuZero.headline).toBeGreaterThanOrEqual(0);
+
+    const stroopZero = scoreStroop({
+      timeMs: 10_000,
+      totalStimuli: 30,
+      wrongClicks: 3,
+      rts: [],
+    });
+    expect(stroopZero.headline).toBeGreaterThanOrEqual(0);
+
+    const reactionZero = scoreReaction({
+      timeMs: 10_000,
+      rts: Array(10).fill(500),
+      falseStarts: 20,
+    });
+    expect(reactionZero.headline).toBeGreaterThanOrEqual(0);
+
+    const memoryZero = scoreMemory({
+      timeMs: 150,
+      clearedLevels: 0,
+      wrongClicks: 3,
+      failed: true,
+    });
+    expect(memoryZero.headline).toBe(0);
+
+    const mathZero = scoreMath({
+      timeMs: 10_000,
+      difficulty: "easy",
+      totalProblems: 20,
+      correct: 0,
+      wrong: 20,
+      rts: Array(20).fill(500),
+    });
+    expect(mathZero.headline).toBe(0);
+
+    const nbackZero = scoreNBack({
+      timeMs: 30_000,
+      n: 2,
+      trials: 24,
+      hits: 0,
+      misses: 7,
+      falseAlarms: 10,
+      rts: [],
+    });
+    expect(nbackZero.headline).toBe(0);
+
+    const gonogoZero = scoreGoNoGo({
+      timeMs: 20_000,
+      trials: 30,
+      goTrials: 20,
+      nogoTrials: 10,
+      hits: 0,
+      misses: 20,
+      falseAlarms: 10,
+      correctRejections: 0,
+      rts: [],
+    });
+    expect(gonogoZero.headline).toBe(0);
+
+    const mentalZero = scoreMentalRotation({
+      timeMs: 20_000,
+      trials: 20,
+      correct: 0,
+      wrong: 20,
+      angles: Array(20).fill(90),
+      mirrors: Array(20).fill(false),
+      correctFlags: Array(20).fill(false),
+      rts: Array(20).fill(1200),
+    });
+    expect(mentalZero.headline).toBe(0);
+
+    const corsiZero = scoreCorsi({
+      timeMs: 900,
+      span: 0,
+      trials: 2,
+      correctTrials: 0,
+      taps: 0,
+      wrongClicks: 2,
+      rts: [],
+    });
+    expect(corsiZero.headline).toBe(0);
+
+    const trailZero = scoreTrail({
+      timeMs: 15_000,
+      nodes: 24,
+      mode: "A",
+      wrongClicks: 30,
+      rts: Array(23).fill(2500),
+    });
+    expect(trailZero.headline).toBeGreaterThanOrEqual(0);
+
+    const searchZero = scoreSearch({
+      timeMs: 35_000,
+      score: 0,
+      mistakes: 15,
+      rts: [],
+    });
+    expect(searchZero.headline).toBe(0);
+  });
+
+  it("handles fast rounds near lower duration bounds without exceptions", async () => {
+    const { scoreReaction, scoreMemory, scoreMath } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const { scoreCorsi, scoreNBack, scoreMentalRotation } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+
+    // Reaction timeMs lower bound: 5ms
+    expect(() =>
+      scoreReaction({
+        timeMs: 1200,
+        rts: Array(10).fill(180),
+        falseStarts: 0,
+      }),
+    ).not.toThrow();
+
+    // Memory timeMs lower bound: 100ms
+    expect(() =>
+      scoreMemory({
+        timeMs: 120,
+        clearedLevels: 0,
+        wrongClicks: 3,
+        failed: true,
+      }),
+    ).not.toThrow();
+
+    // Corsi timeMs lower bound: 800ms
+    expect(() =>
+      scoreCorsi({
+        timeMs: 850,
+        span: 0,
+        trials: 2,
+        correctTrials: 0,
+        taps: 0,
+        wrongClicks: 2,
+        rts: [],
+      }),
+    ).not.toThrow();
+
+    // Math timeMs lower bound: 3000ms
+    expect(() =>
+      scoreMath({
+        timeMs: 3500,
+        difficulty: "easy",
+        totalProblems: 5,
+        correct: 5,
+        wrong: 0,
+        rts: Array(5).fill(600),
+      }),
+    ).not.toThrow();
+
+    // NBack timeMs lower bound: 3000ms
+    expect(() =>
+      scoreNBack({
+        timeMs: 3500,
+        n: 2,
+        trials: 10,
+        hits: 2,
+        misses: 0,
+        falseAlarms: 0,
+        rts: [300, 320],
+      }),
+    ).not.toThrow();
+
+    // Mental timeMs lower bound: 8000ms
+    expect(() =>
+      scoreMentalRotation({
+        timeMs: 8500,
+        trials: 20,
+        correct: 20,
+        wrong: 0,
+        angles: Array(20).fill(60),
+        mirrors: Array(20).fill(false),
+        correctFlags: Array(20).fill(true),
+        rts: Array(20).fill(400),
+      }),
+    ).not.toThrow();
+  });
+});

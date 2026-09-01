@@ -67,6 +67,28 @@ export async function getOfflineQueue(
   }
 }
 
+/**
+ * Safely execute an asynchronous operation with Web Locks API if available,
+ * falling back to immediate direct execution if navigator.locks is unavailable.
+ */
+export async function withLock<T>(
+  name: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (typeof navigator !== "undefined" && navigator?.locks?.request) {
+    try {
+      return await navigator.locks.request(name, fn);
+    } catch (err) {
+      logError(
+        `WebLock [${name}] acquisition failed, executing fallback:`,
+        err,
+      );
+      return await fn();
+    }
+  }
+  return await fn();
+}
+
 export async function pushOfflineRound(
   userId: string,
   round: Omit<
@@ -75,37 +97,34 @@ export async function pushOfflineRound(
   >,
 ): Promise<boolean> {
   try {
-    return await navigator.locks.request(
-      "offline-queue-" + userId,
-      async () => {
-        const currentQueue = await getOfflineQueue(userId);
-        if (currentQueue.length >= MAX_QUEUE) {
-          throw new Error(
-            "Offline queue is full (max 200 rounds). Please connect to the internet to sync.",
-          );
-        }
+    return await withLock("offline-queue-" + userId, async () => {
+      const currentQueue = await getOfflineQueue(userId);
+      if (currentQueue.length >= MAX_QUEUE) {
+        throw new Error(
+          "Offline queue is full (max 200 rounds). Please connect to the internet to sync.",
+        );
+      }
 
-        const payload: OfflineRoundPayload = {
-          ...round,
-          clientRoundId: crypto.randomUUID(),
-          schemaVersion: TELEMETRY_SCHEMA_VERSION,
-          createdAt: new Date().toISOString(),
-          userId,
-        };
+      const payload: OfflineRoundPayload = {
+        ...round,
+        clientRoundId: crypto.randomUUID(),
+        schemaVersion: TELEMETRY_SCHEMA_VERSION,
+        createdAt: new Date().toISOString(),
+        userId,
+      };
 
-        const db = await openDB();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(STORE_NAME, "readwrite");
-          const store = tx.objectStore(STORE_NAME);
-          store.put(payload);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
+      const db = await openDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.put(payload);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
 
-        window.dispatchEvent(new Event("offline-queue-updated"));
-        return true;
-      },
-    );
+      window.dispatchEvent(new Event("offline-queue-updated"));
+      return true;
+    });
   } catch (err) {
     logError("Failed to push to offline queue:", err);
     return false;
@@ -148,7 +167,7 @@ export async function syncOfflineQueue(
   let batches = 0;
 
   try {
-    await navigator.locks.request("offline-sync-" + userId, async () => {
+    await withLock("offline-sync-" + userId, async () => {
       while (batches < 8) {
         const ownedSnapshot = await getOfflineQueue(userId);
         if (ownedSnapshot.length === 0) break;

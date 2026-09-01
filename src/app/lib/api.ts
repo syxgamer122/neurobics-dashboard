@@ -114,3 +114,11 @@ export {
   type GameDefinition,
   type SessionColumn,
 } from "./game-registry";
+export {
+  fetchFeatureFlags,
+  adminUpdateFeatureFlag,
+  hashRollout,
+  evaluateFlag,
+  type FeatureFlag,
+  type FeatureFlagUpdate,
+} from "./api/flags";

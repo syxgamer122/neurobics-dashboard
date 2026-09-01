@@ -415,6 +415,14 @@ export type TrailTelemetry = BaseTelemetry & {
   rts: number[];
 };
 
+export type VisualSearchTelemetry = BaseTelemetry & {
+  timeMs: number;
+  score: number;
+  mistakes: number;
+  rts: number[];
+  totalTimeMs?: number;
+};
+
 /** Headline number shown on the round overlay: the best axis earned this round. */
 
 // ─── Server is the only scorer ─────────────────────────────────────────

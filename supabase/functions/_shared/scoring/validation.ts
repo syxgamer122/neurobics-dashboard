@@ -43,6 +43,12 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
     "mistakes",
     "correct",
     "wrong",
+    "total",
+    "totalProblems",
+    "score",
+    "clearedLevels",
+    "totalTaps",
+    "totalTimeMs",
     "hits",
     "misses",
     "falseAlarms",
@@ -81,7 +87,7 @@ export function assertCountBounds(game: Game, telemetry: unknown): void {
   if (game === "math") {
     const correct = num("correct");
     const wrong = num("wrong");
-    const total = num("total");
+    const total = num("totalProblems") ?? num("total");
     if (
       correct !== null &&
       wrong !== null &&

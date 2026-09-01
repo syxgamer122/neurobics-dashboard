@@ -77,6 +77,7 @@ export function CorsiBlockGame({
   const bestSpanRef = useRef(0);
   const livesRef = useRef(0);
   const inputTypesRef = useRef<Set<InputType>>(new Set());
+  const startedAtRef = useRef(0);
 
   const resetRunMetrics = useCallback(() => {
     trialsRef.current = 0;
@@ -152,8 +153,12 @@ export function CorsiBlockGame({
       if (inputTypesRef.current.has("touch")) finalInput = "touch";
       else if (inputTypesRef.current.has("key")) finalInput = "key";
 
+      const elapsed = Math.max(
+        1,
+        Date.now() - (startedAtRef.current || Date.now()),
+      );
       await onComplete({
-        timeMs: Math.max(1, Math.round(recallMsRef.current)),
+        timeMs: elapsed,
         span: bestSpanRef.current,
         trials: trialsRef.current,
         correctTrials: correctTrialsRef.current,
@@ -171,6 +176,7 @@ export function CorsiBlockGame({
 
   const startGame = () => {
     onPlayStart?.();
+    startedAtRef.current = Date.now();
     clearTimers();
     resetRunMetrics();
 
