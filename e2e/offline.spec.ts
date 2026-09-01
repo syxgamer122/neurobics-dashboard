@@ -36,7 +36,7 @@ test.describe("Offline Sync", () => {
     await page.route("**/server/submit-round", (route) => {
       route.abort("failed");
     });
-    await page.route("**/server/start-round", (route) => {
+    await page.route("**/server/activate-round", (route) => {
       route.abort("failed");
     });
 

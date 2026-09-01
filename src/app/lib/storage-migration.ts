@@ -9,10 +9,17 @@ import { captureEvent } from "./observability";
 const LEGACY_PREFIXES = ["mindgem."] as const;
 
 export function migrateLegacyStorageKeys(): void {
-  let count = 0;
+  // Chup danh sach key truoc khi xoa: removeItem() trong vong lap chi toi
+  // lam cac key sau do doi chi so ve truoc, neu tang i nhu binh thuong thi
+  // bi BO QUA moi key dung ngay sau mot key vua migrate.
+  const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key) continue;
+    if (key) keys.push(key);
+  }
+
+  let count = 0;
+  for (const key of keys) {
     const legacy = LEGACY_PREFIXES.find((p) => key.startsWith(p));
     if (!legacy) continue;
     const nextKey = key.replace(legacy, "neurobics.");

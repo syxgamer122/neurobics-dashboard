@@ -8,7 +8,13 @@
  * Migration tương ứng: supabase/migrations/20260825_achievement_depth.sql
  */
 
-import { GAME_IDS } from "./game-registry";
+/**
+ * Ngưỡng "all_games" PHÍA SERVER (sync_achievements_for: games >= 9,
+ * get_achievement_progress: least(games, 9) / 9). Nhãn phải ghi đúng con số
+ * này — dùng GAME_IDS.length (12) sẽ sai lệch với điều kiện mở khoá và thanh
+ * progress x/9 mà server trả về.
+ */
+const ALL_GAMES_BADGE_TARGET = 9;
 
 export type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "diamond";
 
@@ -265,8 +271,8 @@ export const BADGES: Badge[] = [
     xp: 80,
     tier: "silver",
     category: "breadth",
-    vi: ["Toàn năng", `Chơi đủ ${GAME_IDS.length} trò`],
-    en: ["All-Rounder", `Play all ${GAME_IDS.length} games`],
+    vi: ["Toàn năng", `Chơi đủ ${ALL_GAMES_BADGE_TARGET} trò`],
+    en: ["All-Rounder", `Play all ${ALL_GAMES_BADGE_TARGET} games`],
   },
   {
     code: "all_games_10",

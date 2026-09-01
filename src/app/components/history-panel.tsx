@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -87,7 +88,12 @@ export function HistoryPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Chong stale-response: doi filter nhanh thi response cu (cho filter truoc)
+  // co the ve sau va dinh de du lieu cua filter moi.
+  const loadSeqRef = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -95,12 +101,14 @@ export function HistoryPanel() {
         fetchTrainingHistory({ game: filter, limit: 100 }),
         fetchPersonalBests(),
       ]);
+      if (seq !== loadSeqRef.current) return;
       setSessions(rows);
       setBests(pbs);
     } catch (err) {
+      if (seq !== loadSeqRef.current) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }, [filter]);
 

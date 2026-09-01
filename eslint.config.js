@@ -30,6 +30,7 @@ export default tseslint.config(
       "public",
       "android",
       ".github",
+      ".smoke-mock-server.mjs",
       "sql-chia-nho",
       // Chay tren Deno + npm: specifier. CI da co buoc `deno check` rieng.
       "supabase/functions",

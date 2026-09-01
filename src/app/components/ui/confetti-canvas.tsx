@@ -81,6 +81,9 @@ export function ConfettiCanvas({ accent }: { accent: string }) {
       canvas.height = window.innerHeight;
     };
     resize();
+    // resize() duoc dinh nghia ma khong bao gio duoc dang ky listener:
+    // xoay man hinh / resize cua so de canvas giu kich thuoc cu.
+    window.addEventListener("resize", resize);
 
     const tick = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -133,7 +136,10 @@ export function ConfettiCanvas({ accent }: { accent: string }) {
     };
 
     animId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animId);
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(animId);
+    };
   }, [accent]);
 
   return (

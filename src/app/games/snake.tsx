@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useOnHidden } from "../lib/game-utils";
+import {
+  readIntStorage,
+  useOnHidden,
+  writeBestHigher,
+} from "../lib/game-utils";
 
 export function SnakeGame({
   onGameOver,
@@ -11,10 +15,9 @@ export function SnakeGame({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
-  const [bestScore, setBestScore] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return parseInt(localStorage.getItem("snakeBest") || "0");
-  });
+  const [bestScore, setBestScore] = useState(() =>
+    readIntStorage("snakeBest", 0),
+  );
   const [level, setLevel] = useState(1);
   const [gameState, setGameState] = useState<
     "idle" | "playing" | "dead" | "paused"
@@ -396,7 +399,7 @@ export function SnakeGame({
         setGameState("dead");
         if (scoreRef.current > bestScoreRef.current) {
           setBestScore(scoreRef.current);
-          localStorage.setItem("snakeBest", scoreRef.current.toString());
+          writeBestHigher("snakeBest", scoreRef.current);
         }
         if (onGameOverRef.current) onGameOverRef.current(scoreRef.current);
         return;

@@ -488,15 +488,17 @@ export function DinoGame({
       gs.clouds.forEach((cl) => drawCloud(cl));
       drawGround();
 
-      if (currentGameState === "dead" || currentGameState === "paused") {
-        gs.obstacles.forEach((o) => drawObstacle(o));
-      } else {
-        gs.obstacles.forEach((o) => drawObstacle(o));
-      }
+      gs.obstacles.forEach((o) => drawObstacle(o));
 
       drawDino();
 
-      if (scoreSpanRef.current && Math.floor(gs.frame) % 3 === 0) {
+      // Chi ghi DOM khi dang choi: frame/score da dong bang o trang thai khac,
+      // ghi tiep se de nhau len gia tri React render (vd "00000" sau CHƠI LẠI).
+      if (
+        scoreSpanRef.current &&
+        currentGameState === "playing" &&
+        Math.floor(gs.frame) % 3 === 0
+      ) {
         scoreSpanRef.current.textContent = Math.floor(gs.score)
           .toString()
           .padStart(5, "0");

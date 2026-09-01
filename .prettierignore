@@ -2,6 +2,7 @@ dist
 coverage
 node_modules
 android
+.smoke-mock-server.mjs
 pnpm-lock.yaml
 public/sw.js
 sql-chia-nho
