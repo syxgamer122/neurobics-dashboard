@@ -270,18 +270,17 @@ function ShapeView({
   return (
     <div className="flex flex-col items-center gap-2">
       <div
-        className="rounded-2xl flex items-center justify-center shrink-0"
+        className="rounded-2xl flex items-center justify-center shrink-0 p-2"
         style={{
-          width: "min(42vw, 148px)",
-          height: "min(42vw, 148px)",
+          width: "min(40vw, 180px)",
+          height: "min(40vw, 180px)",
           background: "rgba(var(--neuro-ink-rgb),0.75)",
           border: `1px solid ${ACCENT}33`,
           boxShadow: `inset 0 0 24px ${ACCENT}14`,
         }}
       >
         <svg
-          width={VIEW}
-          height={VIEW}
+          className="w-full h-full"
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           aria-hidden
         >

@@ -424,7 +424,7 @@ export function CorsiBlockGame({
 
           <div
             className="grid grid-cols-3 gap-3"
-            style={{ width: "100%", maxWidth: 300 }}
+            style={{ width: "100%", maxWidth: "min(88vw, 360px)" }}
           >
             {Array.from({ length: GRID_SIZE }, (_, cell) => {
               const state = cellState(cell);

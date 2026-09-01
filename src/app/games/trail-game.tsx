@@ -368,9 +368,9 @@ export function TrailMakingGame({
                     left: `${node.x}%`,
                     top: `${node.y}%`,
                     transform: "translate(-50%, -50%)",
-                    width: 50,
-                    height: 50,
-                    fontSize: 15,
+                    width: "clamp(38px, 9vw, 50px)",
+                    height: "clamp(38px, 9vw, 50px)",
+                    fontSize: "clamp(12px, 3.2vw, 16px)",
                     touchAction: "manipulation",
                     background: isWrong
                       ? "rgba(var(--neuro-red-rgb),0.35)"
