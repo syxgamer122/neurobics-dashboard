@@ -160,6 +160,7 @@ export function AppRouter({
 
         {activePage === "dashboard" && (
           <>
+            {/* Beginner Calibration Banner if uncalibrated */}
             {(roundsPlayed < CALIBRATION_TARGET || showCalibrationComplete) && (
               <CalibrationBanner
                 played={roundsPlayed}
@@ -169,6 +170,65 @@ export function AppRouter({
               />
             )}
 
+            {/* Welcome & Quick Workout Hero Banner */}
+            <div
+              className="relative rounded-3xl p-6 sm:p-8 overflow-hidden shadow-2xl transition-all"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(139, 92, 246, 0.18) 50%, rgba(13, 20, 48, 0.7) 100%)",
+                border: "1px solid rgba(6, 182, 212, 0.25)",
+                backdropFilter: "blur(20px)",
+              }}
+            >
+              {/* Background ambient orbs */}
+              <div
+                className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%)",
+                }}
+              />
+              <div
+                className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%)",
+                }}
+              />
+
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="space-y-2 max-w-2xl">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold font-mono uppercase text-cyan-300 bg-cyan-500/15 border border-cyan-500/30">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                    DAILY BRAIN WORKOUT
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                    Xin chào, {profile.username}! 👋
+                  </h1>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Khởi động và nâng cao 5 nhóm năng lực nhận thức não bộ: Trí
+                    nhớ, Tập trung, Logic, Không gian và Phản xạ tốc độ.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePage("play")}
+                  className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-2xl text-sm font-extrabold text-white tracking-wider font-mono shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)",
+                    boxShadow:
+                      "0 8px 24px -4px rgba(6, 182, 212, 0.5), 0 0 20px rgba(139, 92, 246, 0.3)",
+                  }}
+                >
+                  <span className="text-lg">⚡</span>
+                  <span>BẮT ĐẦU BÀI TẬP NGAY</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cognitive Matrix & Stats Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="flex flex-col gap-5">
                 <CognitiveIndexCard index={displayIndex(profile)} />
@@ -184,7 +244,8 @@ export function AppRouter({
               </ErrorBoundary>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 mt-5">
+            {/* Level and XP progress */}
+            <div className="grid grid-cols-1 gap-5">
               <LevelCard
                 levelProgress={levelProgress}
                 levelColor={levelColor}
@@ -192,8 +253,9 @@ export function AppRouter({
               />
             </div>
 
+            {/* Quests and Achievements for Registered Users */}
             {!isGuest && (
-              <div className="mt-5 space-y-5">
+              <div className="space-y-5">
                 <QuestsPanel
                   refreshKey={gamificationKey}
                   onClaimed={() => {
