@@ -561,55 +561,104 @@ export function DinoGame({
         </span>
       </div>
 
+      {/* Mobile Touch Action Bar */}
+      {gameState === "playing" && (
+        <div className="absolute bottom-6 inset-x-0 px-6 flex justify-between items-center pointer-events-auto sm:hidden">
+          <button
+            type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              handleDuck(true);
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              handleDuck(false);
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              handleDuck(true);
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              handleDuck(false);
+            }}
+            className="w-20 h-20 rounded-2xl bg-slate-900/80 border-2 border-emerald-500/50 active:bg-emerald-500/30 flex flex-col items-center justify-center text-emerald-400 font-mono font-bold shadow-lg active:scale-95 transition-all select-none"
+          >
+            <span className="text-xl">⬇️</span>
+            <span className="text-[10px] tracking-widest mt-1">CÚI</span>
+          </button>
+
+          <button
+            type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              handleJump();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              handleJump();
+            }}
+            className="w-20 h-20 rounded-2xl bg-slate-900/80 border-2 border-emerald-500/50 active:bg-emerald-500/30 flex flex-col items-center justify-center text-emerald-400 font-mono font-bold shadow-lg active:scale-95 transition-all select-none"
+          >
+            <span className="text-xl">⬆️</span>
+            <span className="text-[10px] tracking-widest mt-1">NHẢY</span>
+          </button>
+        </div>
+      )}
+
       {/* Overlays */}
       {gameState === "idle" && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto"
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-[2px]"
           onClick={handleJump}
         >
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+          <div className="text-4xl mb-2 animate-bounce">🦕</div>
+          <h2 className="text-3xl font-extrabold text-white mb-2 tracking-widest font-mono drop-shadow-md">
             T-REX RUNNER
           </h2>
-          <p className="text-emerald-400 font-mono tracking-widest animate-pulse">
-            PRESS SPACE / TAP TO START
+          <p className="text-emerald-400 font-mono text-sm tracking-widest animate-pulse">
+            BẤM PHÍM CÁCH / CHẠM ĐỂ CHƠI
           </p>
         </div>
       )}
 
       {gameState === "paused" && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/50 backdrop-blur-sm"
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm"
           onClick={() => {
             gameStateRef.current = "playing";
             setGameState("playing");
           }}
         >
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
-            PAUSED
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest font-mono">
+            TẠM DỪNG
           </h2>
           <p className="text-emerald-400 font-mono tracking-widest animate-pulse">
-            TAP TO RESUME
+            CHẠM ĐỂ TIẾP TỤC
           </p>
         </div>
       )}
 
       {gameState === "dead" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2">GAME OVER</h2>
-          <p className="text-white/80 font-mono mb-4 text-lg">
-            SCORE: {Math.floor(score)}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/70 backdrop-blur-md animate-[fadeIn_0.2s]">
+          <h2 className="text-3xl font-black text-rose-500 mb-2 tracking-wider font-mono">
+            GAME OVER
+          </h2>
+          <p className="text-white/90 font-mono mb-2 text-xl font-bold">
+            ĐIỂM: {Math.floor(score)}
           </p>
-          <p className="text-white/60 font-mono mb-8 text-sm">
-            BEST: {Math.floor(bestScore)}
+          <p className="text-emerald-400 font-mono mb-8 text-sm">
+            KỶ LỤC: {Math.floor(bestScore)}
           </p>
           <button
+            type="button"
             onClick={() => {
               setGameState("idle");
               setScore(0);
             }}
-            className="px-6 py-3 bg-emerald-500/20 border border-emerald-500 text-emerald-400 rounded-xl font-mono tracking-widest hover:bg-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all"
+            className="px-8 py-3.5 bg-emerald-500 text-slate-950 font-extrabold rounded-xl font-mono tracking-widest hover:scale-105 shadow-[0_0_24px_rgba(16,185,129,0.6)] transition-all cursor-pointer"
           >
-            {"PLAY AGAIN"}
+            CHƠI LẠI
           </button>
         </div>
       )}

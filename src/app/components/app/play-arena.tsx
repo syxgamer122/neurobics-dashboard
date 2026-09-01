@@ -249,9 +249,9 @@ export function PlayArena({
       {!selectedGame && (
         <div className="max-w-5xl mx-auto w-full space-y-4">
           {/* Main Top Bar: Mode Tabs + Search */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-2 rounded-2xl border border-white/5 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white/85 dark:bg-slate-900/50 p-2.5 rounded-2xl border border-slate-200/80 dark:border-white/5 shadow-sm backdrop-blur-md">
             {/* Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/5">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/5">
               {TABS.map((tabItem) => {
                 const Icon = tabItem.icon;
                 const isActive = tab === tabItem.id;
@@ -260,7 +260,7 @@ export function PlayArena({
                     key={tabItem.id}
                     type="button"
                     onClick={() => setTab(tabItem.id)}
-                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold font-mono tracking-wider transition-all duration-200"
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold font-mono tracking-wider transition-all duration-200 cursor-pointer"
                     style={{
                       background: isActive
                         ? "linear-gradient(135deg, rgba(var(--neuro-cyan-rgb), 0.25), rgba(var(--neuro-purple-rgb), 0.25))"
@@ -268,15 +268,21 @@ export function PlayArena({
                       border: isActive
                         ? "1px solid rgba(var(--neuro-cyan-rgb), 0.4)"
                         : "1px solid transparent",
-                      color: isActive ? "#ffffff" : "#94a3b8",
+                      color: isActive
+                        ? "var(--foreground)"
+                        : "var(--neuro-muted)",
                       boxShadow: isActive
-                        ? "0 0 16px rgba(var(--neuro-cyan-rgb), 0.2)"
+                        ? "0 0 16px rgba(var(--neuro-cyan-rgb), 0.15)"
                         : "none",
                     }}
                   >
                     <Icon
                       size={14}
-                      className={isActive ? "text-cyan-400" : "text-slate-400"}
+                      className={
+                        isActive
+                          ? "text-cyan-600 dark:text-cyan-400"
+                          : "text-slate-400"
+                      }
                     />
                     {tabItem.label}
                   </button>
@@ -286,14 +292,14 @@ export function PlayArena({
 
             {/* Quick Search */}
             {tab === "cognitive" && (
-              <div className="relative flex-1 max-w-xs flex items-center bg-slate-950/50 rounded-xl px-3 py-2 border border-white/5">
-                <Search size={14} className="text-slate-500 mr-2 shrink-0" />
+              <div className="relative flex-1 max-w-xs flex items-center bg-slate-100 dark:bg-slate-950/50 rounded-xl px-3 py-2 border border-slate-200 dark:border-white/5">
+                <Search size={14} className="text-slate-400 mr-2 shrink-0" />
                 <input
                   type="text"
                   placeholder="Tìm kiếm bài tập..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-xs text-foreground placeholder:text-slate-500 focus:outline-none"
+                  className="w-full bg-transparent text-xs text-foreground placeholder:text-slate-400 focus:outline-none"
                 />
               </div>
             )}
@@ -309,13 +315,15 @@ export function PlayArena({
                     key={cat.id}
                     type="button"
                     onClick={() => setSelectedCategory(cat.id)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium tracking-wide transition-all shrink-0 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shrink-0 cursor-pointer"
                     style={{
                       background: isCatActive
                         ? "linear-gradient(135deg, #06b6d4, #8b5cf6)"
-                        : "rgba(255,255,255,0.04)",
-                      color: isCatActive ? "#ffffff" : "#94a3b8",
-                      border: `1px solid ${isCatActive ? "transparent" : "rgba(255,255,255,0.08)"}`,
+                        : "rgba(var(--neuro-panel-rgb), 0.8)",
+                      color: isCatActive ? "#ffffff" : "var(--neuro-muted)",
+                      border: isCatActive
+                        ? "1px solid transparent"
+                        : "1px solid rgba(var(--neuro-muted-rgb, 100, 116, 139), 0.2)",
                       boxShadow: isCatActive
                         ? "0 4px 14px rgba(6, 182, 212, 0.3)"
                         : "none",

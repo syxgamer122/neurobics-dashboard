@@ -20,19 +20,10 @@ export function LevelCard({
   const progressPct = Math.min(100, Math.round(levelProgress.progress * 100));
 
   return (
-    <div
-      className="relative rounded-3xl p-6 sm:p-7 flex flex-col md:flex-row items-stretch md:items-center gap-6 overflow-hidden shadow-xl"
-      style={{
-        background:
-          "linear-gradient(145deg, rgba(13, 20, 48, 0.8), rgba(8, 14, 32, 0.7))",
-        border: `1px solid ${levelColor}33`,
-        backdropFilter: "blur(20px)",
-        boxShadow: `0 12px 36px -8px rgba(0, 0, 0, 0.4), 0 0 20px -4px ${levelColor}18`,
-      }}
-    >
+    <div className="relative rounded-3xl p-6 sm:p-7 flex flex-col md:flex-row items-stretch md:items-center gap-6 overflow-hidden shadow-lg shadow-slate-200/50 dark:shadow-2xl border border-slate-200/80 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl transition-all">
       {/* Background ambient light */}
       <div
-        className="absolute bottom-0 right-0 w-48 h-48 rounded-full pointer-events-none"
+        className="absolute bottom-0 right-0 w-48 h-48 rounded-full pointer-events-none opacity-50 dark:opacity-100"
         style={{
           background: `radial-gradient(circle, ${levelColor}15 0%, transparent 70%)`,
         }}
@@ -43,14 +34,14 @@ export function LevelCard({
         <div
           className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-lg relative group"
           style={{
-            background: `linear-gradient(135deg, ${levelColor}, ${levelColor}88)`,
-            boxShadow: `0 0 28px ${levelColor}55`,
+            background: `linear-gradient(135deg, ${levelColor}, ${levelColor}aa)`,
+            boxShadow: `0 0 28px ${levelColor}44`,
           }}
         >
           <span className="text-2xl sm:text-3xl font-extrabold text-white leading-none font-mono">
             {levelProgress.level}
           </span>
-          <span className="text-[9px] tracking-widest text-white/80 font-bold font-mono uppercase mt-0.5">
+          <span className="text-[9px] tracking-widest text-white/90 font-bold font-mono uppercase mt-0.5">
             LEVEL
           </span>
         </div>
@@ -68,7 +59,9 @@ export function LevelCard({
           </span>
           <div className="text-lg font-bold text-foreground mt-1">
             {totalXp.toLocaleString()}{" "}
-            <span className="text-xs font-normal text-slate-400">XP</span>
+            <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+              XP
+            </span>
           </div>
         </div>
       </div>
@@ -89,8 +82,8 @@ export function LevelCard({
               {getLevelTitle(levelProgress.level)}
             </span>
           </div>
-          <span className="text-xs font-mono text-slate-400 flex items-center gap-1">
-            <Zap size={13} className="text-amber-400" />
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <Zap size={13} className="text-amber-500 dark:text-amber-400" />
             {t.total_xp_label}:{" "}
             <strong className="text-foreground">
               {totalXp.toLocaleString()} XP
@@ -104,7 +97,7 @@ export function LevelCard({
             <span className="text-xl sm:text-2xl font-extrabold text-foreground font-mono">
               {levelProgress.xpIntoLevel.toLocaleString()}
             </span>
-            <span className="text-xs font-medium text-slate-400 font-mono">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 font-mono">
               / {levelProgress.xpNeeded.toLocaleString()} XP tới Level{" "}
               {levelProgress.level + 1}
             </span>
@@ -118,7 +111,7 @@ export function LevelCard({
         </div>
 
         {/* Level Progress Bar */}
-        <div className="h-2.5 rounded-full overflow-hidden bg-slate-800/80 p-0.5 border border-white/5">
+        <div className="h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800/80 p-0.5 border border-slate-200 dark:border-white/5">
           <div
             className="h-full rounded-full transition-all duration-700 ease-out"
             style={{

@@ -483,54 +483,139 @@ export function SnakeGame({
     };
   }, [gameState]);
 
-  return (
-    <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center overflow-hidden touch-none select-none">
-      <canvas
-        ref={canvasRef}
-        className="block shadow-[0_0_40px_rgba(16,185,129,0.1)] border border-emerald-500/10 rounded-xl bg-[#0f172a]"
-      />
+  const handleDirection = (dx: number, dy: number) => {
+    if (gameStateRef.current !== "playing") return;
+    const current = state.current.dirQueue.length
+      ? state.current.dirQueue[state.current.dirQueue.length - 1]
+      : state.current.dir;
+    if (dx === -current.x && dy === -current.y) return;
+    if (dx === current.x && dy === current.y) return;
+    if (state.current.dirQueue.length < 3) {
+      state.current.dirQueue.push({ x: dx, y: dy });
+    }
+  };
 
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-6 text-sm font-mono tracking-widest text-emerald-500/80 pointer-events-none">
-        <span>
-          SCORE: <span className="text-emerald-400 font-bold">{score}</span>
-        </span>
-        <span>
-          BEST: <span>{bestScore}</span>
-        </span>
-        <span>
-          LV: <span className="text-amber-400">{level}</span>
-        </span>
+  return (
+    <div className="absolute inset-0 bg-[#0f172a] flex flex-col items-center justify-center overflow-hidden touch-none select-none">
+      <div className="relative flex items-center justify-center">
+        <canvas
+          ref={canvasRef}
+          className="block shadow-[0_0_40px_rgba(16,185,129,0.15)] border border-emerald-500/20 rounded-2xl bg-[#0f172a]"
+        />
+
+        <div className="absolute top-3 inset-x-0 flex justify-center items-center gap-6 text-xs sm:text-sm font-mono tracking-widest text-emerald-500/80 pointer-events-none px-4">
+          <span>
+            ĐIỂM: <span className="text-emerald-400 font-bold">{score}</span>
+          </span>
+          <span>
+            KỶ LỤC: <span className="text-slate-300">{bestScore}</span>
+          </span>
+          <span>
+            CẤP: <span className="text-amber-400 font-bold">{level}</span>
+          </span>
+        </div>
       </div>
 
-      {(gameState === "idle" || gameState === "paused") && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a]/80 z-10 backdrop-blur-[2px]">
-          <div className="text-emerald-400 text-4xl mb-6 font-bold tracking-widest drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
-            {gameState === "paused" ? "PAUSED" : "SNAKE"}
+      {/* Mobile Virtual D-Pad */}
+      {gameState === "playing" && (
+        <div className="mt-4 flex flex-col items-center gap-1.5 pointer-events-auto sm:hidden z-10">
+          <button
+            type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              handleDirection(0, -1);
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              handleDirection(0, -1);
+            }}
+            className="w-14 h-14 rounded-xl bg-slate-900/90 border border-emerald-500/40 active:bg-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 active:scale-95 shadow-md transition-all select-none"
+          >
+            ⬆️
+          </button>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                handleDirection(-1, 0);
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                handleDirection(-1, 0);
+              }}
+              className="w-14 h-14 rounded-xl bg-slate-900/90 border border-emerald-500/40 active:bg-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 active:scale-95 shadow-md transition-all select-none"
+            >
+              ⬅️
+            </button>
+            <button
+              type="button"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                handleDirection(0, 1);
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                handleDirection(0, 1);
+              }}
+              className="w-14 h-14 rounded-xl bg-slate-900/90 border border-emerald-500/40 active:bg-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 active:scale-95 shadow-md transition-all select-none"
+            >
+              ⬇️
+            </button>
+            <button
+              type="button"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                handleDirection(1, 0);
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                handleDirection(1, 0);
+              }}
+              className="w-14 h-14 rounded-xl bg-slate-900/90 border border-emerald-500/40 active:bg-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 active:scale-95 shadow-md transition-all select-none"
+            >
+              ➡️
+            </button>
           </div>
+        </div>
+      )}
+
+      {(gameState === "idle" || gameState === "paused") && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a]/85 z-10 backdrop-blur-[2px]">
+          <div className="text-4xl mb-2 animate-bounce">🐍</div>
+          <div className="text-emerald-400 text-3xl sm:text-4xl mb-4 font-black tracking-widest drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] font-mono">
+            {gameState === "paused" ? "TẠM DỪNG" : "SNAKE RETRO"}
+          </div>
+          <p className="text-slate-400 text-xs font-mono mb-6 max-w-xs text-center">
+            Ăn mồi thường và mồi vàng, tránh tường & đuôi rắn!
+          </p>
           <button
             type="button"
             onClick={startGame}
-            className="px-8 py-3 bg-emerald-500/10 border border-emerald-500 text-emerald-400 rounded-lg font-mono tracking-widest hover:bg-emerald-500/20 transition-all"
+            className="px-8 py-3.5 bg-emerald-500 text-slate-950 font-extrabold rounded-xl font-mono tracking-widest hover:scale-105 shadow-[0_0_24px_rgba(16,185,129,0.6)] transition-all cursor-pointer"
           >
-            {gameState === "paused" ? "RESUME" : "START"}
+            {gameState === "paused" ? "TIẾP TỤC" : "BẮT ĐẦU"}
           </button>
         </div>
       )}
 
       {gameState === "dead" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/70 backdrop-blur-md animate-[fadeIn_0.2s] z-10">
+          <h2 className="text-3xl font-black text-rose-500 mb-2 drop-shadow-[0_0_12px_rgba(225,29,72,0.5)] font-mono">
             GAME OVER
           </h2>
-          <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
-          <p className="text-white/60 font-mono mb-8 text-sm">
-            BEST: {bestScore}
+          <p className="text-white/90 font-mono mb-2 text-xl font-bold">
+            ĐIỂM: {score}
+          </p>
+          <p className="text-emerald-400 font-mono mb-8 text-sm">
+            KỶ LỤC: {bestScore}
           </p>
           <button
+            type="button"
             onClick={startGame}
-            className="px-6 py-3 bg-emerald-500/20 border border-emerald-500 text-emerald-400 rounded-xl font-mono tracking-widest hover:bg-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all"
+            className="px-8 py-3.5 bg-emerald-500 text-slate-950 font-extrabold rounded-xl font-mono tracking-widest hover:scale-105 shadow-[0_0_24px_rgba(16,185,129,0.6)] transition-all cursor-pointer"
           >
-            {"PLAY AGAIN"}
+            CHƠI LẠI
           </button>
         </div>
       )}

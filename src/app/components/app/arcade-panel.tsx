@@ -58,13 +58,15 @@ function ArcadeGameCard({
   const [hovered, setHovered] = useState(false);
   return (
     <div
-      className="relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 group"
+      className="relative rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 group shadow-md"
       style={{
-        background: `rgba(var(--neuro-panel-rgb),0.6)`,
-        border: `1px solid rgba(${game.accentRgb},${hovered ? 0.5 : 0.2})`,
+        background: `rgba(var(--neuro-panel-rgb), 0.9)`,
+        border: `1px solid rgba(${game.accentRgb}, ${hovered ? 0.6 : 0.25})`,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
         boxShadow: hovered
-          ? `0 0 32px rgba(${game.accentRgb},0.25), 0 8px 32px rgba(0,0,0,0.3)`
-          : `0 4px 16px rgba(0,0,0,0.15)`,
+          ? `0 16px 36px -8px rgba(${game.accentRgb}, 0.35), 0 0 24px rgba(${game.accentRgb}, 0.2)`
+          : `0 4px 16px -4px rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.04)`,
         transform: hovered ? "translateY(-4px)" : "translateY(0)",
       }}
       onMouseEnter={() => setHovered(true)}
@@ -75,7 +77,7 @@ function ArcadeGameCard({
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
         style={{
-          background: `radial-gradient(circle at 50% 0%, rgba(${game.accentRgb},0.12) 0%, transparent 70%)`,
+          background: `radial-gradient(circle at 50% 0%, rgba(${game.accentRgb},0.15) 0%, transparent 70%)`,
         }}
       />
 
@@ -84,10 +86,10 @@ function ArcadeGameCard({
         <div
           className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl transition-transform duration-300 group-hover:scale-110"
           style={{
-            background: `rgba(${game.accentRgb},0.12)`,
-            border: `1px solid rgba(${game.accentRgb},0.3)`,
+            background: `rgba(${game.accentRgb}, 0.15)`,
+            border: `1px solid rgba(${game.accentRgb}, 0.35)`,
             boxShadow: hovered
-              ? `0 0 24px rgba(${game.accentRgb},0.4)`
+              ? `0 0 24px rgba(${game.accentRgb}, 0.4)`
               : "none",
           }}
         >
@@ -96,24 +98,24 @@ function ArcadeGameCard({
 
         <div>
           <div
-            className="text-base font-bold tracking-wide mb-1"
+            className="text-lg font-bold tracking-wide mb-1.5 font-mono"
             style={{ color: game.accent }}
           >
             {game.title}
           </div>
-          <div className="text-xs text-neuro-muted leading-relaxed">
+          <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-xs">
             {game.desc}
           </div>
         </div>
 
         <button
           type="button"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold tracking-widest transition-all duration-200 hover:brightness-125"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold tracking-widest transition-all duration-200 hover:scale-105 font-mono cursor-pointer"
           style={{
-            background: `rgba(${game.accentRgb},0.15)`,
-            border: `1px solid rgba(${game.accentRgb},0.4)`,
+            background: `rgba(${game.accentRgb}, 0.15)`,
+            border: `1px solid rgba(${game.accentRgb}, 0.45)`,
             color: game.accent,
-            boxShadow: `0 0 12px rgba(${game.accentRgb},0.2)`,
+            boxShadow: `0 0 12px rgba(${game.accentRgb}, 0.15)`,
           }}
         >
           <Gamepad2 size={13} />

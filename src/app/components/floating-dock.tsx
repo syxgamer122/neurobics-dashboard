@@ -55,12 +55,12 @@ export function FloatingDock({
       <div
         className="mx-auto mb-1 sm:mb-2 flex w-fit max-w-full items-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-3 py-2 sm:py-2.5 pointer-events-auto"
         style={{
-          background: "rgba(var(--neuro-panel-rgb),0.92)",
-          border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
-          backdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
-          WebkitBackdropFilter: "blur(calc(var(--glass-blur, 18px) * 1.2222))",
+          background: "rgba(var(--neuro-panel-rgb), 0.88)",
+          border: "1px solid rgba(var(--neuro-muted-rgb, 100, 116, 139), 0.2)",
+          backdropFilter: "blur(calc(var(--glass-blur, 20px) * 1.2))",
+          WebkitBackdropFilter: "blur(calc(var(--glass-blur, 20px) * 1.2))",
           boxShadow:
-            "0 10px 50px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08)",
+            "0 12px 40px -10px rgba(0,0,0,0.15), 0 0 24px -6px rgba(var(--neuro-cyan-rgb), 0.18)",
         }}
       >
         {ITEMS.map((item) => {
