@@ -1,4 +1,4 @@
-﻿name: Build Android APK (Offline Ready)
+name: Build Android APK (Offline Ready)
 
 on:
   push:
@@ -33,6 +33,9 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -47,6 +50,9 @@ jobs:
 
       - name: Make Gradle Wrapper Executable
         run: chmod +x android/gradlew
+
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses || true
 
       - name: Build Android Debug APK
         working-directory: android
@@ -67,8 +73,8 @@ jobs:
           name: MindGem Neurobics Android ${{ github.ref_name }}
           body: |
             ## MindGem Neurobics Offline Android App
-            - Đầy đủ 100% tất cả các mini-game nhận thức và Arcade Games.
-            - Chạy mượt mà trực tiếp trên máy không cần kết nối mạng.
-            - Tự động lưu tiến độ, kỷ lục, điểm số và chuỗi ngày chơi.
+            - ??y ?? 100% t?t c? c?c mini-game nh?n th?c v? Arcade Games.
+            - Ch?y m??t m? tr?c ti?p tr?n m?y kh?ng c?n k?t n?i m?ng.
+            - T? ??ng l?u ti?n ??, k? l?c, ?i?m s? v? chu?i ng?y ch?i.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
