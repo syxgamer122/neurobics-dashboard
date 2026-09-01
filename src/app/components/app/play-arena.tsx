@@ -28,6 +28,8 @@ import type { Translation } from "../../lib/i18n";
 import { ErrorBoundary } from "../error-boundary";
 import { GameTile } from "../ui/game-tile";
 import { ArcadePanel } from "./arcade-panel";
+import { useFeatureFlags } from "../../hooks/use-feature-flags";
+
 // ─── Chunk rieng cho tung game ────────────────────────────────────
 // TRUOC DAY 11 game duoc import tinh, nen ca 11 nam trong bundle DAU TIEN:
 // nguoi chi choi Schulte van phai tai Sudoku, Mental Rotation, N-Back...
@@ -176,6 +178,7 @@ export function PlayArena({
   makeGameHandler: (game: RoundGame) => (telemetry: unknown) => Promise<void>;
 }) {
   const [tab, setTab] = useState<"cognitive" | "arcade">("cognitive");
+  const { isEnabled } = useFeatureFlags();
   const ActiveGame = selectedGame ? GAME_COMPONENTS[selectedGame] : null;
 
   const TABS = [
@@ -255,6 +258,7 @@ export function PlayArena({
             const status = game.status as string;
             if (status === "disabled") return false;
             if (status === "internal" && !isAdmin) return false;
+            if (!isEnabled(`game_${game.id}`) && !isAdmin) return false;
             return true;
           }).map((game) => {
             const Icon = GAME_ICONS[game.icon];

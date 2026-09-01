@@ -40,21 +40,51 @@ export async function getFeatureFlags(): Promise<Record<string, FeatureFlag>> {
 }
 
 /**
- * Checks if a specific feature flag is enabled.
- * If rollout_percentage is set, it checks against a random value (0-100).
- * Note: A proper rollout check would hash the user ID to ensure consistent
- * experience per user, but for now we just return the boolean state.
+ * Invalidate the Edge Function in-memory feature flags cache.
  */
-export async function isFeatureEnabled(key: string): Promise<boolean> {
+export function invalidateFlagsCache(): void {
+  cachedFlags = null;
+  lastFetchMs = 0;
+}
+
+/**
+ * Deterministic 32-bit FNV-1a hash mapping (userId, flagKey) to an integer [0, 99].
+ * Ensures sticky segmentation for gradual rollouts.
+ */
+export function hashRollout(userId: string, flagKey: string): number {
+  const input = `${userId}:${flagKey}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash >>> 0) % 100;
+}
+
+/**
+ * Checks if a specific feature flag is enabled.
+ * If rollout_percentage is set, computes deterministic sticky rollout if userId is provided.
+ */
+export async function isFeatureEnabled(
+  key: string,
+  userId?: string,
+): Promise<boolean> {
   const flags = await getFeatureFlags();
   const flag = flags[key];
   if (!flag) return false; // default false if missing
 
   if (!flag.enabled) return false;
 
-  // Basic rollout check (not sticky per user)
-  if (typeof flag.rollout_percentage === "number") {
-    return Math.random() * 100 <= flag.rollout_percentage;
+  if (
+    typeof flag.rollout_percentage === "number" &&
+    Number.isFinite(flag.rollout_percentage)
+  ) {
+    if (flag.rollout_percentage <= 0) return false;
+    if (flag.rollout_percentage >= 100) return true;
+    if (userId) {
+      return hashRollout(userId, key) < flag.rollout_percentage;
+    }
+    return Math.random() * 100 < flag.rollout_percentage;
   }
 
   return true;

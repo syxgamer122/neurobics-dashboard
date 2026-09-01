@@ -23,6 +23,7 @@ import {
   AdminOverview,
   AdminShell,
   ApiIntegrationPanel,
+  FeatureFlagsPanel,
   parseGrantField,
   ProfilesGrid,
   type GrantMode,
@@ -228,6 +229,8 @@ export function AdminPanel({
           />
           <ApiIntegrationPanel />
         </div>
+
+        <FeatureFlagsPanel onLog={pushLog} />
 
         <ActivityLog lines={log} />
       </div>

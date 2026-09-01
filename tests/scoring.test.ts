@@ -153,3 +153,288 @@ it("math logic axis is time-independent", async () => {
   expect(fast.axes.logic).toBe(slow.axes.logic);
   expect(fast.axes.speed! > slow.axes.speed!).toBe(true);
 });
+
+describe("Milestone 1 — 12 Game Scoring Engines & Headline Scoring", () => {
+  it("headline averages only active (non-null) axes without prior penalty", async () => {
+    const { headline } =
+      await import("../supabase/functions/_shared/scoring/core.ts");
+    const twoAxis = {
+      speed: 1000,
+      focus: 1000,
+      spatial: null,
+      logic: null,
+      memory: null,
+    };
+    expect(headline(twoAxis)).toBe(1000);
+
+    const threeAxis = {
+      speed: 800,
+      focus: 900,
+      spatial: 700,
+      logic: null,
+      memory: null,
+    };
+    expect(headline(threeAxis)).toBe(800);
+  });
+
+  it("scoreSchulte: computes valid ratings across sizes and handles failed flag", async () => {
+    const { scoreSchulte } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const round = scoreSchulte({
+      timeMs: 25_000,
+      cells: 25,
+      wrongClicks: 1,
+      hitRts: [
+        800, 750, 900, 850, 950, 800, 700, 900, 850, 920, 880, 840, 910, 870,
+        930, 860, 890, 940, 820, 870, 910, 850, 890, 920, 860,
+      ],
+      modeLabel: "5x5",
+    });
+    expect(round.axes.speed).toBeGreaterThan(0);
+    expect(round.axes.focus).toBeGreaterThan(0);
+    expect(round.axes.spatial).toBeGreaterThan(0);
+    expect(round.axes.logic).toBeNull();
+    expect(round.axes.memory).toBeNull();
+    expect(round.headline).toBeGreaterThan(0);
+
+    const failedRound = scoreSchulte({
+      timeMs: 12_000,
+      cells: 25,
+      wrongClicks: 3,
+      hitRts: [900, 950, 850],
+      failed: true,
+      intendedCells: 25,
+      modeLabel: "5x5",
+    });
+    expect(failedRound.axes.speed).toBeGreaterThan(0);
+  });
+
+  it("scoreSudoku: 0 placements yields memory = 0 and logic penalty", async () => {
+    const { scoreSudoku } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const zeroPlacements = scoreSudoku({
+      timeMs: 20_000,
+      difficulty: "Easy",
+      mistakes: 3,
+      placements: 0,
+      moveRts: [],
+      reEntries: 0,
+      repeatMistakes: 0,
+      failed: true,
+    });
+    expect(zeroPlacements.axes.memory).toBe(0);
+    expect(zeroPlacements.axes.speed).toBeNull();
+
+    const normal = scoreSudoku({
+      timeMs: 180_000,
+      difficulty: "Medium",
+      mistakes: 1,
+      placements: 40,
+      moveRts: Array(40).fill(3000),
+      reEntries: 0,
+      repeatMistakes: 0,
+    });
+    expect(normal.axes.logic).toBeGreaterThan(0);
+    expect(normal.axes.memory).toBeGreaterThan(0);
+    expect(normal.axes.speed).toBeGreaterThan(0);
+  });
+
+  it("scoreStroop: computes speed and focus for 30 trials", async () => {
+    const { scoreStroop } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const round = scoreStroop({
+      timeMs: 35_000,
+      totalStimuli: 30,
+      wrongClicks: 2,
+      rts: Array(28).fill(1100),
+    });
+    expect(round.axes.speed).toBeGreaterThan(0);
+    expect(round.axes.focus).toBeGreaterThan(0);
+  });
+
+  it("scoreReaction: computes speed and focus with real elapsed timeMs", async () => {
+    const { scoreReaction } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const round = scoreReaction({
+      timeMs: 22_000,
+      rts: [220, 240, 210, 250, 230, 225, 235, 245, 215, 230],
+      falseStarts: 1,
+    });
+    expect(round.axes.speed).toBeGreaterThan(0);
+    expect(round.axes.focus).toBeGreaterThan(0);
+    expect(round.timeMs).toBe(22_000);
+  });
+
+  it("scoreMemory: clearedLevels: 0 gives memory: 0 and spatial: 0", async () => {
+    const { scoreMemory } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const zeroCleared = scoreMemory({
+      timeMs: 2_000,
+      clearedLevels: 0,
+      wrongClicks: 3,
+      failed: true,
+    });
+    expect(zeroCleared.axes.memory).toBe(0);
+    expect(zeroCleared.axes.spatial).toBe(0);
+
+    const normal = scoreMemory({
+      timeMs: 45_000,
+      clearedLevels: 7,
+      wrongClicks: 1,
+    });
+    expect(normal.axes.memory).toBeGreaterThan(0);
+    expect(normal.axes.spatial).toBeGreaterThan(0);
+  });
+
+  it("scoreMath: supports totalProblems or total", async () => {
+    const { scoreMath } =
+      await import("../supabase/functions/_shared/scoring/standard-games.ts");
+    const withTotalProblems = scoreMath({
+      timeMs: 30_000,
+      difficulty: "hard",
+      totalProblems: 20,
+      correct: 18,
+      wrong: 2,
+      rts: Array(20).fill(1200),
+    });
+    expect(withTotalProblems.axes.logic).toBeGreaterThan(0);
+    expect(withTotalProblems.axes.speed).toBeGreaterThan(0);
+
+    const withTotal = scoreMath({
+      timeMs: 30_000,
+      difficulty: "hard",
+      total: 20,
+      correct: 18,
+      wrong: 2,
+      rts: Array(20).fill(1200),
+    });
+    expect(withTotal.axes.logic).toBe(withTotalProblems.axes.logic);
+  });
+
+  it("scoreNBack: 0 hits does not throw, valid ratings computed", async () => {
+    const { scoreNBack } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+    const zeroHits = scoreNBack({
+      timeMs: 60_000,
+      n: 2,
+      trials: 24,
+      hits: 0,
+      misses: 7,
+      falseAlarms: 0,
+      rts: [],
+    });
+    expect(zeroHits.axes.memory).toBe(0);
+    expect(zeroHits.axes.speed).toBeNull();
+    expect(zeroHits.headline).toBe(0);
+
+    const normal = scoreNBack({
+      timeMs: 60_000,
+      n: 3,
+      trials: 24,
+      hits: 6,
+      misses: 1,
+      falseAlarms: 1,
+      rts: [400, 450, 420, 390, 410, 430],
+    });
+    expect(normal.axes.memory).toBeGreaterThan(0);
+    expect(normal.axes.focus).toBeGreaterThan(0);
+    expect(normal.axes.speed).toBeGreaterThan(0);
+  });
+
+  it("scoreGoNoGo: calculates focus and speed", async () => {
+    const { scoreGoNoGo } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+    const round = scoreGoNoGo({
+      timeMs: 40_000,
+      trials: 30,
+      goTrials: 22,
+      nogoTrials: 8,
+      hits: 21,
+      misses: 1,
+      falseAlarms: 1,
+      correctRejections: 7,
+      rts: Array(21).fill(320),
+    });
+    expect(round.axes.focus).toBeGreaterThan(0);
+    expect(round.axes.speed).toBeGreaterThan(0);
+  });
+
+  it("scoreMentalRotation: calculates spatial and speed", async () => {
+    const { scoreMentalRotation } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+    const round = scoreMentalRotation({
+      timeMs: 45_000,
+      trials: 24,
+      correct: 20,
+      wrong: 4,
+      angles: Array(24).fill(90),
+      mirrors: Array(24).fill(false),
+      correctFlags: [...Array(20).fill(true), ...Array(4).fill(false)],
+      rts: Array(24).fill(1800),
+    });
+    expect(round.axes.spatial).toBeGreaterThan(0);
+    expect(round.axes.speed).toBeGreaterThan(0);
+  });
+
+  it("scoreCorsi: calculates memory and spatial", async () => {
+    const { scoreCorsi } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+    const round = scoreCorsi({
+      timeMs: 15_000,
+      span: 6,
+      trials: 7,
+      correctTrials: 5,
+      taps: 25,
+      wrongClicks: 2,
+      rts: Array(25).fill(400),
+    });
+    expect(round.axes.memory).toBeGreaterThan(0);
+    expect(round.axes.spatial).toBeGreaterThan(0);
+  });
+
+  it("scoreTrail: calculates speed and focus for mode A and B", async () => {
+    const { scoreTrail } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+    const roundA = scoreTrail({
+      timeMs: 25_000,
+      nodes: 24,
+      mode: "A",
+      wrongClicks: 1,
+      rts: Array(23).fill(800),
+    });
+    expect(roundA.axes.speed).toBeGreaterThan(0);
+    expect(roundA.axes.focus).toBeGreaterThan(0);
+
+    const roundB = scoreTrail({
+      timeMs: 35_000,
+      nodes: 24,
+      mode: "B",
+      wrongClicks: 2,
+      rts: Array(23).fill(1200),
+    });
+    expect(roundB.axes.speed).toBeGreaterThan(0);
+    expect(roundB.axes.focus).toBeGreaterThan(0);
+  });
+
+  it("scoreSearch: accepts both timeMs and totalTimeMs", async () => {
+    const { scoreSearch } =
+      await import("../supabase/functions/_shared/scoring/advanced-games.ts");
+    const withTimeMs = scoreSearch({
+      timeMs: 60_000,
+      score: 25,
+      mistakes: 2,
+      rts: Array(25).fill(1200),
+    });
+    expect(withTimeMs.axes.speed).toBeGreaterThan(0);
+    expect(withTimeMs.axes.focus).toBeGreaterThan(0);
+    expect(withTimeMs.headline).toBeGreaterThan(0);
+
+    const withTotalTimeMs = scoreSearch({
+      totalTimeMs: 60_000,
+      score: 25,
+      mistakes: 2,
+      rts: Array(25).fill(1200),
+    });
+    expect(withTotalTimeMs.headline).toBe(withTimeMs.headline);
+  });
+});

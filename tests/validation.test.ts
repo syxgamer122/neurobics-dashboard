@@ -96,6 +96,12 @@ describe("assertCountBounds — luat chung", () => {
       "mistakes",
       "correct",
       "wrong",
+      "total",
+      "totalProblems",
+      "score",
+      "clearedLevels",
+      "totalTaps",
+      "totalTimeMs",
       "hits",
       "misses",
       "falseAlarms",
@@ -217,11 +223,17 @@ describe("assertCountBounds — mental / math / stroop", () => {
     expect(() =>
       assertCountBounds("math", { total: 20, correct: 18, wrong: 5 }),
     ).toThrow("math: answered more problems than served");
+    expect(() =>
+      assertCountBounds("math", { totalProblems: 20, correct: 18, wrong: 5 }),
+    ).toThrow("math: answered more problems than served");
   });
 
   it("math: khong nhieu do tre hon so cau", () => {
     expect(() =>
       assertCountBounds("math", { total: 2, rts: [1, 2, 3] }),
+    ).toThrow("math: more reaction times than problems");
+    expect(() =>
+      assertCountBounds("math", { totalProblems: 2, rts: [1, 2, 3] }),
     ).toThrow("math: more reaction times than problems");
   });
 

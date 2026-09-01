@@ -39,16 +39,11 @@ export function cognitiveIndex(p: Profile): number {
 
   const active = axes.filter((v) => v > 0);
   if (active.length === 0) return 0;
-  const raw = active.reduce((a, b) => a + b, 0) / active.length;
-  // Shrinkage theo do phu: chia cung cho 5 thi phat oan nguoi moi, con trung
-  // binh tren rieng truc da mo thi nghieng nguoc lai — cang choi IT game cang
-  // de giu index cao (Logic 800 mot truc dung tren nguoi du 5 truc trung binh
-  // 700). He so keo index ve theo so truc da mo, day du 5 truc moi duoc 100%.
-  return raw * (COVERAGE_FLOOR + (1 - COVERAGE_FLOOR) * (active.length / 5));
+  return active.reduce((a, b) => a + b, 0) / active.length;
 }
 
-/** Ty le index giu lai khi chi mo dung 1 truc (0.4 => phat 60% + shrinkage). */
-export const COVERAGE_FLOOR = 0.4;
+/** Ty le giu lai cho backward-compatibility */
+export const COVERAGE_FLOOR = 1.0;
 
 /** So truc da co du lieu (0–5) — dung de canh bao ho so chua day du. */
 export function axesCovered(p: Profile): number {

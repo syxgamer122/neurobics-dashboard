@@ -281,11 +281,12 @@ export function MathSprintGame({
       if (inputTypesRef.current.has("touch")) finalInput = "touch";
       else if (inputTypesRef.current.has("key")) finalInput = "key";
 
+      const elapsed = Math.max(
+        1,
+        Date.now() - (startedAtRef.current || Date.now()),
+      );
       await onComplete({
-        timeMs: Math.max(
-          1,
-          rtsRef.current.reduce((a, b) => a + b, 0),
-        ),
+        timeMs: elapsed,
         difficulty: diff,
         totalProblems: TOTAL,
         correct: statsRef.current.correct,

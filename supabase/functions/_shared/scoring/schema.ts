@@ -29,6 +29,10 @@ export const TelemetrySchema = z
     correct: countSchema,
     wrong: countSchema,
     total: countSchema,
+    totalProblems: countSchema,
+    score: countSchema,
+    clearedLevels: countSchema,
+    totalTaps: countSchema,
     hits: countSchema,
     misses: countSchema,
     falseAlarms: countSchema,
@@ -54,6 +58,7 @@ export const TelemetrySchema = z
     difficulty: z.string().optional(),
     modeLabel: z.string().optional(),
     mode: z.string().optional(),
+    totalTimeMs: z.number().positive().finite().optional(),
   })
   .passthrough(); // Allow unknown fields to pass through safely without crashing
 

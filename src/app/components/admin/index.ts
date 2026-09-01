@@ -12,4 +12,5 @@ export {
   type GrantMode,
 } from "./grants";
 export { ProfilesGrid } from "./profiles-grid";
+export { FeatureFlagsPanel } from "./feature-flags-panel";
 export { ActionBtn, EnvField, Panel } from "./ui";

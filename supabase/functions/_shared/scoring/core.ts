@@ -278,29 +278,24 @@ export const focus = (
   const penalty =
     c === null ? 0 : clamp01((c - FOCUS_CV_OK) / (FOCUS_CV_BAD - FOCUS_CV_OK));
   const pace = focusPace(rts, paceTargetMs);
+  const lapseFactor = clamp01(1 - lapseRate(rts) * 1.15);
   return clamp(
     MAX *
       diff *
       FOCUS_SCALE *
       (1 - penalty * 0.75) *
-      (1 - lapseRate(rts) * 1.15) *
+      lapseFactor *
       Math.pow(accuracy, 1.15) *
       Math.pow(pace, 1.25),
   );
 };
 // Headline = trung binh cac truc active (khong con lay max) de 1 truc full
 // khong keo ca van len 1000.
-export const headline = (axes: AxisRatings) => {
-  const vals = Object.values(axes).filter((v): v is number => v !== null);
+export const headline = (axes: AxisRatings): number => {
+  const vals = Object.values(axes).filter(
+    (v): v is number => typeof v === "number" && Number.isFinite(v),
+  );
   if (!vals.length) return 0;
-
-  // Empirical Bayes / Shrinkage
-  // Average population prior (e.g., 500)
-  const PRIOR = 500;
-  let total = 0;
-  for (const key in axes) {
-    const val = (axes as any)[key];
-    total += val !== null ? val : PRIOR;
-  }
-  return clamp(total / 5);
+  const sum = vals.reduce((a, b) => a + b, 0);
+  return clamp(sum / vals.length);
 };
