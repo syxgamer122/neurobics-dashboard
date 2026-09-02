@@ -3,3 +3,24 @@ include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
 
 apply from: 'capacitor.settings.gradle'
+
+// Auto-repair capacitor-android projectDir if symlink or pnpm paths differ
+if (findProject(':capacitor-android') != null) {
+    def currentDir = project(':capacitor-android').projectDir
+    if (!currentDir.exists()) {
+        def candidates = [
+            new File('../node_modules/@capacitor/android/capacitor'),
+            new File(rootProject.projectDir, '../node_modules/@capacitor/android/capacitor')
+        ]
+        def pnpmDir = new File('../node_modules/.pnpm')
+        if (pnpmDir.exists()) {
+            pnpmDir.listFiles()?.findAll { it.name.startsWith('@capacitor+android') }?.each {
+                candidates.add(new File(it, 'node_modules/@capacitor/android/capacitor'))
+            }
+        }
+        def valid = candidates.find { it.exists() }
+        if (valid) {
+            project(':capacitor-android').projectDir = valid
+        }
+    }
+}
