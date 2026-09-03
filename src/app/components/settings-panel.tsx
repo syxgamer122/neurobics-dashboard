@@ -16,10 +16,14 @@ import { toast } from "sonner";
 import {
   changePassword,
   deleteActiveUserAccount,
+  handleLogout,
+  handleUpgradeGuest,
   removeAvatar,
   saveBirthDate,
   uploadAvatar,
+  USERNAME_RE,
   type Profile,
+  type UpgradeGuestResult,
 } from "../lib/api";
 import { useLang, type Lang } from "../lib/i18n";
 import { getLevelColor, getLevelProgress, getLevelTitle } from "../lib/xp";
@@ -91,6 +95,12 @@ export function SettingsPanel({
   const [confirmPw, setConfirmPw] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
 
+  // Guest-upgrade form uses its own state — never reuse newPw/confirmPw above.
+  const [upgradeUsername, setUpgradeUsername] = useState("");
+  const [upgradeEmail, setUpgradeEmail] = useState("");
+  const [upgradePassword, setUpgradePassword] = useState("");
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
+
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const { canInstall, isInstalled, isIos, install } = usePwaInstall();
@@ -132,7 +142,8 @@ export function SettingsPanel({
   const onSaveBirth = async () => {
     const year = parseInt(birthInput, 10);
     const thisYear = new Date().getFullYear();
-    if (!Number.isFinite(year) || year < 1900 || year > thisYear) {
+    // Khớp use-app-state + server RPC: chặn dưới 13 tuổi.
+    if (!Number.isFinite(year) || year < 1900 || year > thisYear - 13) {
       toast.error(t.birth_year_invalid);
       return;
     }
@@ -166,6 +177,69 @@ export function SettingsPanel({
       toast.error(err instanceof Error ? err.message : t.save_failed);
     } finally {
       setPwBusy(false);
+    }
+  };
+
+  const onUpgradeGuest = async () => {
+    const uname = upgradeUsername.trim().toLowerCase();
+    if (!USERNAME_RE.test(uname)) {
+      toast.error(
+        "Username must be 3–20 characters: letters, numbers, _ . - only.",
+      );
+      return;
+    }
+    const emailTrim = upgradeEmail.trim();
+    if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    if (!upgradePassword || upgradePassword.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+    setUpgradeBusy(true);
+    try {
+      // W1 signature: (username, email, password, isAdult).
+      const result: UpgradeGuestResult = await handleUpgradeGuest(
+        uname,
+        emailTrim,
+        upgradePassword,
+        true,
+      );
+      if (result.pendingVerification) {
+        // Real email: Supabase sent a verification mail. Server already
+        // signed out globally — clear local session and route to AuthScreen.
+        toast.success(
+          "Upgrade started! Please check your email to verify, then log in again.",
+        );
+        setUpgradePassword("");
+        try {
+          await handleLogout();
+        } catch (err) {
+          logError(err);
+        }
+        onDeleted();
+        return;
+      }
+      // Spoofed/no-email path: server signed out all sessions globally,
+      // so clear the local session and send the user back to AuthScreen.
+      toast.success(
+        `${t.settings_upgrade_ok || "Nâng cấp thành công!"} Please log in again with your new account.`,
+      );
+      setUpgradeUsername("");
+      setUpgradeEmail("");
+      setUpgradePassword("");
+      try {
+        await handleLogout();
+      } catch (err) {
+        logError(err);
+      }
+      onDeleted();
+    } catch (err) {
+      logError(err);
+      toast.error(err instanceof Error ? err.message : "Failed to upgrade");
+    } finally {
+      setUpgradeBusy(false);
     }
   };
 
@@ -456,14 +530,30 @@ export function SettingsPanel({
               không mất dữ liệu.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
+                  Username mới
+                </label>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  value={upgradeUsername}
+                  onChange={(e) => setUpgradeUsername(e.target.value)}
+                  placeholder={profile.username}
+                  className="w-full h-10 px-3 rounded-xl text-sm outline-none"
+                  style={fieldStyle()}
+                />
+              </div>
               <div>
                 <label className="text-xs text-slate-500 tracking-wider uppercase mb-1.5 block font-mono">
-                  {t.auth_email || "Email"}
+                  {t.auth_email || "Email"} (optional)
                 </label>
                 <input
                   type="email"
-                  value={newPw} // Reuse state for email to avoid adding new state
-                  onChange={(e) => setNewPw(e.target.value)}
+                  autoComplete="email"
+                  value={upgradeEmail}
+                  onChange={(e) => setUpgradeEmail(e.target.value)}
+                  placeholder={`${upgradeUsername.trim() || profile.username}@mindgem.local`}
                   className="w-full h-10 px-3 rounded-xl text-sm outline-none"
                   style={fieldStyle()}
                 />
@@ -474,8 +564,9 @@ export function SettingsPanel({
                 </label>
                 <input
                   type="password"
-                  value={confirmPw} // Reuse state for password
-                  onChange={(e) => setConfirmPw(e.target.value)}
+                  autoComplete="new-password"
+                  value={upgradePassword}
+                  onChange={(e) => setUpgradePassword(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl text-sm outline-none"
                   style={fieldStyle()}
                 />
@@ -483,32 +574,10 @@ export function SettingsPanel({
             </div>
             <button
               type="button"
-              disabled={pwBusy || !newPw || !confirmPw}
-              onClick={async () => {
-                setPwBusy(true);
-                try {
-                  const { handleUpgradeGuest } = await import("../lib/api");
-                  const next = await handleUpgradeGuest(
-                    profile.username,
-                    newPw,
-                    confirmPw,
-                    true,
-                  );
-                  onProfileChange(next.profile);
-                  setNewPw("");
-                  setConfirmPw("");
-                  toast.success(
-                    t.settings_upgrade_ok || "Nâng cấp thành công!",
-                  );
-                } catch (err) {
-                  logError(err);
-                  toast.error(
-                    err instanceof Error ? err.message : "Failed to upgrade",
-                  );
-                } finally {
-                  setPwBusy(false);
-                }
-              }}
+              disabled={
+                upgradeBusy || !upgradeUsername.trim() || !upgradePassword
+              }
+              onClick={() => void onUpgradeGuest()}
               className="mt-4 h-10 px-5 rounded-xl text-xs font-bold tracking-wider inline-flex items-center gap-2 disabled:opacity-40"
               style={{
                 background: "rgba(var(--neuro-purple-rgb),0.15)",
@@ -516,7 +585,7 @@ export function SettingsPanel({
                 border: "1px solid rgba(var(--neuro-purple-rgb),0.4)",
               }}
             >
-              {pwBusy ? (
+              {upgradeBusy ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
                 t.settings_upgrade_btn || "Nâng cấp"

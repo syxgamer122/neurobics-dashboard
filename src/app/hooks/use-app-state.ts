@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
   getAccessToken,
+  getSupabase,
   fetchProfile,
   handleLogout,
   saveBirthDate,
@@ -106,17 +107,20 @@ export function useAppState(t: Translation) {
   }, [markOnboardingSeen]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const token = await getAccessToken();
+        if (cancelled) return;
         if (token) {
           try {
             const p = await fetchProfile();
-            setProfile(p);
+            if (!cancelled) setProfile(p);
           } catch (err) {
             if (isNetworkErrorLike(err)) {
               try {
                 const userId = await currentUserId();
+                if (cancelled) return;
                 const cachedStr = localStorage.getItem(CACHED_PROFILE_KEY);
                 const cached = cachedStr
                   ? (JSON.parse(cachedStr) as CachedProfile)
@@ -125,7 +129,7 @@ export function useAppState(t: Translation) {
                   cached?.userId === userId &&
                   Date.now() - Date.parse(cached.at) < CACHE_TTL_MS
                 ) {
-                  setProfile(cached.profile);
+                  if (!cancelled) setProfile(cached.profile);
                   return;
                 }
               } catch (e) {
@@ -138,9 +142,82 @@ export function useAppState(t: Translation) {
       } catch (err) {
         logError("Session restore error:", err);
       } finally {
-        setAuthChecked(true);
+        if (!cancelled) setAuthChecked(true);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setProfile]);
+
+  // Keep profile in sync across token expiry, multi-tab and remote logout.
+  // Restore effect above already handles INITIAL_SESSION — skip it here to
+  // avoid a double-fetch on mount.
+  useEffect(() => {
+    let cancelled = false;
+    const { data } = getSupabase().auth.onAuthStateChange(
+      async (event, session) => {
+        try {
+          // Cast: AuthChangeEvent union varies by supabase-js version and may
+          // omit SIGNED_OUT / TOKEN_REFRESH_FAILED / USER_DELETED.
+          const ev = event as string;
+          if (ev === "INITIAL_SESSION") return;
+          if (
+            (ev === "SIGNED_IN" ||
+              ev === "TOKEN_REFRESHED" ||
+              ev === "USER_UPDATED") &&
+            session
+          ) {
+            try {
+              const p = await fetchProfile();
+              if (!cancelled) setProfile(p);
+            } catch (err) {
+              // Offline: fall back to the 7-day cached profile like above.
+              if (isNetworkErrorLike(err)) {
+                try {
+                  const userId = session.user?.id ?? (await currentUserId());
+                  if (cancelled) return;
+                  const cachedStr = localStorage.getItem(CACHED_PROFILE_KEY);
+                  const cached = cachedStr
+                    ? (JSON.parse(cachedStr) as CachedProfile)
+                    : null;
+                  if (
+                    cached?.userId === userId &&
+                    Date.now() - Date.parse(cached.at) < CACHE_TTL_MS
+                  ) {
+                    if (!cancelled) setProfile(cached.profile);
+                    return;
+                  }
+                } catch (e) {
+                  logError("Failed to parse cached profile", e);
+                }
+              }
+              logError("Auth state profile fetch error:", err);
+            }
+          } else if (
+            ev === "SIGNED_OUT" ||
+            ev === "TOKEN_REFRESH_FAILED" ||
+            ev === "USER_DELETED"
+          ) {
+            // Remote logout: mirror onLogout state reset WITHOUT calling
+            // handleLogout again (would loop via signOut -> SIGNED_OUT).
+            if (cancelled) return;
+            setProfile(null);
+            setAdminPanelOpen(false);
+            setSelectedGame(null);
+            setActivePage("dashboard");
+            setOnboardingOpen(false);
+            setOnboardingDismissed(false);
+          }
+        } catch (err) {
+          logError("Auth state change error:", err);
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
   }, [setProfile]);
 
   const refreshProfile = useCallback(async () => {

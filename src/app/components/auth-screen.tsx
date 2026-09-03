@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Brain,
   Lock,
@@ -12,6 +12,7 @@ import {
   handleSignUp,
   handleLogin,
   handleGuestSignUp,
+  handleRecoverGuest,
   fetchProfile,
   USERNAME_RE,
   type Profile,
@@ -19,6 +20,9 @@ import {
 import { useLang } from "../lib/i18n";
 import { TurnstileWidget } from "./turnstile-widget";
 import { logError } from "../lib/logger";
+
+/** Trạng thái captcha do TurnstileWidget báo về (fail-closed mềm). */
+type CaptchaStatus = "loading" | "ready" | "error" | "missing_key";
 
 export function AuthScreen({
   onAuthed,
@@ -34,6 +38,21 @@ export function AuthScreen({
   const [busy, setBusy] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [captchaStatus, setCaptchaStatus] = useState<CaptchaStatus | null>(
+    null,
+  );
+  // Guest recovery-code flow (forward-compatible với W1).
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [pendingGuestProfile, setPendingGuestProfile] =
+    useState<Profile | null>(null);
+  const [savedOfflineAck, setSavedOfflineAck] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const recoveryCodeRef = useRef<HTMLInputElement>(null);
+  // Quên mã / khôi phục guest.
+  const [recoverMode, setRecoverMode] = useState(false);
+  const [recoverCodeInput, setRecoverCodeInput] = useState("");
+  const [recoverBusy, setRecoverBusy] = useState(false);
   const { t } = useLang();
 
   const handleUsernameChange = (v: string) => {
@@ -84,8 +103,27 @@ export function AuthScreen({
         setSuccess(true);
         setTimeout(() => onAuthed(profile), 1200);
       } else if (mode === "guest") {
-        const { profile } = await handleGuestSignUp(captchaToken);
-        onAuthed(profile);
+        // FORWARD-COMPATIBLE với W1: backend mới trả thêm recoveryCode /
+        // guestUsername, backend cũ chỉ có profile. Không assume type cũ.
+        const res = (await handleGuestSignUp(captchaToken)) as unknown as {
+          profile: Profile;
+          recoveryCode?: unknown;
+          guestUsername?: unknown;
+        };
+        const code =
+          typeof res.recoveryCode === "string" && res.recoveryCode.length > 0
+            ? res.recoveryCode
+            : null;
+        if (code) {
+          // Đừng auto-redirect: để user kịp copy mã khôi phục offline.
+          setRecoveryCode(code);
+          setPendingGuestProfile(res.profile);
+          setShowRecovery(true);
+          setSavedOfflineAck(false);
+          setCopied(false);
+        } else {
+          onAuthed(res.profile);
+        }
       } else {
         // 1. Authenticate (username -> username@mindgem.local under the hood).
         await handleLogin(username.trim(), password);
@@ -103,9 +141,25 @@ export function AuthScreen({
       logError("Auth error during sign in:", err);
       // strict + useUnknownInCatchVariables: err la unknown, phai thu hep kieu.
       // Pattern giong use-round-submission / settings-panel / admin-panel.
+      // Orphan guard: guest signup tạo được user nhưng login fail vẫn kèm
+      // recoveryCode trên error — hiện panel để user lưu mã rồi thử login lại.
+      if (mode === "guest" && err instanceof Error) {
+        const orphan = err as Error & {
+          recoveryCode?: unknown;
+          guestUsername?: unknown;
+        };
+        if (typeof orphan.recoveryCode === "string" && orphan.recoveryCode) {
+          setRecoveryCode(orphan.recoveryCode);
+          setPendingGuestProfile(null);
+          setShowRecovery(true);
+          setSavedOfflineAck(false);
+          setCopied(false);
+        }
+      }
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       // Show the styled DB-constraint block only when a name is genuinely taken.
-      if (mode === "signup" && msg.toLowerCase().includes("already taken")) {
+      // Server mới trả "not available" (NAME_TAKEN), server cũ "already taken".
+      if (mode === "signup" && /already taken|not available/i.test(msg)) {
         setUsernameError(true);
       }
       setError(msg);
@@ -115,6 +169,74 @@ export function AuthScreen({
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Thử lại captcha khi missing_key/error. Chỉ reset captcha — KHÔNG xóa
+  // username/password đã nhập.
+  const retryCaptcha = () => {
+    setCaptchaToken("");
+    setCaptchaResetKey((key) => key + 1);
+    setError(null);
+  };
+
+  const copyRecoveryCode = async () => {
+    if (!recoveryCode) return;
+    try {
+      await navigator.clipboard.writeText(recoveryCode);
+      setCopied(true);
+    } catch {
+      // Fallback khi clipboard API bị chặn: bôi đen input để user copy tay.
+      recoveryCodeRef.current?.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+      } catch {
+        /* ignore: user vẫn thấy mã để chép tay */
+      }
+    }
+  };
+
+  const continueAsGuest = () => {
+    if (pendingGuestProfile) {
+      onAuthed(pendingGuestProfile);
+    } else {
+      // Orphan case: account đã tạo nhưng login fail — quay về login để
+      // user thử lại bằng username sau khi đã lưu mã.
+      setShowRecovery(false);
+      setMode("login");
+    }
+  };
+
+  // Khôi phục guest bằng mã đã lưu. Server/W1 trả {_guestName,_guestPw}:
+  // dùng static import typed, narrow typeof string, rồi login + fetchProfile.
+  const doRecoverGuest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = recoverCodeInput.trim();
+    if (!code) {
+      setError(t.recovery_code_required);
+      return;
+    }
+    setRecoverBusy(true);
+    setError(null);
+    try {
+      const { _guestName, _guestPw } = await handleRecoverGuest(code);
+      const guestName = typeof _guestName === "string" ? _guestName : "";
+      const guestPw = typeof _guestPw === "string" ? _guestPw : "";
+      if (!guestName || !guestPw) throw new Error("Mã khôi phục không hợp lệ.");
+      await handleLogin(guestName, guestPw);
+      const profile = await fetchProfile();
+      if (!profile) {
+        throw new Error(
+          "Signed in, but no profile was found or initialized for this account. Please try signing in again.",
+        );
+      }
+      onAuthed(profile);
+    } catch (err) {
+      logError("Guest recover failed:", err);
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setRecoverBusy(false);
     }
   };
 
@@ -334,10 +456,129 @@ export function AuthScreen({
           )}
 
           {(mode === "signup" || mode === "guest") && (
-            <TurnstileWidget
-              onToken={setCaptchaToken}
-              resetKey={captchaResetKey}
-            />
+            <>
+              <TurnstileWidget
+                onToken={setCaptchaToken}
+                resetKey={captchaResetKey}
+                onState={(s) => setCaptchaStatus(s)}
+              />
+              {captchaStatus === "missing_key" && (
+                <div
+                  className="text-xs leading-relaxed px-3 py-2 rounded-lg"
+                  style={{
+                    background: "rgba(var(--neuro-amber-rgb),0.08)",
+                    border: "1px solid rgba(var(--neuro-amber-rgb),0.28)",
+                    color: "var(--neuro-amber)",
+                  }}
+                >
+                  <div>
+                    Captcha chưa cấu hình (thiếu VITE_TURNSTILE_SITE_KEY). Copy
+                    .env.example → .env.local và set Env trên Vercel, rồi bấm
+                    Thử lại.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={retryCaptcha}
+                    disabled={busy}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
+                    style={{
+                      border: "1px solid rgba(var(--neuro-amber-rgb),0.4)",
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              )}
+              {captchaStatus === "error" && (
+                <div
+                  className="text-xs leading-relaxed px-3 py-2 rounded-lg"
+                  style={{
+                    background: "rgba(var(--neuro-red-rgb),0.08)",
+                    border: "1px solid rgba(var(--neuro-red-rgb),0.3)",
+                    color: "var(--neuro-red)",
+                  }}
+                >
+                  <div>
+                    Không tải được captcha (thường do CSP chặn
+                    challenges.cloudflare.com hoặc mất mạng). Thông tin đã nhập
+                    được giữ nguyên — kiểm tra CSP rồi bấm Thử lại.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={retryCaptcha}
+                    disabled={busy}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
+                    style={{
+                      border: "1px solid rgba(var(--neuro-red-rgb),0.4)",
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {showRecovery && recoveryCode && (
+            <div
+              className="rounded-xl p-4 space-y-2.5"
+              style={{
+                background: "rgba(var(--neuro-green-rgb),0.08)",
+                border: "1px solid rgba(var(--neuro-green-rgb),0.3)",
+              }}
+            >
+              <div className="text-xs font-bold tracking-wider text-emerald-400">
+                {t.recovery_code_title}
+              </div>
+              <div className="text-xs text-slate-400 leading-relaxed">
+                {t.recovery_code_body}
+              </div>
+              <input
+                ref={recoveryCodeRef}
+                readOnly
+                value={recoveryCode}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono text-center"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: "1px solid rgba(var(--neuro-green-rgb),0.3)",
+                  color: "white",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => void copyRecoveryCode()}
+                className="w-full py-2 rounded-lg text-xs font-semibold tracking-wider"
+                style={{
+                  background: "rgba(var(--neuro-green-rgb),0.12)",
+                  color: "#34D399",
+                  border: "1px solid rgba(var(--neuro-green-rgb),0.35)",
+                }}
+              >
+                {copied ? t.copied : t.copy_recovery_code}
+              </button>
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={savedOfflineAck}
+                  onChange={(e) => setSavedOfflineAck(e.target.checked)}
+                />
+                Đã lưu mã offline — tôi hiểu mất mã là mất tài khoản
+              </label>
+              <button
+                type="button"
+                onClick={continueAsGuest}
+                disabled={!savedOfflineAck}
+                className="w-full py-2 rounded-lg text-xs font-semibold tracking-wider disabled:opacity-60"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--neuro-cyan), var(--neuro-purple))",
+                  color: "var(--foreground)",
+                }}
+              >
+                {t.continue_btn}
+              </button>
+            </div>
           )}
 
           {/* General error (non-username) */}
@@ -356,9 +597,12 @@ export function AuthScreen({
 
           <button
             type="submit"
+            // Fail-closed mềm: giữ điều kiện !captchaToken cho production để
+            // tương thích cả khi widget chưa kịp báo onState. Không bypass.
             disabled={
               busy ||
               success ||
+              showRecovery ||
               ((mode === "signup" || mode === "guest") && !captchaToken)
             }
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
@@ -390,6 +634,7 @@ export function AuthScreen({
                 setMode("guest");
                 setError(null);
                 setUsernameError(false);
+                setRecoverMode(false);
               }}
               className="w-full py-2.5 rounded-xl text-sm font-semibold tracking-wider transition-all duration-200 disabled:opacity-60"
               style={{
@@ -406,12 +651,72 @@ export function AuthScreen({
           </div>
         )}
 
+        {recoverMode && (
+          <form
+            onSubmit={(e) => void doRecoverGuest(e)}
+            className="mt-5 space-y-2.5"
+          >
+            <div
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+              style={{
+                background: "rgba(0,0,0,0.3)",
+                border: "1px solid rgba(var(--neuro-cyan-rgb),0.14)",
+              }}
+            >
+              <span className="text-slate-500">
+                <Lock size={15} />
+              </span>
+              <input
+                type="text"
+                placeholder={t.recovery_code_label}
+                value={recoverCodeInput}
+                onChange={(e) => setRecoverCodeInput(e.target.value)}
+                autoComplete="off"
+                className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-slate-400 font-mono"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={recoverBusy}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 tracking-wider transition-all duration-200 disabled:opacity-60"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--neuro-cyan), var(--neuro-purple))",
+                border: "2px solid var(--background)",
+                color: "var(--foreground)",
+              }}
+            >
+              {recoverBusy ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <ArrowRight size={15} />
+              )}
+              {t.recover_submit.toUpperCase()}
+            </button>
+            <div className="text-center text-xs text-slate-500">
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoverMode(false);
+                  setError(null);
+                }}
+                className="text-neuro-cyan hover:underline"
+              >
+                {t.back_to_sign_in}
+              </button>
+            </div>
+          </form>
+        )}
+
         <div className="text-center mt-5 text-xs text-slate-500 space-y-2">
           {mode !== "login" && (
             <div>
               {t.have_account}{" "}
               <button
-                onClick={() => setMode("login")}
+                onClick={() => {
+                  setMode("login");
+                  setRecoverMode(false);
+                }}
                 className="text-neuro-cyan hover:underline"
               >
                 {t.sign_in}
@@ -422,10 +727,26 @@ export function AuthScreen({
             <div>
               {t.no_account}{" "}
               <button
-                onClick={() => setMode("signup")}
+                onClick={() => {
+                  setMode("signup");
+                  setRecoverMode(false);
+                }}
                 className="text-neuro-cyan hover:underline"
               >
                 {t.sign_up}
+              </button>
+            </div>
+          )}
+          {!recoverMode && (
+            <div>
+              <button
+                onClick={() => {
+                  setRecoverMode(true);
+                  setError(null);
+                }}
+                className="text-neuro-cyan hover:underline"
+              >
+                {t.forgot_password} / Khôi phục guest
               </button>
             </div>
           )}

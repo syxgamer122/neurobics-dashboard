@@ -51,6 +51,20 @@ function isInvalidCredentials(
   );
 }
 
+/** Result of upgrading a guest to a full account (see POST /server/upgrade-account). */
+export type UpgradeGuestResult = {
+  success: boolean;
+  username: string;
+  requiresLogin: boolean;
+  pendingVerification: boolean;
+};
+
+/** Credentials restored via a guest recovery code (see POST /server/recover). */
+export type RecoverGuestResult = {
+  _guestName: string;
+  _guestPw: string;
+};
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function handleSignUp(
@@ -59,6 +73,12 @@ export async function handleSignUp(
   captchaToken: string,
 ): Promise<{ profile: Profile }> {
   const safeName = assertValidUsername(username);
+  if (!password || password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+  if (!captchaToken || !captchaToken.trim()) {
+    throw new Error("Captcha verification is required.");
+  }
   // Server creates the confirmed auth user; the on_auth_user_created trigger
   // auto-inserts the matching public.profiles row.
   const res = await fetch(`${BASE}/signup`, {
@@ -74,11 +94,14 @@ export async function handleSignUp(
       isAdult: true,
     }),
   });
-  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+  const body = (await res
+    .json()
+    .catch(() => ({}) as Record<string, unknown>)) as Record<string, unknown>;
   if (!res.ok) {
     logError("Sign up failed during account creation:", body);
     const reason = String(body.error ?? "Sign up failed.");
-    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
+    const code = typeof body.code === "string" ? body.code : null;
+    throw new Error(code ? `${reason} [${code}]` : reason);
   }
 
   await handleLogin(safeName, password);
@@ -87,9 +110,14 @@ export async function handleSignUp(
   };
 }
 
-export async function handleGuestSignUp(
-  captchaToken: string,
-): Promise<{ profile: Profile }> {
+export async function handleGuestSignUp(captchaToken: string): Promise<{
+  profile: Profile;
+  recoveryCode?: string;
+  guestUsername?: string;
+}> {
+  if (!captchaToken || !captchaToken.trim()) {
+    throw new Error("Captcha verification is required.");
+  }
   const res = await fetch(`${BASE}/signup`, {
     method: "POST",
     headers: {
@@ -98,19 +126,49 @@ export async function handleGuestSignUp(
     },
     body: JSON.stringify({ isGuest: true, captchaToken, isAdult: true }),
   });
-  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+  const body = (await res
+    .json()
+    .catch(() => ({}) as Record<string, unknown>)) as Record<string, unknown>;
   if (!res.ok) {
     logError("Guest sign up failed:", body);
     const reason = String(
       body.error ?? "Guest mode is temporarily unavailable.",
     );
-    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
+    const code = typeof body.code === "string" ? body.code : null;
+    throw new Error(code ? `${reason} [${code}]` : reason);
   }
 
-  // Edge function returns the generated credentials for the guest
-  await handleLogin(String(body._guestName), String(body._guestPw));
+  // Edge function returns the generated credentials for the guest.
+  // _guestPw stays internal (login only) — never returned or logged.
+  // recoveryCode is optional for backwards compatibility with older servers.
+  const guestName = typeof body._guestName === "string" ? body._guestName : "";
+  const guestPw = typeof body._guestPw === "string" ? body._guestPw : "";
+  const recoveryCode =
+    typeof body.recoveryCode === "string" && body.recoveryCode.length > 0
+      ? body.recoveryCode
+      : undefined;
+  const profile = sanitizeProfile(body.profile as Profile);
+  // Orphan guard: signup đã tạo user + recoveryCode ở server. Nếu login
+  // fail (offline/token), vẫn phải trả code cho UI qua error để user lưu.
+  try {
+    await handleLogin(guestName, guestPw);
+  } catch (loginErr) {
+    const msg =
+      loginErr instanceof Error
+        ? loginErr.message
+        : "Guest login failed after signup.";
+    throw Object.assign(
+      new Error(`${msg} (Account created — save your recovery code.)`),
+      {
+        ...(recoveryCode ? { recoveryCode } : {}),
+        ...(guestName ? { guestUsername: guestName } : {}),
+      },
+    );
+  }
   return {
-    profile: sanitizeProfile(body.profile as Profile),
+    profile,
+    ...(recoveryCode ? { recoveryCode } : {}),
+    ...(guestName ? { guestUsername: guestName } : {}),
   };
 }
 
@@ -121,6 +179,7 @@ export async function handleLogin(
   const supabase = getSupabase();
   const trimmed = username.trim();
   if (!trimmed) throw new Error("Username is required.");
+  if (!password) throw new Error("Password is required.");
   const emails = authEmailCandidates(trimmed);
   let data:
     | Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"]
@@ -141,12 +200,11 @@ export async function handleLogin(
   }
 
   if (error || !data?.session) {
+    // Redacted: never log spoofed emails or passwords — only lengths/codes.
     logError(
       "Login failed during signInWithPassword:",
-      error?.message,
-      "(emails:",
-      emails.join(", "),
-      ")",
+      error?.code ?? error?.message ?? "unknown",
+      `(username length: ${trimmed.length})`,
     );
     if (isInvalidCredentials(error)) {
       throw new Error(
@@ -168,23 +226,78 @@ export async function handleUpgradeGuest(
   email: string,
   password: string,
   isAdult: boolean,
-): Promise<{ profile: Profile }> {
+): Promise<UpgradeGuestResult> {
+  const safeName = assertValidUsername(username);
+  if (!password || password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
   const token = await getAccessToken();
   if (!token) throw new Error("Not logged in");
-  const res = await fetch(`${BASE}/upgrade-guest`, {
+  const normalizedEmail = email?.trim() ? email.trim() : undefined;
+  const res = await fetch(`${BASE}/upgrade-account`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ username, email, password, isAdult }),
+    body: JSON.stringify({
+      newUsername: safeName,
+      newPassword: password,
+      newEmail: normalizedEmail,
+      isAdult,
+    }),
   });
-  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+  const body = (await res
+    .json()
+    .catch(() => ({}) as Record<string, unknown>)) as Record<string, unknown>;
   if (!res.ok) {
     const reason = String(body.error ?? "Upgrade failed.");
-    throw new Error(body.code ? `${reason} [${body.code}]` : reason);
+    const code = typeof body.code === "string" ? body.code : null;
+    throw new Error(code ? `${reason} [${code}]` : reason);
   }
-  // Re-login with new credentials to update auth session
-  await handleLogin(username, password);
-  return { profile: sanitizeProfile(body.profile as Profile) };
+  // Server has signed out all sessions globally. Do NOT auto-login here:
+  // when pendingVerification is true the user must verify email first,
+  // so the UI routes to check-mail; otherwise the UI drives the next login.
+  return {
+    success: Boolean(body.success),
+    username: typeof body.username === "string" ? body.username : safeName,
+    requiresLogin:
+      typeof body.requiresLogin === "boolean" ? body.requiresLogin : true,
+    pendingVerification: Boolean(body.pendingVerification),
+  };
+}
+
+export async function handleRecoverGuest(
+  recoveryCode: string,
+): Promise<RecoverGuestResult> {
+  if (!recoveryCode || !recoveryCode.trim()) {
+    throw new Error("Recovery code is required.");
+  }
+  const res = await fetch(`${BASE}/recover`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ recoveryCode: recoveryCode.trim() }),
+  });
+  const body = (await res
+    .json()
+    .catch(() => ({}) as Record<string, unknown>)) as Record<string, unknown>;
+  if (!res.ok) {
+    const reason = String(body.error ?? "Recovery failed.");
+    const code = typeof body.code === "string" ? body.code : null;
+    throw new Error(code ? `${reason} [${code}]` : reason);
+  }
+  const guestName = body._guestName;
+  const guestPw = body._guestPw;
+  if (
+    typeof guestName !== "string" ||
+    !guestName ||
+    typeof guestPw !== "string" ||
+    !guestPw
+  ) {
+    throw new Error("Recovery failed.");
+  }
+  return { _guestName: guestName, _guestPw: guestPw };
 }

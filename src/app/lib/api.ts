@@ -28,6 +28,9 @@ export {
   handleLogin,
   handleLogout,
   handleUpgradeGuest,
+  handleRecoverGuest,
+  type UpgradeGuestResult,
+  type RecoverGuestResult,
 } from "./api/auth";
 export {
   fetchProfile,
