@@ -34,7 +34,7 @@ export function registerAuthRoutes(app: Hono): void {
           userId: user.id,
           message: error.message,
         });
-        return c.json({ error: error.message }, 400);
+        return c.json({ error: "Could not finalize upgrade" }, 400);
       }
 
       return c.json({ success: true });
@@ -48,6 +48,35 @@ export function registerAuthRoutes(app: Hono): void {
   // server. The on_auth_user_created trigger auto-inserts the public.profiles row.
   app.post("/server/signup", async (c) => {
     try {
+      // Parse + basic validation first so invalid requests don't burn budget.
+      const { username, password, captchaToken, isGuest, isAdult } =
+        await c.req.json();
+
+      if (!isAdult) {
+        return c.json(
+          { error: "You must be 13 years or older to use this service." },
+          403,
+        );
+      }
+
+      if (!username && !isGuest) {
+        return c.json(
+          {
+            error: "Signup error: username is required.",
+          },
+          400,
+        );
+      }
+      if (!captchaToken) {
+        return c.json(
+          {
+            error: "Signup error: human verification is required.",
+          },
+          400,
+        );
+      }
+
+      // Rate limits only for well-formed requests, before costly verification.
       // P0-2: Thêm global counter signup_total per phút với ngưỡng cứng
       const globalAllowed = await consumeRateLimit(
         "global_signup_budget",
@@ -77,33 +106,6 @@ export function registerAuthRoutes(app: Hono): void {
               "Too many signup attempts. Please wait 15 minutes and try again.",
           },
           429,
-        );
-      }
-
-      const { username, password, captchaToken, isGuest, isAdult } =
-        await c.req.json();
-
-      if (!isAdult) {
-        return c.json(
-          { error: "You must be 13 years or older to use this service." },
-          403,
-        );
-      }
-
-      if (!username && !isGuest) {
-        return c.json(
-          {
-            error: "Signup error: username is required.",
-          },
-          400,
-        );
-      }
-      if (!captchaToken) {
-        return c.json(
-          {
-            error: "Signup error: human verification is required.",
-          },
-          400,
         );
       }
 
@@ -154,6 +156,12 @@ export function registerAuthRoutes(app: Hono): void {
       if (!isGuest && pw.length < 8) {
         return c.json(
           { error: "Signup error: password must be at least 8 characters." },
+          400,
+        );
+      }
+      if (!isGuest && pw.length > 128) {
+        return c.json(
+          { error: "Signup error: password must be at most 128 characters." },
           400,
         );
       }
@@ -297,12 +305,29 @@ export function registerAuthRoutes(app: Hono): void {
   // ─── Recover Guest Account ────────────────────────────────────────────────
   app.post("/server/recover", async (c) => {
     try {
+      // Brute-force guard per IP before touching the DB.
+      const ip = clientIp(c);
+      const ipHash = await sha256(`mindgem-recover:${ip}`);
+      const allowed = await consumeRateLimit(`recover:${ipHash}`, 10, 3600);
+      if (!allowed) {
+        return c.json(
+          { error: "Too many recovery attempts. Please try again later." },
+          429,
+        );
+      }
+
       const { recoveryCode } = await c.req.json();
       if (!recoveryCode || typeof recoveryCode !== "string") {
         return c.json({ error: "Invalid recovery code" }, 400);
       }
 
-      const codeHash = await sha256(recoveryCode.trim().toUpperCase());
+      // 32 hex chars, case-insensitive; normalize to uppercase before hashing.
+      const normalizedCode = recoveryCode.trim().toUpperCase();
+      if (!/^[0-9A-F]{32}$/.test(normalizedCode)) {
+        return c.json({ error: "Invalid recovery code" }, 400);
+      }
+
+      const codeHash = await sha256(normalizedCode);
       const nowIso = new Date().toISOString();
       const { data: recovery, error: lookupErr } = await adminClient
         .from("account_recovery")
@@ -328,6 +353,9 @@ export function registerAuthRoutes(app: Hono): void {
       }
 
       const newPw = crypto.randomUUID();
+      // Current brand domain only (legacy neurobics.local dropped). The
+      // rebuilt email is not returned — client logs in with username and
+      // tries both domains, so only _guestName matters here.
       const email = `${profile.username}@mindgem.local`;
 
       // Update auth user's password
@@ -339,7 +367,12 @@ export function registerAuthRoutes(app: Hono): void {
       );
 
       if (updateErr) {
-        throw updateErr;
+        logServerEvent({
+          event: "server.log",
+          level: "error",
+          message: `Recovery error updating password: ${updateErr.message}`,
+        });
+        return c.json({ error: "Recovery failed. Please try again." }, 400);
       }
 
       logServerEvent({
@@ -409,11 +442,25 @@ export function registerAuthRoutes(app: Hono): void {
       if (!newPassword || newPassword.length < 8) {
         return c.json({ error: "Password must be at least 8 characters" }, 400);
       }
+      if (newPassword.length > 128) {
+        return c.json(
+          { error: "Password must be at most 128 characters" },
+          400,
+        );
+      }
 
       const normalized = newUsername.trim().toLowerCase();
-      const targetEmail = newEmail
-        ? newEmail.trim()
-        : `${normalized}@mindgem.local`;
+      const rawEmail = typeof newEmail === "string" ? newEmail.trim() : "";
+      let targetEmail: string;
+      if (!rawEmail) {
+        targetEmail = `${normalized}@mindgem.local`;
+      } else {
+        const lower = rawEmail.toLowerCase();
+        if (lower.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lower)) {
+          return c.json({ error: "Invalid email address" }, 400);
+        }
+        targetEmail = lower;
+      }
       const isSpoofed = targetEmail.endsWith("@mindgem.local");
 
       // Check availability

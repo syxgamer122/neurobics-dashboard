@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -25,31 +25,47 @@ const SCRIPT_URL =
 
 type LoadState = "idle" | "loading" | "ready" | "error" | "missing_key";
 
+/** Trạng thái captcha mà parent (auth-screen) quan tâm. Không có "idle". */
+export type TurnstileStatus = "loading" | "ready" | "error" | "missing_key";
+
 export function TurnstileWidget({
   onToken,
   resetKey,
+  onState,
 }: {
   onToken: (token: string) => void;
   resetKey: number;
+  onState?: (s: TurnstileStatus) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
+  const onStateRef = useRef(onState);
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
-  const [loadState, setLoadState] = useState<LoadState>(
+  const [loadState, setLoadStateInner] = useState<LoadState>(
     siteKey ? "loading" : "missing_key",
   );
+  // Tăng khi user bấm "Thử lại" trong widget: buộc effect render chạy lại.
+  const [retryNonce, setRetryNonce] = useState(0);
 
   onTokenRef.current = onToken;
+  onStateRef.current = onState;
+
+  // Mọi đổi trạng thái đều đi qua đây để parent luôn được báo (fail-closed mềm:
+  // parent biết captcha chưa ready nên không cho submit, nhưng không bypass).
+  const updateState = useCallback((s: LoadState) => {
+    setLoadStateInner(s);
+    if (s !== "idle") onStateRef.current?.(s);
+  }, []);
 
   useEffect(() => {
     if (!siteKey) {
-      setLoadState("missing_key");
+      updateState("missing_key");
       return;
     }
 
     let cancelled = false;
-    setLoadState("loading");
+    updateState("loading");
 
     const renderWidget = () => {
       if (cancelled || !containerRef.current || !window.turnstile) return;
@@ -69,29 +85,20 @@ export function TurnstileWidget({
           "expired-callback": () => onTokenRef.current(""),
           "error-callback": () => {
             onTokenRef.current("");
-            if (!cancelled) setLoadState("error");
+            if (!cancelled) updateState("error");
           },
         });
-        if (!cancelled) setLoadState("ready");
+        if (!cancelled) updateState("ready");
       } catch {
-        if (!cancelled) setLoadState("error");
+        if (!cancelled) updateState("error");
       }
     };
 
     const onScriptError = () => {
-      if (!cancelled) setLoadState("error");
+      if (!cancelled) updateState("error");
     };
 
-    const existing = document.getElementById(
-      SCRIPT_ID,
-    ) as HTMLScriptElement | null;
-    if (existing) {
-      if (window.turnstile) renderWidget();
-      else {
-        existing.addEventListener("load", renderWidget, { once: true });
-        existing.addEventListener("error", onScriptError, { once: true });
-      }
-    } else {
+    const attachScript = () => {
       const script = document.createElement("script");
       script.id = SCRIPT_ID;
       script.src = SCRIPT_URL;
@@ -100,20 +107,47 @@ export function TurnstileWidget({
       script.addEventListener("load", renderWidget, { once: true });
       script.addEventListener("error", onScriptError, { once: true });
       document.head.appendChild(script);
+      return script;
+    };
+
+    // Script đang được lắng nghe để cleanup gỡ đúng listener.
+    let listened: HTMLScriptElement | null = null;
+    const existing = document.getElementById(
+      SCRIPT_ID,
+    ) as HTMLScriptElement | null;
+    if (existing) {
+      if (window.turnstile) {
+        renderWidget();
+      } else if (retryNonce > 0) {
+        // Lần thử lại: script cũ đã lỗi/CSP chặn nên listener once cũ hết tác
+        // dụng — xóa và tạo script mới để browser tải lại thật.
+        try {
+          existing.remove();
+        } catch {
+          /* ignore */
+        }
+        listened = attachScript();
+      } else {
+        existing.addEventListener("load", renderWidget, { once: true });
+        existing.addEventListener("error", onScriptError, { once: true });
+        listened = existing;
+      }
+    } else {
+      listened = attachScript();
     }
 
     // CSP chan script -> load khong bao gio fire.
     const timeoutId = window.setTimeout(() => {
       if (!cancelled && !widgetIdRef.current && !window.turnstile) {
-        setLoadState("error");
+        updateState("error");
       }
     }, 8000);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
-      existing?.removeEventListener("load", renderWidget);
-      existing?.removeEventListener("error", onScriptError);
+      listened?.removeEventListener("load", renderWidget);
+      listened?.removeEventListener("error", onScriptError);
       if (widgetIdRef.current && window.turnstile) {
         try {
           window.turnstile.remove(widgetIdRef.current);
@@ -123,13 +157,29 @@ export function TurnstileWidget({
         widgetIdRef.current = null;
       }
     };
-  }, [siteKey]);
+  }, [siteKey, retryNonce, updateState]);
 
+  const isFirstResetRef = useRef(true);
   useEffect(() => {
-    if (widgetIdRef.current && window.turnstile) {
-      window.turnstile.reset(widgetIdRef.current);
-      onTokenRef.current("");
+    // Bỏ qua lần mount: tránh reset ngay khi vừa render.
+    if (isFirstResetRef.current) {
+      isFirstResetRef.current = false;
+      return;
     }
+    if (widgetIdRef.current && window.turnstile) {
+      try {
+        window.turnstile.reset(widgetIdRef.current);
+      } catch {
+        /* ignore */
+      }
+      onTokenRef.current("");
+    } else {
+      // Parent bấm "Thử lại" (tăng resetKey) mà widget chưa render được
+      // (đang error): thử render lại. Không xóa username/password — parent giữ.
+      setRetryNonce((n) => n + 1);
+    }
+    // Chỉ nghe resetKey từ parent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
   if (loadState === "missing_key") {
@@ -161,9 +211,25 @@ export function TurnstileWidget({
             background: "rgba(var(--neuro-red-rgb),0.08)",
           }}
         >
-          Khong tai duoc captcha (thuong do CSP chan Cloudflare Turnstile hoac
-          mat mang). Thu tai lai trang. Neu van loi, kiem tra Vercel CSP cho
-          phep challenges.cloudflare.com.
+          <div>
+            Khong tai duoc captcha (thuong do CSP chan Cloudflare Turnstile hoac
+            mat mang). Thu tai lai trang. Neu van loi, kiem tra Vercel CSP cho
+            phep challenges.cloudflare.com.
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onTokenRef.current("");
+              setRetryNonce((n) => n + 1);
+            }}
+            className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{
+              border: "1px solid rgba(var(--neuro-red-rgb),0.4)",
+              color: "var(--neuro-red)",
+            }}
+          >
+            Thử lại
+          </button>
         </div>
       )}
     </div>
