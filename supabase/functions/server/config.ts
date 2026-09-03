@@ -7,10 +7,23 @@ import { GAME_IDS } from "../_shared/round-scoring.ts";
 // sb_secret_ moi phai mang ten rieng la EDGE_SERVICE_ROLE_KEY. Van fallback
 // ve bien tu dong de `supabase functions serve` chay o local khong can them
 // cau hinh gi.
-const ADMIN_SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.trim();
+const getEnv = (key: string): string | undefined => {
+  if (typeof Deno !== "undefined" && Deno?.env) {
+    return Deno.env.get(key)?.trim();
+  }
+  if (typeof process !== "undefined" && process?.env) {
+    return process.env[key]?.trim();
+  }
+  return undefined;
+};
+
+const ADMIN_SUPABASE_URL =
+  getEnv("SUPABASE_URL") ||
+  (typeof Deno === "undefined" ? "https://mock.supabase.co" : undefined);
 const ADMIN_SERVICE_KEY =
-  Deno.env.get("EDGE_SERVICE_ROLE_KEY")?.trim() ||
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  getEnv("EDGE_SERVICE_ROLE_KEY") ||
+  getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
+  (typeof Deno === "undefined" ? "mock-service-role-key" : undefined);
 
 if (!ADMIN_SUPABASE_URL) {
   throw new Error("Missing required Edge Function secret: SUPABASE_URL");

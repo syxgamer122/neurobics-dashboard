@@ -178,7 +178,7 @@ export function useRoundSubmission({
           totalXp: current?.total_xp ?? 0,
           level: 1,
           leveledUp: false,
-          headline: "",
+          headline: 0,
           label: "offline",
           timeMs: 0,
         };

@@ -80,7 +80,7 @@ function AppInner() {
   } = useAppState(t);
 
   // Kích hoạt đồng bộ offline ngầm
-  useOfflineSync();
+  useOfflineSync(profile?.id);
 
   const axisLabels = useCallback(
     (): Record<AxisKey, string> => ({

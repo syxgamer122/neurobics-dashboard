@@ -18,45 +18,53 @@ export function AppHeader({
   onLogout: () => void;
 }) {
   return (
-    <nav
-      className="relative z-10 flex items-center justify-between gap-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4 bg-background/50 backdrop-blur-md border-b border-border"
+    <header
+      className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 sm:px-8 py-3.5 bg-slate-950/70 backdrop-blur-xl border-b border-white/8 transition-all"
       style={{
-        paddingTop: "max(0.75rem, env(safe-area-inset-top))",
+        paddingTop: "max(0.85rem, env(safe-area-inset-top))",
       }}
     >
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      {/* Brand logo */}
+      <div className="flex items-center gap-3">
         <div
-          className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+          className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20"
           style={{
-            background: "linear-gradient(135deg, #00D4FF, #7C3AED)",
-            boxShadow: "0 0 20px rgba(var(--neuro-cyan-rgb),0.4)",
+            background: "linear-gradient(135deg, #06b6d4, #8b5cf6)",
           }}
         >
-          <Brain size={17} className="text-foreground" />
+          <Brain size={20} className="text-white" />
         </div>
-        <span className="hidden sm:inline text-lg font-bold tracking-[0.22em] text-foreground font-mono">
-          MINDGEM
-        </span>
-        <span className="inline text-sm font-bold tracking-[0.14em] text-foreground font-mono sm:hidden">
-          MG
-        </span>
-        <span className="hidden sm:inline text-xs rounded px-2 py-0.5 tracking-widest ml-1 font-mono bg-neuro-cyan/10 text-neuro-cyan border border-neuro-cyan/20">
-          {APP_VERSION_LABEL}
-        </span>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="text-base sm:text-lg font-extrabold tracking-wider text-foreground font-mono bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              MINDGEM
+            </span>
+            <span className="text-[10px] rounded-md px-1.5 py-0.5 tracking-wider font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              {APP_VERSION_LABEL}
+            </span>
+          </div>
+          <span className="hidden sm:inline text-[11px] text-slate-400 font-medium">
+            Cognitive Training & Intelligence Platform
+          </span>
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 md:gap-6">
-        <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
-          <Activity size={12} className="text-neuro-cyan" />
-          <span>{t.league}</span>
+      {/* User profile and quick settings */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* League status */}
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/50 border border-white/5 text-xs text-slate-300">
+          <Activity size={13} className="text-cyan-400 animate-pulse" />
+          <span className="font-medium">{t.league}</span>
         </div>
-        <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-neuro-panel border border-neuro-cyan/10">
+
+        {/* Profile Pill */}
+        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900/70 border border-white/10 shadow-sm">
           <div
-            className="w-8 h-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold uppercase font-mono"
+            className="w-7 h-7 shrink-0 rounded-lg overflow-hidden flex items-center justify-center text-xs font-bold text-white shadow-inner font-mono"
             style={{
               background: profile.avatar_url
-                ? "var(--neuro-panel)"
-                : "linear-gradient(135deg, #A855F7, #7C3AED)",
+                ? "transparent"
+                : "linear-gradient(135deg, #8b5cf6, #ec4899)",
             }}
           >
             {profile.avatar_url ? (
@@ -66,35 +74,41 @@ export function AppHeader({
                 className="w-full h-full object-cover"
               />
             ) : (
-              profile.username.slice(0, 2)
+              profile.username.slice(0, 2).toUpperCase()
             )}
           </div>
-          <div className="hidden sm:block min-w-0">
-            <div className="text-xs font-semibold text-foreground truncate max-w-[9rem]">
+          <div className="hidden sm:block min-w-0 pr-1">
+            <div className="text-xs font-bold text-foreground truncate max-w-[8.5rem]">
               {profile.username}
             </div>
           </div>
         </div>
+
+        {/* Language switch */}
         <button
           type="button"
           onClick={onToggleLanguage}
-          title="Switch language"
+          title="Đổi ngôn ngữ / Switch language"
           aria-label="Switch language"
-          className="h-10 min-w-10 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider transition-all duration-150 hover:brightness-125 bg-neuro-panel border border-neuro-cyan/20 text-neuro-cyan"
+          className="h-9 px-3 rounded-xl flex items-center justify-center text-xs font-bold font-mono tracking-wider transition-all duration-200 hover:scale-105 bg-slate-900/70 border border-white/10 text-cyan-400 hover:border-cyan-500/40"
         >
-          {lang === "vi" ? "EN" : "VI"}
+          {lang === "vi" ? "VI" : "EN"}
         </button>
+
+        {/* Theme toggle */}
         <ThemeToggle />
+
+        {/* Logout */}
         <button
           type="button"
           onClick={onLogout}
-          title="Sign out"
+          title="Đăng xuất"
           aria-label={t.sign_out}
-          className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center text-neuro-muted hover:text-foreground transition-colors bg-neuro-panel border border-neuro-cyan/10"
+          className="h-9 w-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 bg-slate-900/70 border border-white/10 cursor-pointer"
         >
           <LogOut size={15} />
         </button>
       </div>
-    </nav>
+    </header>
   );
 }

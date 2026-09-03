@@ -208,6 +208,34 @@ export class ServerError extends Error {
   }
 }
 
+export async function serverGet<T = void>(
+  path: string,
+  customHeaders?: Record<string, string>,
+): Promise<T> {
+  const token = await getAccessToken();
+  if (!token)
+    throw new ServerError("Not authenticated.", "unauthenticated", 401);
+  const res = await fetch(`${BASE}/${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...customHeaders,
+    },
+  });
+  const body = await res.json().catch(() => ({
+    error: "Invalid server response",
+    code: "invalid_response",
+  }));
+  if (!res.ok) {
+    throw new ServerError(
+      body.error ?? `${path} failed (${res.status})`,
+      body.code,
+      res.status,
+    );
+  }
+  return body as T;
+}
+
 export async function serverPost<T = void>(
   path: string,
   payload: unknown,

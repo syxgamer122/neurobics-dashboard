@@ -194,7 +194,12 @@ export function scoreMentalRotation(t: Telemetry): ScoredRound {
     // Spatial thuần: accuracy^1.15 * angle factor, cap soft 0.95
     spatial: clamp(MAX * 0.95 * Math.pow(accuracy, 1.15) * angleFactor),
     // Choice RT cho so khớp hình — target ~1400ms (chậm hơn simple RT nhiều).
-    speed: statRts.length >= 4 ? speed(statRts, 1400, 0.72) : null,
+    speed:
+      accuracy > 0 && statRts.length >= 4
+        ? clamp(speed(statRts, 1400, 0.72) * (0.6 + 0.4 * accuracy))
+        : accuracy === 0
+          ? 0
+          : null,
   };
   return {
     axes,
@@ -292,7 +297,7 @@ export function scoreTrail(t: Telemetry): ScoredRound {
 }
 
 export function scoreSearch(t: Telemetry): ScoredRound {
-  const timeMs = finite(t?.totalTimeMs, "totalTimeMs", 30_000, 120_000);
+  const timeMs = finite(t?.timeMs ?? t?.totalTimeMs, "timeMs", 30_000, 120_000);
   const score = int(t?.score, "score", 0, 200);
   const mistakes = int(t?.mistakes, "mistakes", 0, 500);
   const rts = numberArray(t?.rts, "rts", 0, 200);

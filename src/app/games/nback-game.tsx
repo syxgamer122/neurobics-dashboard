@@ -123,11 +123,12 @@ export function NBackGame({
     if (inputTypesRef.current.has("touch")) finalInput = "touch";
     else if (inputTypesRef.current.has("key")) finalInput = "key";
 
+    const elapsed = Math.max(
+      1,
+      Date.now() - (startedAtRef.current || Date.now()),
+    );
     onComplete({
-      timeMs: Math.max(
-        1,
-        rtsRef.current.reduce((a, b) => a + b, 0),
-      ),
+      timeMs: elapsed,
       n,
       trials: TRIALS,
       hits: statsRef.current.hits,

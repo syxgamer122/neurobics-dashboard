@@ -3,6 +3,7 @@ import {
   inspectRound,
   shouldReject,
   softFlags,
+  hasHardFlag,
   type CheatReport,
 } from "../supabase/functions/_shared/anticheat";
 
@@ -404,5 +405,106 @@ describe("property-based edge cases — du lieu bat thuong khong lam sap", () =>
       expect(() => inspectRound(g, { rts: [300, 400] }, 0)).not.toThrow();
       expect(() => inspectRound(g, { rts: [300, 400] }, -1000)).not.toThrow();
     }
+  });
+});
+
+describe("Milestone 1 — Anti-Cheat Fixes & Invariants", () => {
+  it("hasHardFlag accurately detects physical signal classes", () => {
+    const reportWithPhysical: CheatReport = {
+      flags: [
+        { msg: "Reaction median impossibly low", signal_class: "physical" },
+        { msg: "Reaction timing too metronomic", signal_class: "statistical" },
+      ],
+    };
+    expect(hasHardFlag(reportWithPhysical)).toBe(true);
+    expect(shouldReject(reportWithPhysical)).toBe(true);
+
+    const reportStatisticalOnly: CheatReport = {
+      flags: [
+        { msg: "Reaction timing too metronomic", signal_class: "statistical" },
+      ],
+    };
+    expect(hasHardFlag(reportStatisticalOnly)).toBe(false);
+    expect(shouldReject(reportStatisticalOnly)).toBe(false);
+
+    const emptyReport: CheatReport = { flags: [] };
+    expect(hasHardFlag(emptyReport)).toBe(false);
+  });
+
+  it("inspectMath detects perfect hard math completed implausibly fast", () => {
+    // Hard math with perfect accuracy and fast median (< 1200ms) triggers statistical flag
+    const hardBot = inspectRound(
+      "math",
+      {
+        timeMs: 20_000,
+        difficulty: "hard",
+        totalProblems: 20,
+        correct: 20,
+        wrong: 0,
+        rts: [900, 850, 920, 880, 910, 870, 930, 890, 860, 940],
+      },
+      20_000,
+    );
+    expect(msgs(hardBot)).toContain("Perfect hard math finished too fast");
+
+    // Easy or Medium math with fast median does NOT trigger the hard math flag
+    const easyFast = inspectRound(
+      "math",
+      {
+        timeMs: 20_000,
+        difficulty: "easy",
+        totalProblems: 20,
+        correct: 20,
+        wrong: 0,
+        rts: [900, 850, 920, 880, 910, 870, 930, 890, 860, 940],
+      },
+      20_000,
+    );
+    expect(msgs(easyFast)).not.toContain("Perfect hard math finished too fast");
+
+    const mediumFast = inspectRound(
+      "math",
+      {
+        timeMs: 20_000,
+        difficulty: "medium",
+        totalProblems: 20,
+        correct: 20,
+        wrong: 0,
+        rts: [900, 850, 920, 880, 910, 870, 930, 890, 860, 940],
+      },
+      20_000,
+    );
+    expect(msgs(mediumFast)).not.toContain(
+      "Perfect hard math finished too fast",
+    );
+  });
+
+  it("inspectShared and inspectMemory support fallback field names", () => {
+    // inspectShared supports timeMs ?? totalTimeMs
+    const sharedWithTotalTimeMs = inspectRound(
+      "search",
+      {
+        totalTimeMs: 60_000,
+        score: 10,
+        rts: [1000, 1200, 1100],
+      },
+      10_000,
+    );
+    expect(msgs(sharedWithTotalTimeMs)).toContain(
+      "Client time far exceeds server elapsed",
+    );
+
+    // inspectMemory supports totalTaps ?? taps
+    const memoryFastTaps = inspectRound(
+      "memory",
+      {
+        timeMs: 1_000,
+        clearedLevels: 5,
+        taps: 20, // 1000 / 20 = 50ms per tap < 90ms
+      },
+      1_000,
+    );
+    expect(msgs(memoryFastTaps)).toContain("Memory pace impossibly fast");
+    expect(hasHardFlag(memoryFastTaps)).toBe(true);
   });
 });

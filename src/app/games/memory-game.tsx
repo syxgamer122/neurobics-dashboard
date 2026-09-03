@@ -189,8 +189,12 @@ export function MemoryMatrixGame({
           if (inputTypesRef.current.has("touch")) finalInput = "touch";
           else if (inputTypesRef.current.has("key")) finalInput = "key";
 
+          const elapsed = Math.max(
+            100,
+            Date.now() - (startRef.current ?? Date.now()),
+          );
           void onComplete({
-            timeMs: recallMsRef.current,
+            timeMs: elapsed,
             maxLevel: maxClearedRef.current,
             clearedLevels: maxClearedRef.current,
             failed: true,

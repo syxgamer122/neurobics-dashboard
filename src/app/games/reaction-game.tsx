@@ -37,6 +37,7 @@ export function ReactionTimeGame({
   const [message, setMessage] = useState("");
 
   const readyAtRef = useRef(0);
+  const startedAtRef = useRef(0);
   const falseStartsRef = useRef(0);
   const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,6 +75,7 @@ export function ReactionTimeGame({
 
   const startGame = () => {
     onPlayStart?.();
+    startedAtRef.current = Date.now();
     setPhase("waiting");
     setRts([]);
     setFalseStarts(0);
@@ -94,8 +96,12 @@ export function ReactionTimeGame({
         if (inputTypesRef.current.has("touch")) finalInput = "touch";
         else if (inputTypesRef.current.has("key")) finalInput = "key";
 
+        const elapsed = Math.max(
+          1,
+          Date.now() - (startedAtRef.current || Date.now()),
+        );
         await onComplete({
-          timeMs: 0,
+          timeMs: elapsed,
           rts: completedRts,
           falseStarts: falseStartsRef.current,
           inputType: finalInput as InputType,

@@ -61,7 +61,9 @@ export type VisualSearchTelemetry = {
   score: number;
   mistakes: number;
   rts: number[];
-  totalTimeMs: number;
+  timeMs: number;
+  totalTimeMs?: number;
+  inputType?: InputType;
 };
 
 export function VisualSearchGame({
@@ -139,11 +141,13 @@ export function VisualSearchGame({
 
       // Telemetry: rts (reaction times for each found target)
       // mistakes, score = correct hits
-      const telemetry = {
+      const elapsed = Math.max(1, Date.now() - startedAtRef.current);
+      const telemetry: VisualSearchTelemetry = {
         score: scoreRef.current,
         mistakes: mistakesRef.current,
         rts: hitRtsRef.current,
-        totalTimeMs: Math.max(1, Date.now() - startedAtRef.current),
+        timeMs: elapsed,
+        totalTimeMs: elapsed,
         inputType: finalInput as InputType,
       };
       await onComplete(telemetry);
