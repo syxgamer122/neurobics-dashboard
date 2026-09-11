@@ -202,7 +202,9 @@ export function isGameId(value: unknown): value is GameId {
 
 export function gameStageClass(game: GameId): string {
   const width = GAME_BY_ID[game].stageWidth;
-  if (width === "lg") return "w-full max-w-lg";
-  if (width === "md") return "w-full max-w-md";
-  return "w-full max-w-sm";
+  if (width === "lg")
+    return "w-full max-w-full sm:max-w-xl md:max-w-2xl mx-auto";
+  if (width === "md")
+    return "w-full max-w-full sm:max-w-lg md:max-w-xl mx-auto";
+  return "w-full max-w-full sm:max-w-md md:max-w-lg mx-auto";
 }

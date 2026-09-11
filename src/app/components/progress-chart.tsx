@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   CartesianGrid,
@@ -89,16 +89,23 @@ export function ProgressChart() {
   const [loading, setLoading] = useState<boolean>(true);
   const [hidden, setHidden] = useState<AxisName[]>([]);
 
+  // Chong stale-response: response cua range cu co the ve sau range moi
+  // va dinh de rows dang hien thi.
+  const loadSeqRef = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     try {
       const series = await fetchProgressSeries(days);
+      if (seq !== loadSeqRef.current) return;
       setRows(series.map((p) => ({ ...p, label: fmtDay(p.day) })));
     } catch (err) {
+      if (seq !== loadSeqRef.current) return;
       logError("fetchProgressSeries failed:", err);
       setRows([]);
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }, [days]);
 

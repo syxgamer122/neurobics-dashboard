@@ -495,19 +495,19 @@ export function MathSprintGame({
           </div>
 
           <div
-            className="rounded-2xl py-8 mb-4 text-center text-3xl font-semibold text-foreground tracking-wide transition-colors"
+            className="rounded-2xl py-7 sm:py-10 mb-4 text-center text-3xl sm:text-4xl font-extrabold text-foreground font-mono tracking-wide transition-colors"
             style={{
               background:
                 flash === "ok"
-                  ? "rgba(var(--neuro-green-rgb),0.12)"
+                  ? "rgba(var(--neuro-green-rgb),0.15)"
                   : flash === "bad"
-                    ? "rgba(var(--neuro-red-rgb),0.12)"
+                    ? "rgba(var(--neuro-red-rgb),0.15)"
                     : "rgba(255,255,255,0.03)",
               border: `1px solid ${
                 flash === "ok"
-                  ? "rgba(var(--neuro-green-rgb),0.45)"
+                  ? "rgba(var(--neuro-green-rgb),0.55)"
                   : flash === "bad"
-                    ? "rgba(var(--neuro-red-rgb),0.45)"
+                    ? "rgba(var(--neuro-red-rgb),0.55)"
                     : "rgba(255,255,255,0.08)"
               }`,
             }}
@@ -516,14 +516,14 @@ export function MathSprintGame({
               {/* Icon dung/sai: khong chi dua vao mau cho nguoi mu mau. */}
               {flash === "ok" && (
                 <Check
-                  size={26}
+                  size={30}
                   aria-label={s.correct}
                   style={{ color: "#10B981" }}
                 />
               )}
               {flash === "bad" && (
                 <X
-                  size={26}
+                  size={30}
                   aria-label={s.wrong}
                   style={{ color: "#F43F5E" }}
                 />
@@ -532,12 +532,13 @@ export function MathSprintGame({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
             {problem.choices.map((c, i) => (
               <button
                 key={`${idx}-${c}-${i}`}
+                type="button"
                 {...press((type: InputType) => answer(c, type))}
-                className="py-3 rounded-xl text-sm transition-all game-surface active:scale-95"
+                className="py-4 sm:py-5 rounded-2xl text-base sm:text-lg font-bold font-mono transition-all game-surface active:scale-95 hover:border-sky-400/50 hover:bg-sky-500/15 shadow-sm flex items-center justify-center cursor-pointer"
                 style={{
                   background: "rgba(56,189,248,0.08)",
                   border: "1px solid rgba(56,189,248,0.28)",

@@ -2,6 +2,8 @@ import type { Hono } from "npm:hono@4.12.27";
 import {
   adminClient,
   PROFILE_COLS,
+  RECOVERY_LIMIT,
+  RECOVERY_WINDOW_SECONDS,
   SIGNUP_LIMIT,
   SIGNUP_WINDOW_SECONDS,
 } from "../config.ts";
@@ -297,6 +299,21 @@ export function registerAuthRoutes(app: Hono): void {
   // ─── Recover Guest Account ────────────────────────────────────────────────
   app.post("/server/recover", async (c) => {
     try {
+      // Chong bruteforce ma phuc hoi: gioi han theo IP truoc khi cham DB.
+      const ip = clientIp(c);
+      const ipHash = await sha256(`mindgem-recover:${ip}`);
+      const allowed = await consumeRateLimit(
+        ipHash,
+        RECOVERY_LIMIT,
+        RECOVERY_WINDOW_SECONDS,
+      );
+      if (!allowed) {
+        return c.json(
+          { error: "Too many recovery attempts. Please try again later." },
+          429,
+        );
+      }
+
       const { recoveryCode } = await c.req.json();
       if (!recoveryCode || typeof recoveryCode !== "string") {
         return c.json({ error: "Invalid recovery code" }, 400);
@@ -415,6 +432,17 @@ export function registerAuthRoutes(app: Hono): void {
         ? newEmail.trim()
         : `${normalized}@mindgem.local`;
       const isSpoofed = targetEmail.endsWith("@mindgem.local");
+
+      // Reserved usernames apply equally to the upgrade path — otherwise a guest
+      // could take "admin"/"root" that /server/signup blocks.
+      const { data: reservedName } = await adminClient
+        .from("reserved_usernames")
+        .select("username")
+        .eq("username", normalized)
+        .maybeSingle();
+      if (reservedName) {
+        return c.json({ error: "Username is not available" }, 409);
+      }
 
       // Check availability
       const { data: existing } = await adminClient

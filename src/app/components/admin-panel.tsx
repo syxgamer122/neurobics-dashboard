@@ -15,7 +15,6 @@ import {
   type AdminGrant,
 } from "../lib/api/admin";
 import { type Profile } from "../lib/api/internal";
-import { useAppState } from "../hooks/use-app-state";
 import {
   AccessDenied,
   ActivityLog,
@@ -35,12 +34,16 @@ export function AdminPanel({
   onExit,
   onProfileChange,
   onAccountDeleted,
+  profile,
 }: {
   onExit: () => void;
   onProfileChange: (p: Profile) => void;
   onAccountDeleted: () => void;
+  // Profile cua admin dang mo panel, truyen tu App. Truoc day panel tu goi
+  // useAppState() tao mot state song song: profile=null o render dau nen
+  // `profile.username` o nhanh AccessDenied CRASH ngay khi mo panel.
+  profile: Profile;
 }) {
-  const { profile } = useAppState();
   const isAdmin = profile?.role === "admin";
 
   const [loading, setLoading] = useState(false);
@@ -190,7 +193,10 @@ export function AdminPanel({
           error={error}
           latency={latency}
           usersCount={rows.length}
-          Partial={Partial}
+          // `Partial` la kieu TS, khong ton tai luc runtime — JSX cu dang
+          // `Partial={Partial}` nen ReferenceError moi lan render panel.
+          // Server admin-list-profiles co limit(100): du 100 row la du lieu mo.
+          partial={{ partial: rows.length >= 100, scanned: rows.length }}
           selectedUser={selectedUser}
           onClearSelected={() => {
             setSelectedUser(null);

@@ -19,7 +19,7 @@ import {
   requestIdFor,
 } from "../../_shared/observability.ts";
 import { adminClient, MAX_TICKET_STARTS_PER_MINUTE } from "../config.ts";
-import { authenticatedUser } from "../security.ts";
+import { authenticatedUser, consumeRateLimit } from "../security.ts";
 
 export function registerRoundRoutes(app: Hono): void {
   // ─── Secure round lifecycle ──────────────────────────────────────────────────
@@ -27,6 +27,20 @@ export function registerRoundRoutes(app: Hono): void {
   app.post("/server/activate-round", async (c) => {
     try {
       const user = await authenticatedUser(c);
+
+      // Chong spam mint ticket: moi user chi duoc bat dau toi da 20 van/phut.
+      const startAllowed = await consumeRateLimit(
+        `ticket_starts:${user.id}`,
+        MAX_TICKET_STARTS_PER_MINUTE,
+        60,
+      );
+      if (!startAllowed) {
+        return c.json(
+          { error: "Too many round starts. Please wait a moment." },
+          429,
+        );
+      }
+
       const { game, config, clientBuildId, clientConfigHash } =
         await c.req.json();
       const gameId = String(game);
@@ -114,11 +128,21 @@ export function registerRoundRoutes(app: Hono): void {
           .select("state, expires_at")
           .eq("id", String(roundId))
           .single();
-        if (!existing) return c.json({ error: "Round ticket not found" }, 404);
+        if (!existing)
+          return c.json(
+            { error: "Round ticket not found", code: "ticket_not_found" },
+            404,
+          );
         if (existing.state === "accepted" || existing.state === "rejected")
-          return c.json({ error: "Round already submitted" }, 409);
+          return c.json(
+            { error: "Round already submitted", code: "already_submitted" },
+            409,
+          );
         if (Date.parse(existing.expires_at) < Date.now())
-          return c.json({ error: "Round ticket expired" }, 410);
+          return c.json(
+            { error: "Round ticket expired", code: "ticket_expired" },
+            410,
+          );
         return c.json({ error: "Round ticket unavailable" }, 409);
       }
 
@@ -283,16 +307,29 @@ export function registerRoundRoutes(app: Hono): void {
         return c.json({ error: err.message, code: err.code }, err.status);
       }
 
-      const lower = message.toLowerCase();
       // Hono chi nhan ContentfulStatusCode, khong nhan number chung chung.
-      let status: 400 | 401 | 409 | 422 | 500 = 400;
+      // Mac dinh 500: loi khong nhan dien thuoc ve server, khong phai loi client.
+      let status: 401 | 409 | 500 = 500;
+      let code: string | undefined;
+      let clientMessage = "Round could not be saved.";
+      // Chi nhan dien chinh xac 2 message ma authenticatedUser() throw
+      // (security.ts) — match free-text nhu "includes('session')" se bat nham
+      // ca loi Postgres chua tu khoa do roi tra 401 sai.
       if (
-        lower.includes("authorization") ||
-        lower.includes("session") ||
-        lower.includes("missing authorization")
-      )
+        message === "Missing authorization" ||
+        message === "Invalid or expired session"
+      ) {
         status = 401;
-      else if (lower.includes("already submitted")) status = 409;
+        code = "unauthenticated";
+        clientMessage = "Session expired. Please sign in again.";
+      } else if (message.toLowerCase().includes("already submitted")) {
+        // submit_round_transaction raise 'Round already submitted' khi nap lai
+        // ticket da chap nhan — phai kem code de client xoa ticket chet thay vi
+        // retry vo han voi cung mot ticket.
+        status = 409;
+        code = "already_submitted";
+        clientMessage = "Round already submitted";
+      }
 
       logServerEvent({
         event: "submit_round.unhandled",
@@ -300,7 +337,10 @@ export function registerRoundRoutes(app: Hono): void {
         message: err instanceof Error ? err.message : String(err),
         requestId: requestIdFor(c.req.raw),
       });
-      return c.json({ error: "Round could not be saved." }, 500);
+      return c.json(
+        code ? { error: clientMessage, code } : { error: clientMessage },
+        status,
+      );
     }
   });
 
@@ -447,6 +487,6 @@ export function registerRoundRoutes(app: Hono): void {
   // Legacy endpoint deliberately disabled: accepting roundScore directly from the
   // browser would bypass server-side telemetry scoring.
   app.post("/server/award-xp", (c) =>
-    c.json({ error: "Deprecated: use start-round + submit-round" }, 410),
+    c.json({ error: "Deprecated: use activate-round + submit-round" }, 410),
   );
 }

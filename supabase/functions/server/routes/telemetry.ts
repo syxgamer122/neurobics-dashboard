@@ -5,7 +5,7 @@ import {
   sanitizeClientEvents,
 } from "../../_shared/observability.ts";
 import { adminClient } from "../config.ts";
-import { consumeRateLimit } from "../security.ts";
+import { clientIp, consumeRateLimit } from "../security.ts";
 
 export function registerTelemetryRoutes(app: Hono): void {
   // ─── Telemetry ingest ───────────────────────────────────────────────────
@@ -15,9 +15,9 @@ export function registerTelemetryRoutes(app: Hono): void {
 
   app.post("/server/telemetry", async (c) => {
     const requestId = requestIdFor(c.req.raw) ?? beginRequest(c.req.raw);
-    const ip =
-      (c.req.header("x-forwarded-for") ?? "unknown").split(",")[0]?.trim() ??
-      "unknown";
+    // Dung clientIp (rightmost-untrusted) thay vi phan tu dau x-forwarded-for:
+    // phan tu dau co the gia mao de xoay bucket rate limit.
+    const ip = clientIp(c);
 
     try {
       const allowed = await consumeRateLimit(`telemetry:${ip}`, 60, 60);

@@ -27,9 +27,13 @@
     "db:status": "npx --yes supabase migration list --linked",
     "db:drift": "npx --yes supabase db diff --use-migra",
     "functions:deploy": "npx --yes supabase functions deploy server",
+    "cap:sync": "pnpm run build && pnpm exec cap sync android",
+    "cap:open": "pnpm exec cap open android",
+    "build:apk": "pnpm run build && pnpm exec cap sync android && cd android && ./gradlew assembleDebug && cd ..",
     "reinstall": "powershell -Command \"Remove-Item -Recurse -Force node_modules; pnpm install --frozen-lockfile\""
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.0",
     "@supabase/supabase-js": "2.110.9",
     "lucide-react": "0.487.0",
     "react": "18.3.1",
@@ -38,6 +42,8 @@
     "sonner": "2.0.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^9.0.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "4.1.12",

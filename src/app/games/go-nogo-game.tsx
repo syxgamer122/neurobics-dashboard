@@ -294,7 +294,12 @@ export function GoNoGoGame({
   }, [handlePress]);
 
   useGameLifecycle({
-    isActive: () => phaseRef.current === "isi" || phaseRef.current === "stim",
+    // Ke ca "countdown": neu tab an di giua lua chon 3-2-1, chuoi timer van
+    // chay ngam het 40 trial va tich luu miss — phai huy van nhu cac phase khac.
+    isActive: () =>
+      phaseRef.current === "countdown" ||
+      phaseRef.current === "isi" ||
+      phaseRef.current === "stim",
     onLeave: () => {
       reset();
     },

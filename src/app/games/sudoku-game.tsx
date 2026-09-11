@@ -623,7 +623,7 @@ export function SudokuGame({
       {/* ── Grid: 3×3 outer (boxes) → 3×3 inner (cells) ── */}
       {/* Bright glowing gutter between the 9 boxes; subtle hairlines within each box. */}
       <div
-        className="mt-4 mx-auto w-full max-w-[420px]"
+        className="mt-4 mx-auto w-full max-w-[480px]"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
@@ -646,9 +646,9 @@ export function SudokuGame({
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 2,
-                background: "rgba(var(--neuro-cyan-rgb),0.14)",
-                borderRadius: 4,
+                gap: 1,
+                background: "rgba(var(--neuro-cyan-rgb),0.2)",
+                borderRadius: 7,
                 overflow: "hidden",
               }}
             >
@@ -697,7 +697,7 @@ export function SudokuGame({
                         color: textColor,
 
                         fontWeight: isGiven ? 800 : 600,
-                        fontSize: 15,
+                        fontSize: "clamp(15px, 3.8vw, 20px)",
                         cursor: isGiven ? "default" : "pointer",
                         display: "flex",
                         alignItems: "center",
@@ -729,7 +729,7 @@ export function SudokuGame({
       </div>
 
       {/* ── Number pad: 3x3 tren mobile (o cham ~48px), 1 hang 9 o tren man rong ── */}
-      <div className="mt-5 mx-auto w-full max-w-[420px] grid grid-cols-3 sm:grid-cols-9 gap-2 sm:gap-1.5">
+      <div className="mt-5 mx-auto w-full max-w-[480px] grid grid-cols-3 sm:grid-cols-9 gap-2 sm:gap-1.5">
         {Array.from({ length: 9 }, (_, i) => {
           const n = i + 1;
           const cnt = counts[i];

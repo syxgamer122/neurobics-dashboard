@@ -411,7 +411,7 @@ export function MemoryMatrixGame({
       ) : (
         <div
           className="mt-6 mx-auto relative"
-          style={{ width: "100%", maxWidth: 320 }}
+          style={{ width: "100%", maxWidth: "min(92vw, 420px)" }}
         >
           <div
             style={{

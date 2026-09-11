@@ -250,11 +250,19 @@ export function VisualSearchGame({
 
   if (status === "idle") {
     return (
-      <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center">
-        <h2 className="text-2xl font-bold text-foreground">
+      <div
+        className="rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center space-y-6 text-center shadow-xl"
+        style={{
+          background:
+            "linear-gradient(145deg, rgba(13, 20, 48, 0.8), rgba(8, 14, 32, 0.7))",
+          border: "1px solid rgba(236, 72, 153, 0.25)",
+          backdropFilter: "blur(20px)",
+        }}
+      >
+        <h2 className="text-xl sm:text-2xl font-bold font-mono tracking-wider text-pink-400">
           {t.search_tag || "VISUAL SEARCH"}
         </h2>
-        <div className="space-y-2 text-slate-400">
+        <div className="space-y-2 text-sm text-slate-300 max-w-md">
           <p>{t.search_intro_1 || "Ghi nhớ biểu tượng mục tiêu ở trên."}</p>
           <p>
             {t.search_intro_2 ||
@@ -262,8 +270,13 @@ export function VisualSearchGame({
           </p>
         </div>
         <button
+          type="button"
           onClick={startGame}
-          className="px-8 py-3 text-lg font-bold text-slate-900 bg-pink-500 rounded-full hover:bg-pink-400 transition-colors"
+          className="px-8 py-3.5 text-sm font-extrabold text-white tracking-widest font-mono rounded-xl hover:scale-105 transition-all shadow-lg cursor-pointer"
+          style={{
+            background: "linear-gradient(135deg, #ec4899, #8b5cf6)",
+            boxShadow: "0 8px 24px -4px rgba(236, 72, 153, 0.5)",
+          }}
         >
           {t.search_start || "BẮT ĐẦU"}
         </button>
@@ -273,28 +286,44 @@ export function VisualSearchGame({
 
   if (status === "done") {
     return (
-      <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center">
-        <h2 className="text-2xl font-bold text-foreground">
+      <div
+        className="rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center space-y-6 text-center shadow-xl"
+        style={{
+          background:
+            "linear-gradient(145deg, rgba(13, 20, 48, 0.8), rgba(8, 14, 32, 0.7))",
+          border: "1px solid rgba(236, 72, 153, 0.25)",
+          backdropFilter: "blur(20px)",
+        }}
+      >
+        <h2 className="text-xl sm:text-2xl font-bold font-mono tracking-wider text-pink-400">
           {t.search_complete || "HOÀN THÀNH"}
         </h2>
-        <div className="grid grid-cols-2 gap-8 my-6">
-          <div className="text-center">
-            <div className="text-4xl font-black text-pink-400">{score}</div>
-            <div className="text-sm font-bold tracking-widest text-slate-500 mt-2">
+        <div className="grid grid-cols-2 gap-8 my-4">
+          <div className="text-center p-4 rounded-xl bg-slate-900/60 border border-white/5">
+            <div className="text-4xl font-extrabold text-pink-400 font-mono">
+              {score}
+            </div>
+            <div className="text-xs font-bold tracking-widest text-slate-400 mt-2 font-mono">
               {t.search_score || "ĐIỂM"}
             </div>
           </div>
-          <div className="text-center">
-            <div className="text-4xl font-black text-red-400">{mistakes}</div>
-            <div className="text-sm font-bold tracking-widest text-slate-500 mt-2">
+          <div className="text-center p-4 rounded-xl bg-slate-900/60 border border-white/5">
+            <div className="text-4xl font-extrabold text-red-400 font-mono">
+              {mistakes}
+            </div>
+            <div className="text-xs font-bold tracking-widest text-slate-400 mt-2 font-mono">
               {t.search_mistakes || "SAI"}
             </div>
           </div>
         </div>
         <button
+          type="button"
           onClick={startGame}
           disabled={saving}
-          className="px-8 py-3 font-bold text-slate-900 bg-pink-500 rounded-full hover:bg-pink-400 transition-colors disabled:opacity-50"
+          className="px-8 py-3 text-sm font-bold text-white font-mono rounded-xl hover:scale-105 transition-all disabled:opacity-50 cursor-pointer"
+          style={{
+            background: "linear-gradient(135deg, #ec4899, #8b5cf6)",
+          }}
         >
           {saving
             ? t.search_saving || "Đang lưu kết quả..."
@@ -305,20 +334,30 @@ export function VisualSearchGame({
   }
 
   return (
-    <div className="flex flex-col items-center w-full max-w-md mx-auto p-4 select-none">
-      <div className="flex justify-between items-center w-full mb-6 px-4">
-        <div className="text-xl font-bold text-pink-400">
+    <div
+      className="flex flex-col items-center w-full max-w-lg mx-auto p-5 sm:p-6 rounded-2xl select-none shadow-xl"
+      style={{
+        background:
+          "linear-gradient(145deg, rgba(13, 20, 48, 0.8), rgba(8, 14, 32, 0.7))",
+        border: "1px solid rgba(236, 72, 153, 0.25)",
+        backdropFilter: "blur(20px)",
+      }}
+    >
+      <div className="flex justify-between items-center w-full mb-5 px-2">
+        <div className="text-lg sm:text-xl font-bold font-mono text-pink-400">
           00:{timeLeft.toString().padStart(2, "0")}
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-xs font-bold text-slate-500 tracking-wider mb-1">
+          <span className="text-[10px] font-bold text-slate-400 font-mono tracking-wider mb-1">
             {t.search_target || "MỤC TIÊU"}
           </span>
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border-2 border-pink-500/50">
-            {TargetIcon && <TargetIcon className="w-6 h-6 text-foreground" />}
+          <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center border-2 border-pink-500/60 shadow-lg shadow-pink-500/20">
+            {TargetIcon && <TargetIcon className="w-6 h-6 text-pink-300" />}
           </div>
         </div>
-        <div className="text-xl font-bold text-foreground">{score}</div>
+        <div className="text-lg sm:text-xl font-bold font-mono text-foreground">
+          {score} pts
+        </div>
       </div>
 
       <div className="grid grid-cols-5 gap-2 sm:gap-3 w-full">
@@ -327,9 +366,10 @@ export function VisualSearchGame({
           return (
             <button
               key={i}
+              type="button"
               aria-label={`Select icon ${iconIdx}`}
               {...press((type: InputType) => handleCellClick(iconIdx, type))}
-              className="aspect-square bg-slate-800/80 rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors border border-slate-700/50 game-surface active:scale-95"
+              className="aspect-square bg-slate-900/80 rounded-xl flex items-center justify-center hover:bg-slate-800 transition-all border border-white/5 hover:border-pink-500/40 game-surface active:scale-95 shadow-sm"
             >
               <IconComp
                 className="w-6 h-6 sm:w-8 sm:h-8 text-slate-300 pointer-events-none"

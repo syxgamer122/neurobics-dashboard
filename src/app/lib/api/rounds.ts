@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
 /**
- * Round lifecycle: ticket types, start-round and submit-round.
+ * Round lifecycle: ticket types, activate-round and submit-round.
  */
 import {
   sanitizeProfile,
@@ -50,7 +50,8 @@ export const startRound = (
   game: RoundGame,
   config?: Record<string, any>,
 ): Promise<RoundTicket> =>
-  serverPost<RoundTicket>("start-round", { game, config });
+  // Server route is POST /server/activate-round (supabase/functions/server/routes/rounds.ts).
+  serverPost<RoundTicket>("activate-round", { game, config });
 
 /** One finish request: server scores telemetry and atomically saves everything. */
 export async function submitRound(

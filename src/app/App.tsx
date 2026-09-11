@@ -131,6 +131,7 @@ function AppInner() {
       <ErrorBoundary area="admin-panel">
         <Suspense fallback={<FullScreenFallback />}>
           <AdminPanel
+            profile={profile}
             onExit={() => setAdminPanelOpen(false)}
             onProfileChange={setProfile}
             onAccountDeleted={() => {

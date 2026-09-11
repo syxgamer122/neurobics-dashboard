@@ -110,7 +110,11 @@ export function useRoundSubmission({
         roundTicketsRef.current[game] = ticket;
         return ticket;
       } catch (err) {
-        if (!isNetworkErrorLike(err)) {
+        // 429 = tam luot bat dau van bi gioi han (20 van/phut). Dung ticket
+        // offline de nguoi choi van choi duoc; ket qua se dong bo sau qua
+        // hang doi thay vi van bi bo roi voi loi "ticket missing".
+        const rateLimited = err instanceof ServerError && err.status === 429;
+        if (!isNetworkErrorLike(err) && !rateLimited) {
           throw err;
         }
         const now = Date.now();

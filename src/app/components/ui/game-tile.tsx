@@ -30,14 +30,14 @@ export function GameTile({
       className="group relative text-left rounded-2xl p-5 sm:p-6 flex flex-col justify-between transition-all duration-300 overflow-hidden cursor-pointer"
       style={{
         background: hover
-          ? "linear-gradient(145deg, rgba(var(--neuro-panel-rgb), 0.88), rgba(var(--neuro-panel-rgb), 0.72))"
-          : "linear-gradient(145deg, rgba(var(--neuro-panel-rgb), 0.75), rgba(var(--neuro-panel-rgb), 0.55))",
-        border: `1px solid ${hover ? accent : "rgba(255,255,255,0.08)"}`,
-        backdropFilter: "blur(var(--glass-blur, 18px))",
-        WebkitBackdropFilter: "blur(var(--glass-blur, 18px))",
+          ? "linear-gradient(145deg, rgba(var(--neuro-panel-rgb), 0.95), rgba(var(--neuro-panel-rgb), 0.82))"
+          : "linear-gradient(145deg, rgba(var(--neuro-panel-rgb), 0.88), rgba(var(--neuro-panel-rgb), 0.7))",
+        border: `1px solid ${hover ? accent : "rgba(var(--neuro-muted-rgb, 100, 116, 139), 0.18)"}`,
+        backdropFilter: "blur(var(--glass-blur, 20px))",
+        WebkitBackdropFilter: "blur(var(--glass-blur, 20px))",
         boxShadow: hover
           ? `0 16px 36px -8px ${accent}33, 0 0 20px -2px ${accent}22`
-          : "0 8px 24px -6px rgba(0,0,0,0.25)",
+          : "0 4px 16px -4px rgba(0,0,0,0.06), 0 2px 6px -2px rgba(0,0,0,0.04)",
         transform: hover ? "translateY(-4px)" : "translateY(0)",
       }}
     >
@@ -77,17 +77,17 @@ export function GameTile({
         </div>
 
         {/* Title & Description */}
-        <h3 className="text-base sm:text-lg font-bold text-foreground mt-4 tracking-tight group-hover:text-white transition-colors">
+        <h3 className="text-base sm:text-lg font-bold text-foreground mt-4 tracking-tight group-hover:text-primary transition-colors">
           {title}
         </h3>
-        <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
           {desc}
         </p>
       </div>
 
       {/* Bottom Action Footer */}
       <div
-        className="mt-5 pt-3.5 border-t border-slate-700/30 flex items-center justify-between text-xs font-bold tracking-wider transition-all duration-200"
+        className="mt-5 pt-3.5 border-t border-slate-200/80 dark:border-white/10 flex items-center justify-between text-xs font-bold tracking-wider transition-all duration-200"
         style={{ color: accent }}
       >
         <span className="flex items-center gap-1.5 font-mono">

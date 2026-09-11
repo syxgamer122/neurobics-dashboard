@@ -40,8 +40,13 @@ export function SchulteGrid({
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${size}, 1fr)`,
-          gap: size >= 6 ? 4 : 5,
-          maxWidth: size <= 3 ? 280 : size === 4 ? 340 : 420,
+          gap: size >= 6 ? 5 : 6,
+          maxWidth:
+            size <= 3
+              ? "min(90vw, 360px)"
+              : size === 4
+                ? "min(94vw, 440px)"
+                : "min(96vw, 520px)",
         }}
       >
         {/* Center fixation crosshair */}
@@ -98,12 +103,18 @@ export function SchulteGrid({
               key={idx}
               {...press((type: InputType) => onCellClick(cell, idx, type))}
               disabled={status === "done" || isDone}
-              className="rounded-xl font-bold flex items-center justify-center select-none transition-all duration-[120ms] game-surface active:scale-95"
+              className="rounded-xl font-bold flex items-center justify-center select-none transition-all duration-[120ms] game-surface active:scale-95 shadow-sm"
               style={{
                 position: "relative",
                 aspectRatio: "1",
                 fontSize:
-                  size === 6 ? 12 : size === 3 ? 22 : size === 4 ? 18 : 15,
+                  size === 6
+                    ? "clamp(12px, 3vw, 16px)"
+                    : size === 3
+                      ? "clamp(22px, 5.5vw, 32px)"
+                      : size === 4
+                        ? "clamp(18px, 4.5vw, 26px)"
+                        : "clamp(15px, 3.8vw, 22px)",
                 background: isFlash
                   ? flashCell!.ok
                     ? "rgba(var(--neuro-green-rgb),0.32)"

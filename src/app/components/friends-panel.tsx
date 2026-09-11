@@ -143,15 +143,22 @@ export function FriendsPanel() {
       setResults(null);
       return;
     }
+    // Response cua tu khoa cu co the ve sau tu khoa moi — bo qua neu da stale.
+    let stale = false;
     const timer = window.setTimeout(() => {
       searchPlayers(q)
-        .then(setResults)
+        .then((r) => {
+          if (!stale) setResults(r);
+        })
         .catch((err) => {
           logError("Search players failed:", err);
-          setResults([]);
+          if (!stale) setResults([]);
         });
     }, 350);
-    return () => window.clearTimeout(timer);
+    return () => {
+      stale = true;
+      window.clearTimeout(timer);
+    };
   }, [query]);
 
   const act = async (fn: () => Promise<unknown>, msg: string) => {

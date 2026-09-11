@@ -1,1 +1,4 @@
 scripts/
+android/
+dist/
+.smoke-mock-server.mjs

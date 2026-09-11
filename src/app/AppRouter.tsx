@@ -171,25 +171,17 @@ export function AppRouter({
             )}
 
             {/* Welcome & Quick Workout Hero Banner */}
-            <div
-              className="relative rounded-3xl p-6 sm:p-8 overflow-hidden shadow-2xl transition-all"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(139, 92, 246, 0.18) 50%, rgba(13, 20, 48, 0.7) 100%)",
-                border: "1px solid rgba(6, 182, 212, 0.25)",
-                backdropFilter: "blur(20px)",
-              }}
-            >
+            <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden shadow-lg shadow-slate-200/60 dark:shadow-2xl transition-all border border-cyan-200/90 dark:border-cyan-500/25 bg-gradient-to-br from-white/95 via-cyan-50/70 to-purple-50/80 dark:from-cyan-950/30 dark:via-purple-950/30 dark:to-slate-900/80 backdrop-blur-xl">
               {/* Background ambient orbs */}
               <div
-                className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none"
+                className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none opacity-60 dark:opacity-100"
                 style={{
                   background:
                     "radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%)",
                 }}
               />
               <div
-                className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full pointer-events-none"
+                className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full pointer-events-none opacity-60 dark:opacity-100"
                 style={{
                   background:
                     "radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%)",
@@ -198,14 +190,14 @@ export function AppRouter({
 
               <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div className="space-y-2 max-w-2xl">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold font-mono uppercase text-cyan-300 bg-cyan-500/15 border border-cyan-500/30">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold font-mono uppercase text-cyan-700 dark:text-cyan-300 bg-cyan-100/80 dark:bg-cyan-500/15 border border-cyan-300 dark:border-cyan-500/30">
+                    <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />
                     DAILY BRAIN WORKOUT
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                     Xin chào, {profile.username}! 👋
                   </h1>
-                  <p className="text-sm text-slate-300 leading-relaxed">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     Khởi động và nâng cao 5 nhóm năng lực nhận thức não bộ: Trí
                     nhớ, Tập trung, Logic, Không gian và Phản xạ tốc độ.
                   </p>

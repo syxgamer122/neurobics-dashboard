@@ -524,63 +524,72 @@ export function FlappyGame({
       />
 
       {/* Score */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1e1b4b]/90 border border-purple-500/40 px-4 py-1.5 rounded-full flex items-center gap-2 pointer-events-none">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1e1b4b]/90 border border-purple-500/50 px-5 py-2 rounded-full flex items-center gap-3 pointer-events-none shadow-lg shadow-purple-500/20">
         <span className="text-xl">🌟</span>
         <span
           ref={scoreSpanRef}
-          className="text-amber-500 font-mono text-xl font-bold tracking-widest"
+          className="text-amber-400 font-mono text-2xl font-black tracking-widest"
         >
           {score}
+        </span>
+        <span className="text-purple-300/60 font-mono text-xs border-l border-purple-500/30 pl-2">
+          TOP {bestScore}
         </span>
       </div>
 
       {/* Overlays */}
       {gameState === "idle" && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto"
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-[2px]"
           onClick={handleFlap}
         >
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
+          <div className="text-4xl mb-2 animate-bounce">🐦</div>
+          <h2 className="text-3xl font-black text-white mb-2 tracking-widest font-mono drop-shadow-md">
             FLAPPY BIRD
           </h2>
-          <p className="text-amber-400 font-mono tracking-widest animate-pulse">
-            TAP / SPACE TO START
+          <p className="text-amber-400 font-mono text-sm tracking-widest animate-pulse">
+            BẤM PHÍM CÁCH / CHẠM ĐỂ BAY
           </p>
         </div>
       )}
 
       {gameState === "paused" && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/50 backdrop-blur-sm"
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm"
           onClick={() => {
             gameStateRef.current = "playing";
             setGameState("playing");
           }}
         >
-          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest drop-shadow-md">
-            PAUSED
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-widest font-mono">
+            TẠM DỪNG
           </h2>
           <p className="text-amber-400 font-mono tracking-widest animate-pulse">
-            TAP TO RESUME
+            CHẠM ĐỂ TIẾP TỤC
           </p>
         </div>
       )}
 
       {gameState === "dead" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/60 animate-[fadeIn_0.2s]">
-          <h2 className="text-3xl font-bold text-rose-500 mb-2">GAME OVER</h2>
-          <p className="text-white/80 font-mono mb-4 text-lg">SCORE: {score}</p>
-          <p className="text-white/60 font-mono mb-8 text-sm">
-            BEST: {bestScore}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/70 backdrop-blur-md animate-[fadeIn_0.2s]">
+          <h2 className="text-3xl font-black text-rose-500 mb-2 tracking-wider font-mono">
+            GAME OVER
+          </h2>
+          <p className="text-white/90 font-mono mb-2 text-xl font-bold">
+            ĐIỂM: {score}
+          </p>
+          <p className="text-amber-400 font-mono mb-8 text-sm">
+            KỶ LỤC: {bestScore}
           </p>
           <button
+            type="button"
             onClick={() => {
               setGameState("idle");
               setScore(0);
             }}
-            className="px-6 py-3 bg-purple-500/20 border border-purple-500 text-purple-400 rounded-xl font-mono tracking-widest hover:bg-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
+            className="px-8 py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-extrabold rounded-xl font-mono tracking-widest hover:scale-105 shadow-[0_0_24px_rgba(168,85,247,0.6)] transition-all cursor-pointer"
           >
-            {"PLAY AGAIN"}
+            CHƠI LẠI
           </button>
         </div>
       )}

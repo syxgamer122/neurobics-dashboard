@@ -76,9 +76,21 @@ export async function withLock<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   if (typeof navigator !== "undefined" && navigator?.locks?.request) {
+    // navigator.locks.request rejects with the callback's own error when the
+    // callback fails — that must NOT be mistaken for a lock-acquisition
+    // failure, or fn would run twice (double sync / double queue push).
+    let callbackFailed = false;
     try {
-      return await navigator.locks.request(name, fn);
+      return await navigator.locks.request(name, async () => {
+        try {
+          return await fn();
+        } catch (err) {
+          callbackFailed = true;
+          throw err;
+        }
+      });
     } catch (err) {
+      if (callbackFailed) throw err;
       logError(
         `WebLock [${name}] acquisition failed, executing fallback:`,
         err,
