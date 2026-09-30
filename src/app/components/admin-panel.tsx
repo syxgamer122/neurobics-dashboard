@@ -1,9 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-// @ts-nocheck
 import { useCallback, useEffect, useState } from "react";
 import { AXIS_COLUMNS, type AxisKey } from "../lib/api";
 import { levelFromXp } from "../lib/xp";
@@ -12,10 +7,8 @@ import {
   adminDeleteUser,
   adminResetScores,
   adminListProfiles,
-  type AdminGrant,
 } from "../lib/api/admin";
 import { type Profile } from "../lib/api/internal";
-import { useAppState } from "../hooks/use-app-state";
 import {
   AccessDenied,
   ActivityLog,
@@ -23,35 +16,39 @@ import {
   AdminOverview,
   AdminShell,
   ApiIntegrationPanel,
+  EMPTY_GRANT,
   FeatureFlagsPanel,
   parseGrantField,
   ProfilesGrid,
+  type GrantAxes,
   type GrantMode,
 } from "./admin";
 
-const EMPTY_GRANT: AdminGrant["axes"] = {};
+/** Cung gioi han voi `/server/admin-list-profiles` (LIMIT 100). */
+const ADMIN_PROFILE_LIMIT = 100;
 
 export function AdminPanel({
+  profile,
   onExit,
   onProfileChange,
   onAccountDeleted,
 }: {
+  profile: Profile;
   onExit: () => void;
   onProfileChange: (p: Profile) => void;
   onAccountDeleted: () => void;
 }) {
-  const { profile } = useAppState();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile.role === "admin";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Profile[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [latency, setLatency] = useState(0);
-  const [busy, setBusy] = useState<string | false>(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const [grantAxes, setGrantAxes] = useState<AdminGrant["axes"]>(EMPTY_GRANT);
+  const [grantAxes, setGrantAxes] = useState<GrantAxes>(EMPTY_GRANT);
   const [grantXp, setGrantXp] = useState<string>("");
 
   const [log, setLog] = useState<string[]>([]);
@@ -66,7 +63,7 @@ export function AdminPanel({
     setError(null);
     const startedAt = performance.now();
     try {
-      const data = await (adminListProfiles as any)();
+      const data = await adminListProfiles();
       setLatency(Math.max(1, Math.round(performance.now() - startedAt)));
       setRows(data);
       pushLog(
@@ -95,7 +92,7 @@ export function AdminPanel({
       const message = caught instanceof Error ? caught.message : String(caught);
       pushLog(`ERR :: ${key} — ${message}`);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -115,7 +112,7 @@ export function AdminPanel({
       return;
     }
 
-    const isSelf = target.id === profile?.id;
+    const isSelf = target.id === profile.id;
     void runAction(`grant:${target.id}`, async () => {
       const updated = await adminApplyGrant(target.id, {
         axes,
@@ -148,7 +145,7 @@ export function AdminPanel({
     if (!selectedUser) return;
 
     const target = selectedUser;
-    const isSelf = target.id === profile?.id;
+    const isSelf = target.id === profile.id;
     void runAction(`reset:${target.id}`, async () => {
       const updated = await adminResetScores(target.id);
       pushLog(
@@ -164,7 +161,7 @@ export function AdminPanel({
     if (!selectedUser) return;
 
     const target = selectedUser;
-    const isSelf = target.id === profile?.id;
+    const isSelf = target.id === profile.id;
     void runAction(`delete:${target.id}`, async () => {
       await adminDeleteUser(target.id);
       pushLog(`DELETE FROM profiles WHERE username='${target.username}' — OK`);
@@ -190,7 +187,10 @@ export function AdminPanel({
           error={error}
           latency={latency}
           usersCount={rows.length}
-          Partial={Partial}
+          partial={{
+            partial: rows.length >= ADMIN_PROFILE_LIMIT,
+            scanned: rows.length,
+          }}
           selectedUser={selectedUser}
           onClearSelected={() => {
             setSelectedUser(null);
@@ -200,7 +200,7 @@ export function AdminPanel({
 
         <AdminControls
           selectedUser={selectedUser}
-          currentUserId={profile?.id}
+          currentUserId={profile.id}
           busy={busy}
           confirmDelete={confirmDelete}
           grantAxes={grantAxes}

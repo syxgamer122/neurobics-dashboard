@@ -1,13 +1,7 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-// @ts-nocheck
 import { TELEMETRY_SCHEMA_VERSION } from "./telemetry-version";
 import { type RoundGame } from "./api";
 import { logError } from "./logger";
-import { currentUserId } from "./api/internal";
 
 export interface OfflineRoundPayload {
   clientRoundId: string;
@@ -68,25 +62,60 @@ export async function getOfflineQueue(
 }
 
 /**
+ * In-process mutex queues. Used when the Web Locks API is unavailable
+ * (older browsers, insecure contexts, workers, tests) or when acquiring a
+ * Web Lock fails, so concurrent callers are still serialized per lock name.
+ */
+const localLockQueues = new Map<string, Promise<unknown>>();
+
+async function withLocalLock<T>(
+  name: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const previous = localLockQueues.get(name) ?? Promise.resolve();
+  // Chain onto the previous holder whether it resolved or rejected.
+  const run = previous.then(fn, fn);
+  const settled = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  localLockQueues.set(name, settled);
+  try {
+    return await run;
+  } finally {
+    if (localLockQueues.get(name) === settled) {
+      localLockQueues.delete(name);
+    }
+  }
+}
+
+/**
  * Safely execute an asynchronous operation with Web Locks API if available,
- * falling back to immediate direct execution if navigator.locks is unavailable.
+ * falling back to an in-process mutex if navigator.locks is unavailable.
+ * Errors thrown by `fn` are propagated to the caller — never retried.
  */
 export async function withLock<T>(
   name: string,
   fn: () => Promise<T>,
 ): Promise<T> {
   if (typeof navigator !== "undefined" && navigator?.locks?.request) {
+    let acquired = false;
     try {
-      return await navigator.locks.request(name, fn);
+      return await navigator.locks.request(name, async () => {
+        acquired = true;
+        return await fn();
+      });
     } catch (err) {
+      // Only fall back when the lock itself could not be acquired. If the
+      // critical section ran and threw, re-running it would duplicate writes.
+      if (acquired) throw err;
       logError(
-        `WebLock [${name}] acquisition failed, executing fallback:`,
+        `WebLock [${name}] acquisition failed, using in-process fallback:`,
         err,
       );
-      return await fn();
     }
   }
-  return await fn();
+  return withLocalLock(name, fn);
 }
 
 export async function pushOfflineRound(
