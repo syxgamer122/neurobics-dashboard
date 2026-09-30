@@ -1,7 +1,7 @@
 import type { Hono } from "npm:hono@4.12.27";
 import { adminClient } from "../config.ts";
 import { authenticatedUser, consumeRateLimit, clientIp } from "../security.ts";
-import { logServerEvent } from "../../_shared/observability.ts";
+import { logServerEvent, requestIdFor } from "../../_shared/observability.ts";
 
 export function registerAccountRoutes(app: Hono): void {
   // ─── Delete own account (auth user + profile + avatars) ─────────────────────
@@ -89,10 +89,15 @@ export function registerAccountRoutes(app: Hono): void {
         message: `Data export initiated by user: ${userId}`,
       });
 
+      // Cot dung theo schema admin_audit: actor_id (NOT NULL), action, context.
+      // Truoc day ghi target_user_id/details -> insert luon that bai va khong
+      // de lai dau vet xuat du lieu.
       await adminClient.from("admin_audit").insert({
+        actor_id: userId,
+        target_id: userId,
         action: "export_data",
-        target_user_id: userId,
-        details: { ip: clientIp(c) },
+        context: { ip: clientIp(c) },
+        request_id: requestIdFor(c.req.raw) || null,
       });
 
       // Gather profile

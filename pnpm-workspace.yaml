@@ -3,6 +3,13 @@ packages:
 
 overrides:
   vite: 6.4.3
+  # Cac ban va CVE gian tiep (qua eslint/workbox-build/ajv): ghim len ban da va
+  # de `pnpm run security:audit` (cong chan trong CI) xanh tro lai.
+  "brace-expansion@<1.1.21": 1.1.21
+  "brace-expansion@>=2.0.0 <2.1.7": 2.1.7
+  "brace-expansion@>=4.0.0 <5.0.12": 5.0.12
+  "fast-uri@<3.1.8": 3.1.8
+  "js-yaml@<4.3.2": 4.3.2
 
 onlyBuiltDependencies:
   - esbuild
